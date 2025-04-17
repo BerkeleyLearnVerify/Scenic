@@ -66,7 +66,7 @@ class VerificationTechnique(ABC):
         pass
 
     @abstractmethod
-    def verify(self):
+    def verify(self, generateBatchApprox):
         pass
 
 

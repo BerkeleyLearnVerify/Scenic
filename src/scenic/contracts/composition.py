@@ -2,6 +2,7 @@ import ast
 from copy import copy, deepcopy
 from functools import cached_property, reduce
 import itertools
+import math
 from math import prod
 
 import pacti
@@ -10,6 +11,7 @@ from pacti.contracts import PropositionalIoContract
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
 import scenic.contracts.specifications as specs
+from scenic.contracts.testing import Testing, SimulationTestingContractResult, SimulationTestData, TestResult
 from scenic.core.distributions import Options, Range
 from scenic.syntax.compiler import NameFinder, NameSwapTransformer
 
@@ -297,8 +299,8 @@ class Composition(VerificationTechnique):
     def guarantees(self):
         return self._guarantees
 
-    def verify(self):
-        sub_results = [stmt.verify() for stmt in self.sub_stmts]
+    def verify(self, generateBatchApprox):
+        sub_results = [stmt.verify(generateBatchApprox) for stmt in self.sub_stmts]
         return CompositionContractResult(
             self.assumptions, self.guarantees, self.component, sub_results
         )
@@ -353,118 +355,24 @@ class Conjunction(VerificationTechnique):
         for stmt in self.sub_stmts:
             assert stmt.component is self.component
 
-        # TODO: Handle more than two statements
-        assert len(self.sub_stmts) == 2
+        def conjoin_list(l):
+            return specs.And(subs=deepcopy(l)) if len(l) > 1 else l[0]
 
-        assert (
-            sub_stmts[0].guarantees == sub_stmts[1].guarantees
-        ), "Merged guarantees are not equivalent"
+        a_conjunctions = tuple(conjoin_list(stmt.assumptions) for stmt in self.sub_stmts)
+        g_conjunctions = tuple(conjoin_list(stmt.guarantees) for stmt in self.sub_stmts)
 
-        assumptions_1 = copy(sub_stmts[0].assumptions)
-        assumptions_2 = copy(sub_stmts[1].assumptions)
+        self._assumptions = (specs.Or(subs=a_conjunctions),)
+        sub_implications = tuple(specs.Implies(sub1=ac,sub2=gc) for ac, gc in zip(a_conjunctions, g_conjunctions))
+        self._guarantees = (specs.And(subs=sub_implications),)
 
-        def standardize_spec(spec):
-            if isinstance(spec, specs.Not):
-                return (True, spec.sub)
+        self.static_assumptions = {stmt: all(Conjunction.checkStatic(a) for a in stmt.assumptions) for stmt in self.sub_stmts}
 
-            return (False, spec)
-
-        split_specs = None
-
-        for a1, a2 in itertools.product(assumptions_1, assumptions_2):
-            sa1 = standardize_spec(a1)
-            sa2 = standardize_spec(a2)
-
-            if (sa1[0] != sa2[0]) and (sa1[1] == sa2[1]):
-                # Found a split
-                split_specs = (a1, a2)
-                break
-
-        assert (
-            split_specs is not None
-        ), "Couldn't find a pair of assumptions that split the space"
-
-        # Determine probability of each side of the split
-        prob1, _ = self.getSpecProb(split_specs[0])
-        prob2, _ = self.getSpecProb(split_specs[1])
-        assert (prob1 is not None) or (prob2 is not None)
-        assert prob1 + prob2 == 1.0
-
-        self.result_weights = (prob1, prob2)
-        self.guarantees = deepcopy(sub_stmts[0].guarantees)
-
-        assumptions_1.remove(split_specs[0])
-        assumptions_2.remove(split_specs[1])
-
-        assert assumptions_1 == assumptions_2
-
-        self.assumptions = deepcopy(assumptions_1)
-
-    # TODO: Better handling for this. Right now we have a pretty brittle way of asserting
-    # probs are computed properly.
-    def getSpecProb(self, spec):
-        def extractConstant(spec):
-            if isinstance(spec, specs.ConstantSpecNode):
-                return spec.value
-
-        def extractDist(spec):
-            if (
-                isinstance(spec, specs.Atomic)
-                and isinstance(spec.ast, ast.Subscript)
-                and isinstance(spec.ast.value, ast.Name)
-                and spec.ast.value.id == "params"
-            ):
-                assert isinstance(spec.ast.slice.value, str)
-                param_name = spec.ast.slice.value
-
-                return param_name, self.environment.params[param_name]
-
-        if isinstance(spec, specs.Not):
-            sub_call = self.getSpecProb(spec.sub)
-            return 1 - sub_call[0], sub_call[1]
-        elif isinstance(spec, specs.And):
-            sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
-            deps = list(itertools.chain(*[sub[1] for sub in sub_calls]))
-            assert len(deps) == len(set(deps))
-            return prod(sub[0] for sub in sub_calls), set(deps)
-        elif isinstance(spec, specs.Or):
-            sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
-            deps = set(itertools.chain(*[sub[1] for sub in sub_calls]))
-            assert set(sub_calls[0][1]) == deps
-            return 1 - prod((1 - sub[0]) for sub in sub_calls), deps
-        elif isinstance(spec, specs.Equal) or isinstance(spec, specs.GE):
-            if (extractConstant(spec.sub1) is not None) and (
-                extractDist(spec.sub2) is not None
-            ):
-                val = extractConstant(spec.sub1)
-                dist = extractDist(spec.sub2)
-            elif (extractConstant(spec.sub2) is not None) and (
-                extractDist(spec.sub1) is not None
-            ):
-                val = extractConstant(spec.sub2)
-                dist = extractDist(spec.sub1)
-            else:
-                assert False
-
-            deps, dist = dist
-
-            if isinstance(dist, Options):
-                assert isinstance(spec, specs.Equal)
-                for opt, weight in dist.optWeights.items():
-                    if opt == val:
-                        return weight, (deps,)
-                assert False
-            elif isinstance(dist, Range):
-                assert isinstance(spec, specs.GE)
-                if dist.high <= val:
-                    return 0, (deps,)
-                else:
-                    prob = (dist.high - val) / (dist.high - dist.low)
-                    return prob, (deps,)
-
-        breakpoint()
-
-        assert False
+        # TODO: Remove limitation of 2 sub-contracts
+        if len(sub_stmts) == 2 and sum(self.static_assumptions.values()) >= 1:
+            print("TODO: Check for dynamic requirements")
+            self.conjunction_speedup = True
+        else:
+            self.conjunction_speedup = False
 
     @cached_property
     def assumptions(self):
@@ -474,38 +382,180 @@ class Conjunction(VerificationTechnique):
     def guarantees(self):
         return self._guarantees
 
-    def verify(self):
-        sub_results = [stmt.verify() for stmt in self.sub_stmts]
-        return MergeContractResult(
-            self.assumptions,
-            self.guarantees,
-            self.component,
-            sub_results,
-            self.result_weights,
-        )
+    def verify(self, generateBatchApprox):
+        if self.conjunction_speedup:
+            safe_results = 0
+            unsafe_results = 0
+
+            safe_contracts = [stmt for stmt, static in self.static_assumptions.items()
+                if static and not isinstance(stmt, Testing)]
+            assert len(safe_contracts) == 1
+            safe_contract = safe_contracts[0]
+            unsafe_contracts = [stmt for stmt in self.sub_stmts if stmt not in safe_contracts]
+            assert len(unsafe_contracts) == 1
+            unsafe_contract = unsafe_contracts[0]
+            assert safe_contract != unsafe_contract
+
+            # Add intercept to generateBatchApprox hook
+            def _generateBatchApprox(scenario, **kwargs):
+                nonlocal safe_results
+                nonlocal unsafe_results
+
+                results = generateBatchApprox(scenario, **kwargs)
+                results_safety = [all(Conjunction._evaluateSpecification(a, scene)
+                    for a in safe_contract.assumptions)
+                    for scene in results]
+
+                safe_results += sum(results_safety)
+                passthrough_results = [result for result, safe in zip(results, results_safety) if not safe]
+                unsafe_results += len(passthrough_results)
+
+                return passthrough_results
+
+            sub_results = [stmt.verify(_generateBatchApprox) for stmt in self.sub_stmts]
+            sub_results_dict = dict(zip(self.sub_stmts, sub_results))
+
+            rejection_prob = sub_results_dict[unsafe_contract].r_count/len(sub_results_dict[unsafe_contract].testData)
+
+            heuristic_result = SimulationTestingContractResult(self.assumptions, self.guarantees,
+                self.component, sub_results_dict[unsafe_contract]._confidence, None)
+            heuristic_result.addTests(sub_results_dict[unsafe_contract].testData)
+            heuristic_result.addTests([SimulationTestData(TestResult.V, [], None, None, 0)
+                for _ in range(math.floor((1-rejection_prob)*safe_results))])
+            heuristic_result.addTests([SimulationTestData(TestResult.R, [], None, None, 0)
+                for _ in range(math.ceil((rejection_prob)*safe_results))])
+
+            return ConjunctionContractResult(
+                self.assumptions,
+                self.guarantees,
+                self.component,
+                sub_results,
+                heuristic_result=heuristic_result,
+            )
+        else:
+            sub_results = [stmt.verify(generateBatchApprox) for stmt in self.sub_stmts]
+            return ConjunctionContractResult(
+                self.assumptions,
+                self.guarantees,
+                self.component,
+                sub_results,
+                heuristic_result=None,
+            )
+
+    @staticmethod
+    def checkStatic(spec):
+        if isinstance(spec, (specs.Always, specs.Eventually, specs.Next, specs.Until)):
+            return False
+
+        if isinstance(spec, specs.Atomic):
+            if (isinstance(spec.ast, ast.Subscript)
+                and isinstance(spec.ast.value, ast.Name)
+                and spec.ast.value.id == 'params'):
+                return True
+            return False
+        elif isinstance(spec, specs.ConstantSpecNode):
+            return True
+        elif isinstance(spec, specs.UnarySpecNode):
+            return Conjunction.checkStatic(spec.sub)
+        elif isinstance(spec, specs.BinarySpecNode):
+            return Conjunction.checkStatic(spec.sub1) and Conjunction.checkStatic(spec.sub2)
+        elif isinstance(spec, specs.NarySpecNode):
+            return all(Conjunction.checkStatic(sub) for sub in spec.subs)
+
+        assert False
+
+    @staticmethod
+    def _evaluateSpecification(spec, scene):
+        if isinstance(spec, specs.Atomic):
+            assert (isinstance(spec.ast, ast.Subscript)
+                and isinstance(spec.ast.value, ast.Name)
+                and spec.ast.value.id == 'params')
+            return scene.params[spec.ast.slice.value]
+
+        elif isinstance(spec, specs.ConstantSpecNode):
+            return spec.value
+
+        elif isinstance(spec, specs.UnarySpecNode):
+            sub = Conjunction._evaluateSpecification(spec.sub, scene)
+            if isinstance(spec, specs.Not):
+                return not sub
+            elif isinstance(spec, specs.Neg):
+                return -1*sub
+            elif isinstance(spec, specs.Ceil):
+                return math.ceil(sub)
+            else:
+                assert False
+
+        elif isinstance(spec, specs.BinarySpecNode):
+            sub1 = Conjunction._evaluateSpecification(spec.sub1, scene)
+            sub2 = Conjunction._evaluateSpecification(spec.sub2, scene)
+
+            if isinstance(spec, specs.Implies):
+                return (not sub1) or sub2
+            elif isinstance(spec, specs.Equal):
+                return sub1 == sub2
+            elif isinstance(spec, specs.GT):
+                return sub1 > sub2
+            elif isinstance(spec, specs.GE):
+                return sub1 >= sub2
+            elif isinstance(spec, specs.LT):
+                return sub1 < sub2
+            elif isinstance(spec, specs.LE):
+                return sub1 <= sub2
+            elif isinstance(spec, specs.Add):
+                return sub1 + sub2
+            elif isinstance(spec, specs.Sub):
+                return sub1 - sub2
+            elif isinstance(spec, specs.Mul):
+                return sub1 * sub2
+            elif isinstance(spec, specs.Div):
+                return sub1 / sub2
+            elif isinstance(spec, specs.Min):
+                return min(sub1, sub2)
+            elif isinstance(spec, specs.Max):
+                return max(sub1, sub2)
+            else:
+                assert False
+
+        elif isinstance(spec, specs.NarySpecNode):
+            subs = [Conjunction._evaluateSpecification(sub, scene) for sub in spec.subs]
+
+            if isinstance(spec, specs.And):
+                return reduce(lambda x, y: x and y, subs)
+            elif isinstance(spec, specs.Or):
+                return reduce(lambda x, y: x or y, subs)
+        else:
+            assert False
 
 
-class MergeContractResult(ContractResult):
-    def __init__(self, assumptions, guarantees, component, sub_results, result_weights):
+class ConjunctionContractResult(ContractResult):
+    def __init__(self, assumptions, guarantees, component, sub_results, heuristic_result):
         super().__init__(assumptions, guarantees, component)
         self.sub_results = sub_results
-        self.result_weights = result_weights
+        self.heuristic_result = heuristic_result
 
     @cached_property
     def correctness(self):
-        overall_correctness = 0
-        for i, stmt in enumerate(self.sub_results):
-            weight = self.result_weights[i]
-            overall_correctness += stmt.correctness * weight
-        return overall_correctness
+        if self.heuristic_result is not None:
+            return self.heuristic_result.correctness
+        else:
+            # Fall back to union bound if we can't apply heuristic
+            correctness_gaps = [1 - result.correctness for result in self.sub_results]
+            overall_correctness_gap = sum(correctness_gaps)
+            return max(0, 1 - overall_correctness_gap)
 
     @cached_property
     def confidence(self):
-        return prod(result.confidence for result in self.sub_results)
+        if self.heuristic_result is not None:
+            return self.heuristic_result.correctness
+        else:
+            return prod(result.confidence for result in self.sub_results)
 
     @property
     def evidenceSummary(self):
-        summary = "Result Merge:\n"
+        summary = "Conjunction Result:\n"
+        if self.heuristic_result is not None:
+            summary += self.heuristic_result.evidenceSummary.replace("\n", "\n    ") + "\n"
         for i, result in enumerate(self.sub_results):
-            summary += f"Sub Result (Weight={self.result_weights[i]:.2f}, Sub-correctness={result.correctness*self.result_weights[i]:.2f}):\n{result}\n"
+            summary += f"Sub Result (Correctness={result.correctness:.2f}):\n{result}\n"
         return summary

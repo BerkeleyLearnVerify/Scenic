@@ -37,7 +37,7 @@ class LeanContractProof(VerificationTechnique):
     def guarantees(self):
         return self.contract.guarantees
 
-    def verify(self):
+    def verify(self, _generateBatchApprox):
         print("SKIPPING LEAN CHECK")
         return LeanContractResult(
             self.contract.assumptions,

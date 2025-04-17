@@ -25,7 +25,7 @@ class Assumption(VerificationTechnique):
     def guarantees(self):
         return self.contract.guarantees
 
-    def verify(self):
+    def verify(self, generateBatchApprox):
         return AssumptionContractResult(
             self.contract.assumptions,
             self.contract.guarantees,

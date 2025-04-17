@@ -10,6 +10,8 @@ scenic.contracts.veneer._syntaxTrees = _syntaxTrees
 from scenic.contracts.veneer import *
 """
 
+def _generateBatchApprox(scenario, **kwargs):
+    return scenario.generateBatch(**kwargs)[0]
 
 def compileContractsFile(filename):
     # Execute contract code
@@ -35,5 +37,5 @@ def compileContractsFile(filename):
     exec(compiled_code, namespace)
 
     for v_stmt in scenic.contracts.veneer._verifyStatements:
-        print(v_stmt.verify())
+        print(v_stmt.verify(_generateBatchApprox))
         print()

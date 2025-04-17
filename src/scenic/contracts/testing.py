@@ -47,7 +47,7 @@ class Testing(VerificationTechnique):
     def guarantees(self):
         return self.contract.guarantees
 
-    def verify(self):
+    def verify(self, generateBatchApprox):
         result = self._newContractResult()
 
         activeTermConditions = (
@@ -57,7 +57,7 @@ class Testing(VerificationTechnique):
         while not any(
             cond.check(result) for cond in self.termConditions + self.reqConditions
         ):
-            result.addTests(self.runTests(self.batchSize))
+            result.addTests(self.runTests(self.batchSize, generateBatchApprox))
 
             if self.verbose:
                 print(result)
@@ -138,9 +138,9 @@ class SimulationTesting(Testing):
             time.time() - start_time,
         )
 
-    def runTests(self, num_tests):
+    def runTests(self, num_tests, generateBatchApprox):
         # Generate scenes
-        scenes, _ = self.scenario.generateBatch(numScenes=num_tests)
+        scenes = generateBatchApprox(scenario=self.scenario, numScenes=num_tests)
 
         # Evaluate each scene
         tests = []
@@ -561,11 +561,10 @@ class TestingContractResult(ContractResult):
 class SimulationTestingContractResult(TestingContractResult):
     def __init__(self, assumptions, guarantees, component, confidence, source):
         # Validate and store source
-        if not isinstance(source, Scenario):
+        if not (isinstance(source, Scenario) or source is None):
             raise ValueError("SimulationEvidence must have a Scenario object as a source")
 
-        self.source_filename = source.filename
-        self.source_hash = source.astHash
+        self.source = source
 
         super().__init__(assumptions, guarantees, component, confidence)
 
@@ -579,8 +578,8 @@ class SimulationTestingContractResult(TestingContractResult):
 
     @property
     def _source_info(self):
-        return f"Scenario '{Path(self.source_filename).name}' (Hash={int.from_bytes(self.source_hash)})"
-
+        return (f"Scenario '{Path(self.source.filename).name if self.source else 'NONE'}"
+                f" (Hash={int.from_bytes(self.source.astHash) if self.source else 'NONE'})")
 
 @enum.unique
 class TestResult(enum.Enum):

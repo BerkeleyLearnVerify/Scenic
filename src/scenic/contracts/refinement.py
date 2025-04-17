@@ -12,7 +12,6 @@ from scenic.syntax.compiler import NameSwapTransformer
 
 class Refinement(VerificationTechnique):
     def __init__(self, stmt, contract, method):
-        assert isinstance(stmt, Composition)
         self.stmt = stmt
         self.component = self.stmt.component
         self.contract = contract
@@ -26,14 +25,14 @@ class Refinement(VerificationTechnique):
     def guarantees(self):
         return self.contract.guarantees
 
-    def verify(self):
+    def verify(self, generateBatchApprox):
         self.method.check(self.stmt, self.contract)
 
         return RefinementContractResult(
             self.assumptions,
             self.guarantees,
             self.stmt.component,
-            self.stmt.verify(),
+            self.stmt.verify(generateBatchApprox),
             self.method,
         )
 
@@ -67,7 +66,7 @@ class LeanRefinementProof:
         self.repl_loc = repl_loc
 
     def check(self, stmt, contract):
-        print("SKIPPING LEAN CHECK")
+        print("SKIPPING LEAN CHECK (TODO ADD SUPPORT FOR NON-COMPOSITION)})")
         return
         ## Extract and standardize internal assumptions and guarantees
         i_assumptions = []
