@@ -347,8 +347,8 @@ class Road:
         self.end_bounds_left = {}
         self.end_bounds_right = {}
         # Modified:
-        self.elevation_poly = [] # List of polygons for elevation data
-        self.lateral_poly = [] # List to polygons for lateral data
+        self.elevation_poly = []  # List of polygons for elevation data
+        self.lateral_poly = []  # List to polygons for lateral data
 
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
@@ -383,7 +383,9 @@ class Road:
         z = a + b * ds + c * ds**2 + d * ds**3
         return z
 
-    def get_ref_points(self, num): # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
+    def get_ref_points(
+        self, num
+    ):  # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
         constructed into Polygon separately then unioned afterwards to avoid
@@ -395,12 +397,17 @@ class Road:
             piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, "Failed to get piece points"
             if ref_points:
-                last_s = ref_points[-1][-1][3] # Needs to be changed to [-1][-1][3] since we add z-coordinate before the s variable
-                piece_points = [(p[0], p[1], self.get_elevation_at(p[3] + last_s), p[3] + last_s) for p in piece_points] # Need to add a way for z-coordinate to be added inbetween p[1] and p[2]
+                last_s = ref_points[-1][-1][
+                    3
+                ]  # Needs to be changed to [-1][-1][3] since we add z-coordinate before the s variable
+                piece_points = [
+                    (p[0], p[1], self.get_elevation_at(p[3] + last_s), p[3] + last_s)
+                    for p in piece_points
+                ]  # Need to add a way for z-coordinate to be added inbetween p[1] and p[2]
             ref_points.append(piece_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
-    
+
     def heading_at(self, point):
         # Convert point to shapely Point.
         point = Point(point.x, point.y)
@@ -472,7 +479,9 @@ class Road:
             while ref_points and not end_of_sec:
                 if not ref_points[0]:
                     ref_points.pop(0)
-                if not ref_points or (cur_p and cur_p[3] >= s_stop): # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
+                if not ref_points or (
+                    cur_p and cur_p[3] >= s_stop
+                ):  # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
                     # Case 1: We have processed the entire reference line.
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
@@ -523,7 +532,11 @@ class Road:
                         offsets[id_] += self.get_ref_line_offset(s)
                     if len(ref_points[0]) > 1:
                         next_p = ref_points[0][1]
-                        tan_vec = (next_p[0] - cur_p[0], next_p[1] - cur_p[1], next_p[2] - cur_p[2]) # Need to change tan_vec to 3D
+                        tan_vec = (
+                            next_p[0] - cur_p[0],
+                            next_p[1] - cur_p[1],
+                            next_p[2] - cur_p[2],
+                        )  # Need to change tan_vec to 3D
                     else:
                         if len(cur_sec_points) >= 2:
                             prev_p = cur_sec_points[-2]
@@ -535,11 +548,17 @@ class Road:
                             else:
                                 prev_p = sec_points[-2][-2]
 
-                        tan_vec = (cur_p[0] - prev_p[0], cur_p[1] - prev_p[1], cur_p[2] - prev_p[2]) # Need to change tan_vec to 3D
+                        tan_vec = (
+                            cur_p[0] - prev_p[0],
+                            cur_p[1] - prev_p[1],
+                            cur_p[2] - prev_p[2],
+                        )  # Need to change tan_vec to 3D
                     tan_norm = math.hypot(tan_vec[0], tan_vec[1])
                     assert tan_norm > 1e-10
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
-                    if cur_p[3] < s_stop: # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
+                    if (
+                        cur_p[3] < s_stop
+                    ):  # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
                         # if at end of section, keep current point to be included in
                         # the next section as well; otherwise remove it
                         ref_points[0].pop(0)
