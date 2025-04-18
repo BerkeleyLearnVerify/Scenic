@@ -3,6 +3,7 @@
 try:
     from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
+    from metadrive.policy.expert_policy import ExpertPolicy
 except ImportError as e:
     raise ModuleNotFoundError(
         "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
@@ -119,6 +120,7 @@ class MetaDriveSimulation(DrivingSimulation):
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
+                    agent_policy=ExpertPolicy,
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,

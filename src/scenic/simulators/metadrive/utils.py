@@ -6,9 +6,10 @@
 import math
 import xml.etree.ElementTree as ET
 
-from metadrive.envs import BaseEnv
+from metadrive.envs import BaseEnv, MetaDriveEnv
 from metadrive.manager.sumo_map_manager import SumoMapManager
 from metadrive.obs.observation_base import DummyObservation
+from metadrive.policy.expert_policy import ExpertPolicy
 
 from scenic.core.vectors import Vector
 
