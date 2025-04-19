@@ -302,9 +302,6 @@ contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         behind_car = lead_dist <= perception_distance
 
     assumptions:
-        # Assume we are in a lane
-        # always self._lane is not None
-
         # Can reliably detect cars with width greater than or equal to 1.8 meters
         params["lead_car_width"] >= 1.8
 
@@ -334,9 +331,6 @@ contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         behind_car = lead_dist <= perception_distance
 
     assumptions:
-        # Assume we are in a lane
-        # always self._lane is not None
-
         # Can reliably detect cars in sunny or cloudy weather (no occluding atmospheric particles)
         params["weather"] == 0 or params["weather"] == 1
 
@@ -366,9 +360,6 @@ contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
         behind_car = lead_dist <= perception_distance
 
     assumptions:
-        # Assume we are in a lane
-        # always self._lane is not None
-
         (params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8
 
     guarantees:
@@ -394,9 +385,6 @@ contract AccurateDistanceUnknownConds(perception_distance, abs_dist_err=0.5):
         behind_car = lead_dist <= perception_distance
 
     assumptions:
-        # Assume we are in a lane
-        # always self._lane is not None
-
         not ((params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8)
 
     guarantees:
@@ -552,7 +540,7 @@ laser_accurate_distance = assume car.ps.lds satisfies LaserManufacturerDistanceA
     abs_dist_err=ABS_DIST_ERR) 
 
 mean_dist_filter_sem = prove car.ps.mdf satisfies MeanDistanceFilterSemantics() \
-    using LeanContractProof(localPath("ScenicLean/"), "MeanDistanceFilterSemantics", localPath("repl"))
+    using LeanContractProof(localPath("LeanLTL/Examples/Scenic/"), "MeanDistanceFilterSemantics", localPath("repl"))
 
 accurate_distance_known_raw = compose over car.ps:
     use radar_accurate_distance
@@ -561,7 +549,7 @@ accurate_distance_known_raw = compose over car.ps:
 
 accurate_distance_known = refine accurate_distance_known_raw as AccurateDistanceKnownConds(
     PERCEPTION_DISTANCE,
-    abs_dist_err=ABS_DIST_ERR) using LeanRefinementProof(localPath("ScenicLean/"), "AccurateDistanceKnownRefinement", localPath("repl"))
+    abs_dist_err=ABS_DIST_ERR) using LeanRefinementProof(localPath("LeanLTL/Examples/Scenic"), "AccurateDistanceKnownRefinement", localPath("repl"))
 
 accurate_distance_unknown = test car.ps satisfies AccurateDistanceUnknownConds(
     PERCEPTION_DISTANCE,
@@ -575,7 +563,7 @@ accurate_distance_raw = conjunction over car.ps:
 
 accurate_distance = refine accurate_distance_raw as AccurateDistance(
     PERCEPTION_DISTANCE,
-    abs_dist_err=ABS_DIST_ERR) using LeanRefinementProof(localPath("ScenicLean"), "AccurateDistance", localPath("repl"))
+    abs_dist_err=ABS_DIST_ERR) using LeanRefinementProof(localPath("LeanLTL/Examples/Scenic"), "AccurateDistance", localPath("repl"))
 
 # accurate_distance = test car.ps satisfies AccurateDistance(
 #     PERCEPTION_DISTANCE,

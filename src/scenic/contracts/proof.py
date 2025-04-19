@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
-from scenic.contracts.specifications import Atomic
+from scenic.contracts.specifications import Atomic, Implies
 from scenic.syntax.compiler import NameConstantTransformer
 
 
@@ -38,14 +38,6 @@ class LeanContractProof(VerificationTechnique):
         return self.contract.guarantees
 
     def verify(self, _generateBatchApprox):
-        print("SKIPPING LEAN CHECK")
-        return LeanContractResult(
-            self.contract.assumptions,
-            self.contract.guarantees,
-            self.component,
-            "FOO",
-        )
-
         import scenic.contracts.veneer as contracts_veneer
 
         self.comp_body = contracts_veneer._syntaxTrees[self.component.def_id_offset]
@@ -235,7 +227,7 @@ class LeanContractProof(VerificationTechnique):
             # Guarantees
             f.write("-- Guarantees \n")
             for i, g in enumerate(tl_guarantees):
-                f.write(f"abbrev G{i} := FLTL[{g.toLean()}]\n")
+                f.write(f"abbrev G{i} := FLTL[{Implies(a, g).toLean()}]\n")
             f.write("\n")
             f.write(
                 f"abbrev guarantees : TraceSet TraceState := FLTL[{' ∧ '.join(f'G{i}' for i in range(len(tl_guarantees))) if tl_guarantees else TOP}]\n"
@@ -285,7 +277,7 @@ class LeanContractProof(VerificationTechnique):
         assert result_dict["env"] == 0
 
         for msg in result_dict.get("messages", []):
-            assert msg["severity"] != "error", "Error in Lean proof"
+            assert msg["severity"] != "error", f"Error in Lean proof: {file}"
 
         assert "sorries" not in result_dict, "Sorry used in Lean proof"
 
