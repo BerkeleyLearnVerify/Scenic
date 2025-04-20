@@ -103,3 +103,8 @@ class DriveEnv(BaseEnv):
         self.engine.register_manager(
             "map_manager", SumoMapManager(self.config["sumo_map"])
         )
+
+class PolicyDriveEnv(MetaDriveEnv):
+    def done_function(self, agent):
+        """Dummy done function."""
+        return False, {}

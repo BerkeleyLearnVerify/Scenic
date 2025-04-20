@@ -4,6 +4,7 @@ try:
     from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
     from metadrive.policy.expert_policy import ExpertPolicy
+    from metadrive.envs import MetaDriveEnv
 except ImportError as e:
     raise ModuleNotFoundError(
         "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
@@ -99,6 +100,12 @@ class MetaDriveSimulation(DrivingSimulation):
         self.scenic_offset = scenic_offset
         self.sumo_map_boundary = sumo_map_boundary
         self.film_size = film_size
+
+        self.observation = None
+        self.reward = None
+        self.tm = None
+        self.tc = None
+        self.info = None
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def createObjectInSimulator(self, obj):
@@ -120,7 +127,8 @@ class MetaDriveSimulation(DrivingSimulation):
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
-                    agent_policy=ExpertPolicy,
+                    # map='C',
+                    # agent_policy=ExpertPolicy,
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
@@ -132,8 +140,22 @@ class MetaDriveSimulation(DrivingSimulation):
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
+                    # traffic_density=0.2
                 )
             )
+
+            # self.client = utils.PolicyDriveEnv(
+                # dict(map="C",
+                      # agent_policy=ExpertPolicy,
+                      # log_level=50,
+                      # traffic_density=0.2)
+            # )
+            # self.client = utils.MetaDriveEnv(
+                # dict(map="C",
+                      # agent_policy=ExpertPolicy,
+                      # log_level=50,
+                      # traffic_density=0.2)
+            # )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
 
@@ -197,7 +219,12 @@ class MetaDriveSimulation(DrivingSimulation):
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
         action = ego_obj._collect_action()
-        self.client.step(action)  # Apply action in the simulator
+        self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
+        print(f"OBS: {self.observation}")
+        print(f"REWARD: {self.reward}")
+        print(f"TM: {self.tm}")
+        print(f"TC: {self.tc}")
+        print(f"INFO: {self.info}")
         ego_obj._reset_control()
 
         # Render the scene in 2D if needed
@@ -249,6 +276,18 @@ class MetaDriveSimulation(DrivingSimulation):
             roll=roll,
             elevation=elevation,
         )
+
+        # values = dict(
+            # position=Vector(0, 0, 0),
+            # velocity=Vector(0, 0, 0),
+            # speed=0,
+            # angularSpeed=0,
+            # angularVelocity=Vector(0, 0, 0),
+            # yaw=0,
+            # pitch=0,
+            # roll=0,
+            # elevation=0,
+        # )
 
         return values
 
