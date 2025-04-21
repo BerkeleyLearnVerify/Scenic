@@ -22,14 +22,21 @@ model scenic.domains.driving.model
 # ego = new Car on (0, 0, 0)
 # print(f"INTERSECTIONS: {type(network.intersections)}")
 # intersection_index = DiscreteRange(0, len(network.intersections) - 1)
-intersection_index = random.randint(0, len(network.intersections))
+intersection_index = random.randint(0, len(network.intersections) - 1)
 junction = network.intersections[intersection_index]
 pos = new Point on junction
 pos2 = new Point on junction
 # ego = new Car on pos 
-# ego = new Car on (337, -208, 0), with behavior DriveAvoidingCollisions(avoidance_threshold=5) 
-ego = new Car on pos, with behavior DriveAvoidingCollisions(avoidance_threshold=5) 
-car2 = new Car on pos2, with behavior DriveAvoidingCollisions(avoidance_threshold=5)
+
+ego = new Car on (340, -208, 0), facing 0 deg, with behavior FollowLaneBehavior()
+car2 = new Car on (325, -200, 0), facing -90 deg, with behavior FollowLaneBehavior() 
+# ego = new Car on (337, -208, 0), facing 0 deg, with behavior DriveAvoidingCollisions(avoidance_threshold=5) 
+# car2 = new Car on (325, -195, 0), facing -90 deg, with behavior DriveAvoidingCollisions(avoidance_threshold=5)
+
+# ego = new Car on pos, with behavior DriveAvoidingCollisions(avoidance_threshold=5) 
+# car2 = new Car on pos2, with behavior DriveAvoidingCollisions(avoidance_threshold=5)
+
+
 # ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 # car2 = new Car ahead of ego by 1
 # rightCurb = ego.laneGroup.curb
