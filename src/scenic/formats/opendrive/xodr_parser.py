@@ -383,6 +383,27 @@ class Road:
         z = a + b * ds + c * ds**2 + d * ds**3
         return z
 
+    def get_super_elevation_at(self, s):
+        """Evaluate the super-elevation at a given s using the lateral profile."""
+        if not self.lateral_poly:
+            return 0
+        # Find the appropriate super-elevation segment for the given s
+        for i in range(len(self.lateral_poly) - 1):
+            s_start, _, _, _, _ = self.lateral_poly[i]
+            s_end, _, _, _, _ = self.lateral_poly[i + 1]
+            if s_start <= s < s_end:
+                break
+        else:
+            # Use the last segment if s is beyond the last defined range
+            i = len(self.lateral_poly) - 1
+
+        # Get the polynomial coefficients for the segment
+        s_start, a, b, c, d = self.lateral_poly[i]
+        ds = s - s_start
+        # Evaluate the cubic polynomial: super_elevation = a + b*ds + c*ds^2 + d*ds^3
+        super_elevation = a + b * ds + c * ds**2 + d * ds**3
+        return super_elevation
+
     def get_ref_points(
         self, num
     ):  # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
@@ -1563,7 +1584,6 @@ class RoadMap:
             road.ref_line = refLine
 
             # Parse elevation:
-            # Modified: (Might need to move this to somewhere else)
             elevation_profile = r.find("elevationProfile")
             for elevation in elevation_profile.iter("elevation"):
                 s = float(elevation.get("s"))
@@ -1571,17 +1591,9 @@ class RoadMap:
                 b = float(elevation.get("b"))
                 c = float(elevation.get("c"))
                 d = float(elevation.get("d"))
-                # Sort by order of s
-                if self.elevation_poly == []:
-                    self.elevation_poly.append((s, a, b, c, d))
-                else:
-                    for i in range(len(self.elevation_poly)):
-                        if s < self.elevation_poly[i][0]:
-                            self.elevation_poly.insert(i, (s, a, b, c, d))
-                            break
-                    else:
-                        self.elevation_poly.append((s, a, b, c, d))
+                self.elevation_poly.append((s, a, b, c, d))
 
+            # Parse super elevation:
             lateral_profile = r.find("lateralProfile")
             for super_elevation in lateral_profile.iter("superElevation"):
                 s = float(super_elevation.get("s"))
