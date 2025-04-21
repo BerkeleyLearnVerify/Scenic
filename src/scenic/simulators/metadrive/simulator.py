@@ -268,6 +268,7 @@ class MetaDriveSimulation(DrivingSimulation):
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
         )
+        # print(f"Car Pos {position}")
         velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         md_ang_vel = metaDriveActor.body.getAngularVelocity()
