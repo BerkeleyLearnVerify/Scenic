@@ -43,6 +43,29 @@ class MetaDriveSimulator(DrivingSimulator):
         self.sumo_map = sumo_map
         self.real_time = real_time
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+
+        # decision_repeat = math.ceil(self.timestep / 0.02)
+        # physics_world_step_size = self.timestep / decision_repeat
+
+        # self.client = utils.DriveEnv(
+            # dict(
+                # # map='C',
+                # # agent_policy=ExpertPolicy,
+                # decision_repeat=decision_repeat,
+                # physics_world_step_size=physics_world_step_size,
+                # use_render=self.render3D,
+                # vehicle_config={
+                    # "spawn_position_heading": [
+                        # converted_position,
+                        # converted_heading,
+                    # ],
+                # },
+                # use_mesh_terrain=self.render3D,
+                # log_level=logging.CRITICAL,
+                # # traffic_density=0.2
+            # )
+        # )
+
         if self.render and not self.render3D:
             self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
         else:
@@ -125,7 +148,25 @@ class MetaDriveSimulation(DrivingSimulation):
             physics_world_step_size = self.timestep / decision_repeat
 
             # Initialize the simulator with ego vehicle
-            self.client = utils.DriveEnv(
+            # self.client = utils.DriveEnv(
+                # dict(
+                    # # map='C',
+                    # # agent_policy=ExpertPolicy,
+                    # decision_repeat=decision_repeat,
+                    # physics_world_step_size=physics_world_step_size,
+                    # use_render=self.render3D,
+                    # vehicle_config={
+                        # "spawn_position_heading": [
+                            # converted_position,
+                            # converted_heading,
+                        # ],
+                    # },
+                    # use_mesh_terrain=self.render3D,
+                    # log_level=logging.CRITICAL,
+                    # # traffic_density=0.2
+                # )
+            # )
+            self.client = utils.IntersectionEnv(
                 dict(
                     # map='C',
                     # agent_policy=ExpertPolicy,
@@ -220,11 +261,11 @@ class MetaDriveSimulation(DrivingSimulation):
         ego_obj = self.scene.objects[0]
         action = ego_obj._collect_action()
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
-        print(f"OBS: {self.observation}")
-        print(f"REWARD: {self.reward}")
-        print(f"TM: {self.tm}")
-        print(f"TC: {self.tc}")
-        print(f"INFO: {self.info}")
+        # print(f"OBS: {self.observation}")
+        # print(f"REWARD: {self.reward}")
+        # print(f"TM: {self.tm}")
+        # print(f"TC: {self.tc}")
+        # print(f"INFO: {self.info}")
         ego_obj._reset_control()
 
         # Render the scene in 2D if needed
@@ -250,7 +291,10 @@ class MetaDriveSimulation(DrivingSimulation):
         super().destroy()
 
     def getProperties(self, obj, properties):
+        # print(f"AGENTS KEYS {self.client.agents.items()}")
         metaDriveActor = obj.metaDriveActor
+        # print(f"AGENTS ID {type(metaDriveActor)}")
+        # print(f"AGENT ID : {metaDriveActor.ID}")
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
         )
