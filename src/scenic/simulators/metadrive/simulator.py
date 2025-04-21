@@ -148,25 +148,7 @@ class MetaDriveSimulation(DrivingSimulation):
             physics_world_step_size = self.timestep / decision_repeat
 
             # Initialize the simulator with ego vehicle
-            # self.client = utils.DriveEnv(
-                # dict(
-                    # # map='C',
-                    # # agent_policy=ExpertPolicy,
-                    # decision_repeat=decision_repeat,
-                    # physics_world_step_size=physics_world_step_size,
-                    # use_render=self.render3D,
-                    # vehicle_config={
-                        # "spawn_position_heading": [
-                            # converted_position,
-                            # converted_heading,
-                        # ],
-                    # },
-                    # use_mesh_terrain=self.render3D,
-                    # log_level=logging.CRITICAL,
-                    # # traffic_density=0.2
-                # )
-            # )
-            self.client = utils.IntersectionEnv(
+            self.client = utils.DriveEnv(
                 dict(
                     # map='C',
                     # agent_policy=ExpertPolicy,
@@ -185,18 +167,6 @@ class MetaDriveSimulation(DrivingSimulation):
                 )
             )
 
-            # self.client = utils.PolicyDriveEnv(
-                # dict(map="C",
-                      # agent_policy=ExpertPolicy,
-                      # log_level=50,
-                      # traffic_density=0.2)
-            # )
-            # self.client = utils.MetaDriveEnv(
-                # dict(map="C",
-                      # agent_policy=ExpertPolicy,
-                      # log_level=50,
-                      # traffic_density=0.2)
-            # )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
 
