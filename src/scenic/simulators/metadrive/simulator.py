@@ -128,7 +128,8 @@ class MetaDriveSimulation(DrivingSimulation):
                             converted_heading,
                         ],
                     },
-                    use_mesh_terrain=self.render3D,
+                    use_mesh_terrain=False,
+                    height_scale=0.001,
                     log_level=logging.CRITICAL,
                 )
             )
