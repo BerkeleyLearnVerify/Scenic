@@ -150,4 +150,4 @@ def test_initial_velocity_movement(getMetadriveSimulator):
     initialPos = simulation.result.records["InitialPos"]
     finalPos = simulation.result.records["FinalPos"]
     dx = finalPos[0] - initialPos[0]
-    assert dx < 0, f"Expected car to move west (negative dx), but got dx = {dx}"
+    assert dx < -0.1, f"Expected car to move west (negative dx), but got dx = {dx}"
