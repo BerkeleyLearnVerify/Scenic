@@ -417,15 +417,19 @@ class Road:
         for piece in self.ref_line:
             piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, "Failed to get piece points"
+            elevated_points = []
             if ref_points:
-                last_s = ref_points[-1][-1][
-                    3
-                ]  # Needs to be changed to [-1][-1][3] since we add z-coordinate before the s variable
-                piece_points = [
-                    (p[0], p[1], self.get_elevation_at(p[3] + last_s), p[3] + last_s)
+                last_s = ref_points[-1][-1][3]
+                elevated_points = [
+                    (p[0], p[1], self.get_elevation_at(p[2] + last_s), p[2] + last_s)
                     for p in piece_points
-                ]  # Need to add a way for z-coordinate to be added inbetween p[1] and p[2]
-            ref_points.append(piece_points)
+                ]
+                # Need to change this so that the index of 3 is not out of range
+            else:
+                elevated_points = [
+                    (p[0], p[1], self.get_elevation_at(p[2]), p[2]) for p in piece_points
+                ]
+            ref_points.append(elevated_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
 
@@ -482,7 +486,6 @@ class Road:
         last_lefts = None
         last_rights = None
         cur_p = None
-
         for i in range(len(self.lane_secs)):
             cur_sec = self.lane_secs[i]
             cur_sec_points = []
@@ -557,8 +560,8 @@ class Road:
                             next_p[0] - cur_p[0],
                             next_p[1] - cur_p[1],
                             next_p[2] - cur_p[2],
-                        )  # Need to change tan_vec to 3D
-                    else:
+                        )
+                    else: # Might need to modify this
                         if len(cur_sec_points) >= 2:
                             prev_p = cur_sec_points[-2]
                         else:
@@ -574,9 +577,13 @@ class Road:
                             cur_p[1] - prev_p[1],
                             cur_p[2] - prev_p[2],
                         )  # Need to change tan_vec to 3D
-                    tan_norm = math.hypot(tan_vec[0], tan_vec[1])
+                    tan_norm = math.hypot(tan_vec[0], tan_vec[1], tan_vec[2])
                     assert tan_norm > 1e-10
-                    normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
+                    normal_vec = (
+                        -tan_vec[1] / tan_norm,
+                        tan_vec[0] / tan_norm,
+                        -tan_vec[2] / tan_norm,
+                    )
                     if (
                         cur_p[3] < s_stop
                     ):  # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
@@ -598,13 +605,11 @@ class Road:
                                 cur_p[0] + normal_vec[0] * offsets[id_],
                                 cur_p[1] + normal_vec[1] * offsets[id_],
                                 cur_p[2] + normal_vec[2] * offsets[id_],
-                                # Add cur_p[2] to make it a 3D point
                             ]
                             right_bound = [
                                 cur_p[0] + normal_vec[0] * offsets[prev_id],
                                 cur_p[1] + normal_vec[1] * offsets[prev_id],
                                 cur_p[2] + normal_vec[2] * offsets[prev_id],
-                                # Add cur_p[2] to make it a 3D point
                             ]
                             if id_ < 0:
                                 left_bound, right_bound = right_bound, left_bound
@@ -613,7 +618,6 @@ class Road:
                                 cur_p[0] + normal_vec[0] * halfway,
                                 cur_p[1] + normal_vec[1] * halfway,
                                 cur_p[2] + normal_vec[2] * halfway,
-                                # Add cur_p[2] to make it a 3D point
                             ]
                             left_bounds[id_].append(left_bound)
                             right_bounds[id_].append(right_bound)
@@ -1591,7 +1595,7 @@ class RoadMap:
                 b = float(elevation.get("b"))
                 c = float(elevation.get("c"))
                 d = float(elevation.get("d"))
-                self.elevation_poly.append((s, a, b, c, d))
+                road.elevation_poly.append((s, a, b, c, d))
 
             # Parse super elevation:
             lateral_profile = r.find("lateralProfile")
@@ -1601,7 +1605,7 @@ class RoadMap:
                 b = float(super_elevation.get("b"))
                 c = float(super_elevation.get("c"))
                 d = float(super_elevation.get("d"))
-                self.lateral_poly.append((s, a, b, c, d))
+                road.lateral_poly.append((s, a, b, c, d))
 
             # Parse lanes:
             lanes = r.find("lanes")
