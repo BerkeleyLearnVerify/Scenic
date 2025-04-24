@@ -230,7 +230,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
         action = ego_obj._collect_action()
-        print(f"ACTION = {action}")
+        # print(f"ACTION = {action}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
         # print(f"OBS: {self.observation}")
         # print(f"REWARD: {self.reward}")
