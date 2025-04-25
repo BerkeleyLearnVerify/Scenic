@@ -8,7 +8,11 @@ To run this file using the Carla simulator:
 
 param map = localPath('../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
-param time_step = 1.0/10
+param time_step = 1.0/1
+
+param car_x = VerifaiRange(0, 10)
+param brake_strength = VerifaiRange()
+ego = new Car at (car_x, 0, 0), with break_str break_strength
 
 model scenic.domains.driving.model
 
@@ -35,6 +39,12 @@ monitor StopAfterInteraction():
         wait
     for i in range(50):
         wait
+    if (distance from ego to parkedCar) < 5:
+        terminate
     terminate
 require monitor StopAfterInteraction()
 terminate after 15 seconds   # in case ego never breaks
+
+record (distance from ego to pakredCar) as dist
+record ego.position as ...
+
