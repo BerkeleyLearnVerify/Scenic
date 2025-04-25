@@ -58,9 +58,9 @@ if is2DMode() and not globalParameters.use2DMap:
     raise RuntimeError('in 2D mode, global parameter "use2DMap" must be True')
 
 # Note: The following should be removed when 3D maps are supported
-if not globalParameters.use2DMap:
-    raise RuntimeError('3D maps not supported at this time.'
-        '(to use 2D maps set global parameter "use2DMap" to True)')
+#if not globalParameters.use2DMap:
+#    raise RuntimeError('3D maps not supported at this time.'
+#        '(to use 2D maps set global parameter "use2DMap" to True)')
 
 ## Load map and set up workspace
 

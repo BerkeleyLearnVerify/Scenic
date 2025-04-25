@@ -3371,7 +3371,7 @@ class PolylineRegion(Region):
                     " components. These will be replaced with 0."
                 )
 
-            points = tuple((p[0], p[1], 0) for p in points)
+            points = tuple((p[0], p[1], p[2]) for p in points) # Might need to modify this to set z = non-zero
 
             if len(points) < 2:
                 raise ValueError("tried to create PolylineRegion with < 2 points")

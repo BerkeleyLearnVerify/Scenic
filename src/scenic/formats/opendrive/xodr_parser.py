@@ -368,8 +368,8 @@ class Road:
             return 0
         # Find the appropriate elevation segment for the given s
         for i in range(len(self.elevation_poly) - 1):
-            s_start, _, _, _, _ = self.elevation_poly[i]
-            s_end, _, _, _, _ = self.elevation_poly[i + 1]
+            s_start = self.elevation_poly[i][1]
+            s_end = self.elevation_poly[i + 1][1]
             if s_start <= s < s_end:
                 break
         else:
@@ -377,11 +377,10 @@ class Road:
             i = len(self.elevation_poly) - 1
 
         # Get the polynomial coefficients for the segment
-        s_start, a, b, c, d = self.elevation_poly[i]
+        s_start = self.elevation_poly[i][1]
         ds = s - s_start
         # Evaluate the cubic polynomial: z = a + b*ds + c*ds^2 + d*ds^3
-        z = a + b * ds + c * ds**2 + d * ds**3
-        return z
+        return self.elevation_poly[i][0].eval_at(ds)
 
     def get_super_elevation_at(self, s):
         """Evaluate the super-elevation at a given s using the lateral profile."""
@@ -561,7 +560,7 @@ class Road:
                             next_p[1] - cur_p[1],
                             next_p[2] - cur_p[2],
                         )
-                    else: # Might need to modify this
+                    else:  # Might need to modify this
                         if len(cur_sec_points) >= 2:
                             prev_p = cur_sec_points[-2]
                         else:
@@ -586,7 +585,7 @@ class Road:
                     )
                     if (
                         cur_p[3] < s_stop
-                    ):  # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
+                    ):
                         # if at end of section, keep current point to be included in
                         # the next section as well; otherwise remove it
                         ref_points[0].pop(0)
@@ -755,7 +754,7 @@ class Road:
         for sec, pts, sec_poly, lane_polys in zip(
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
         ):
-            pts = [pt[:2] for pt in pts]  # drop s coordinate
+            pts = [pt[:3] for pt in pts]  # drop s coordinate (Changed from pt[:2] to pt[:3])
             assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
@@ -795,7 +794,7 @@ class Road:
             section = roadDomain.RoadSection(
                 id=f"road{self.id_}_sec{len(roadSections)}",
                 polygon=sec_poly,
-                centerline=PolylineRegion(cleanChain(pts)),
+                centerline=PolylineRegion(cleanChain(pts)), # was cleanChain(pts)
                 leftEdge=PolylineRegion(cleanChain(sec.left_edge)),
                 rightEdge=PolylineRegion(cleanChain(sec.right_edge)),
                 successor=None,
@@ -1123,7 +1122,7 @@ class Road:
             leftEdge = backwardGroup.rightEdge
         else:
             leftEdge = forwardGroup.leftEdge
-        centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
+        centerline = PolylineRegion(tuple(pt[:3] for pt in self.ref_line_points)) # Changed from pt[:2] to pt[:3]
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1595,7 +1594,7 @@ class RoadMap:
                 b = float(elevation.get("b"))
                 c = float(elevation.get("c"))
                 d = float(elevation.get("d"))
-                road.elevation_poly.append((s, a, b, c, d))
+                road.elevation_poly.append((Poly3(a, b, c, d), s))
 
             # Parse super elevation:
             lateral_profile = r.find("lateralProfile")
@@ -1605,7 +1604,7 @@ class RoadMap:
                 b = float(super_elevation.get("b"))
                 c = float(super_elevation.get("c"))
                 d = float(super_elevation.get("d"))
-                road.lateral_poly.append((s, a, b, c, d))
+                road.lateral_poly.append((Poly3(a, b, c, d), s))
 
             # Parse lanes:
             lanes = r.find("lanes")
