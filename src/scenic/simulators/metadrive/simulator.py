@@ -5,6 +5,7 @@ try:
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
     from metadrive.policy.expert_policy import ExpertPolicy
     from metadrive.envs import MetaDriveEnv
+    from metadrive.component.navigation_module.node_network_navigation import NodeNetworkNavigation
 except ImportError as e:
     raise ModuleNotFoundError(
         "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
@@ -160,6 +161,7 @@ class MetaDriveSimulation(DrivingSimulation):
                             converted_position,
                             converted_heading,
                         ],
+                        "navigation_module" : NodeNetworkNavigation
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
