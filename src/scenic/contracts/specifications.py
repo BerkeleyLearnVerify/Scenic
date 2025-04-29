@@ -220,6 +220,26 @@ class SpecNode(ABC):
         else:
             breakpoint()        
 
+    def toLeanName(self, name_str=None):
+        if name_str is None:
+            name_str = str(self)
+        # TODO: Better name replacement
+        str_map = {
+            "(": "",
+            ")": "",
+            "[": "_",
+            "]": "_",
+            " ": "_",
+            '"': "_",
+            "'": "_",
+            "==": "_EQ_",
+        }
+
+        for m in str_map.items():
+            name_str = name_str.replace(m[0], m[1])
+
+        return name_str
+
     @abstractmethod
     def getAtomics(self):
         pass
@@ -283,24 +303,8 @@ class Atomic(SpecNode):
         else:
             return node1 == node2
 
-    def toLean(self, ctx=bool):
-        # TODO: Better name replacement
-        str_map = {
-            "(": "",
-            ")": "",
-            "[": "_",
-            "]": "_",
-            " ": "_",
-            '"': "_",
-            "'": "_",
-            "==": "_EQ_",
-        }
-
-        self_str = str(self)
-        for m in str_map.items():
-            self_str = self_str.replace(m[0], m[1])
-
-        return self_str
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({'←' if includeGets else ''}{self.toLeanName()})"
 
     def __eq__(self, other):
         return type(self) is type(other) and self.equivalentAST(
@@ -342,8 +346,8 @@ class DefSpecNode(SpecNode):
     def getAtomics(self, ctx=bool):
         return self.defSpecs[self.name].getAtomics(ctx)
 
-    def toLean(self, ctx=bool):
-        return self.name
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({'←' if includeGets else ''}{self.toLeanName(self.name)})"
 
     def __eq__(self, other):
         return (
@@ -381,7 +385,7 @@ class ConstantSpecNode(SpecNode):
         else:
             return super().toPACTIStr(specNodeIdDict)
 
-    def toLean(self, ctx=bool):
+    def toLean(self, ctx=bool, includeGets=True):
         return str(self.value)
 
     def __eq__(self, other):
@@ -476,8 +480,8 @@ class Always(UnarySpecNode):
     def toPACTIStr(self, pactiAtomicsDict):
         return f"G({self.sub.toPACTIStr(pactiAtomicsDict)})"
 
-    def toLean(self, ctx=bool):
-        return f"G ({self.sub.toLean()})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"𝐆 ({self.sub.toLean(includeGets)})"
 
     def __str__(self):
         return f"always ({self.sub})"
@@ -486,21 +490,21 @@ class Always(UnarySpecNode):
 class Eventually(UnarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return f"F ({self.sub.toLean()})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"𝐅 ({self.sub.toLean(includeGets)})"
 
     def __str__(self):
         return f"eventually ({self.sub})"
 
 
 class Next(UnarySpecNode):
-    def toLean(self, ctx=bool):
+    def toLean(self, ctx=bool, includeGets=True):
         if ctx is bool:
-            return f"Xʷ ({self.sub.toLean(ctx)})"
+            return f"𝐗ʷ ({self.sub.toLean(ctx, includeGets)})"
         else:
-            return f"X ({self.sub.toLean(ctx)})"
+            return f"𝐗 ({self.sub.toLean(ctx, includeGets)})"
 
-    def getAtomics(self, ctx=bool):
+    def getAtomics(self, ctx=bool, includeGets=True):
         return self.sub.getAtomics(ctx)
 
     def __str__(self):
@@ -510,8 +514,8 @@ class Next(UnarySpecNode):
 class Not(UnarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return f"¬({self.sub.toLean()})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"¬({self.sub.toLean(includeGets)})"
 
     def toPACTIStr(self, specNodeIdDict):
         return f"~({self.sub.toPACTIStr(specNodeIdDict)})"
@@ -523,8 +527,8 @@ class Not(UnarySpecNode):
 class Neg(UnarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"-({self.sub.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"-({self.sub.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"-({self.sub})"
@@ -533,8 +537,8 @@ class Neg(UnarySpecNode):
 class Ceil(UnarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"⌈{self.sub.toLean(float)}⌉"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"⌈{self.sub.toLean(float, includeGets)}⌉"
 
     def __str__(self):
         return f"ceil({self.sub})"
@@ -543,8 +547,8 @@ class Ceil(UnarySpecNode):
 class Until(BinarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean()}) U ({self.sub2.toLean()})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(includeGets)}) 𝐔 ({self.sub2.toLean(includeGets)})"
 
     def toPACTIStr(self, pactiAtomicsDict):
         return f"{self.toPACTITemp(pactiAtomicsDict)}({', '.join(self.getContractVars())})"
@@ -556,8 +560,8 @@ class Until(BinarySpecNode):
 class Implies(BinarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean()}) → ({self.sub2.toLean()})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(includeGets)}) → ({self.sub2.toLean(includeGets)})"
 
     def toPACTIStr(self, pactiAtomicsDict):
         return f"({self.sub1.toPACTIStr(pactiAtomicsDict)}) => ({self.sub2.toPACTIStr(pactiAtomicsDict)})"
@@ -569,8 +573,8 @@ class Implies(BinarySpecNode):
 class Equal(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) == ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) = ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) == ({self.sub2})"
@@ -579,8 +583,8 @@ class Equal(BinarySpecNode):
 class GT(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) > ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) > ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) > ({self.sub2})"
@@ -589,8 +593,8 @@ class GT(BinarySpecNode):
 class GE(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) ≥ ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) ≥ ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) >= ({self.sub2})"
@@ -599,8 +603,8 @@ class GE(BinarySpecNode):
 class LT(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) < ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) < ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) < ({self.sub2})"
@@ -609,8 +613,8 @@ class LT(BinarySpecNode):
 class LE(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) ≤ ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) ≤ ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) <= ({self.sub2})"
@@ -619,8 +623,8 @@ class LE(BinarySpecNode):
 class Add(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) + ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) + ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) + ({self.sub2})"
@@ -629,8 +633,8 @@ class Add(BinarySpecNode):
 class Sub(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) - ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) - ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) - ({self.sub2})"
@@ -639,8 +643,8 @@ class Sub(BinarySpecNode):
 class Mul(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) * ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) * ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) * ({self.sub2})"
@@ -649,8 +653,8 @@ class Mul(BinarySpecNode):
 class Div(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) / ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) / ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"({self.sub1}) / ({self.sub2})"
@@ -659,8 +663,8 @@ class Div(BinarySpecNode):
 class Min(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) ⊓ ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) ⊓ ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"min(({self.sub1}), ({self.sub2}))"
@@ -669,8 +673,8 @@ class Min(BinarySpecNode):
 class Max(BinarySpecNode):
     ctx = float
 
-    def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean(float)}) ⊔ ({self.sub2.toLean(float)})"
+    def toLean(self, ctx=bool, includeGets=True):
+        return f"({self.sub1.toLean(float, includeGets)}) ⊔ ({self.sub2.toLean(float, includeGets)})"
 
     def __str__(self):
         return f"max(({self.sub1}), ({self.sub2}))"
@@ -679,8 +683,8 @@ class Max(BinarySpecNode):
 class And(NarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return " ∧ ".join(f"({sub.toLean()})" for sub in self.subs)
+    def toLean(self, ctx=bool, includeGets=True):
+        return " ∧ ".join(f"({sub.toLean(includeGets)})" for sub in self.subs)
 
     def toPACTIStr(self, pactiAtomicsDict):
         pacti_str = f"({self.subs[0].toPACTIStr(pactiAtomicsDict)}) & ({self.subs[1].toPACTIStr(pactiAtomicsDict)})"
@@ -696,8 +700,8 @@ class And(NarySpecNode):
 class Or(NarySpecNode):
     ctx = bool
 
-    def toLean(self, ctx=bool):
-        return " ∨ ".join(f"({sub.toLean()})" for sub in self.subs)
+    def toLean(self, ctx=bool, includeGets=True):
+        return " ∨ ".join(f"({sub.toLean(includeGets)})" for sub in self.subs)
         
     def toPACTIStr(self, pactiAtomicsDict):
         pacti_str = f"({self.subs[0].toPACTIStr(pactiAtomicsDict)}) | ({self.subs[1].toPACTIStr(pactiAtomicsDict)})"
@@ -708,3 +712,4 @@ class Or(NarySpecNode):
 
     def __str__(self):
         return " or ".join(f"({str(sub)})" for sub in self.subs)
+

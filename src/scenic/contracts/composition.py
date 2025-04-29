@@ -339,7 +339,7 @@ class CompositionContractResult(ContractResult):
         return "\n".join(str(result) for result in self.sub_results)
 
 
-class Conjunction(VerificationTechnique):
+class WeakMerge(VerificationTechnique):
     def __init__(self, sub_stmts, component, environment):
         ## Initialization ##
         # Store parameters
@@ -356,23 +356,34 @@ class Conjunction(VerificationTechnique):
             assert stmt.component is self.component
 
         def conjoin_list(l):
-            return specs.And(subs=deepcopy(l)) if len(l) > 1 else l[0]
+            return specs.And(subs=deepcopy(l)) if len(l) > 1 else deepcopy(l[0])
 
         a_conjunctions = tuple(conjoin_list(stmt.assumptions) for stmt in self.sub_stmts)
         g_conjunctions = tuple(conjoin_list(stmt.guarantees) for stmt in self.sub_stmts)
 
         self._assumptions = (specs.Or(subs=a_conjunctions),)
-        sub_implications = tuple(specs.Implies(sub1=ac,sub2=gc) for ac, gc in zip(a_conjunctions, g_conjunctions))
-        self._guarantees = (specs.And(subs=sub_implications),)
+        self._guarantees = []
+        banned_assums = None
+        for ac, gc in zip(a_conjunctions, g_conjunctions):
+            if banned_assums is None:
+                target_assumption = ac
+                banned_assums = specs.Not(sub=ac)
+            else:
+                target_assumption = specs.And(subs=[ac, banned_assums])
+                banned_assums = specs.And(subs=[banned_assums, specs.Not(ac)])
 
-        self.static_assumptions = {stmt: all(Conjunction.checkStatic(a) for a in stmt.assumptions) for stmt in self.sub_stmts}
+            implication = specs.Implies(sub1=target_assumption,sub2=gc)
+            self._guarantees.append(implication)
+        self._guarantees = tuple(self._guarantees)
+
+        self.static_assumptions = {stmt: all(WeakMerge.checkStatic(a) for a in stmt.assumptions) for stmt in self.sub_stmts}
 
         # TODO: Remove limitation of 2 sub-contracts
         if len(sub_stmts) == 2 and sum(self.static_assumptions.values()) >= 1:
             print("TODO: Check for dynamic requirements")
-            self.conjunction_speedup = True
+            self.weak_merge_speedup = True
         else:
-            self.conjunction_speedup = False
+            self.weak_merge_speedup = False
 
     @cached_property
     def assumptions(self):
@@ -383,7 +394,7 @@ class Conjunction(VerificationTechnique):
         return self._guarantees
 
     def verify(self, generateBatchApprox):
-        if self.conjunction_speedup:
+        if self.weak_merge_speedup:
             safe_results = 0
             unsafe_results = 0
 
@@ -402,7 +413,7 @@ class Conjunction(VerificationTechnique):
                 nonlocal unsafe_results
 
                 results = generateBatchApprox(scenario, **kwargs)
-                results_safety = [all(Conjunction._evaluateSpecification(a, scene)
+                results_safety = [all(WeakMerge._evaluateSpecification(a, scene)
                     for a in safe_contract.assumptions)
                     for scene in results]
 
@@ -425,7 +436,7 @@ class Conjunction(VerificationTechnique):
             heuristic_result.addTests([SimulationTestData(TestResult.R, [], None, None, 0)
                 for _ in range(math.ceil((rejection_prob)*safe_results))])
 
-            return ConjunctionContractResult(
+            return WeakMergeContractResult(
                 self.assumptions,
                 self.guarantees,
                 self.component,
@@ -434,7 +445,7 @@ class Conjunction(VerificationTechnique):
             )
         else:
             sub_results = [stmt.verify(generateBatchApprox) for stmt in self.sub_stmts]
-            return ConjunctionContractResult(
+            return WeakMergeContractResult(
                 self.assumptions,
                 self.guarantees,
                 self.component,
@@ -456,11 +467,11 @@ class Conjunction(VerificationTechnique):
         elif isinstance(spec, specs.ConstantSpecNode):
             return True
         elif isinstance(spec, specs.UnarySpecNode):
-            return Conjunction.checkStatic(spec.sub)
+            return WeakMerge.checkStatic(spec.sub)
         elif isinstance(spec, specs.BinarySpecNode):
-            return Conjunction.checkStatic(spec.sub1) and Conjunction.checkStatic(spec.sub2)
+            return WeakMerge.checkStatic(spec.sub1) and WeakMerge.checkStatic(spec.sub2)
         elif isinstance(spec, specs.NarySpecNode):
-            return all(Conjunction.checkStatic(sub) for sub in spec.subs)
+            return all(WeakMerge.checkStatic(sub) for sub in spec.subs)
 
         assert False
 
@@ -476,7 +487,7 @@ class Conjunction(VerificationTechnique):
             return spec.value
 
         elif isinstance(spec, specs.UnarySpecNode):
-            sub = Conjunction._evaluateSpecification(spec.sub, scene)
+            sub = WeakMerge._evaluateSpecification(spec.sub, scene)
             if isinstance(spec, specs.Not):
                 return not sub
             elif isinstance(spec, specs.Neg):
@@ -487,8 +498,8 @@ class Conjunction(VerificationTechnique):
                 assert False
 
         elif isinstance(spec, specs.BinarySpecNode):
-            sub1 = Conjunction._evaluateSpecification(spec.sub1, scene)
-            sub2 = Conjunction._evaluateSpecification(spec.sub2, scene)
+            sub1 = WeakMerge._evaluateSpecification(spec.sub1, scene)
+            sub2 = WeakMerge._evaluateSpecification(spec.sub2, scene)
 
             if isinstance(spec, specs.Implies):
                 return (not sub1) or sub2
@@ -518,7 +529,7 @@ class Conjunction(VerificationTechnique):
                 assert False
 
         elif isinstance(spec, specs.NarySpecNode):
-            subs = [Conjunction._evaluateSpecification(sub, scene) for sub in spec.subs]
+            subs = [WeakMerge._evaluateSpecification(sub, scene) for sub in spec.subs]
 
             if isinstance(spec, specs.And):
                 return reduce(lambda x, y: x and y, subs)
@@ -528,7 +539,7 @@ class Conjunction(VerificationTechnique):
             assert False
 
 
-class ConjunctionContractResult(ContractResult):
+class WeakMergeContractResult(ContractResult):
     def __init__(self, assumptions, guarantees, component, sub_results, heuristic_result):
         super().__init__(assumptions, guarantees, component)
         self.sub_results = sub_results
@@ -547,7 +558,7 @@ class ConjunctionContractResult(ContractResult):
     @cached_property
     def confidence(self):
         if self.heuristic_result is not None:
-            return self.heuristic_result.correctness
+            return self.heuristic_result.confidence
         else:
             return prod(result.confidence for result in self.sub_results)
 

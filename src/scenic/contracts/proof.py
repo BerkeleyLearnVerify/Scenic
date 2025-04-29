@@ -16,8 +16,8 @@ class LeanContractProof(VerificationTechnique):
     def __init__(
         self,
         ## Proof Specific ##
+        proof_path,
         proof_loc,
-        proof_dir,
         repl_loc,
         ## Compiler Provided ##
         contract,
@@ -25,9 +25,10 @@ class LeanContractProof(VerificationTechnique):
     ):
         self.contract = contract
         self.component = component
-        self.proof_loc = proof_loc
-        self.proof_dir = proof_dir
-        self.repl_loc = repl_loc
+        self.proof_path = Path(proof_path)
+        self.proof_loc = Path(proof_loc)
+        self.proof_dir = self.proof_loc / self.proof_path
+        self.repl_loc = Path(repl_loc)
 
     @cached_property
     def assumptions(self):
@@ -102,14 +103,16 @@ class LeanContractProof(VerificationTechnique):
                         assert False
 
         ## Setup proof directory
-        Path(self.proof_loc / "Sceniclean" / self.proof_dir).mkdir(
+        Path(self.proof_dir).mkdir(
             parents=True, exist_ok=True
         )
 
         ## Output Lean Data File
-        with open(self.proof_loc / "Sceniclean" / self.proof_dir / "Lib.lean", "w") as f:
+        with open(self.proof_dir / "Lib.lean", "w") as f:
             # Imports
-            f.write("import Sceniclean.Basic\n\n")
+            f.write("import LeanLTL\n\n")
+            f.write("open LeanLTL\nopen scoped LeanLTL.Notation\n\n")
+            f.write(f"namespace {self.proof_dir.parts[-1]}\n\n")
 
             # TraceState structure
             f.write("structure TraceState where\n")
@@ -119,6 +122,7 @@ class LeanContractProof(VerificationTechnique):
             f.write("  -- Numbers\n")
             for i, a in enumerate(real_atomics):
                 f.write(f"  N{i}: ℚ\n")
+            f.write("deriving Inhabited\n")
             f.write("\n")
 
             self.input_signals = {}
@@ -156,6 +160,7 @@ class LeanContractProof(VerificationTechnique):
                 self.output_signals.items(), self.state_signals.items()
             ):
                 f.write(f"  {s}: {'Prop' if s[0]=='P' else 'ℚ'}\n")
+            f.write("deriving Inhabited\n")
             f.write("\n")
 
             # Component function
@@ -176,7 +181,7 @@ class LeanContractProof(VerificationTechnique):
             f.write("-- Prop Signals\n")
             for i, a in enumerate(prop_atomics):
                 f.write(
-                    f"abbrev {a.toLean()} : TraceSet TraceState := TraceSet.of (·.P{i})\n"
+                    f"abbrev {a.toLeanName()} : TraceSet TraceState := TraceSet.of (·.P{i})\n"
                 )
             f.write("\n")
 
@@ -184,14 +189,14 @@ class LeanContractProof(VerificationTechnique):
             f.write("-- Numerical Signals\n")
             for i, a in enumerate(real_atomics):
                 f.write(
-                    f"abbrev {a.toLean()} : TraceFun TraceState ℚ := TraceFun.of (·.N{i})\n"
+                    f"abbrev {a.toLeanName()} : TraceFun TraceState ℚ := TraceFun.of (·.N{i})\n"
                 )
             f.write("\n")
 
             # Defs
             f.write("-- Defs\n")
             for d_name, d_spec in defs.items():
-                f.write(f"abbrev {d_name} := FLTL[{d_spec.toLean()}]\n")
+                f.write(f"abbrev {d_name} := LLTLV[{d_spec.toLean(includeGets=False)}]\n")
             f.write("\n")
 
             TOP = "\u22a4"
@@ -199,10 +204,10 @@ class LeanContractProof(VerificationTechnique):
             # Top Level Assumptions
             f.write("-- Assumptions \n")
             for i, a in enumerate(tl_assumptions):
-                f.write(f"abbrev A{i} := FLTL[{a.toLean()}]\n")
+                f.write(f"abbrev A{i} := LLTL[{a.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev assumptions : TraceSet TraceState := FLTL[{' ∧ '.join(f'A{i}' for i in range(len(tl_assumptions))) if tl_assumptions else TOP}]\n"
+                f"abbrev assumptions : TraceSet TraceState := LLTL[{' ∧ '.join(f'A{i}' for i in range(len(tl_assumptions))) if tl_assumptions else TOP}]\n"
             )
             f.write("\n")
 
@@ -210,67 +215,74 @@ class LeanContractProof(VerificationTechnique):
             f_iter = 0
             f.write("-- Function Properties \n")
             for s_name, s_init_val in self.component.state_inits.items():
-                f.write(f"abbrev F{f_iter} := FLTL[{s_name} == {s_init_val}]\n")
+                f.write(f"abbrev F{f_iter} := LLTL[(←{s_name}) = (←{s_init_val})]\n")
                 f_iter += 1
             for o_name, o_sig in self.output_signals.items():
-                f.write(f"abbrev F{f_iter} := FLTL[G ({o_name} == (CF_{o_sig}))]\n")
+                f.write(f"abbrev F{f_iter} := LLTL[𝐆 ((←{o_name}) = (←CF_{o_sig}))]\n")
                 f_iter += 1
             for o_name, o_sig in self.state_signals.items():
-                f.write(f"abbrev F{f_iter} := FLTL[G ((X {o_name}) == (CF_{o_sig}))]\n")
+                f.write(f"abbrev F{f_iter} := LLTL[𝐆 ((𝐗 (←{o_name}) = (←CF_{o_sig})))]\n")
                 f_iter += 1
             f.write("\n")
             f.write(
-                f"abbrev fprops : TraceSet TraceState := FLTL[{' ∧ '.join(f'F{i}' for i in range(f_iter)) if f_iter > 0 else TOP}]\n"
+                f"abbrev fprops : TraceSet TraceState := LLTL[{' ∧ '.join(f'F{i}' for i in range(f_iter)) if f_iter > 0 else TOP}]\n"
             )
             f.write("\n")
 
             # Guarantees
             f.write("-- Guarantees \n")
             for i, g in enumerate(tl_guarantees):
-                f.write(f"abbrev G{i} := FLTL[{Implies(a, g).toLean()}]\n")
+                f.write(f"abbrev G{i} := LLTL[{g.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev guarantees : TraceSet TraceState := FLTL[{' ∧ '.join(f'G{i}' for i in range(len(tl_guarantees))) if tl_guarantees else TOP}]\n"
+                f"abbrev guarantees : TraceSet TraceState := LLTL[{' ∧ '.join(f'G{i}' for i in range(len(tl_guarantees))) if tl_guarantees else TOP}]\n"
             )
             f.write("\n")
 
         if not os.path.exists(
-            self.proof_loc / "Sceniclean" / self.proof_dir / "ComponentProof.lean"
+            self.proof_dir / "ComponentProof.lean"
         ):
             with open(
-                self.proof_loc / "Sceniclean" / self.proof_dir / "ComponentProof.lean",
+                self.proof_dir / "ComponentProof.lean",
                 "w",
             ) as f:
-                f.write(f"import Sceniclean.{self.proof_dir}.Lib\n")
-                f.write("\n")
+                f.write(f"import {'.'.join(self.proof_path.parts)}.Lib\n\n")
+
+                f.write("open LeanLTL\nopen scoped LeanLTL.Notation\n\n")
+                f.write(f"namespace {self.proof_dir.parts[-1]}\n\n")
+
                 f.write(
-                    "theorem imp_assumptions : FLTL[(assumptions ∧ fprops)] ⇒ FLTL[guarantees] := by\n"
+                    "theorem imp_assumptions : LLTL[fprops] ⇒ LLTL[assumptions → guarantees] := by\n"
                 )
                 f.write("  sorry\n")
 
         # Check validity of proofs
         assert self.checkProof(
-            Path("Sceniclean") / self.proof_dir / "ComponentProof.lean",
-            self.repl_loc,
-            self.proof_loc,
+            self.proof_dir / "ComponentProof.lean"
         )
 
         return LeanContractResult(
             self.contract.assumptions,
             self.contract.guarantees,
             self.component,
-            self.proof_loc / "Sceniclean" / self.proof_dir,
+            self.proof_dir,
         )
 
-    def checkProof(self, file, repl_loc, lib_loc):
+    def checkProof(self, file):
+        subprocess.run(
+            ["lake", "build"],
+            capture_output=True,
+            text=True,
+            cwd=str(self.proof_loc)
+        )
         input_cmd = '{"path": "' + str(file) + '", "allTactics": false}'
-        repl_loc_full = str(repl_loc) + "/.lake/build/bin/repl"
+        repl_loc_full = str(self.repl_loc) + "/.lake/build/bin/repl"
         result = subprocess.run(
             ["lake", "env", repl_loc_full],
             input=input_cmd,
             capture_output=True,
             text=True,
-            cwd=lib_loc,
+            cwd=str(self.proof_loc),
         )
         result_dict = json.loads(result.stdout)
 
@@ -426,9 +438,9 @@ class LeanContractProof(VerificationTechnique):
 
 
 class LeanContractResult(ContractResult):
-    def __init__(self, assumptions, guarantees, component, proof_loc):
+    def __init__(self, assumptions, guarantees, component, proof_dir):
         super().__init__(assumptions, guarantees, component)
-        self.proof_loc = proof_loc
+        self.proof_dir = proof_dir
 
     @property
     def correctness(self):
@@ -440,4 +452,4 @@ class LeanContractResult(ContractResult):
 
     @property
     def evidenceSummary(self):
-        return f"LeanProof: ('{self.proof_loc}')"
+        return f"LeanProof: ('{self.proof_dir}')"

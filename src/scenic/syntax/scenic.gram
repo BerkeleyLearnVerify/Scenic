@@ -1231,19 +1231,19 @@ scenic_contract_assume_spec:
     | "with" "correctness" x=expression {("correctness", x)}
     | "with" "confidence" x=expression {("confidence", x)}
 
-# Contract Compose/Conjunction Statements
+# Contract Combination Statements
 # ---------------------------
 
 scenic_assign_contract_combination_stmt:
-    | a=(z=star_targets '=' { z })+ b=(scenic_contract_compose_stmt | scenic_contract_conjunction_stmt) {
+    | a=(z=star_targets '=' { z })+ b=(scenic_contract_compose_stmt | scenic_contract_wmerge_stmt) {
          ast.Assign(targets=a, value=b, LOCATIONS)
      }
 
 scenic_contract_compose_stmt:
     | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_combination_inner)+ DEDENT {s.ContractCompose(name, a, LOCATIONS)}
 
-scenic_contract_conjunction_stmt:
-    | "conjunction" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_combination_inner)+ DEDENT {s.ContractConjunction(name, a, LOCATIONS)}
+scenic_contract_wmerge_stmt:
+    | "weak" "merge" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_combination_inner)+ DEDENT {s.ContractWeakMerge(name, a, LOCATIONS)}
 
 scenic_contract_combination_inner:
     | scenic_contract_test_stmt

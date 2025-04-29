@@ -60,30 +60,32 @@ class RefinementContractResult(ContractResult):
 
 
 class LeanRefinementProof:
-    def __init__(self, proof_loc, proof_dir, repl_loc):
-        self.proof_loc = proof_loc
-        self.proof_dir = proof_dir
-        self.repl_loc = repl_loc
+    def __init__(self, proof_path, proof_loc, repl_loc):
+        self.proof_path = Path(proof_path)
+        self.proof_loc = Path(proof_loc)
+        self.proof_dir = self.proof_loc / self.proof_path
+        self.repl_loc = Path(repl_loc)
 
     def check(self, stmt, contract):
-        print("SKIPPING LEAN CHECK (TODO ADD SUPPORT FOR NON-COMPOSITION)})")
-        return
         ## Extract and standardize internal assumptions and guarantees
-        i_assumptions = []
-        i_guarantees = []
-        for sub_stmt in stmt.sub_stmts:
-            encoding_transformer = stmt.encoding_transformers[sub_stmt.component]
+        if isinstance(stmt, Composition):
+            i_assumptions = []
+            i_guarantees = []
+            for sub_stmt in stmt.sub_stmts:
+                ## Copy and encode assumptions and guarantees ##
+                assumptions = [deepcopy(spec) for spec in sub_stmt.assumptions]
+                guarantees = [deepcopy(spec) for spec in sub_stmt.guarantees]
 
-            ## Copy and encode assumptions and guarantees ##
-            assumptions = [deepcopy(spec) for spec in sub_stmt.assumptions]
-            guarantees = [deepcopy(spec) for spec in sub_stmt.guarantees]
+                encoding_transformer = stmt.encoding_transformers[sub_stmt.component]
+                for spec in assumptions + guarantees:
+                    spec.applyAtomicTransformer(encoding_transformer)
 
-            for spec in assumptions + guarantees:
-                spec.applyAtomicTransformer(encoding_transformer)
-
-            ## Add specs to accumulated i specs
-            i_assumptions += assumptions
-            i_guarantees += guarantees
+                ## Add specs to accumulated i specs
+                i_assumptions += assumptions
+                i_guarantees += guarantees
+        else:
+            i_assumptions = [deepcopy(spec) for spec in stmt.assumptions]
+            i_guarantees = [deepcopy(spec) for spec in stmt.guarantees]
 
         ## Simplify assumptions and guarantees, removing duplicates
         new_i_assumptions = []
@@ -105,8 +107,9 @@ class LeanRefinementProof:
         tl_assumptions = [deepcopy(spec) for spec in contract.assumptions]
         tl_guarantees = [deepcopy(spec) for spec in contract.guarantees]
 
-        for spec in tl_assumptions + tl_guarantees:
-            spec.applyAtomicTransformer(stmt.encoding_transformers[stmt.component])
+        if isinstance(stmt, Composition):
+            for spec in tl_assumptions + tl_guarantees:
+                spec.applyAtomicTransformer(stmt.encoding_transformers[stmt.component])
 
         ## Extract atomics from all specs, which will form the signals in our trace
         atomics = []
@@ -139,14 +142,16 @@ class LeanRefinementProof:
                         assert False
 
         ## Setup proof directory
-        Path(self.proof_loc / "Sceniclean" / self.proof_dir).mkdir(
+        Path(self.proof_dir).mkdir(
             parents=True, exist_ok=True
         )
 
         ## Output Lean Data File
-        with open(self.proof_loc / "Sceniclean" / self.proof_dir / "Lib.lean", "w") as f:
+        with open(self.proof_dir / "Lib.lean", "w") as f:
             # Imports
-            f.write("import Sceniclean.Basic\n\n")
+            f.write("import LeanLTL\n\n")
+            f.write("open LeanLTL\nopen scoped LeanLTL.Notation\n\n")
+            f.write(f"namespace {self.proof_dir.parts[-1]}\n\n")
 
             # TraceState structure
             f.write("structure TraceState where\n")
@@ -156,13 +161,14 @@ class LeanRefinementProof:
             f.write("  -- Numbers\n")
             for i, a in enumerate(real_atomics):
                 f.write(f"  N{i}: ℚ\n")
+            f.write("deriving Inhabited\n")
             f.write("\n")
 
             # Prop Signals
             f.write("-- Prop Signals\n")
             for i, a in enumerate(prop_atomics):
                 f.write(
-                    f"abbrev {a.toLean()} : TraceSet TraceState := TraceSet.of (·.P{i})\n"
+                    f"abbrev {a.toLeanName()} : TraceSet TraceState := TraceSet.of (·.P{i})\n"
                 )
             f.write("\n")
 
@@ -170,14 +176,14 @@ class LeanRefinementProof:
             f.write("-- Numerical Signals\n")
             for i, a in enumerate(real_atomics):
                 f.write(
-                    f"abbrev {a.toLean()} : TraceFun TraceState ℚ := TraceFun.of (·.N{i})\n"
+                    f"abbrev {a.toLeanName()} : TraceFun TraceState ℚ := TraceFun.of (·.N{i})\n"
                 )
             f.write("\n")
 
             # Defs
             f.write("-- Defs\n")
             for d_name, d_spec in defs.items():
-                f.write(f"abbrev {d_name} := FLTL[{d_spec.toLean()}]\n")
+                f.write(f"abbrev {d_name} := LLTLV[{d_spec.toLean(includeGets=False)}]\n")
             f.write("\n")
 
             TOP = "\u22a4"
@@ -185,102 +191,108 @@ class LeanRefinementProof:
             # Top Level Assumptions
             f.write("-- Top Level Assumptions \n")
             for i, a in enumerate(tl_assumptions):
-                f.write(f"abbrev A{i} := FLTL[{a.toLean()}]\n")
+                f.write(f"abbrev A{i} := LLTL[{a.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev assumptions : TraceSet TraceState := FLTL[{' ∧ '.join(f'A{i}' for i in range(len(tl_assumptions))) if tl_assumptions else TOP}]\n"
+                f"abbrev assumptions : TraceSet TraceState := LLTL[{' ∧ '.join(f'A{i}' for i in range(len(tl_assumptions))) if tl_assumptions else TOP}]\n"
             )
             f.write("\n")
 
             # Internal Assumptions
             f.write("-- Internal Assumptions \n")
             for i, a in enumerate(i_assumptions):
-                f.write(f"abbrev IA{i} := FLTL[{a.toLean()}]\n")
+                f.write(f"abbrev IA{i} := LLTL[{a.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev i_assumptions : TraceSet TraceState := FLTL[{' ∧ '.join(f'IA{i}' for i in range(len(i_assumptions))) if i_assumptions else TOP}]\n"
+                f"abbrev i_assumptions : TraceSet TraceState := LLTL[{' ∧ '.join(f'IA{i}' for i in range(len(i_assumptions))) if i_assumptions else TOP}]\n"
             )
             f.write("\n")
 
             # Internal Guarantees
             f.write("-- Internal Guarantees \n")
             for i, g in enumerate(i_guarantees):
-                f.write(f"abbrev IG{i} := FLTL[{g.toLean()}]\n")
+                f.write(f"abbrev IG{i} := LLTL[{g.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev i_guarantees : TraceSet TraceState := FLTL[{' ∧ '.join(f'IG{i}' for i in range(len(i_guarantees))) if i_guarantees else TOP}]\n"
+                f"abbrev i_guarantees : TraceSet TraceState := LLTL[{' ∧ '.join(f'IG{i}' for i in range(len(i_guarantees))) if i_guarantees else TOP}]\n"
             )
             f.write("\n")
 
             # Guarantees
             f.write("-- Top Level Guarantees \n")
             for i, g in enumerate(tl_guarantees):
-                f.write(f"abbrev G{i} := FLTL[{g.toLean()}]\n")
+                f.write(f"abbrev G{i} := LLTL[{g.toLean()}]\n")
             f.write("\n")
             f.write(
-                f"abbrev guarantees : TraceSet TraceState := FLTL[{' ∧ '.join(f'G{i}' for i in range(len(tl_guarantees))) if tl_guarantees else TOP}]\n"
+                f"abbrev guarantees : TraceSet TraceState := LLTL[{' ∧ '.join(f'G{i}' for i in range(len(tl_guarantees))) if tl_guarantees else TOP}]\n"
             )
             f.write("\n")
 
         ## Output Lean Proof Files
         if not os.path.exists(
-            self.proof_loc / "Sceniclean" / self.proof_dir / "AssumptionProof.lean"
+            self.proof_dir / "AssumptionProof.lean"
         ):
             with open(
-                self.proof_loc / "Sceniclean" / self.proof_dir / "AssumptionProof.lean",
+                self.proof_dir / "AssumptionProof.lean",
                 "w",
             ) as f:
-                f.write(f"import Sceniclean.{self.proof_dir}.Lib\n")
+                f.write(f"import {'.'.join(self.proof_path.parts)}.Lib\n\n")
+                f.write("open LeanLTL\nopen scoped LeanLTL.Notation\n\n")
+                f.write(f"namespace {self.proof_dir.parts[-1]}\n\n")
+
                 f.write("\n")
                 f.write(
-                    "theorem imp_assumptions : FLTL[(assumptions)] ⇒ FLTL[i_assumptions] := by\n"
+                    "theorem imp_assumptions : LLTL[(assumptions)] ⇒ LLTL[i_assumptions] := by\n"
                 )
                 f.write("  sorry\n")
 
         if not os.path.exists(
-            self.proof_loc / "Sceniclean" / self.proof_dir / "GuaranteesProof.lean"
+            self.proof_dir / "GuaranteesProof.lean"
         ):
             with open(
-                self.proof_loc / "Sceniclean" / self.proof_dir / "GuaranteesProof.lean",
+                self.proof_dir / "GuaranteesProof.lean",
                 "w",
             ) as f:
-                f.write(f"import Sceniclean.{self.proof_dir}.Lib\n")
+                f.write(f"import {'.'.join(self.proof_path.parts)}.Lib\n\n")
+                f.write("open LeanLTL\nopen scoped LeanLTL.Notation\n\n")
+                f.write(f"namespace {self.proof_dir.parts[-1]}\n\n")
+
                 f.write("\n")
                 f.write(
-                    "theorem imp_guarantees : FLTL[(assumptions ∧ i_guarantees)] ⇒ FLTL[guarantees] := by\n"
+                    "theorem imp_guarantees : LLTL[(assumptions ∧ i_guarantees)] ⇒ LLTL[guarantees] := by\n"
                 )
                 f.write("  sorry\n")
 
         # Check validity of proofs
         assert self.checkProof(
-            Path("Sceniclean") / self.proof_dir / "AssumptionProof.lean",
-            self.repl_loc,
-            self.proof_loc,
+            self.proof_dir / "AssumptionProof.lean"
         )
         assert self.checkProof(
-            Path("Sceniclean") / self.proof_dir / "GuaranteesProof.lean",
-            self.repl_loc,
-            self.proof_loc,
+            self.proof_dir / "GuaranteesProof.lean"
         )
 
-    def checkProof(self, file, repl_loc, lib_loc):
-        # TODO: Run lake build first
-        # set_option debug.byAsSorry true useful?
+    def checkProof(self, file):
+        subprocess.run(
+            ["lake", "build"],
+            capture_output=True,
+            text=True,
+            cwd=str(self.proof_loc)
+        )
         input_cmd = '{"path": "' + str(file) + '", "allTactics": false}'
-        repl_loc_full = str(repl_loc) + "/.lake/build/bin/repl"
+        repl_loc_full = str(self.repl_loc) + "/.lake/build/bin/repl"
         result = subprocess.run(
             ["lake", "env", repl_loc_full],
             input=input_cmd,
             capture_output=True,
             text=True,
-            cwd=lib_loc,
+            cwd=str(self.proof_loc),
         )
         result_dict = json.loads(result.stdout)
 
         assert result_dict["env"] == 0
 
         for msg in result_dict.get("messages", []):
-            assert msg["severity"] != "error", "Error in Lean proof"
+            assert msg["severity"] != "error", f"Error in Lean proof: {file}"
 
         assert "sorries" not in result_dict, "Sorry used in Lean proof"
 
