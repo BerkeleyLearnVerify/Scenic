@@ -8,7 +8,8 @@ class ResetException(Exception):
         super().__init__("Resetting")
 
 class ScenicZooEnv(ParallelEnv):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4} # TODO placeholder, add simulator-specific entries
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4,
+                "name": "scenic_zoo_env_v0"} # TODO placeholder, add simulator-specific entries
     # TODO determine where to pass in reward function
     def __init__(self, 
                  scenario: Scenario,
@@ -31,11 +32,20 @@ class ScenicZooEnv(ParallelEnv):
         self.feedback_result = None
         self.loop = None
 
+        self.agents = None
+
+        self.terminations = {}
+        self.truncations = {}
+
     def _make_run_loop(self):
+        # TODO: need to figure out if we make the scene
+        # terminate if any single agent satisfies the termination condition
+        # or if we just reboot the agent. What do people usually do?
         while True:
             try:
                 scene, _ = self.scenario.generate(feedback=self.feedback_result)
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
+                    self.agents = simulation.agents
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)
@@ -67,12 +77,6 @@ class ScenicZooEnv(ParallelEnv):
             except ResetException:
                 continue
 
-    def _get_obs(self):
-        return self.scene.getObs() # TODO add this function in simulator interfaces
-    
-    def _get_info(self):
-        return self.scene.getInfo()
-
     def reset(self, seed=None, options=None): # TODO will setting seed here conflict with VerifAI's setting of seed?
         # only setting enviornment seed, not torch seed?
         super().reset(seed=seed)
@@ -100,5 +104,5 @@ class ScenicZooEnv(ParallelEnv):
     
     @property
     def observation_space(self, agent):
-        return self._action_spaces[agent]
+        return self._action_space[agent]
 
