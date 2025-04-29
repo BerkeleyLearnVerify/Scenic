@@ -10,7 +10,7 @@ from metadrive.envs import BaseEnv, MetaDriveEnv
 from metadrive.manager.sumo_map_manager import SumoMapManager
 from metadrive.obs.observation_base import DummyObservation
 from metadrive.policy.expert_policy import ExpertPolicy
-
+from metadrive.obs.state_obs import LidarStateObservation
 from scenic.core.vectors import Vector
 
 
@@ -95,7 +95,12 @@ class DriveEnv(BaseEnv):
 
     def get_single_observation(self):
         """Dummy observation function."""
-        return DummyObservation()
+        # return LidarStateObservation(self.config)
+        # print(f"Lidar Obs {LidarStateObservation(self.config)}")
+        # o = DummyObservation()
+        o = LidarStateObservation(self.config)
+        print(f"obs: {o}")
+        return o
 
     def setup_engine(self):
         """Setup the engine for MetaDrive."""
@@ -108,10 +113,6 @@ class PolicyDriveEnv(MetaDriveEnv):
     def done_function(self, agent):
         """Dummy done function."""
         return False, {}
-
-
-
-
 
 class IntersectionEnv(BaseEnv):
 
