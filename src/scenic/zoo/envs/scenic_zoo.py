@@ -1,54 +1,71 @@
 from scenic.core.simulators import Simulator, Simulation
-from pettingzoo import ParllelEnv 
+from scenic.core.scenarios import Scenario
+from pettingzoo import ParallelEnv 
+from gymnasium import spaces
 
-class ScenicGymEnv(ParallelEnv):
+class ResetException(Exception):
+    def __init__(self):
+        super().__init__("Resetting")
+
+class ScenicZooEnv(ParallelEnv):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4} # TODO placeholder, add simulator-specific entries
     # TODO determine where to pass in reward function
     def __init__(self, 
-                 render_mode=None, 
-                 scenic_program : str = None, # TODO add code to allow both directory and program itself
-                 simulator : scenic.core.simulators.Simulator = None, 
-                 verifai_sampler="scenic", 
-                 max_steps = 1000
+                 scenario: Scenario,
+                 simulator : Simulator,
+                 render_mode=None,
+                 max_steps=1000,
                  observation_space : spaces.Dict = spaces.Dict(),
                  action_space : spaces.Dict = spaces.Dict()): # empty string means just pure scenic???
 
-        self.observation_space = observation_space
-        self.action_space = action_space
-
         assert render_mode is None or render_mode in self.metadata["render_modes"]
+
+        self._observation_space = observation_space
+        self._action_space = action_space # is this really the best design choice?
         self.render_mode = render_mode
         self.max_steps = max_steps
         self.simulator = simulator
-        self.scene = self._make_run_loop() # can do this first, since simulation won't step until we call next(self.scene)
+        self.scenario = scenario
+        self.simulation_results = []
+
+        self.feedback_result = None
+        self.loop = None
 
     def _make_run_loop(self):
         while True:
             try:
-                with simulator.simulateStepped(self.scene, maxSteps=self.max_steps) as simulation:
+                scene, _ = self.scenario.generate(feedback=self.feedback_result)
+                with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
+                    steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)
-
-                    simulation.advance()
-                    observation = self._get_obs()
-                    info = self._get_info()
-                    action = yield observation, info
-                    simulation.action_dict = action # TODO add action dict to simulation interfaces
+                    truncated = lambda: (steps_taken >= self.max_steps) # TODO handle cases where it is done right on maxsteps
+                    observation = simulation.get_obs()
+                    info = simulation.get_info()
+                    actions = yield observation, info
+                    simulation.actions = actions # TODO add action dict to simulation interfaces
 
                     while not done():
                         # Probably good that we advance first before any action is set.
                         # this is consistent with how reset works
                         simulation.advance()
-                        observation = self._get_obs()
-                        info = self._get_info()
-                        action = yield observation, info, done(), info
+                        steps_taken += 1
+                        observation = simulation.get_obs()
+                        info = simulation.get_info()
+                        reward = simulation.get_reward()
 
                         if done():
+                            self.feedback_result = simulation.result
+                            self.simulation_results.append(simulation.result)
                             simulation.destroy()
+                            actions = yield observation, reward, done(), truncated(), info
+                            break # a little unclean right here
 
-                        simulation.action_dict = action # TODO add action dict to simulation interfaces
-                        
-                        # TODO add some logic with regards to rendering
+                        actions = yield observation, reward, done(), truncated(), info
+                        simulation.actions = actions # TODO add action dict to simulation interfaces
+
+            except ResetException:
+                continue
 
     def _get_obs(self):
         return self.scene.getObs() # TODO add this function in simulator interfaces
@@ -59,23 +76,29 @@ class ScenicGymEnv(ParallelEnv):
     def reset(self, seed=None, options=None): # TODO will setting seed here conflict with VerifAI's setting of seed?
         # only setting enviornment seed, not torch seed?
         super().reset(seed=seed)
-        self.scene.throw(ResetException())
-        observation, info = next(self.scene) # not doing self.scene.send(action) just yet
-
-        return observation, info
+        if self.loop is None:
+            self.loop = self._make_run_loop()
+            observation, info = next(self.loop) # not doing self.scene.send(action) just yet
+        else:
+            observation, info = self.loop.throw(ResetException())
         
     def step(self, action):
-        observation, reward, done, info = self.scene.send(action)
+        assert not (self.loop is None), "self.loop is None, have you called reset()?"
 
-    def render(): # TODO figure out if this function has to be implemented here or if super() has default implementation
+        observation, reward, terminated, truncated, info = self.loop.send(action)
+        return observation, reward, terminated, truncated, info
+
+    def render(self): # TODO figure out if this function has to be implemented here or if super() has default implementation
         pass
 
-    def close():
+    def close(self):
         self.simulator.destroy()
     
+    @property
     def action_space(self, agent):
-        return self.observation_space[agent]
-
+        return self._observation_space[agent]
+    
+    @property
     def observation_space(self, agent):
-        return self.action_spaces[agent]
+        return self._action_spaces[agent]
 
