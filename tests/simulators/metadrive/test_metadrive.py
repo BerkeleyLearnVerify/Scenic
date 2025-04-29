@@ -128,3 +128,26 @@ def test_pedestrian_movement(getMetadriveSimulator):
     initialPos = simulation.result.records["InitialPos"]
     finalPos = simulation.result.records["FinalPos"]
     assert initialPos != finalPos
+
+
+def test_initial_velocity_movement(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        # Car should move 5 m/s west
+        ego = new Car at (30, 2), with velocity (-5, 0)
+        record initial ego.position as InitialPos
+        record final ego.position as FinalPos
+        terminate after 1 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    initialPos = simulation.result.records["InitialPos"]
+    finalPos = simulation.result.records["FinalPos"]
+    dx = finalPos[0] - initialPos[0]
+    assert dx < -0.1, f"Expected car to move west (negative dx), but got dx = {dx}"
