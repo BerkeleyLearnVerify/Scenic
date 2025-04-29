@@ -331,6 +331,7 @@ class Simulation(abc.ABC):
         continueAfterDivergence=False,
         verbosity=0,
     ):
+        self.screen = None
         self.result = None
         self.scene = scene
         self.objects = []
@@ -439,6 +440,13 @@ class Simulation(abc.ABC):
             if newReason is not None:
                 terminationReason = newReason
                 terminationType = TerminationType.terminatedByMonitor
+
+            # Check if users manually closed out display for simulator
+            if "Dead" in str(self.screen):
+                return (
+                    TerminationType.terminatedByUser,
+                    "user manually terminated simulation",
+                )
 
             # "Always" and scenario-level requirements have been checked;
             # now safe to terminate if the top-level scenario has finished,
@@ -893,6 +901,9 @@ class TerminationType(enum.Enum):
 
     #: A :term:`dynamic behavior` used :keyword:`terminate simulation` to end the simulation.
     terminatedByBehavior = "a behavior terminated the simulation"
+
+    #: A user manually intervenes and closes display window
+    terminatedByUser = "manually terminated by user"
 
 
 class SimulationResult:
