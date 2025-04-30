@@ -53,10 +53,10 @@ def normalizeAngle(angle) -> float:
 
 
 def averageVectors(a, b, weight=0.5):  # Changed to include z coordinate
-    ax, ay, az = a[0], a[1], a[2]
-    bx, by, bz = b[0], b[1], a[2]
+    ax, ay = a[0], a[1]
+    bx, by = b[0], b[1]
     aw, bw = 1.0 - weight, weight
-    return (ax * aw + bx * bw, ay * aw + by * bw, az * aw + bz * bw)
+    return (ax * aw + bx * bw, ay * aw + by * bw)
 
 
 def rotateVector(vector, angle):

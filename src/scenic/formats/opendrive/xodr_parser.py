@@ -404,7 +404,7 @@ class Road:
         return super_elevation
 
     def get_ref_points(
-        self, num
+        self, num, three_dim=False
     ):  # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
@@ -576,6 +576,7 @@ class Road:
                             cur_p[1] - prev_p[1],
                             cur_p[2] - prev_p[2],
                         )  # Need to change tan_vec to 3D
+                    #print(tan_vec)
                     tan_norm = math.hypot(tan_vec[0], tan_vec[1], tan_vec[2])
                     assert tan_norm > 1e-10
                     normal_vec = (
@@ -754,7 +755,7 @@ class Road:
         for sec, pts, sec_poly, lane_polys in zip(
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
         ):
-            pts = [pt[:3] for pt in pts]  # drop s coordinate (Changed from pt[:2] to pt[:3])
+            pts = [pt[:2] for pt in pts]  # drop s coordinate (Changed from pt[:2] to pt[:3]) (Might need to change)
             assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
@@ -794,7 +795,7 @@ class Road:
             section = roadDomain.RoadSection(
                 id=f"road{self.id_}_sec{len(roadSections)}",
                 polygon=sec_poly,
-                centerline=PolylineRegion(cleanChain(pts)), # was cleanChain(pts)
+                centerline=PolylineRegion(cleanChain(pts)),
                 leftEdge=PolylineRegion(cleanChain(sec.left_edge)),
                 rightEdge=PolylineRegion(cleanChain(sec.right_edge)),
                 successor=None,
@@ -1122,7 +1123,7 @@ class Road:
             leftEdge = backwardGroup.rightEdge
         else:
             leftEdge = forwardGroup.leftEdge
-        centerline = PolylineRegion(tuple(pt[:3] for pt in self.ref_line_points)) # Changed from pt[:2] to pt[:3]
+        centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points)) # Changed from pt[:2] to pt[:3] (Might need to change this)
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
