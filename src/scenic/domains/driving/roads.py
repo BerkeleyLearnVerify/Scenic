@@ -1100,7 +1100,7 @@ class Network:
         verbosePrint("Parsing OpenDRIVE file...")
         road_map.parse(path)
         verbosePrint("Computing road geometry... (this may take a while)")
-        road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
+        road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True, three_dim=True)
         network = road_map.toScenicNetwork()
         totalTime = time.time() - startTime
         verbosePrint(f"Finished loading OpenDRIVE map in {totalTime:.2f} seconds.")

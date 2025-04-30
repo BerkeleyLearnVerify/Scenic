@@ -7,6 +7,8 @@ import math
 import warnings
 import xml.etree.ElementTree as ET
 
+import trimesh
+
 import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
@@ -465,7 +467,7 @@ class Road:
 
         raise RuntimeError("Point not found in piece_polys")
 
-    def calc_geometry_for_type(self, lane_types, num, tolerance, calc_gap=False):
+    def calc_geometry_for_type(self, lane_types, num, tolerance, calc_gap=False, three_dim=True):
         """Given a list of lane types, returns a tuple of:
         - List of lists of points along the reference line, with same indexing as self.lane_secs
         - List of region polygons, with same indexing as self.lane_secs
@@ -477,11 +479,20 @@ class Road:
         road_polygons = []
         ref_points = self.get_ref_points(num)
         self.ref_line_points = list(itertools.chain.from_iterable(ref_points))
+        # return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
         cur_lane_polys = {}
-        sec_points = []
+        cur_lane_meshes = {} # Added for 3D support
+        sec_points = [] # Same across both 2D and 3D
+        # Lists to return for 2D
         sec_polys = []
         sec_lane_polys = []
         lane_polys = []
+
+        # Lists to return for 3D
+        sec_meshes = []
+        sec_lane_meshes = []
+        lane_meshes = []
+
         last_lefts = None
         last_rights = None
         cur_p = None
@@ -496,7 +507,9 @@ class Road:
             left_bounds = defaultdict(list)
             right_bounds = defaultdict(list)
             cur_sec_lane_polys = defaultdict(list)
+            cur_sec_lane_meshes = defaultdict(list)
             cur_sec_polys = []
+            cur_sec_meshes = []
             end_of_sec = False
 
             while ref_points and not end_of_sec:
@@ -520,20 +533,40 @@ class Road:
 
                         if len(bounds) < 3:
                             continue
-                        poly = cleanPolygon(Polygon(bounds), tolerance)
-                        if not poly.is_empty:
-                            if poly.geom_type == "MultiPolygon":
-                                poly = MultiPolygon(
-                                    [
-                                        p
-                                        for p in poly.geoms
-                                        if not p.is_empty and p.exterior
-                                    ]
-                                )
-                                cur_sec_polys.extend(poly.geoms)
-                            else:
-                                cur_sec_polys.append(poly)
-                            cur_sec_lane_polys[id_].append(poly)
+                        if three_dim:
+                            mesh = trimesh.Trimesh(vertices=bounds, faces=[[i, i + 1, i + 2] for i in range(len(bounds) - 2)])
+                            if not mesh.is_empty:
+                                cur_sec_meshes.append(mesh)
+                                cur_sec_lane_meshes[id_].append(mesh)
+                            poly = cleanPolygon(Polygon(bounds), tolerance)
+                            if not poly.is_empty:
+                                if poly.geom_type == "MultiPolygon":
+                                    poly = MultiPolygon(
+                                        [
+                                            p
+                                            for p in poly.geoms
+                                            if not p.is_empty and p.exterior
+                                        ]
+                                    )
+                                    cur_sec_polys.extend(poly.geoms)
+                                else:
+                                    cur_sec_polys.append(poly)
+                                cur_sec_lane_polys[id_].append(poly)
+                        else:
+                            poly = cleanPolygon(Polygon(bounds), tolerance)
+                            if not poly.is_empty:
+                                if poly.geom_type == "MultiPolygon":
+                                    poly = MultiPolygon(
+                                        [
+                                            p
+                                            for p in poly.geoms
+                                            if not p.is_empty and p.exterior
+                                        ]
+                                    )
+                                    cur_sec_polys.extend(poly.geoms)
+                                else:
+                                    cur_sec_polys.append(poly)
+                                cur_sec_lane_polys[id_].append(poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
                         if i == 0 or not self.start_bounds_left:
@@ -547,7 +580,7 @@ class Road:
                         last_rights = cur_last_rights
                 else:
                     cur_p = ref_points[0][0]
-                    cur_sec_points.append(cur_p)
+                    cur_sec_points.append(cur_p) # Two options for either 2d or 3d
                     s = min(max(cur_p[3], cur_sec.s0), s_stop - 1e-6)
                     offsets = cur_sec.get_offsets(s)
                     offsets[0] = 0
@@ -619,69 +652,138 @@ class Road:
                                 cur_p[1] + normal_vec[1] * halfway,
                                 cur_p[2] + normal_vec[2] * halfway,
                             ]
+                            if three_dim == False: # ADDED: Removes the z-coordinate from the points
+                                left_bound = (left_bound[0], left_bound[1])
+                                right_bound = (right_bound[0], right_bound[1])
+                                centerline = (centerline[0], centerline[1])
                             left_bounds[id_].append(left_bound)
                             right_bounds[id_].append(right_bound)
                             lane.left_bounds.append(left_bound)
                             lane.right_bounds.append(right_bound)
                             lane.centerline.append(centerline)
-            assert len(cur_sec_points) >= 2, i
-            sec_points.append(cur_sec_points)
-            sec_polys.append(buffer_union(cur_sec_polys, tolerance=tolerance))
-            for id_ in cur_sec_lane_polys:
-                poly = buffer_union(cur_sec_lane_polys[id_], tolerance=tolerance)
-                cur_sec_lane_polys[id_] = poly
-                cur_sec.get_lane(id_).poly = poly
-            sec_lane_polys.append(dict(cur_sec_lane_polys))
-            next_lane_polys = {}
-            for id_ in cur_sec_lane_polys:
-                pred_id = cur_sec.get_lane(id_).pred
-                if pred_id and pred_id in cur_lane_polys:
-                    next_lane_polys[id_] = cur_lane_polys.pop(pred_id) + [
-                        cur_sec_lane_polys[id_]
-                    ]
-                else:
-                    next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
+            if three_dim: ## Need to add three dimensional support with meshes.
+                assert len(cur_sec_points) >= 2, i
+                sec_points.append(cur_sec_points)
+                sec_meshes.append(trimesh.util.concatenate(cur_sec_meshes))  # Use trimesh.util.concatenate to merge meshes
+                for id_ in cur_sec_lane_meshes:
+                    mesh = trimesh.util.concatenate(cur_sec_lane_meshes[id_])# Need to replace buffer_union
+                    cur_sec_lane_meshes[id_] = mesh
+                    cur_sec.get_lane(id_).mesh = mesh
+                sec_lane_meshes.append(dict(cur_sec_lane_meshes))
+                next_lane_meshes = {}
+                for id_ in cur_sec_lane_meshes:
+                    pred_id = cur_sec.get_lane(id_).pred
+                    if pred_id and pred_id in cur_lane_meshes:
+                        next_lane_meshes[id_] = cur_lane_meshes.pop(pred_id) + [
+                            cur_sec_lane_meshes[id_]
+                        ]
+                    else:
+                        next_lane_meshes[id_] = [cur_sec_lane_meshes[id_]]
+                for id_ in cur_lane_meshes:
+                    mesh = trimesh.util.concatenate(cur_lane_meshes[id_]) # Need to replace buffer_union
+                    self.lane_secs[i - 1].get_lane(id_).parent_lane_meshes = len(lane_meshes)
+                    lane_meshes.append(mesh)
+                cur_lane_meshes = next_lane_meshes
+            else:
+                assert len(cur_sec_points) >= 2, i
+                sec_points.append(cur_sec_points)
+                sec_polys.append(buffer_union(cur_sec_polys, tolerance=tolerance))
+                for id_ in cur_sec_lane_polys:
+                    poly = buffer_union(cur_sec_lane_polys[id_], tolerance=tolerance)
+                    cur_sec_lane_polys[id_] = poly
+                    cur_sec.get_lane(id_).poly = poly
+                sec_lane_polys.append(dict(cur_sec_lane_polys))
+                next_lane_polys = {}
+                for id_ in cur_sec_lane_polys:
+                    pred_id = cur_sec.get_lane(id_).pred
+                    if pred_id and pred_id in cur_lane_polys:
+                        next_lane_polys[id_] = cur_lane_polys.pop(pred_id) + [
+                            cur_sec_lane_polys[id_]
+                        ]
+                    else:
+                        next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
+                for id_ in cur_lane_polys:
+                    poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
+                    self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
+                    lane_polys.append(poly)
+                cur_lane_polys = next_lane_polys
+
+        # Implementing Three Dimensional Support
+        if three_dim:
+            for id_ in cur_lane_meshes:
+                mesh = trimesh.util.concatenate(cur_lane_meshes[id_])
+                cur_sec.get_lane(id_).parent_lane_mesh = len(lane_meshes)
+                lane_meshes.append(mesh)
+            union_mesh = trimesh.util.concatenate(sec_meshes)
+            if last_lefts and last_rights:
+                self.end_bounds_left.update(last_lefts)
+                self.end_bounds_right.update(last_rights)
+            ### Need to work on these ###
+            # Need to find another trimesh function to replace overlaps and difference
+            # Difference and slightly erode all overlapping meshgons
+            for i in range(len(sec_meshes) - 1):
+                if sec_meshes[i].overlaps(sec_meshes[i + 1]):
+                    sec_meshes[i] = sec_meshes[i].difference(sec_meshes[i + 1]).buffer(-1e-6)
+                    assert not sec_meshes[i].overlaps(sec_meshes[i + 1])
+
+            for meshes in sec_lane_meshes:
+                ids = sorted(meshes)  # order adjacent lanes consecutively
+                for i in range(len(ids) - 1):
+                    meshA, meshB = meshes[ids[i]], meshes[ids[i + 1]]
+                    if meshA.overlaps(meshB):
+                        meshes[ids[i]] = meshA.difference(meshB).buffer(-1e-6)
+                        assert not meshes[ids[i]].overlaps(meshB)
+
+            for i in range(len(lane_meshes) - 1):
+                if lane_meshes[i].overlaps(lane_meshes[i + 1]):
+                    lane_meshes[i] = lane_meshes[i].difference(lane_meshes[i + 1]).buffer(-1e-6)
+                    assert not lane_meshes[i].overlaps(lane_meshes[i + 1])
+
+            # Set parent lane meshgon references to corrected meshgons
+            for sec in self.lane_secs:
+                for lane in sec.lanes.values():
+                    parentIndex = lane.parent_lane_mesh
+                    if isinstance(parentIndex, int):
+                        lane.parent_lane_mesh = lane_meshes[parentIndex]
+            print(sec_points, sec_meshes, sec_lane_meshes, lane_meshes, union_mesh)
+            return (sec_points, sec_meshes, sec_lane_meshes, lane_meshes, union_mesh)
+        else:
             for id_ in cur_lane_polys:
                 poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
-                self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
+                cur_sec.get_lane(id_).parent_lane_poly = len(lane_polys)
                 lane_polys.append(poly)
-            cur_lane_polys = next_lane_polys
-        for id_ in cur_lane_polys:
-            poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
-            cur_sec.get_lane(id_).parent_lane_poly = len(lane_polys)
-            lane_polys.append(poly)
-        union_poly = buffer_union(sec_polys, tolerance=tolerance)
-        if last_lefts and last_rights:
-            self.end_bounds_left.update(last_lefts)
-            self.end_bounds_right.update(last_rights)
+            union_poly = buffer_union(sec_polys, tolerance=tolerance)
+            if last_lefts and last_rights:
+                self.end_bounds_left.update(last_lefts)
+                self.end_bounds_right.update(last_rights)
 
-        # Difference and slightly erode all overlapping polygons
-        for i in range(len(sec_polys) - 1):
-            if sec_polys[i].overlaps(sec_polys[i + 1]):
-                sec_polys[i] = sec_polys[i].difference(sec_polys[i + 1]).buffer(-1e-6)
-                assert not sec_polys[i].overlaps(sec_polys[i + 1])
+            # Difference and slightly erode all overlapping polygons
+            for i in range(len(sec_polys) - 1):
+                if sec_polys[i].overlaps(sec_polys[i + 1]):
+                    sec_polys[i] = sec_polys[i].difference(sec_polys[i + 1]).buffer(-1e-6)
+                    assert not sec_polys[i].overlaps(sec_polys[i + 1])
 
-        for polys in sec_lane_polys:
-            ids = sorted(polys)  # order adjacent lanes consecutively
-            for i in range(len(ids) - 1):
-                polyA, polyB = polys[ids[i]], polys[ids[i + 1]]
-                if polyA.overlaps(polyB):
-                    polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
-                    assert not polys[ids[i]].overlaps(polyB)
+            for polys in sec_lane_polys:
+                ids = sorted(polys)  # order adjacent lanes consecutively
+                for i in range(len(ids) - 1):
+                    polyA, polyB = polys[ids[i]], polys[ids[i + 1]]
+                    if polyA.overlaps(polyB):
+                        polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
+                        assert not polys[ids[i]].overlaps(polyB)
 
-        for i in range(len(lane_polys) - 1):
-            if lane_polys[i].overlaps(lane_polys[i + 1]):
-                lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
-                assert not lane_polys[i].overlaps(lane_polys[i + 1])
+            for i in range(len(lane_polys) - 1):
+                if lane_polys[i].overlaps(lane_polys[i + 1]):
+                    lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
+                    assert not lane_polys[i].overlaps(lane_polys[i + 1])
 
-        # Set parent lane polygon references to corrected polygons
-        for sec in self.lane_secs:
-            for lane in sec.lanes.values():
-                parentIndex = lane.parent_lane_poly
-                if isinstance(parentIndex, int):
-                    lane.parent_lane_poly = lane_polys[parentIndex]
+            # Set parent lane polygon references to corrected polygons
+            for sec in self.lane_secs:
+                for lane in sec.lanes.values():
+                    parentIndex = lane.parent_lane_poly
+                    if isinstance(parentIndex, int):
+                        lane.parent_lane_poly = lane_polys[parentIndex]
 
-        return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
+            return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
 
     def calculate_geometry(
         self,
@@ -691,6 +793,7 @@ class Road:
         drivable_lane_types,
         sidewalk_lane_types,
         shoulder_lane_types,
+        three_dim,
     ):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
@@ -1233,7 +1336,7 @@ class RoadMap:
         self.shoulder_lane_types = shoulder_lane_types
         self.elide_short_roads = elide_short_roads
 
-    def calculate_geometry(self, num, calc_gap=False, calc_intersect=True):
+    def calculate_geometry(self, num, calc_gap=False, calc_intersect=True,three_dim=False):
         # If calc_gap=True, fills in gaps between connected roads.
         # If calc_intersect=True, calculates intersection regions.
         # These are fairly expensive.
@@ -1245,6 +1348,7 @@ class RoadMap:
                 drivable_lane_types=self.drivable_lane_types,
                 sidewalk_lane_types=self.sidewalk_lane_types,
                 shoulder_lane_types=self.shoulder_lane_types,
+                three_dim=three_dim,
             )
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
