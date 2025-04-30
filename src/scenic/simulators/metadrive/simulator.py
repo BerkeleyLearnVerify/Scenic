@@ -161,6 +161,8 @@ class MetaDriveSimulation(DrivingSimulation):
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
                     vehicle_config={
+                        # "is_multi_agent" : True,
+                        # "num_agents" : 2,
                         "spawn_position_heading": [
                             converted_position,
                             converted_heading,
@@ -190,7 +192,7 @@ class MetaDriveSimulation(DrivingSimulation):
         if obj.isVehicle:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
-                vehicle_config=dict(),
+                vehicle_config=dict(lane_line_detector=dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0)),
                 position=converted_position,
                 heading=converted_heading,
             )
@@ -243,7 +245,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # print(f"ACTION = {action}")
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
-        # print(f"OBS: {self.observation}")
+        print(f"OBS: {self.observation}")
         # print(f"REWARD: {self.reward}")
         # print(f"TM: {self.tm}")
         # print(f"TC: {self.tc}")
