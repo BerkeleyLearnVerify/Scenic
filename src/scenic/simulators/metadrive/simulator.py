@@ -130,6 +130,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.film_size = film_size
         self.actions = dict()
         self.camera_position = (0, 0, 0)
+        self.agent_configs = dict()
 
         self.observation = None
         self.reward = None
@@ -138,6 +139,27 @@ class MetaDriveSimulation(DrivingSimulation):
         self.info = None
         super().__init__(scene, timestep=timestep, **kwargs)
 
+    def setup(self):
+        
+        for obj in self.scene.objects:
+            if obj.is_agent:
+
+                converted_position = utils.scenicToMetaDrivePosition(
+                    obj.position, self.scenic_offset
+                )
+                converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
+
+                self.agent_configs[obj.name] = dict(use_special_color=True, 
+                                               spawn_lane_index=None,
+                                               spawn_position_heading=[converted_position, converted_heading],
+                                               lane_line_detector=dict(num_lasers=4, 
+                                                                       distance=20, 
+                                                                       gaussian_noise=0.0, 
+                                                                       dropout_prob=0.0)
+                                                )
+                                    
+
+        super().setup()
 
     def createObjectInSimulator(self, obj):
         """
@@ -160,25 +182,7 @@ class MetaDriveSimulation(DrivingSimulation):
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
-                    agent_configs={
-                        "agent0" : dict(use_special_color=True, 
-                                               spawn_lane_index=None,
-                                               spawn_position_heading=[converted_position, converted_heading],
-                                               lane_line_detector=dict(num_lasers=4, 
-                                                                       distance=20, 
-                                                                       gaussian_noise=0.0, 
-                                                                       dropout_prob=0.0)
-                                               ),
-                        "agent1" : dict(use_special_color=True, 
-                                               spawn_lane_index=None,
-                                        spawn_position_heading=[(converted_position[0] , converted_position[1] + 3.0), converted_heading],
-                                               lane_line_detector=dict(num_lasers=4, 
-                                                                       distance=20, 
-                                                                       gaussian_noise=0.0, 
-                                                                       dropout_prob=0.0)
-                                               ),
-
-                    },
+                    agent_configs=self.agent_configs,
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
