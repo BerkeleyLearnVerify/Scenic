@@ -129,6 +129,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.sumo_map_boundary = sumo_map_boundary
         self.film_size = film_size
         self.actions = dict()
+        self.camera_position = (0, 0, 0)
 
         self.observation = None
         self.reward = None
@@ -148,6 +149,8 @@ class MetaDriveSimulation(DrivingSimulation):
             obj.position, self.scenic_offset
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
+
+        self.camera_position = (converted_position[0], converted_position[1], 0)
 
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
@@ -284,7 +287,11 @@ class MetaDriveSimulation(DrivingSimulation):
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
             self.client.render(
-                mode="topdown", semantic_map=True, film_size=self.film_size, scaling=5
+                mode="topdown", 
+                semantic_map=True,
+                film_size=self.film_size, 
+                scaling=5,
+                camera_position = self.camera_position[:2]
             )
 
         # If real-time synchronization is enabled, sleep to maintain real-time pace
