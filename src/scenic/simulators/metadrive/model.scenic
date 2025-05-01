@@ -88,10 +88,11 @@ class MetaDriveActor(DrivingObject):
                         or retrieving simulation data (position, velocity, etc.).
     """
     metaDriveActor: None
+    is_agent: True
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     name: ""
-    is_agent: True
+    # is_agent: True
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._control = {"steering": 0, "throttle": 0, "brake": 0}

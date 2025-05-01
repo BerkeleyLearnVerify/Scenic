@@ -212,7 +212,9 @@ class MetaDriveSimulation(DrivingSimulation):
             return
 
         # For additional cars
-        if obj.isVehicle:
+        # if obj.isVehicle:
+        if (not obj.is_agent) and obj.isVehicle:
+
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
                 vehicle_config=dict(lane_line_detector=dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0)),
@@ -223,7 +225,8 @@ class MetaDriveSimulation(DrivingSimulation):
             return
 
         # For pedestrians
-        if obj.isPedestrian:
+        # elif obj.isPedestrian:
+        elif (not obj.is_agent) and obj.isPedestrian:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 Pedestrian,
                 position=converted_position,
