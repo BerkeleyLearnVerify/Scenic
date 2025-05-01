@@ -180,13 +180,13 @@ class MetaDriveSimulation(DrivingSimulation):
                     use_render=self.render3D,
                     is_multi_agent=True,
                     num_agents=2,
-                    vehicle_config={
-                        "spawn_position_heading": [
-                            converted_position,
-                            converted_heading,
-                        ],
-                        "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0),
-                    },
+                    # vehicle_config={
+                        # "spawn_position_heading": [
+                            # converted_position,
+                            # converted_heading,
+                        # ],
+                        # "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0),
+                    # },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
                     # traffic_density=0.2
