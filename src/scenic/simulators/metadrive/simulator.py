@@ -281,7 +281,7 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.is_agent:
                 self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
 
-        print(f"ACTION = {self.actions}")
+        # print(f"ACTION = {self.actions}")
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(self.actions)  # Apply action in the simulator
         # print(f"OBS: {self.observation}")
