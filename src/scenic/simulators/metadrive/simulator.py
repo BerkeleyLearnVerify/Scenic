@@ -155,7 +155,7 @@ class MetaDriveSimulation(DrivingSimulation):
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
-
+            print(f"CONVERTED POS: {converted_position}")
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
@@ -170,7 +170,7 @@ class MetaDriveSimulation(DrivingSimulation):
                                                ),
                         "agent1" : dict(use_special_color=True, 
                                                spawn_lane_index=None,
-                                               spawn_position_heading=[converted_position, converted_heading],
+                                        spawn_position_heading=[(converted_position[0] , converted_position[1] + 3.0), converted_heading],
                                                lane_line_detector=dict(num_lasers=4, 
                                                                        distance=20, 
                                                                        gaussian_noise=0.0, 
@@ -213,6 +213,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
         if obj.is_agent:
             obj.metaDriveActor = self.client.agents[obj.name]
+            return
 
         # For additional cars
         elif obj.isVehicle:
