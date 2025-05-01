@@ -46,7 +46,7 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
-        print(f"SIMULAOTR SUMO MAP {self.sumo_map}")
+        # print(f"SIMULAOTR SUMO MAP {self.sumo_map}")
         self.real_time = real_time
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
 
@@ -188,7 +188,7 @@ class MetaDriveSimulation(DrivingSimulation):
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
-            print(f"CONVERTED POS: {converted_position}")
+            # print(f"CONVERTED POS: {converted_position}")
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
@@ -212,12 +212,12 @@ class MetaDriveSimulation(DrivingSimulation):
                 )
             )
 
-            print(f"SUMO MAP {self.sumo_map}")
+            # print(f"SUMO MAP {self.sumo_map}")
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
-            print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
-            print(f"ENGINE TYPE: {type(self.client.engine)}")
-            print(f"Action Spaces: {self.client.agent_manager.get_action_spaces()}")
+            # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
+            # print(f"ENGINE TYPE: {type(self.client.engine)}")
+            # print(f"Action Spaces: {self.client.agent_manager.get_action_spaces()}")
 
 
             # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
