@@ -156,7 +156,7 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client = utils.DriveEnv(
                 dict(
                     agent_configs={
-                        "DEFAULT_AGENT" : dict(use_special_color=True, 
+                        "agent0" : dict(use_special_color=True, 
                                                spawn_lane_index=None,
                                                spawn_position_heading=[converted_position, converted_heading],
                                                lane_line_detector=dict(num_lasers=4, 
