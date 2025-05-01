@@ -140,6 +140,13 @@ class MetaDriveSimulation(DrivingSimulation):
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
+        try:
+            self.camera_position = utils.scenicToMetaDrivePosition(
+                self.scene.params["camera_position"], self.scenic_offset
+            )
+        except:
+            print("No camera_position param specified in scenic program, defaulting to (0, 0, 0)")
+
         
         for obj in self.scene.objects:
             if obj.is_agent:
@@ -173,7 +180,7 @@ class MetaDriveSimulation(DrivingSimulation):
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
-        self.camera_position = (converted_position[0], converted_position[1], 0)
+        # self.camera_position = (converted_position[0], converted_position[1], 0)
 
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)

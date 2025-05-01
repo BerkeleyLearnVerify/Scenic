@@ -11,7 +11,7 @@ root_user = os.path.expanduser("~")
 param map = localPath(root_user + '/ScenicGym/assets/maps/CARLA/Town01.xodr')
 param carla_map = 'Town01'
 param time_step = 1.0/10
-
+param camera_position = (340, -208, 0)
 model scenic.domains.driving.model
 
 # behavior PullIntoRoad():
