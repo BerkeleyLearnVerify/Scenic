@@ -155,33 +155,41 @@ class MetaDriveSimulation(DrivingSimulation):
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
-                    # map='C',
-                    # agent_policy=ExpertPolicy,
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
+                    is_multi_agent=True,
+                    num_agents=2,
                     vehicle_config={
-                        # "is_multi_agent" : True,
-                        # "num_agents" : 2,
                         "spawn_position_heading": [
                             converted_position,
                             converted_heading,
                         ],
-                        # "navigation_module" : NodeNetworkNavigation
-                        # "navigation_module" : EdgeNetworkNavigation 
-                        # "navigation_module" : TrajectoryNavigation 
-                        # "navigation_module" : BaseNavigation
-                        "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0)
+                        "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0),
+                        # "agent0" : 
+                        # {
+                        # "spawn_position_heading": [
+                            # converted_position,
+                            # converted_heading,
+                        # ],
+                        # "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0)},
+                        
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
                     # traffic_density=0.2
+                    # agent_conigs=dict()
                 )
             )
 
+
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
+            print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
+            print(f"ENGINE TYPE: {type(self.client.engine)}")
 
+
+            # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
             obj.metaDriveActor = list(metadrive_objects.values())[0]
@@ -245,7 +253,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # print(f"ACTION = {action}")
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
-        print(f"OBS: {self.observation}")
+        # print(f"OBS: {self.observation}")
         # print(f"REWARD: {self.reward}")
         # print(f"TM: {self.tm}")
         # print(f"TC: {self.tc}")
