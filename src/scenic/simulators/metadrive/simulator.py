@@ -211,9 +211,11 @@ class MetaDriveSimulation(DrivingSimulation):
             self.defined_ego = True
             return
 
+        if obj.is_agent:
+            obj.metaDriveActor = self.client.agents[obj.name]
+
         # For additional cars
-        # if obj.isVehicle:
-        if (not obj.is_agent) and obj.isVehicle:
+        elif obj.isVehicle:
 
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
@@ -222,11 +224,12 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
+            # print(f"ENV AGENTS {self.client.agents['agent0']}")
             return
 
         # For pedestrians
         # elif obj.isPedestrian:
-        elif (not obj.is_agent) and obj.isPedestrian:
+        elif obj.isPedestrian:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 Pedestrian,
                 position=converted_position,
