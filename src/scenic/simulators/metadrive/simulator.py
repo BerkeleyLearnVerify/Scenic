@@ -217,6 +217,7 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client.reset()
             print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
             print(f"ENGINE TYPE: {type(self.client.engine)}")
+            print(f"Action Spaces: {self.client.agent_manager.get_action_spaces()}")
 
 
             # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")

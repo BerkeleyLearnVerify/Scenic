@@ -103,6 +103,7 @@ class DriveEnv(BaseEnv):
         # o = DummyObservation()
         o = LidarStateObservation(self.config)
         print(f"obs: {o}")
+        print(f"OBS SPCE: {o.observation_space}")
         return o
 
     def setup_engine(self):
