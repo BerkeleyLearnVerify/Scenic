@@ -80,6 +80,7 @@ class Simulator(abc.ABC):
         maxIterations=1,
         *,
         timestep=None,
+        name=None,
         verbosity=None,
         raiseGuardViolations=False,
         replay=None,
@@ -103,6 +104,8 @@ class Simulator(abc.ABC):
                 default provided by the simulator interface. Some interfaces may not
                 allow arbitrary time step lengths or may require the timestep to be set
                 when creating the `Simulator` and not customized per-simulation.
+            name (str): Name of the simulation, if any. Used to identify the simulation
+                when saving records to files and in debugging messages.
             verbosity (int): If not `None`, override Scenic's global verbosity level
                 (from the :option:`--verbosity` option or `scenic.setDebuggingOptions`).
             raiseGuardViolations (bool): Whether violations of preconditions/invariants
@@ -175,10 +178,14 @@ class Simulator(abc.ABC):
         simulation = None
         while not simulation and (maxIterations is None or iterations < maxIterations):
             iterations += 1
+            if maxIterations == 1:
+                simName = str(name) if name else "1"
+            else:
+                simName = f"{name}.{iterations}" if name else str(iterations)
             simulation = self._runSingleSimulation(
                 scene,
                 maxSteps,
-                name=iterations,
+                name=simName,
                 verbosity=verbosity,
                 timestep=timestep,
                 raiseGuardViolations=raiseGuardViolations,
@@ -378,7 +385,9 @@ class Simulation(abc.ABC):
                 scenario._stop("simulation terminated")
 
             # Record finally-recorded values.
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
+            values = dynamicScenario._evaluateRecordedExprs(
+                RequirementType.recordFinal, self.currentTime
+            )
             for name, val in values.items():
                 self.records[name] = val
 
@@ -429,7 +438,7 @@ class Simulation(abc.ABC):
                 if not obj.sensors:
                     continue
                 obj.observations.update(
-                    {key: sensor.get_observation() for key, sensor in obj.sensors.items()}
+                    {key: sensor.getObservation() for key, sensor in obj.sensors.items()}
                 )
 
             # Record current state of the simulation
@@ -592,13 +601,16 @@ class Simulation(abc.ABC):
         records = self.records
 
         # Record initially-recorded values
-        if self.currentTime == 0:
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
+        step = self.currentTime
+        if step == 0:
+            values = dynamicScenario._evaluateRecordedExprs(
+                RequirementType.recordInitial, step
+            )
             for name, val in values.items():
                 records[name] = val
 
         # Record time-series values
-        values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
+        values = dynamicScenario._evaluateRecordedExprs(RequirementType.record, step)
         for name, val in values.items():
             records[name].append((self.currentTime, val))
 

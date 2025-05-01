@@ -5,18 +5,16 @@ import carla
 import cv2
 import numpy as np
 
-from scenic.core.sensors import ActiveSensor
+from scenic.core.sensors import CallbackSensor
 
 
-class CarlaVisionSensor(ActiveSensor):
+class CarlaVisionSensor(CallbackSensor):
     def __init__(
         self,
         offset=(0, 0, 0),
         rotation=(0, 0, 0),
         attributes=None,
-        blueprint="sensor.camera.rgb",
         convert=None,
-        record_npy=False,
     ):
         super().__init__()
         self.transform = carla.Transform(
@@ -40,64 +38,25 @@ class CarlaVisionSensor(ActiveSensor):
             elif isinstance(convert, str):
                 self.convert = carla.ColorConverter.names[convert]
             else:
-                AttributeError("'convert' has to be int or string.")
+                raise TypeError("'convert' has to be int or string.")
 
-        self.record_npy = record_npy
-
-    def save_last_observation(self, save_path, frame_number=None):
-        raise NotImplementedError()
+    blueprint = "sensor.camera.rgb"
 
 
 class CarlaRGBSensor(CarlaVisionSensor):
-    def __init__(
-        self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, record_npy=False
-    ):
-        super().__init__(
-            offset=offset,
-            rotation=rotation,
-            attributes=attributes,
-            blueprint="sensor.camera.rgb",
-            convert=None,
-            record_npy=record_npy,
-        )
-
-    def processing(self, data):
+    def process(self, data):
         array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (data.height, data.width, 4))  # BGRA format
         array = array[:, :, :3]  # Take only RGB
         array = array[:, :, ::-1]  # Revert order
 
-        return array, data.frame
-
-    def save_last_observation(self, save_path, frame_number=None):
-        if frame_number is None:
-            frame_number = self.frame
-        save_as = os.path.join(save_path, f"{frame_number}")
-        if self.record_npy:
-            np.save(save_as, self.observation)
-        else:
-            cv2.imwrite(f"{save_as}.png", self.observation[..., ::-1])
+        return array.copy()
 
 
 class CarlaSSSensor(CarlaVisionSensor):
-    def __init__(
-        self,
-        offset=(0, 0, 0),
-        rotation=(0, 0, 0),
-        attributes=None,
-        convert=None,
-        record_npy=False,
-    ):
-        super().__init__(
-            offset=offset,
-            rotation=rotation,
-            attributes=attributes,
-            blueprint="sensor.camera.semantic_segmentation",
-            convert=convert,
-            record_npy=record_npy,
-        )
+    blueprint = "sensor.camera.semantic_segmentation"
 
-    def processing(self, data):
+    def process(self, data):
         if self.convert is not None:
             data.convert(self.convert)
 
@@ -110,16 +69,4 @@ class CarlaSSSensor(CarlaVisionSensor):
         else:
             array = array[:, :, 2]  # Take only R
 
-        return array, data.frame
-
-    def save_last_observation(self, save_path, frame_number=None):
-        if frame_number is None:
-            frame_number = self.observation.frame
-        save_as = os.path.join(save_path, f"{frame_number}")
-        if self.record_npy:
-            np.save(save_as, self.observation)
-        else:
-            if self.convert is not None:
-                cv2.imwrite(f"{save_as}.png", self.observation[..., ::-1])
-            else:
-                cv2.imwrite(f"{save_as}.png", self.observation)
+        return array.copy()

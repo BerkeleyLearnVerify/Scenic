@@ -1084,8 +1084,8 @@ class Object(OrientedPoint):
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
         # Sensor properties
-        "sensors": {},
-        "observations": {},
+        "sensors": PropertyDefault((), {}, lambda self: {}),
+        "observations": PropertyDefault((), {"final"}, lambda self: {}),
     }
 
     def __new__(cls, *args, **kwargs):
@@ -1722,14 +1722,6 @@ class Object(OrientedPoint):
             return shapely.affinity.affine_transform(_unitBox, matrix)
 
         return self.occupiedSpace._boundingPolygon
-
-    def save_observations(self, save_path, frame_number):
-        import os
-
-        for key, sensor in self.sensors.items():
-            sensor_path = os.path.join(save_path, key)
-            os.makedirs(sensor_path, exist_ok=True)
-            sensor.save_last_observation(save_path=sensor_path, frame_number=frame_number)
 
 
 _unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))

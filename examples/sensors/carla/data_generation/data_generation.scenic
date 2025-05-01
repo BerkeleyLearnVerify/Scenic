@@ -27,7 +27,4 @@ other = new Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
 
 record ego.observations["front_rgb"] as "front_rgb"
-#record ego.observations["front_rgb"] as "front_rgb" after 5s every 1s # TODO Implement
-#record ego.observations["front_rgb"] after 5s every 1s to localPath("data/generation") # TODO Implement
-
-require monitor RecordingMonitor(ego, path=localPath("data"), recording_start=5, subsample=5)
+record ego.observations["front_rgb"] every 1 seconds after 5 seconds to "data/front{time}.jpg"

@@ -1,6 +1,6 @@
 import ast
 import typing
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 class AST(ast.AST):
@@ -355,15 +355,25 @@ class Next(AST):
 
 
 class Record(AST):
-    __match_args__ = ("value", "name")
+    __match_args__ = ("value", "name", "recorder", "period", "delay")
 
     def __init__(
-        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+        self,
+        value: ast.AST,
+        name: Optional[str] = None,
+        recorder: Any = None,
+        period: Optional[Union["Seconds", "Steps"]] = None,
+        delay: Optional[Union["Seconds", "Steps"]] = None,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.value = value
         self.name = name
-        self._fields = ["value", "name"]
+        self.recorder = recorder
+        self.period = period
+        self.delay = delay
+        self._fields = ["value", "name", "recorder", "period", "delay"]
 
 
 class RecordInitial(AST):

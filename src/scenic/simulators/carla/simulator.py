@@ -261,9 +261,8 @@ class CarlaSimulation(DrivingSimulation):
                 carla_sensor = self.world.spawn_actor(
                     sensor_bp, sensor.transform, attach_to=obj.carlaActor
                 )
-                carla_sensor.listen(sensor.on_data)
+                carla_sensor.listen(sensor.onData)
                 sensor.carla_sensor = carla_sensor
-            obj.observations = {}
 
         return carlaActor
 
