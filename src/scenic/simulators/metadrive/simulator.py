@@ -155,6 +155,25 @@ class MetaDriveSimulation(DrivingSimulation):
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
                 dict(
+                    agent_configs={
+                        "DEFAULT_AGENT" : dict(use_special_color=True, 
+                                               spawn_lane_index=None,
+                                               spawn_position_heading=[converted_position, converted_heading],
+                                               lane_line_detector=dict(num_lasers=4, 
+                                                                       distance=20, 
+                                                                       gaussian_noise=0.0, 
+                                                                       dropout_prob=0.0)
+                                               ),
+                        "agent1" : dict(use_special_color=True, 
+                                               spawn_lane_index=None,
+                                               spawn_position_heading=[converted_position, converted_heading],
+                                               lane_line_detector=dict(num_lasers=4, 
+                                                                       distance=20, 
+                                                                       gaussian_noise=0.0, 
+                                                                       dropout_prob=0.0)
+                                               ),
+
+                    },
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
@@ -166,14 +185,6 @@ class MetaDriveSimulation(DrivingSimulation):
                             converted_heading,
                         ],
                         "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0),
-                        # "agent0" : 
-                        # {
-                        # "spawn_position_heading": [
-                            # converted_position,
-                            # converted_heading,
-                        # ],
-                        # "lane_line_detector" : dict(num_lasers=4, distance=20, gaussian_noise=0.0, dropout_prob=0.0)},
-                        
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
