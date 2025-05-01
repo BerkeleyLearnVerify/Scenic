@@ -81,6 +81,9 @@ def metaDriveToScenicHeading(metaDriveHeading):
 
 
 class DriveEnv(BaseEnv):
+    def _get_observations(self):
+        return {name: self.get_single_observation() for name in self.config["agent_configs"].keys()}
+
     def reward_function(self, agent):
         """Dummy reward function."""
         return 0, {}
