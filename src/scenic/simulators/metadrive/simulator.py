@@ -46,6 +46,7 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
+        print(f"SIMULAOTR SUMO MAP {self.sumo_map}")
         self.real_time = real_time
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
 
@@ -211,7 +212,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 )
             )
 
-
+            print(f"SUMO MAP {self.sumo_map}")
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
             print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
