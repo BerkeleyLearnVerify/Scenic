@@ -128,6 +128,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.scenic_offset = scenic_offset
         self.sumo_map_boundary = sumo_map_boundary
         self.film_size = film_size
+        self.actions = dict()
 
         self.observation = None
         self.reward = None
@@ -238,7 +239,10 @@ class MetaDriveSimulation(DrivingSimulation):
         super().executeActions(allActions)
 
         # Apply control updates to vehicles and pedestrians
-        for obj in self.scene.objects[1:]:  # Skip ego vehicle (it is handled separately)
+        for obj in self.scene.objects:  # Skip ego vehicle (it is handled separately)
+            if not obj.is_agent:
+                continue
+
             if obj.isVehicle:
                 action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
@@ -257,13 +261,19 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def step(self):
         start_time = time.monotonic()
+        self.actions = dict()
 
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
-        action = ego_obj._collect_action()
+        # action = ego_obj._collect_action()
+        
+        for obj in self.scene.objects:
+            if obj.is_agent:
+                self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
+
         # print(f"ACTION = {action}")
         # print(f"Config: {self.client.config}")
-        self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(action)  # Apply action in the simulator
+        self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(self.actions)  # Apply action in the simulator
         # print(f"OBS: {self.observation}")
         # print(f"REWARD: {self.reward}")
         # print(f"TM: {self.tm}")
