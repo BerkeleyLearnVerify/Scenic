@@ -138,6 +138,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.info = None
         super().__init__(scene, timestep=timestep, **kwargs)
 
+
     def createObjectInSimulator(self, obj):
         """
         Create an object in the MetaDrive simulator.
@@ -238,7 +239,7 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             obj.metaDriveActor = metaDriveActor
             return
-
+ 
         # If the object type is unsupported, raise an error
         raise SimulationCreationError(
             f"Unsupported object type: {type(obj)} for object {obj}."
