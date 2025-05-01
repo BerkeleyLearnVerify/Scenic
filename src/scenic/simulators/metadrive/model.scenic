@@ -90,6 +90,7 @@ class MetaDriveActor(DrivingObject):
     metaDriveActor: None
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):
+    name: ""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._control = {"steering": 0, "throttle": 0, "brake": 0}

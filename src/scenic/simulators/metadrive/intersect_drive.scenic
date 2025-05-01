@@ -28,8 +28,13 @@ pos = new Point on junction
 pos2 = new Point on junction
 # ego = new Car on pos 
 
-ego = new Car on (340, -208, 0), facing 0 deg, with behavior FollowLaneBehavior()
-car2 = new Car on (325, -200, 0), facing -90 deg, with behavior FollowLaneBehavior() 
+ego = new Car on (340, -208, 0), facing 0 deg,
+                                with name "agent0"
+                                with behavior FollowLaneBehavior(),
+
+car2 = new Car on (325, -200, 0), facing -90 deg, 
+                                with behavior FollowLaneBehavior(),
+                                with name "agent1"
 # ego = new Car on (337, -208, 0), facing 0 deg, with behavior DriveAvoidingCollisions(avoidance_threshold=5) 
 # car2 = new Car on (325, -195, 0), facing -90 deg, with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 
