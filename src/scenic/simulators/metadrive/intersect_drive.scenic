@@ -22,10 +22,10 @@ model scenic.domains.driving.model
 # ego = new Car on (0, 0, 0)
 # print(f"INTERSECTIONS: {type(network.intersections)}")
 # intersection_index = DiscreteRange(0, len(network.intersections) - 1)
-intersection_index = random.randint(0, len(network.intersections) - 1)
-junction = network.intersections[intersection_index]
-pos = new Point on junction
-pos2 = new Point on junction
+# intersection_index = random.randint(0, len(network.intersections) - 1)
+# junction = network.intersections[intersection_index]
+# pos = new Point on junction
+# pos2 = new Point on junction
 # ego = new Car on pos 
 
 ego = new Car on (340, -208, 0), facing 0 deg,
@@ -62,4 +62,4 @@ car2 = new Car on (325, -200, 0), facing -90 deg,
         # wait
     # terminate
 # require monitor StopAfterInteraction()
-terminate after 15 seconds   # in case ego never breaks
+# terminate after 15 seconds   # in case ego never breaks

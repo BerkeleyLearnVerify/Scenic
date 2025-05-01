@@ -131,6 +131,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.actions = dict()
         self.camera_position = (0, 0, 0)
         self.agent_configs = dict()
+        self.agents = []
 
         self.observation = None
         self.reward = None
@@ -150,6 +151,7 @@ class MetaDriveSimulation(DrivingSimulation):
         
         for obj in self.scene.objects:
             if obj.is_agent:
+                self.agents.append(obj.name)
 
                 converted_position = utils.scenicToMetaDrivePosition(
                     obj.position, self.scenic_offset
@@ -410,3 +412,12 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
+
+    def get_obs(self):
+        return self.observation
+
+    def get_info(self):
+        return self.info
+
+    def get_reward(self):
+        return self.reward
