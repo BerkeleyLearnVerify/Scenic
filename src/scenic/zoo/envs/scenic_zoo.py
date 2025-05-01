@@ -2,22 +2,23 @@ from scenic.core.simulators import Simulator, Simulation
 from scenic.core.scenarios import Scenario
 from pettingzoo import ParallelEnv 
 from gymnasium import spaces
+import random
+import numpy as np
 
 class ResetException(Exception):
     def __init__(self):
         super().__init__("Resetting")
 
 class ScenicZooEnv(ParallelEnv):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4,
-                "name": "scenic_zoo_env_v0"} # TODO placeholder, add simulator-specific entries
+    metadata = {"name": "scenic_zoo_env_v0"} # TODO placeholder, add simulator-specific entries
     # TODO determine where to pass in reward function
     def __init__(self, 
                  scenario: Scenario,
                  simulator : Simulator,
                  render_mode=None,
                  max_steps=1000,
-                 observation_space : spaces.Dict = spaces.Dict(),
-                 action_space : spaces.Dict = spaces.Dict()): # empty string means just pure scenic???
+                 observation_space : dict = dict(), 
+                 action_space : dict = dict()): # empty string means just pure scenic???
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
@@ -79,7 +80,11 @@ class ScenicZooEnv(ParallelEnv):
 
     def reset(self, seed=None, options=None): # TODO will setting seed here conflict with VerifAI's setting of seed?
         # only setting enviornment seed, not torch seed?
-        super().reset(seed=seed)
+        # super().reset(seed=seed)
+        if seed:
+            np.random.seed(seed)
+            random.seed(seed)
+
         if self.loop is None:
             self.loop = self._make_run_loop()
             observation, info = next(self.loop) # not doing self.scene.send(action) just yet
@@ -88,8 +93,10 @@ class ScenicZooEnv(ParallelEnv):
         
     def step(self, action):
         assert not (self.loop is None), "self.loop is None, have you called reset()?"
-
+        # step_result = self.loop.send(action)
+        # print(f"STEP_RESULT {step_result}")
         observation, reward, terminated, truncated, info = self.loop.send(action)
+        # observation, reward, terminated, truncated, info = step_result 
         return observation, reward, terminated, truncated, info
 
     def render(self): # TODO figure out if this function has to be implemented here or if super() has default implementation
