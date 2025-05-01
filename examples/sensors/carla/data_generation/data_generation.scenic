@@ -26,5 +26,8 @@ ego = new Car at spot,
 other = new Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
 
-record ego.observations["front_rgb"] as "front_rgb"
-record ego.observations["front_rgb"] every 1 seconds after 5 seconds to "data/front{time}.jpg"
+param recordFolder = "out/{simulation}"
+record ego.observations["front_ss"] every 0.5 seconds after 5 seconds to "frontss_{time}.jpg"
+record ego.observations["front_rgb"] after 5 seconds to "frontrgb.mp4"
+
+terminate after 15 seconds

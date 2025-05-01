@@ -216,8 +216,7 @@ class DynamicScenario(Invocable):
         simName = veneer.currentSimulation.name
         globalParams = types.MappingProxyType(veneer._globalParameters)
         for req in self._recordedExprs:
-            if recConfig := req.recConfig:
-                recorder = recConfig.recorder
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
                 recorder.beginRecording(recConfig, simName, timestep, globalParams)
 
     def _step(self):
@@ -323,8 +322,8 @@ class DynamicScenario(Invocable):
         # Stop recorders.
         cancelRecordings = quiet or rejection is not None
         for req in self._recordedExprs:
-            if recConfig := req.recConfig:
-                recConfig.recorder.endRecording(canceled=cancelRecordings)
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
+                recorder.endRecording(canceled=cancelRecordings)
 
         # If a temporal requirement was violated, reject (now that we're cleaned up).
         if rejection is not None:

@@ -6,6 +6,7 @@ import math
 import os.path
 import pickle
 from typing import Literal, Tuple
+import sys
 
 import PIL.Image
 import cv2
@@ -31,7 +32,7 @@ class CallbackSensor(Sensor):
                 f"{type(self).__name__} callback not called before first observation"
             )
 
-        return self.observation
+        return self._lastObservation
 
     def onData(self, data):
         self._lastObservation = self.process(data)
@@ -204,15 +205,20 @@ def fileHandler(*exts):
 
 @fileHandler("mkv", "mov", "mp4")
 def videoHandler(path, values, timestep, options):
+    if not values:
+        return  # empty time series
     codec = options.get("codec")
     if codec is None:
-        # Pragmatic choice for wider playability; may switch to always using AV1 later
-        codec = "avc1" if path.endswith((".mp4", ".mov")) else "AV01"
+        if sys.platform == "darwin":
+            # Pragmatic choice for wider playability; may switch to always using AV1 later
+            codec = "avc1" if path.endswith((".mp4", ".mov")) else "AV01"
+        else:
+            codec = "mp4v"
     elif len(codec) != 4:
         raise ValueError("video codec must be a 4-character string (FourCC)")
     fourcc = cv2.VideoWriter_fourcc(*codec)
-    frameSize = values[0][1].shape[:2]
-    writer = cv2.VideoWriter(path, fourcc, 1.0 / timestep, frameSize)
+    height, width = values[0][1].shape[:2]
+    writer = cv2.VideoWriter(path, fourcc, 1.0 / timestep, (width, height))
     try:
         for step, value in values:
             frame = cv2.cvtColor(prepareImageData(value, intOnly=True), cv2.COLOR_RGB2BGR)

@@ -21,7 +21,6 @@ class CarlaVisionSensor(CallbackSensor):
             carla.Location(x=offset[0], y=offset[1], z=offset[2]),
             carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]),
         )
-        self.blueprint = blueprint
         if isinstance(attributes, str):
             raise NotImplementedError(
                 "String parsing for attributes is not yet implemented. Feel free to do so."
@@ -40,7 +39,13 @@ class CarlaVisionSensor(CallbackSensor):
             else:
                 raise TypeError("'convert' has to be int or string.")
 
+        self.frame = 0
+
     blueprint = "sensor.camera.rgb"
+
+    def onData(self, data):
+        super().onData(data)
+        self.frame = data.frame
 
 
 class CarlaRGBSensor(CarlaVisionSensor):
