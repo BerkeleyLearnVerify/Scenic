@@ -18,7 +18,8 @@ class ScenicZooEnv(ParallelEnv):
                  render_mode=None,
                  max_steps=1000,
                  observation_space : dict = dict(), 
-                 action_space : dict = dict()): # empty string means just pure scenic???
+                 action_space : dict = dict(),
+                 agents=[]): # empty string means just pure scenic???
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
@@ -33,7 +34,8 @@ class ScenicZooEnv(ParallelEnv):
         self.feedback_result = None
         self.loop = None
 
-        self.agents = None
+        self.agents = agents
+        self.possible_agents = agents
 
         self.terminations = {}
         self.truncations = {}
@@ -46,9 +48,9 @@ class ScenicZooEnv(ParallelEnv):
             try:
                 scene, _ = self.scenario.generate(feedback=self.feedback_result)
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
-                    # print(f"AGENTS: {self.agents}")
+                    print(f"AGENTS: {self.agents}")
                     self.agents = simulation.learning_agents
-                    # print(f"AGENTS: {self.agents}")
+                    print(f"AGENTS: {self.agents}")
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)

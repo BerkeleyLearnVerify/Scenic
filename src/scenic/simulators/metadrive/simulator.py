@@ -215,7 +215,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # print(f"SUMO MAP {self.sumo_map}")
             self.client.config["sumo_map"] = self.sumo_map
-            self.client.reset()
+            self.observation, self.info = self.client.reset()
             # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
             # print(f"ENGINE TYPE: {type(self.client.engine)}")
             # print(f"Action Spaces: {self.client.agent_manager.get_action_spaces()}")
