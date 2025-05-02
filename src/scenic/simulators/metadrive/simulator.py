@@ -132,7 +132,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.actions = dict()
         self.camera_position = (0, 0, 0)
         self.agent_configs = dict()
-        self.agents = []
+        self.learning_agents = []
 
         self.observation = None
         self.reward = None
@@ -143,6 +143,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def setup(self):
         try:
+            # TODO something other than try and except
             self.camera_position = utils.scenicToMetaDrivePosition(
                 self.scene.params["camera_position"], self.scenic_offset
             )
@@ -152,7 +153,7 @@ class MetaDriveSimulation(DrivingSimulation):
         
         for obj in self.scene.objects:
             if obj.is_agent:
-                self.agents.append(obj.name)
+                self.learning_agents.append(obj.name)
 
                 converted_position = utils.scenicToMetaDrivePosition(
                     obj.position, self.scenic_offset
@@ -240,7 +241,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 position=converted_position,
                 heading=converted_heading,
             )
-            obj.metaDriveActor = metaDriveActor
+            obj.metaDriveActor = metaDriveActor # TODO this has set_pos and set_heading_theta functions
             # print(f"ENV AGENTS {self.client.agents['agent0']}")
             return
 

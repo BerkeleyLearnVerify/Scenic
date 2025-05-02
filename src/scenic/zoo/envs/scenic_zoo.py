@@ -46,7 +46,9 @@ class ScenicZooEnv(ParallelEnv):
             try:
                 scene, _ = self.scenario.generate(feedback=self.feedback_result)
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
-                    self.agents = simulation.agents
+                    # print(f"AGENTS: {self.agents}")
+                    self.agents = simulation.learning_agents
+                    # print(f"AGENTS: {self.agents}")
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)
@@ -90,6 +92,8 @@ class ScenicZooEnv(ParallelEnv):
             observation, info = next(self.loop) # not doing self.scene.send(action) just yet
         else:
             observation, info = self.loop.throw(ResetException())
+
+        return observation, info
         
     def step(self, action):
         assert not (self.loop is None), "self.loop is None, have you called reset()?"
@@ -105,11 +109,11 @@ class ScenicZooEnv(ParallelEnv):
     def close(self):
         self.simulator.destroy()
     
-    @property
+    # @property
     def action_space(self, agent):
         return self._observation_space[agent]
     
-    @property
+    # @property
     def observation_space(self, agent):
         return self._action_space[agent]
 
