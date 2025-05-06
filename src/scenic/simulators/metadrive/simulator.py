@@ -223,6 +223,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
             # Assign the MetaDrive actor to the ego
+            # Recall that MetaDrive actor is of type metadrive.DefaultVehicle
             metadrive_objects = self.client.engine.get_objects()
             obj.metaDriveActor = list(metadrive_objects.values())[0]
             self.defined_ego = True
@@ -337,6 +338,8 @@ class MetaDriveSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         # print(f"AGENTS KEYS {self.client.agents.items()}")
         metaDriveActor = obj.metaDriveActor
+        # print(f"Vehicle type: {type(metaDriveActor)}")
+        # print(f"Vehicle lane: {metaDriveActor.lane}")
         # print(f"AGENTS ID {type(metaDriveActor)}")
         # print(f"AGENT ID : {metaDriveActor.ID}")
         position = utils.metadriveToScenicPosition(
