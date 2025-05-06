@@ -270,7 +270,7 @@ class MetaDriveSimulation(DrivingSimulation):
         for obj in self.scene.objects:  # Skip ego vehicle (it is handled separately)
             if obj.is_agent:
                 continue
-
+            print("not agent")
             if obj.isVehicle:
                 action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
@@ -292,13 +292,13 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Special handling for the ego vehicle
         # print(f"actions: {self.actions}")
-        ego_obj = self.scene.objects[0]
+        # ego_obj = self.scene.objects[0]
         
         # for obj in self.scene.objects:
             # if obj.is_agent:
                 # self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
 
-        print(f"ACTION = {self.actions}")
+        # print(f"ACTION = {self.actions}")
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(self.actions)  # Apply action in the simulator
         self.actions = dict()
@@ -307,7 +307,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # print(f"TM: {self.tm}")
         # print(f"TC: {self.tc}")
         # print(f"INFO: {self.info}")
-        ego_obj._reset_control()
+        # ego_obj._reset_control()
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
