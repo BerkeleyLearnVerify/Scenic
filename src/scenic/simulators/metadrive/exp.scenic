@@ -14,8 +14,11 @@ param time_step = 1.0/10
 param camera_position = (340, -208, 0)
 model scenic.domains.driving.model
 
+
 ego = new Car on (340, -208, 0), facing 0 deg,
                                 with name "agent0",
+                                with behavior FollowLaneBehavior(),
 
 car2 = new Car on (325, -200, 0), facing -90 deg, 
-                                with name "agent1"
+                                with name "agent1",
+                                with behavior FollowLaneBehavior(),

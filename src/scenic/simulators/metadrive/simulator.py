@@ -289,19 +289,19 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def step(self):
         start_time = time.monotonic()
-        self.actions = dict()
 
         # Special handling for the ego vehicle
+        # print(f"actions: {self.actions}")
         ego_obj = self.scene.objects[0]
-        # action = ego_obj._collect_action()
         
-        for obj in self.scene.objects:
-            if obj.is_agent:
-                self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
+        # for obj in self.scene.objects:
+            # if obj.is_agent:
+                # self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
 
-        # print(f"ACTION = {self.actions}")
+        print(f"ACTION = {self.actions}")
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(self.actions)  # Apply action in the simulator
+        self.actions = dict()
         # print(f"OBS: {self.observation}")
         # print(f"REWARD: {self.reward}")
         # print(f"TM: {self.tm}")
