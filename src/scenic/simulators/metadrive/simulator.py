@@ -315,14 +315,14 @@ class MetaDriveSimulation(DrivingSimulation):
         angularVelocity = Vector(*md_ang_vel)
         angularSpeed = math.hypot(*md_ang_vel)
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
-        yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
-            converted_heading, 0, 0
-        )
+        # yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
+            # converted_heading, 0, 0
+        # )
         elevation = 0
         # if obj.name=='agent1' :
-        print(f"Name: {obj.name}, Yaw pitch roll: {yaw, pitch, roll}")
-        print(f"CONVERTED HEADING {converted_heading}")
-        print(f"Yaw degree {180 * yaw/(2 * 3.1415926535)}")
+        # print(f"Name: {obj.name}, Yaw pitch roll: {yaw, pitch, roll}")
+        # print(f"CONVERTED HEADING {converted_heading}")
+        # print(f"Yaw degree {180 * yaw/(2 * 3.1415926535)}")
 
         values = dict(
             position=position,
@@ -330,9 +330,9 @@ class MetaDriveSimulation(DrivingSimulation):
             speed=speed,
             angularSpeed=angularSpeed,
             angularVelocity=angularVelocity,
-            yaw=yaw,
-            pitch=pitch,
-            roll=roll,
+            yaw=converted_heading,
+            pitch=0,
+            roll=0,
             elevation=elevation,
         )
 
