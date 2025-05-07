@@ -50,28 +50,6 @@ class MetaDriveSimulator(DrivingSimulator):
         self.real_time = real_time
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
 
-        # decision_repeat = math.ceil(self.timestep / 0.02)
-        # physics_world_step_size = self.timestep / decision_repeat
-
-        # self.client = utils.DriveEnv(
-            # dict(
-                # # map='C',
-                # # agent_policy=ExpertPolicy,
-                # decision_repeat=decision_repeat,
-                # physics_world_step_size=physics_world_step_size,
-                # use_render=self.render3D,
-                # vehicle_config={
-                    # "spawn_position_heading": [
-                        # converted_position,
-                        # converted_heading,
-                    # ],
-                # },
-                # use_mesh_terrain=self.render3D,
-                # log_level=logging.CRITICAL,
-                # # traffic_density=0.2
-            # )
-        # )
-
         if self.render and not self.render3D:
             self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
         else:
