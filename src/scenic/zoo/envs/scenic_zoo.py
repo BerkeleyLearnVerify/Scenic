@@ -53,7 +53,7 @@ class ScenicZooEnv(ParallelEnv):
                     # print(f"AGENTS: {self.agents}")
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
-                    done = lambda: not (simulation.result is None)
+                    done = lambda: not (simulation.result is None) # TODO maybe call this terminated in the future
                     truncated = lambda: (steps_taken >= self.max_steps) # TODO handle cases where it is done right on maxsteps
                     observation = simulation.get_obs()
                     info = simulation.get_info()
