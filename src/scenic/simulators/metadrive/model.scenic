@@ -97,6 +97,17 @@ class MetaDriveActor(DrivingObject):
         """
         self._reward += amount
 
+    def zero_reward(self):
+        self._reward = 0
+
+    @property
+    def max_speed_km_h(self):
+        return self.metaDriveActor.max_speed_km_h
+    
+    @property
+    def speed_km_h(self):
+        return self.metaDriveActor.speed_km_h
+
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     name: ""
     # is_agent: True
