@@ -35,12 +35,12 @@ car2_dir = -90
 # behavior ComputeDriverReward():
     # while True: 
         # wait
-
+# moves in -y direction
 ego = new Car on (340, -208, 0), facing car1_facing deg,
                                 with name "agent0",
                                 # with behavior ComputeDriveReward()
                                 # with behavior FollowLaneBehavior(),
-
+# moves in +x
 car2 = new Car on (325, -200, 0), facing car2_facing deg, 
                                 with name "agent1",
                                 # with behavior ComputeDriverReward()

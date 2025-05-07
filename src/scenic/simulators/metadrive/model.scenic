@@ -90,6 +90,7 @@ class MetaDriveActor(DrivingObject):
     metaDriveActor: None
     is_agent: True
     _reward: 0
+    use_special_color: False
 
     def add_reward(self, amount):
         """

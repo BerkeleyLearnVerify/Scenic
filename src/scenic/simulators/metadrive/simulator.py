@@ -160,7 +160,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 )
                 converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
-                self.agent_configs[obj.name] = dict(use_special_color=True, 
+                self.agent_configs[obj.name] = dict(use_special_color=obj.use_special_color, 
                                                spawn_lane_index=None,
                                                spawn_position_heading=[converted_position, converted_heading],
                                                lane_line_detector=dict(num_lasers=4, 
@@ -263,7 +263,7 @@ class MetaDriveSimulation(DrivingSimulation):
         for obj in self.scene.objects:  # Skip ego vehicle (it is handled separately)
             if obj.is_agent:
                 continue
-            print("not agent")
+            # print("not agent")
             if obj.isVehicle:
                 action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
@@ -286,11 +286,12 @@ class MetaDriveSimulation(DrivingSimulation):
         # Special handling for the ego vehicle
         # print(f"actions: {self.actions}")
         # ego_obj = self.scene.objects[0]
-         
-        # for obj in self.scene.objects:
-            # # print(f"has behavior???: {not obj.behavior}")
-            # if obj.is_agent and obj.behavior:
-                # self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
+        
+        # TODO this for loop is just for debug
+        for obj in self.scene.objects:
+            # print(f"has behavior???: {not obj.behavior}")
+            if obj.is_agent and obj.behavior:
+                self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
 
         # print(f"ACTION = {self.actions}")
         # print(f"Config: {self.client.config}")
@@ -339,7 +340,8 @@ class MetaDriveSimulation(DrivingSimulation):
             converted_heading, 0, 0
         )
         elevation = 0
-
+        # if obj.name=='agent1' :
+            # print(f"Name: {obj.name}, Position: {position}")
         values = dict(
             position=position,
             velocity=velocity,
