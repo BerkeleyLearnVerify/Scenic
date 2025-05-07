@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import math
 import os.path
 import pickle
-from typing import Literal, Tuple
 import sys
+from typing import Literal, Tuple
 
 import PIL.Image
 import cv2
