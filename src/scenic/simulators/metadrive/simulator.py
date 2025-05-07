@@ -147,7 +147,7 @@ class MetaDriveSimulation(DrivingSimulation):
             self.camera_position = utils.scenicToMetaDrivePosition(
                 self.scene.params["camera_position"], self.scenic_offset
             )
-        except:
+        except KeyError:
             print("No camera_position param specified in scenic program, defaulting to (0, 0, 0)")
 
         
@@ -184,7 +184,6 @@ class MetaDriveSimulation(DrivingSimulation):
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
-        # self.camera_position = (converted_position[0], converted_position[1], 0)
 
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
@@ -213,15 +212,9 @@ class MetaDriveSimulation(DrivingSimulation):
                 )
             )
 
-            # print(f"SUMO MAP {self.sumo_map}")
             self.client.config["sumo_map"] = self.sumo_map
             self.observation, self.info = self.client.reset()
-            # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
-            # print(f"ENGINE TYPE: {type(self.client.engine)}")
-            # print(f"Action Spaces: {self.client.agent_manager.get_action_spaces()}")
 
-
-            # print(f"AGENT MANAGER TYPE: {type(self.client.engine.agent_manager)}")
             # Assign the MetaDrive actor to the ego
             # Recall that MetaDrive actor is of type metadrive.DefaultVehicle
             metadrive_objects = self.client.engine.get_objects()
@@ -302,12 +295,6 @@ class MetaDriveSimulation(DrivingSimulation):
         # print(f"Config: {self.client.config}")
         self.observation, self.reward, self.tm, self.tc, self.info = self.client.step(self.actions)  # Apply action in the simulator
         self.actions = dict()
-        # print(f"OBS: {self.observation}")
-        # print(f"REWARD: {self.reward}")
-        # print(f"TM: {self.tm}")
-        # print(f"TC: {self.tc}")
-        # print(f"INFO: {self.info}")
-        # ego_obj._reset_control()
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
@@ -336,12 +323,7 @@ class MetaDriveSimulation(DrivingSimulation):
         super().destroy()
 
     def getProperties(self, obj, properties):
-        # print(f"AGENTS KEYS {self.client.agents.items()}")
         metaDriveActor = obj.metaDriveActor
-        # print(f"Vehicle type: {type(metaDriveActor)}")
-        # print(f"Vehicle lane: {metaDriveActor.lane}")
-        # print(f"AGENTS ID {type(metaDriveActor)}")
-        # print(f"AGENT ID : {metaDriveActor.ID}")
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
         )
