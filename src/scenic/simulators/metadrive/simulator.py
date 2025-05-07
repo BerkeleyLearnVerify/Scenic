@@ -175,7 +175,8 @@ class MetaDriveSimulation(DrivingSimulation):
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
                     is_multi_agent=True,
-                    num_agents=2,
+                    # num_agents=2,
+                    num_agents=len(self.learning_agents),
                     # vehicle_config={
                         # "spawn_position_heading": [
                             # converted_position,
