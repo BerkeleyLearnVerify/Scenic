@@ -89,6 +89,7 @@ class MetaDriveActor(DrivingObject):
     """
     metaDriveActor: None
     is_agent: True
+    _reward: 0
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     name: ""

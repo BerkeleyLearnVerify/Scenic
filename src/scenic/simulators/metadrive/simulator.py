@@ -286,9 +286,10 @@ class MetaDriveSimulation(DrivingSimulation):
         # Special handling for the ego vehicle
         # print(f"actions: {self.actions}")
         # ego_obj = self.scene.objects[0]
-        
+         
         # for obj in self.scene.objects:
-            # if obj.is_agent:
+            # # print(f"has behavior???: {not obj.behavior}")
+            # if obj.is_agent and obj.behavior:
                 # self.actions[obj.name] = obj._collect_action() # TODO will have to go in the future...
 
         # print(f"ACTION = {self.actions}")
