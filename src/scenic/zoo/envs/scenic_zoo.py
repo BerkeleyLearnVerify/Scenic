@@ -48,9 +48,9 @@ class ScenicZooEnv(ParallelEnv):
             try:
                 scene, _ = self.scenario.generate(feedback=self.feedback_result)
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
-                    print(f"AGENTS: {self.agents}")
+                    # print(f"AGENTS: {self.agents}")
                     self.agents = simulation.learning_agents
-                    print(f"AGENTS: {self.agents}")
+                    # print(f"AGENTS: {self.agents}")
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)

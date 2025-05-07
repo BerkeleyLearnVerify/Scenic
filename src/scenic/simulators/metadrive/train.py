@@ -166,18 +166,31 @@ def worker_fn(worker_id: int,
     local_model.load_state_dict(model_state_dict)
     local_model.eval()
 
-    observations = []
-    actions = []
-    log_probs = []
-    rewards = []
-    dones = []
-    values = []
+    observations = dict()
+    actions = dict()
+    log_probs = dict()
+    rewards = dict()
+    dones = dict() 
+    values = dict() 
+
+    for agent in agents:
+        observations[agent] = [] 
+        actions[agent] = [] 
+        log_probs[agent] = [] 
+        rewards[agent] = [] 
+        dones[agent] = [] 
+        values[agent] = [] 
 
     obs, _ = env.reset()
     current_step = 0
     while current_step < steps_per_worker:
-        for o in obs.keys():
+        step_action_dict = dict()
+        # log_prob_dict = dict()
+        # value_dict = dict()
+
+        for agent, o in obs.items():
             obs_tensor = torch.tensor(o.flatten(), dtype=torch.float32).unsqueeze(0)
+
             with torch.no_grad():
                 mean, log_std, value = local_model(obs_tensor)
                 std = log_std.exp()
@@ -189,40 +202,62 @@ def worker_fn(worker_id: int,
                 log_prob -= torch.log(local_model.action_scale * (1 - y_t.pow(2)) + 1e-6)
                 log_prob = log_prob.sum(1, keepdim=True)
 
-        action = action.cpu().numpy().squeeze(0)
-        next_obs, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
+                # log_prob_dict[agent] = log_prob
 
-        observations.append(obs.flatten())
-        actions.append(action)
-        log_probs.append(log_prob.item())
-        rewards.append(reward)
+                action = action.cpu().numpy().squeeze(0)
+                step_action_dict[agent] = action
+
+                values[agent].append(value)
+                log_probs[agent].append(log_prob)
+                actions[agent].append(action)
+                observations[agent].append(o.flatten())
+
+        next_obs, reward, terminated, truncated, _ = env.step(step_action_dict)
+        done = terminated or truncated
         dones.append(done)
-        values.append(value.item())
+
+        # TODO figure out if these go inside the loop over agents
+        # figure out if the order of appending them matters
+        for agent in agents:
+            rewards[agent].append(reward[agent])
+            # observations[agent].append(obs[agent].flatten())
+            # actions[agent].append(step_action_dict[agent])
+            # log_probs[agent].append(log_prob_dict[agent].item())
+            # dones[agent].append(done[agent])
+            # values[agent].append(value_dict[agent].item())
 
         obs = next_obs
         current_step += 1
 
         if done:
             obs, _ = env.reset()
+    
 
-    last_obs_tensor = torch.tensor(obs.flatten(), dtype=torch.float32).unsqueeze(0)
-    with torch.no_grad():
-        _, _, last_value = local_model(last_obs_tensor)
-        last_value = last_value.item()
+    # TODO the above have made dictionaries out of the requried traj data
+    # still need to address the parts below
+    # last_value_dict = dict()
+    for agent, o in obs.items():
+        last_obs_tensor = torch.tensor(o.flatten(), dtype=torch.float32).unsqueeze(0)
+        
+        with torch.no_grad():
+            _, _, last_value = local_model(last_obs_tensor)
+            last_value = last_value.item()
 
-    trajectory_data = {
-        "observations": np.array(observations, dtype=np.float32),
-        "actions": np.array(actions, dtype=np.float32),
-        "log_probs": np.array(log_probs, dtype=np.float32),
-        "rewards": np.array(rewards, dtype=np.float32),
-        "dones": np.array(dones, dtype=np.bool_),
-        "values": np.array(values, dtype=np.float32),
-        "last_value": last_value,
-        "last_done": done,
-    }
+        # last_value_dict[agent] = last_value
 
-    data_queue.put(trajectory_data)
+        trajectory_data = {
+            "observations": np.array(observations[agent], dtype=np.float32),
+            "actions": np.array(actions[agent], dtype=np.float32),
+            "log_probs": np.array(log_probs[agent], dtype=np.float32),
+            "rewards": np.array(rewards[agent], dtype=np.float32),
+            "dones": np.array(dones, dtype=np.bool_),
+            "values": np.array(values, dtype=np.float32),
+            "last_value": last_value,
+            "last_done": done,
+        }
+
+        data_queue.put(trajectory_data)
+
     logging.getLogger(__name__).debug("Worker %s: Finished collecting %s steps.", worker_id, current_step)
     env.close()
 
