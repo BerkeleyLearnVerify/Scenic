@@ -14,7 +14,8 @@ import torch.multiprocessing as mp
 import tyro
 import gymnasium as gym
 from gymnasium import spaces
-from scenic.gym import ScenicGymEnv
+# from scenic.gym import ScenicGymEnv
+from scenic.zoo import ScenicZooEnv
 from scenic.simulators.metadrive import MetaDriveSimulator
 from torch import nn, optim
 
@@ -127,13 +128,14 @@ def worker_fn(worker_id: int,
     scenario = scenic.scenarioFromFile("exp.scenic",
                                    model="scenic.simulators.metadrive.model",
                                mode2D=True)
+
     env = ScenicZooEnv(scenario, 
-                           MetaDriveSimulator(sumo_map=sumo_map, render=True, real_time=True),
-                           None, 
-                           max_steps=50, 
-                           observation_space = obs_space_dict, 
-                           action_space = action_space_dict, 
-                           agents=agents)
+                       MetaDriveSimulator(sumo_map=sumo_map, render=True, real_time=True),
+                       None, 
+                       max_steps=50, 
+                       observation_space = obs_space_dict, 
+                       action_space = action_space_dict, 
+                       agents=agents)
     
     # TODO modify the code below to work with multi-agent things
     obs_space_shapes = dict()
@@ -170,7 +172,7 @@ def worker_fn(worker_id: int,
     actions = dict()
     log_probs = dict()
     rewards = dict()
-    dones = dict() 
+    dones = []
     values = dict() 
 
     for agent in agents:
@@ -178,7 +180,7 @@ def worker_fn(worker_id: int,
         actions[agent] = [] 
         log_probs[agent] = [] 
         rewards[agent] = [] 
-        dones[agent] = [] 
+        # dones[agent] = [] 
         values[agent] = [] 
 
     obs, _ = env.reset()
@@ -379,17 +381,24 @@ def main() -> None:
     logger.info("Hyperparameters: gamma=%s, lambda=%s, clip_eps=%s, lr=%s", args.gamma, args.gae_lambda, args.clip_epsilon, args.lr)
 
     # temp env to get obs and action space
-    env = ScenicGymEnv(
-        env_name,
-        MetaDriveSimulator(timestep=0.05, sumo_map=pathlib.Path("../maps/Town06.net.xml"), render=False, real_time=False),
-        observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(5, 7)),
-        action_space=spaces.Box(low=-1, high=1, shape=(2,)),
-        max_steps=700,
-    )
-    obs_space_shape = env.observation_space.shape
-    action_space = env.action_space
+    # env = ScenicZooEnv(
+        # env_name,
+        # MetaDriveSimulator(timestep=0.05, sumo_map=pathlib.Path("../maps/Town06.net.xml"), render=False, real_time=False),
+        # observation_space=spaces.Box(low=-np.inf, high=np.inf, shape=(5, 7)),
+        # action_space=spaces.Box(low=-1, high=1, shape=(2,)),
+        # max_steps=700,
+    # )
+    obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32),
+                     "agent1": gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32)}
+
+    action_space_dict = {'agent0': gym.spaces.Box(-1.0, 1.0, (2,), np.float32),
+                         'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
+
+    obs_space_shape = obs_space_dict["agent0"].shape
+    action_space = obs_space_dict["agent0"]
+
     obs_dim = np.prod(obs_space_shape) if isinstance(obs_space_shape, tuple) else obs_space_shape[0]
-    env.close()
+    # env.close()
 
     model = ActorCritic(obs_dim, action_space).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
