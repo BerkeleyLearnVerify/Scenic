@@ -91,6 +91,12 @@ class MetaDriveActor(DrivingObject):
     is_agent: True
     _reward: 0
 
+    def add_reward(self, amount):
+        """
+        amount can be either + or -
+        """
+        self._reward += amount
+
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     name: ""
     # is_agent: True
