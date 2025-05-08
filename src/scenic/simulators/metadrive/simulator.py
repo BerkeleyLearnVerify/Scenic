@@ -304,6 +304,7 @@ class MetaDriveSimulation(DrivingSimulation):
         super().destroy()
 
     def getProperties(self, obj, properties):
+        print(obj.reward)
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
