@@ -39,25 +39,33 @@ car2_dir = -90
 ego = new Car on (340, -208, 0), facing car1_facing deg,
                                 with name "agent0",
                                 # with behavior ComputeDriveReward()
-                                # with behavior FollowLaneBehavior(),
+                                with behavior FollowLaneBehavior(),
 # moves in +x
 car2 = new Car on (325, -200, 0), facing car2_facing deg, 
                                 with name "agent1",
                                 # with behavior ComputeDriverReward()
-                                # with behavior FollowLaneBehavior(),
+                                with behavior FollowLaneBehavior(),
 
-monitor Collision(car1, car2):
+monitor Reward(car1, car2):
     # TODO, will there be race conditions when adding to the reward?
     # TODO check if car dimensions are right
     # TODO the timing of the variable setting in the grand scheme of things needs to be ascertained
     done = False
+    last_long_1 = car1.position[1]
+    last_long_2 = car2.position[0]
 
     while True:
         car1.zero_reward()
         car2.zero_reward()
+        
+        current_long_1 = car1.position[1] 
+        current_long_2 = car2.position[0] 
 
-        car1.add_reward(driving_reward * ...) # TODO figure out car1/2's longitude's corresponding coordinate
-        car2.add_reward(driving_reward * ...)
+        car1.add_reward(driving_reward * (-1) * (current_long_1 - last_long_1)) # times -1 since car1 is going in -y direction
+        car2.add_reward(driving_reward * (current_long_2 - last_long_2))
+        
+        last_long_1 = current_long_1
+        last_long_2 = current_long_2
 
         car1.add_reward(speed_reward * car1.speed_km_h/car1.max_speed_km_h) # TODO what is the max speed?
         car2.add_reward(speed_reward * car2.speed_km_h/car2.max_speed_km_h) # TODO what is the max speed?
@@ -88,4 +96,4 @@ monitor Collision(car1, car2):
             terminate
    
 
-require monitor Collision(ego, car2)
+require monitor Reward(ego, car2)
