@@ -88,8 +88,8 @@ monitor Reward(car1, car2):
             # done = True
         
         
-        print(f"cond 2: {done}")
-        done = False
+        # print(f"cond 2: {done}")
+        # done = False
 
         if (distance from car1 to car1.goal) < 1 or \
                 (distance from car2 to car2.goal) < 1:
@@ -97,15 +97,15 @@ monitor Reward(car1, car2):
             car2.add_reward(success_reward)
             done = True
 
-        print(f"cond 3: {done}")
-        done = False
+        # print(f"cond 3: {done}")
+        # done = False
         # TODO use metadrive's own collision things?
         if car1 intersects car2:
             car1.add_reward(crash_penalty)
             car2.add_reward(crash_penalty)
             done = True
 
-        print(f"cond 4: {done}")
+        # print(f"cond 4: {done}")
 
         # if done:
             # # terminate
