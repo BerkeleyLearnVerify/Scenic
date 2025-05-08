@@ -55,6 +55,9 @@ monitor Reward(car1, car2):
     last_long_1 = car1.position[1]
     last_long_2 = car2.position[0]
 
+    drive_dir_1 = car1_dir * pi/180
+    drive_dir_2 = car2_dir * pi/180
+
     while True:
         
         car1.zero_reward()
@@ -72,8 +75,8 @@ monitor Reward(car1, car2):
         car1.add_reward(speed_reward * car1.speed_km_h/car1.max_speed_km_h) # TODO what is the max speed?
         car2.add_reward(speed_reward * car2.speed_km_h/car2.max_speed_km_h) # TODO what is the max speed?
 
-        car1.add_reward(-abs(car1.yaw - car1_dir)) # "normalized" facing reward?
-        car2.add_reward(-abs(car2.yaw - car2_dir))
+        car1.add_reward(-abs(car1.yaw - drive_dir_1)) # "normalized" facing reward?
+        car2.add_reward(-abs(car2.yaw - drive_dir_2))
         
         # print(f"cond 1: {done}")
         # if not (car1 in road):

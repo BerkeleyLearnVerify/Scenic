@@ -323,7 +323,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # if obj.name=='agent1' :
         # print(f"Name: {obj.name}, Yaw pitch roll: {yaw, pitch, roll}")
         # print(f"CONVERTED HEADING {converted_heading}")
-        # print(f"Yaw degree {180 * yaw/(2 * 3.1415926535)}")
+        # print(f"Yaw degree {180 * yaw/(3.1415926535)}")
 
         values = dict(
             position=position,
