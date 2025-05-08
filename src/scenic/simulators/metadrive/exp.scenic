@@ -55,6 +55,7 @@ monitor Reward(car1, car2):
 
     while True:
         if done:
+            print(f"LAST REWARD: {(car1.reward, car2.reward)}")
             terminate
 
         car1.zero_reward()
