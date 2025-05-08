@@ -304,7 +304,7 @@ class MetaDriveSimulation(DrivingSimulation):
         super().destroy()
 
     def getProperties(self, obj, properties):
-        # print(obj.reward)
+        print(f"{obj.name} reward: {obj.reward}")
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
@@ -336,18 +336,6 @@ class MetaDriveSimulation(DrivingSimulation):
             roll=0,
             elevation=elevation,
         )
-
-        # values = dict(
-            # position=Vector(0, 0, 0),
-            # velocity=Vector(0, 0, 0),
-            # speed=0,
-            # angularSpeed=0,
-            # angularVelocity=Vector(0, 0, 0),
-            # yaw=0,
-            # pitch=0,
-            # roll=0,
-            # elevation=0,
-        # )
 
         return values
 
