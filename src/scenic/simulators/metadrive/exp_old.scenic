@@ -17,10 +17,10 @@ import os
 import random
 from math import pi
 root_user = os.path.expanduser("~")
-param map = localPath(root_user + '/ScenicGym/assets/maps/CARLA/Town04.xodr')
-param carla_map = 'Town04'
+param map = localPath(root_user + '/ScenicGym/assets/maps/CARLA/Town01.xodr')
+param carla_map = 'Town01'
 param time_step = 1.0/10
-param camera_position = (311, 255, 0)
+param camera_position = (340, -208, 0)
 model scenic.domains.driving.model
 
 success_reward = 10.0
@@ -29,27 +29,28 @@ crash_penalty = -5.0
 out_of_road_penalty = -5.0
 speed_reward = 0.1
 
-car1_dir = 180
+car1_dir = 0
 car2_dir = -90
 
-# moves in -y direction, or in +y???
+# moves in -y direction
 # or (311, 255, 0)
-ego = new Car on (311, 255, 0), facing car1_dir deg,
+ego = new Car on (339, -208, 0), facing car1_dir deg,
                                 with name "agent0",
-                                with goal (311, 245, 0),
+                                with goal (340, -198, 0),
+                                # with behavior ComputeDriveReward()
                                 with behavior FollowLaneBehavior(),
 # moves in +x
 # (or 300, 246 on town 4 map)
-car2 = new Car on (300, 246, 0), facing car2_dir deg, 
+car2 = new Car on (325, -199, 0), facing car2_dir deg, 
                                 with name "agent1",
-                                with goal (310, 246, 0),
+                                with goal (335, -200, 0),
+                                # with behavior ComputeDriverReward()
                                 with behavior FollowLaneBehavior(),
 
 monitor Reward(car1, car2):
     # TODO, will there be race conditions when adding to the reward?
     # TODO check if car dimensions are right
     # TODO the timing of the variable setting in the grand scheme of things needs to be ascertained
-
     done = False
     last_long_1 = car1.position[1]
     last_long_2 = car2.position[0]
@@ -58,8 +59,6 @@ monitor Reward(car1, car2):
     drive_dir_2 = car2_dir * pi/180
 
     while True:
-        # print(f"car1 pos: {car1.position}")
-        # print(f"car2 pos: {car2.position}")
         
         car1.zero_reward()
         car2.zero_reward()
@@ -79,6 +78,21 @@ monitor Reward(car1, car2):
         car1.add_reward(-abs(car1.yaw - drive_dir_1)) # "normalized" facing reward?
         car2.add_reward(-abs(car2.yaw - drive_dir_2))
         
+        # print(f"cond 1: {done}")
+        # if not (car1 in road):
+            # car1.add_reward(-out_of_road_penalty)
+            # done = True
+
+        # print(f"cond 1: {done}")
+        # done = False
+
+        # if not (car2 in road):
+            # car2.add_reward(-out_of_road_penalty)
+            # done = True
+        
+        
+        # print(f"cond 2: {done}")
+        # done = False
 
         if (distance from car1 to car1.goal) < 1 or \
                 (distance from car2 to car2.goal) < 1:
@@ -96,11 +110,11 @@ monitor Reward(car1, car2):
 
         # print(f"cond 4: {done}")
 
-        if done:
-            terminate
+        # if done:
+            # # terminate
             # print(f"we DONE {done}")
             # pass
-        # done = False
+        done = False
 
         wait
    
