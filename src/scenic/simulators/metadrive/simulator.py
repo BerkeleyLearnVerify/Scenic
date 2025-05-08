@@ -110,7 +110,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.actions = dict()
         self.camera_position = (0, 0, 0)
         self.agent_configs = dict()
-        self.learning_agents = []
+        self.learning_agents = [] # The names of the learning agents
 
         self.observation = None
         self.reward = None
@@ -131,7 +131,7 @@ class MetaDriveSimulation(DrivingSimulation):
         
         for obj in self.scene.objects:
             if obj.is_agent:
-                self.learning_agents.append(obj.name)
+                self.learning_agents.append(obj)
 
                 converted_position = utils.scenicToMetaDrivePosition(
                     obj.position, self.scenic_offset
@@ -394,4 +394,10 @@ class MetaDriveSimulation(DrivingSimulation):
         return self.info
 
     def get_reward(self):
-        return self.reward
+
+        reward = dict()
+        for agent in self.learning_agents:
+            reward[agent.name] = agent.reward
+
+        return reward
+            
