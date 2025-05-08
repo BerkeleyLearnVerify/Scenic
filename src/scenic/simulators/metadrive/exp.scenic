@@ -60,7 +60,7 @@ monitor Reward(car1, car2):
     while True:
         # print(f"car1 pos: {car1.position}")
         # print(f"car2 pos: {car2.position}")
-        print(f"Monitored reward: {car1.reward, car2.reward}")
+        # print(f"Monitored reward: {car1.reward, car2.reward}")
         if done:
             terminate
 
@@ -75,25 +75,25 @@ monitor Reward(car1, car2):
 
         car1.add_reward(driving_reward * (-1) * (current_long_1 - last_long_1)) # times -1 since car1 is going in -y direction
         car2.add_reward(driving_reward * (current_long_2 - last_long_2))
-        print(f"added lane reward: {car1.reward, car2.reward}")
+        # print(f"added lane reward: {car1.reward, car2.reward}")
         
         last_long_1 = current_long_1
         last_long_2 = current_long_2
 
         car1.add_reward(speed_reward * car1.speed_km_h/car1.max_speed_km_h) # TODO what is the max speed?
         car2.add_reward(speed_reward * car2.speed_km_h/car2.max_speed_km_h) # TODO what is the max speed?
-        print(f"added speed reward: {car1.reward, car2.reward}")
+        # print(f"added speed reward: {car1.reward, car2.reward}")
         
         angle_rescale = lambda angle: angle + 2 * pi if angle < 0 else angle # makes sure angles are in [0, 2*pi)
 
         car1.add_reward(-abs(angle_rescale(car1.yaw) - angle_rescale(drive_dir_1))) # "normalized" facing reward?
         car2.add_reward(-abs(angle_rescale(car2.yaw) - angle_rescale(drive_dir_2)))
-        print(f"added ori reward: {car1.reward, car2.reward}")
+        # print(f"added ori reward: {car1.reward, car2.reward}")
         
         # FIXME this if block is flawed...maybe should be two separate if blocks?
         if (distance from car1 to car1.goal) < 1 or \
                 (distance from car2 to car2.goal) < 1:
-            print(f"SUCCESS")
+            # print(f"SUCCESS")
             car1.add_reward(success_reward)
             car2.add_reward(success_reward)
             done = True
@@ -102,7 +102,7 @@ monitor Reward(car1, car2):
         # done = False
         # TODO use metadrive's own collision things?
         if car1.metaDriveActor.crash_vehicle or car2.metaDriveActor.crash_vehicle:
-            print(f"CRASHED")
+            # print(f"CRASHED")
             car1.add_reward(crash_penalty)
             car2.add_reward(crash_penalty)
             done = True
