@@ -83,9 +83,11 @@ monitor Reward(car1, car2):
         car1.add_reward(speed_reward * car1.speed_km_h/car1.max_speed_km_h) # TODO what is the max speed?
         car2.add_reward(speed_reward * car2.speed_km_h/car2.max_speed_km_h) # TODO what is the max speed?
         print(f"added speed reward: {car1.reward, car2.reward}")
+        
+        angle_rescale = lambda angle: angle + 2 * pi if angle < 0 else angle # makes sure angles are in [0, 2*pi)
 
-        car1.add_reward(-abs(car1.yaw - drive_dir_1)) # "normalized" facing reward?
-        car2.add_reward(-abs(car2.yaw - drive_dir_2))
+        car1.add_reward(-abs(angle_rescale(car1.yaw) - angle_rescale(drive_dir_1))) # "normalized" facing reward?
+        car2.add_reward(-abs(angle_rescale(car2.yaw) - angle_rescale(drive_dir_2)))
         print(f"added ori reward: {car1.reward, car2.reward}")
         
         # FIXME this if block is flawed...maybe should be two separate if blocks?
