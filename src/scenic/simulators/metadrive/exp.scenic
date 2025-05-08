@@ -1,17 +1,5 @@
-'''
-To run this file using the MetaDrive simulator:
-    scenic examples/driving/badlyParkedCarPullingIn.scenic --2d --model scenic.simulators.metadrive.model --simulate
-
-To run this file using the Carla simulator:
-    scenic examples/driving/badlyParkedCarPullingIn.scenic --2d --model scenic.simulators.carla.model --simulate
-'''
-
-# TODO add goal point
-# TODO add goal reach reward
-# TODO add driving (moving forward) reward?
-# TODO add speed reward
-# should there be a reward for total distance travelled foward?
-# Check MetaDriveEnv for rough scale of the reward
+# Should there be a reward for total distance travelled foward? To give a denser signal?
+# but that's taken care of by the longitudinal reward
 
 import os
 import random
@@ -34,6 +22,7 @@ car2_dir = -90
 
 # moves in -y direction, or in +y???
 # or (311, 255, 0)
+# ego car is in the lane with the slight curve
 ego = new Car on (311, 255, 0), facing car1_dir deg,
                                 with name "agent0",
                                 with goal (311, 235, 0),
