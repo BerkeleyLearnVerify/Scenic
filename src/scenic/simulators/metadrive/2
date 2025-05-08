@@ -95,10 +95,6 @@ monitor Reward(car1, car2):
             car2.add_reward(crash_penalty)
             done = True
 
-        # if done:
-            # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
-            # terminate
-        print(f"SCENIC PROGRAM REWARD {(car1.reward, car2.reward)}")
         if done:
             print(f"LAST REWARD: {(car1.reward, car2.reward)}")
             terminate
