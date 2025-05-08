@@ -23,13 +23,16 @@ car2_dir = -90
 # moves in -y direction, or in +y???
 # or (311, 255, 0)
 # ego car is in the lane with the slight curve
-ego = new Car on (311, 255, 0), facing car1_dir deg,
+ego_y = Range(255, 265)
+car2_y = Range(290, 306)
+
+ego = new Car on (312, 265, 0), facing car1_dir deg,
                                 with name "agent0",
                                 with goal (311, 235, 0),
                                 with behavior FollowLaneBehavior(),
 # moves in +x
-# (or 300, 246 on town 4 map)
-car2 = new Car on (300, 246, 0), facing car2_dir deg, 
+# (or 300, 246, 0 on town 4 map)
+car2 = new Car on (290, 247, 0), facing car2_dir deg, 
                                 with name "agent1",
                                 with goal (320, 246, 0),
                                 with behavior FollowLaneBehavior(),
