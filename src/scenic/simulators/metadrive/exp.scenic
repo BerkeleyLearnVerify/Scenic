@@ -5,6 +5,7 @@ import os
 import random
 from math import pi
 root_user = os.path.expanduser("~")
+param verifaiSamplerType = 'halton'
 param map = localPath(root_user + '/ScenicGym/assets/maps/CARLA/Town04.xodr')
 param carla_map = 'Town04'
 param time_step = 1.0/10
@@ -29,14 +30,14 @@ param car2_x = VerifaiRange(290, 306)
 ego = new Car on (312, globalParameters.ego_y, 0), facing car1_dir deg,
                                 with name "agent0",
                                 with goal (311, 235, 0),
-                                with behavior FollowLaneBehavior(),
+                                # with behavior FollowLaneBehavior(),
 
 # moves in +x
 # (300, 246, 0) good testing position 
 car2 = new Car on (globalParameters.car2_x, 247, 0), facing car2_dir deg, 
                                 with name "agent1",
                                 with goal (320, 246, 0),
-                                with behavior FollowLaneBehavior(),
+                                # with behavior FollowLaneBehavior(),
 
 monitor Reward(car1, car2):
     # TODO, will there be race conditions when adding to the reward?
