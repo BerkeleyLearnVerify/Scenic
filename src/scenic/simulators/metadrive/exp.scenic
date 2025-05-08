@@ -33,13 +33,15 @@ car1_dir = 0
 car2_dir = -90
 
 # moves in -y direction
-ego = new Car on (340, -208, 0), facing car1_dir deg,
+# or (311, 255, 0)
+ego = new Car on (339, -208, 0), facing car1_dir deg,
                                 with name "agent0",
                                 with goal (340, -198, 0),
                                 # with behavior ComputeDriveReward()
                                 with behavior FollowLaneBehavior(),
 # moves in +x
-car2 = new Car on (325, -200, 0), facing car2_dir deg, 
+# (or 300, 246 on town 4 map)
+car2 = new Car on (325, -199, 0), facing car2_dir deg, 
                                 with name "agent1",
                                 with goal (335, -200, 0),
                                 # with behavior ComputeDriverReward()
@@ -73,34 +75,42 @@ monitor Reward(car1, car2):
         car1.add_reward(-abs(car1.yaw - car1_dir)) # "normalized" facing reward?
         car2.add_reward(-abs(car2.yaw - car2_dir))
         
-        print(f"cond 1: {done}")
-        if not (car1 in road):
-            car1.add_reward(-out_of_road_penalty)
-            done = True
+        # print(f"cond 1: {done}")
+        # if not (car1 in road):
+            # car1.add_reward(-out_of_road_penalty)
+            # done = True
 
-        print(f"cond 2: {done}")
-        if not (car2 in road):
-            car2.add_reward(-out_of_road_penalty)
-            done = True
+        # print(f"cond 1: {done}")
+        # done = False
+
+        # if not (car2 in road):
+            # car2.add_reward(-out_of_road_penalty)
+            # done = True
         
-        print(f"cond 3: {done}")
+        
+        print(f"cond 2: {done}")
+        done = False
+
         if (distance from car1 to car1.goal) < 1 or \
                 (distance from car2 to car2.goal) < 1:
             car1.add_reward(success_reward)
             car2.add_reward(success_reward)
             done = True
 
-        print(f"cond 4: {done}")
+        print(f"cond 3: {done}")
+        done = False
         # TODO use metadrive's own collision things?
         if car1 intersects car2:
             car1.add_reward(crash_penalty)
             car2.add_reward(crash_penalty)
             done = True
-        
-        if done:
-            # terminate
-            print(f"we DONE {done}")
-            pass
+
+        print(f"cond 4: {done}")
+
+        # if done:
+            # # terminate
+            # print(f"we DONE {done}")
+            # pass
         done = False
 
         wait
