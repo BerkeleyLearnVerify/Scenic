@@ -259,7 +259,7 @@ def worker_fn(worker_id: int,
             "log_probs": np.array(log_probs[agent], dtype=np.float32),
             "rewards": np.array(rewards[agent], dtype=np.float32),
             "dones": np.array(dones, dtype=np.bool_),
-            "values": np.array(values, dtype=np.float32),
+            "values": np.array(values[agent], dtype=np.float32),
             "last_value": last_value,
             "last_done": done,
         }
