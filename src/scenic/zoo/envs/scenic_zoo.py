@@ -26,7 +26,7 @@ class ScenicZooEnv(ParallelEnv):
         self._observation_space = observation_space
         self._action_space = action_space # is this really the best design choice?
         self.render_mode = render_mode
-        self.max_steps = max_steps
+        self.max_steps = max_steps - 1 # FIXME should this really be max_steps - 1 since simulation takes an extra step to terminate?
         self.simulator = simulator
         self.scenario = scenario
         self.simulation_results = []
