@@ -272,7 +272,7 @@ def worker_fn(worker_id: int,
     logging.getLogger(__name__).info("Worker %s: Finished collecting %s steps.", worker_id, current_step)
     # print("closing!")
     env.close()
-    print("closed")
+    # print("closed")
     sentinel = "SENTINEL"
     data_queue.put(sentinel)
     return
@@ -290,22 +290,22 @@ def compute_gae(
     gae_lambda: float,
 ) -> tuple:
     """Compute Generalized Advantage Estimation (GAE)."""
-    print("INSIDE GAE")
+    # print("INSIDE GAE")
     advantages = np.zeros_like(rewards)
-    print(f"advantages: {advantages}")
+    # print(f"advantages: {advantages}")
     last_gae_lam = 0
     num_steps = len(rewards)
     next_values = np.append(values[1:], last_value if not last_done else 0.0)
     next_non_terminal = 1.0 - dones
     deltas = rewards + gamma * next_values * next_non_terminal - values
-    print("before for loop")
-    print(f"num_steps: {num_steps}")
+    # print("before for loop")
+    # print(f"num_steps: {num_steps}")
     # breakpoint()
     for t in reversed(range(num_steps)):
-        print(f"t value: {t}")
+        # print(f"t value: {t}")
         last_gae_lam = deltas[t] + gamma * gae_lambda * next_non_terminal[t] * last_gae_lam
-        print(f"last_gae_lam: {last_gae_lam}")
-        print(f"last_gae_lam type: {type(last_gae_lam)}")
+        # print(f"last_gae_lam: {last_gae_lam}")
+        # print(f"last_gae_lam type: {type(last_gae_lam)}")
         # print()
         advantages[t] = last_gae_lam
 
@@ -461,9 +461,9 @@ def main() -> None:
             )
             # print("STARTING process")
             p.start()
-            print('process started')
+            # print('process started')
             processes.append(p)
-        print("gathering traj data")
+        # print("gathering traj data")
 
         sentinel_num = 0
         all_trajectory_data = []
@@ -477,11 +477,11 @@ def main() -> None:
 
             all_trajectory_data.append(traj_data) 
 
-        print(f"processes num: {len(processes)}")
+        # print(f"processes num: {len(processes)}")
 
         for p in processes:
             p.join()
-            print("joined")
+            # print("joined")
         logger.debug("Update %s: All workers finished.", update)
 
         batch_obs_list = []
@@ -525,7 +525,7 @@ def main() -> None:
         batch_returns = torch.tensor(np.concatenate(batch_returns_list), dtype=torch.float32).to(device)
 
         model.train()
-        print("updating")
+        # print("updating")
         ppo_update(
             model,
             optimizer,
@@ -562,7 +562,7 @@ def main() -> None:
                 avg_length,
             )
             # Save model every 10 updates
-            print(f"SAVING MODEL")
+            # print(f"SAVING MODEL")
             torch.save(model.state_dict(), f"{args.model_dir}/ppo_{env_name}_model.pth")
 
     end_time = time.time()
