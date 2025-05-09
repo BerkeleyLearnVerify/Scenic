@@ -508,7 +508,7 @@ def main() -> None:
 
             current_episode_reward = 0
             current_episode_length = 0
-            for reward, done in zip(data["rewards"], data["dones"], strict=False):
+            for reward, done in zip(data["rewards"], data["dones"]):
                 current_episode_reward += reward
                 current_episode_length += 1
                 if done:
