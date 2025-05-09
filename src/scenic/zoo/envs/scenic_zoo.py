@@ -117,9 +117,9 @@ class ScenicZooEnv(ParallelEnv):
     
     # @property
     def action_space(self, agent):
-        return self._observation_space[agent]
+        return self._action_space[agent]
     
     # @property
     def observation_space(self, agent):
-        return self._action_space[agent]
+        return self._observation_space[agent]
 

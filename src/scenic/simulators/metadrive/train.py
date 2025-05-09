@@ -121,7 +121,7 @@ def worker_fn(worker_id: int,
     sumo_map = root_user + "/ScenicGym/assets/maps/CARLA/Town01.net.xml"
     obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32),
                      "agent1": gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32)}
-
+    print(f"local decpared obs shape: {obs_space_dict['agent0'].shape}")
     action_space_dict = {'agent0': gym.spaces.Box(-1.0, 1.0, (2,), np.float32),
                          'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
     
@@ -144,6 +144,8 @@ def worker_fn(worker_id: int,
 
     for agent in agents:
         obs_space_shape = env.observation_space(agent).shape
+        print(f"local obs space shape: {obs_space_shape}")
+        print(f"local env obs space shape: {env.observation_space(agent).shape}")
         action_space_shape = env.action_space(agent).shape
 
         obs_space_shapes[agent] = obs_space_shape 
@@ -164,6 +166,7 @@ def worker_fn(worker_id: int,
     action_space = action_space_dict[default_agent]
     
     # guess we are doing self-play
+    print(f"LOCAL obs_dim {obs_dim}")
     local_model = ActorCritic(obs_dim, action_space)
     local_model.load_state_dict(model_state_dict)
     local_model.eval()
@@ -399,7 +402,7 @@ def main() -> None:
 
     obs_dim = np.prod(obs_space_shape) if isinstance(obs_space_shape, tuple) else obs_space_shape[0]
     # env.close()
-
+    print(f"OBS_DIM {obs_dim}")
     model = ActorCritic(obs_dim, action_space).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
