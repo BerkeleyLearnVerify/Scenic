@@ -34,7 +34,7 @@ class Args:
     # Number of parallel processes for data collection
     num_workers: int = 8
     # Total timesteps for training
-    total_timesteps: int = 1e9
+    total_timesteps: int = 1_000_000_000
     # Timesteps collected by each worker per iteration
     steps_per_worker: int = 256
     # Number of optimization epochs per PPO iteration
