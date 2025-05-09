@@ -30,9 +30,9 @@ class Args:
     """Hyperparameters and configuration for the PPO training."""
 
     # Environment/scenic file to use
-    scenic_file: str = "idm.scenic"
+    scenic_file: str = "exp.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 1
+    num_workers: int = 4
     # Total timesteps for training
     total_timesteps: int = 1_000_000
     # Timesteps collected by each worker per iteration
@@ -527,6 +527,7 @@ def main() -> None:
                 avg_length,
             )
             # Save model every 10 updates
+            print(f"SAVING MODEL")
             torch.save(model.state_dict(), f"{args.model_dir}/ppo_{env_name}_model.pth")
 
     end_time = time.time()
