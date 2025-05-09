@@ -190,6 +190,7 @@ class MetaDriveSimulation(DrivingSimulation):
                     # agent_conigs=dict()
                 )
             )
+            print(f"CLIENT OBS SPACE: {self.client.observation_space}")
 
             self.client.config["sumo_map"] = self.sumo_map
             self.observation, self.info = self.client.reset()

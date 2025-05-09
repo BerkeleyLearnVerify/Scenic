@@ -98,9 +98,9 @@ monitor Reward(car1, car2):
         # if done:
             # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
             # terminate
-        print(f"SCENIC PROGRAM REWARD {(car1.reward, car2.reward)}")
+        # print(f"SCENIC PROGRAM REWARD {(car1.reward, car2.reward)}")
         if done:
-            print(f"LAST REWARD: {(car1.reward, car2.reward)}")
+            # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
             terminate
         wait
    

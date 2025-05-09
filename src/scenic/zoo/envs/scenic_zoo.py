@@ -69,14 +69,14 @@ class ScenicZooEnv(ParallelEnv):
                         info = simulation.get_info()
                         reward = simulation.get_reward()
 
-                        print(f"SIMULATION RESULT: {simulation.result}")
-                        print(f"STEP NUM: {steps_taken}")
+                        # print(f"SIMULATION RESULT: {simulation.result}")
+                        # print(f"STEP NUM: {steps_taken}")
                         if done():
-                            print("DONE!")
+                            # print("DONE!")
                             self.feedback_result = simulation.result
                             self.simulation_results.append(simulation.result)
                             simulation.destroy()
-                            print("giving final obs, reward, etc")
+                            # print("giving final obs, reward, etc")
                             actions = yield observation, reward, done(), truncated(), info
                             break # a little unclean right here
 

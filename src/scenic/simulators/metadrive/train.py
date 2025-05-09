@@ -119,9 +119,9 @@ def worker_fn(worker_id: int,
 
     root_user = os.path.expanduser("~")
     sumo_map = root_user + "/ScenicGym/assets/maps/CARLA/Town01.net.xml"
-    obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32),
-                     "agent1": gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32)}
-    print(f"local decpared obs shape: {obs_space_dict['agent0'].shape}")
+    obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32),
+                     "agent1": gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32)}
+    # print(f"local decpared obs shape: {obs_space_dict['agent0'].shape}")
     action_space_dict = {'agent0': gym.spaces.Box(-1.0, 1.0, (2,), np.float32),
                          'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
     
@@ -130,7 +130,7 @@ def worker_fn(worker_id: int,
                                mode2D=True)
 
     env = ScenicZooEnv(scenario, 
-                       MetaDriveSimulator(sumo_map=sumo_map, render=True, real_time=True),
+                       MetaDriveSimulator(sumo_map=sumo_map, render=False, real_time=False),
                        None, 
                        max_steps=50, 
                        observation_space = obs_space_dict, 
@@ -144,8 +144,8 @@ def worker_fn(worker_id: int,
 
     for agent in agents:
         obs_space_shape = env.observation_space(agent).shape
-        print(f"local obs space shape: {obs_space_shape}")
-        print(f"local env obs space shape: {env.observation_space(agent).shape}")
+        # print(f"local obs space shape: {obs_space_shape}")
+        # print(f"local env obs space shape: {env.observation_space(agent).shape}")
         action_space_shape = env.action_space(agent).shape
 
         obs_space_shapes[agent] = obs_space_shape 
@@ -166,10 +166,10 @@ def worker_fn(worker_id: int,
     action_space = action_space_dict[default_agent]
     
     # guess we are doing self-play
-    print(f"LOCAL obs_dim {obs_dim}")
-    print(f"LOCAL action_space {action_space}")
+    # print(f"LOCAL obs_dim {obs_dim}")
+    # print(f"LOCAL action_space {action_space}")
     local_model = ActorCritic(obs_dim, action_space)
-    print(f"LOCAL ACTORCRITIC: {local_model}")
+    # print(f"LOCAL ACTORCRITIC: {local_model}")
     local_model.load_state_dict(model_state_dict)
     local_model.eval()
 
@@ -199,6 +199,7 @@ def worker_fn(worker_id: int,
             obs_tensor = torch.tensor(o.flatten(), dtype=torch.float32).unsqueeze(0)
 
             with torch.no_grad():
+                # print(f"LOCAL OBS TENSOR: {obs_tensor.shape}")
                 mean, log_std, value = local_model(obs_tensor)
                 std = log_std.exp()
                 normal = torch.distributions.Normal(mean, std)
@@ -393,8 +394,8 @@ def main() -> None:
         # action_space=spaces.Box(low=-1, high=1, shape=(2,)),
         # max_steps=700,
     # )
-    obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32),
-                     "agent1": gym.spaces.Box(-0.0, 1.0 , (249,), dtype=np.float32)}
+    obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32),
+                     "agent1": gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32)}
 
     action_space_dict = {'agent0': gym.spaces.Box(-1.0, 1.0, (2,), np.float32),
                          'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
@@ -404,9 +405,9 @@ def main() -> None:
 
     obs_dim = np.prod(obs_space_shape) if isinstance(obs_space_shape, tuple) else obs_space_shape[0]
     # env.close()
-    print(f"OBS_DIM {obs_dim}")
+    # print(f"OBS_DIM {obs_dim}")
     model = ActorCritic(obs_dim, action_space).to(device)
-    print(f"GLOBAL MODEL {model}")
+    # print(f"GLOBAL MODEL {model}")
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     batch_size = args.num_workers * args.steps_per_worker
