@@ -32,7 +32,7 @@ class Args:
     # Environment/scenic file to use
     scenic_file: str = "idm.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 4
+    num_workers: int = 1
     # Total timesteps for training
     total_timesteps: int = 1_000_000
     # Timesteps collected by each worker per iteration
@@ -167,7 +167,9 @@ def worker_fn(worker_id: int,
     
     # guess we are doing self-play
     print(f"LOCAL obs_dim {obs_dim}")
+    print(f"LOCAL action_space {action_space}")
     local_model = ActorCritic(obs_dim, action_space)
+    print(f"LOCAL ACTORCRITIC: {local_model}")
     local_model.load_state_dict(model_state_dict)
     local_model.eval()
 
@@ -398,12 +400,13 @@ def main() -> None:
                          'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
 
     obs_space_shape = obs_space_dict["agent0"].shape
-    action_space = obs_space_dict["agent0"]
+    action_space = action_space_dict["agent0"]
 
     obs_dim = np.prod(obs_space_shape) if isinstance(obs_space_shape, tuple) else obs_space_shape[0]
     # env.close()
     print(f"OBS_DIM {obs_dim}")
     model = ActorCritic(obs_dim, action_space).to(device)
+    print(f"GLOBAL MODEL {model}")
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     batch_size = args.num_workers * args.steps_per_worker
