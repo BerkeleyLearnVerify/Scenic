@@ -32,9 +32,9 @@ class Args:
     # Environment/scenic file to use
     scenic_file: str = "exp.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 1
+    num_workers: int = 8
     # Total timesteps for training
-    total_timesteps: int = 1_000_000
+    total_timesteps: int = 1e9
     # Timesteps collected by each worker per iteration
     steps_per_worker: int = 256
     # Number of optimization epochs per PPO iteration
