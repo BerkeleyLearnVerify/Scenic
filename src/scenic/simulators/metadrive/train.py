@@ -6,7 +6,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 import os
-
+import pdb
 import numpy as np
 import scenic
 import torch
@@ -32,7 +32,7 @@ class Args:
     # Environment/scenic file to use
     scenic_file: str = "exp.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 4
+    num_workers: int = 1
     # Total timesteps for training
     total_timesteps: int = 1_000_000
     # Timesteps collected by each worker per iteration
@@ -118,7 +118,7 @@ def worker_fn(worker_id: int,
     agents = ['agent0', 'agent1']
 
     root_user = os.path.expanduser("~")
-    sumo_map = root_user + "/ScenicGymClean/assets/maps/CARLA/Town04.net.xml"
+    sumo_map = root_user + "/ScenicGym/assets/maps/CARLA/Town04.net.xml"
     obs_space_dict = {"agent0" :  gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32),
                      "agent1": gym.spaces.Box(-0.0, 1.0 , (252,), dtype=np.float32)}
     # print(f"local decpared obs shape: {obs_space_dict['agent0'].shape}")
@@ -191,6 +191,7 @@ def worker_fn(worker_id: int,
     obs, _ = env.reset()
     current_step = 0
     while current_step < steps_per_worker:
+        # print(current_step)
         step_action_dict = dict()
         # log_prob_dict = dict()
         # value_dict = dict()
@@ -214,13 +215,14 @@ def worker_fn(worker_id: int,
 
                 action = action.cpu().numpy().squeeze(0)
                 step_action_dict[agent] = action
-
-                values[agent].append(value)
+                # print(f"VALUE SHAPE {value.shape}")
+                values[agent].append(value[0][0]) # FIXME need more permanent sol
                 log_probs[agent].append(log_prob)
                 actions[agent].append(action)
                 observations[agent].append(o.flatten())
-
+        
         next_obs, reward, terminated, truncated, _ = env.step(step_action_dict)
+        # print(f"STEPPING")
         done = terminated or truncated
         dones.append(done)
 
@@ -238,6 +240,7 @@ def worker_fn(worker_id: int,
         current_step += 1
 
         if done:
+            # print(f'done reset')
             obs, _ = env.reset()
     
 
@@ -252,7 +255,7 @@ def worker_fn(worker_id: int,
             last_value = last_value.item()
 
         # last_value_dict[agent] = last_value
-
+        # print("computing traj data")
         trajectory_data = {
             "observations": np.array(observations[agent], dtype=np.float32),
             "actions": np.array(actions[agent], dtype=np.float32),
@@ -266,8 +269,14 @@ def worker_fn(worker_id: int,
 
         data_queue.put(trajectory_data)
 
-    logging.getLogger(__name__).debug("Worker %s: Finished collecting %s steps.", worker_id, current_step)
+    logging.getLogger(__name__).info("Worker %s: Finished collecting %s steps.", worker_id, current_step)
+    # print("closing!")
     env.close()
+    print("closed")
+    sentinel = "SENTINEL"
+    data_queue.put(sentinel)
+    return
+    # print("closed")
 
 
 # %%
@@ -281,15 +290,23 @@ def compute_gae(
     gae_lambda: float,
 ) -> tuple:
     """Compute Generalized Advantage Estimation (GAE)."""
+    print("INSIDE GAE")
     advantages = np.zeros_like(rewards)
+    print(f"advantages: {advantages}")
     last_gae_lam = 0
     num_steps = len(rewards)
     next_values = np.append(values[1:], last_value if not last_done else 0.0)
     next_non_terminal = 1.0 - dones
     deltas = rewards + gamma * next_values * next_non_terminal - values
-
+    print("before for loop")
+    print(f"num_steps: {num_steps}")
+    # breakpoint()
     for t in reversed(range(num_steps)):
+        print(f"t value: {t}")
         last_gae_lam = deltas[t] + gamma * gae_lambda * next_non_terminal[t] * last_gae_lam
+        print(f"last_gae_lam: {last_gae_lam}")
+        print(f"last_gae_lam type: {type(last_gae_lam)}")
+        # print()
         advantages[t] = last_gae_lam
 
     returns = advantages + values
@@ -380,7 +397,7 @@ def main() -> None:
         torch.cuda.manual_seed_all(args.seed)
 
     logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     logger.info("Starting PPO training...")
     logger.info("Environment: %s, Workers: %s, Total Timesteps: %s", env_name, args.num_workers, args.total_timesteps)
@@ -442,12 +459,29 @@ def main() -> None:
                     args.scenic_file,
                 ),
             )
+            # print("STARTING process")
             p.start()
+            print('process started')
             processes.append(p)
+        print("gathering traj data")
 
-        all_trajectory_data = [data_queue.get() for _ in range(args.num_workers)]
+        sentinel_num = 0
+        all_trajectory_data = []
+
+        while sentinel_num < args.num_workers:
+            traj_data = data_queue.get()
+
+            if traj_data == "SENTINEL":
+                sentinel_num += 1
+                continue
+
+            all_trajectory_data.append(traj_data) 
+
+        print(f"processes num: {len(processes)}")
+
         for p in processes:
             p.join()
+            print("joined")
         logger.debug("Update %s: All workers finished.", update)
 
         batch_obs_list = []
@@ -491,6 +525,7 @@ def main() -> None:
         batch_returns = torch.tensor(np.concatenate(batch_returns_list), dtype=torch.float32).to(device)
 
         model.train()
+        print("updating")
         ppo_update(
             model,
             optimizer,
