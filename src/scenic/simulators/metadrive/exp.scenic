@@ -75,8 +75,8 @@ monitor Reward(car1, car2):
         
         angle_rescale = lambda angle: angle + 2 * pi if angle < 0 else angle # makes sure angles are in [0, 2*pi)
 
-        car1.add_reward(-abs(angle_rescale(car1.yaw) - angle_rescale(drive_dir_1)))
-        car2.add_reward(-abs(angle_rescale(car2.yaw) - angle_rescale(drive_dir_2)))
+        car1.add_reward(-abs(angle_rescale(car1.yaw) - angle_rescale(drive_dir_1))/pi * 0.1)
+        car2.add_reward(-abs(angle_rescale(car2.yaw) - angle_rescale(drive_dir_2))/pi * 0.1)
         
         if (distance from car1 to car1.goal) < 1:
             car1_success = True

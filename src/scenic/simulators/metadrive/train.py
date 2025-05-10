@@ -32,7 +32,7 @@ class Args:
     # Environment/scenic file to use
     scenic_file: str = "exp.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 1 
+    num_workers: int = 16
     # Total timesteps for training
     total_timesteps: int = 1_000_000_000
     # Timesteps collected by each worker per iteration
@@ -221,7 +221,7 @@ def worker_fn(worker_id: int,
                 # print(f"VALUE SHAPE {value.shape}")
                 # print(f"VALUE ITEM {value.item()}")
                 values[agent].append(value.item()) # FIXME need more permanent sol
-                log_probs[agent].append(log_prob)
+                log_probs[agent].append(log_prob.item())
                 actions[agent].append(action)
                 observations[agent].append(o.flatten())
         
