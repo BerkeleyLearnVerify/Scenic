@@ -32,7 +32,7 @@ class Args:
     # Environment/scenic file to use
     scenic_file: str = "exp.scenic"
     # Number of parallel processes for data collection
-    num_workers: int = 8
+    num_workers: int = 1 
     # Total timesteps for training
     total_timesteps: int = 1_000_000_000
     # Timesteps collected by each worker per iteration
@@ -197,7 +197,10 @@ def worker_fn(worker_id: int,
         # value_dict = dict()
 
         for agent, o in obs.items():
+            # print(f"LOCAL RAW OBS: {o}")
+            # print(f"LOCAL RAW OBS FLAT: {o.flatten()}")
             obs_tensor = torch.tensor(o.flatten(), dtype=torch.float32).unsqueeze(0)
+            # print(f"LOCAL OBS TENSOR: {obs_tensor}")
 
             with torch.no_grad():
                 # print(f"LOCAL OBS TENSOR: {obs_tensor.shape}")
@@ -216,7 +219,8 @@ def worker_fn(worker_id: int,
                 action = action.cpu().numpy().squeeze(0)
                 step_action_dict[agent] = action
                 # print(f"VALUE SHAPE {value.shape}")
-                values[agent].append(value[0][0]) # FIXME need more permanent sol
+                # print(f"VALUE ITEM {value.item()}")
+                values[agent].append(value.item()) # FIXME need more permanent sol
                 log_probs[agent].append(log_prob)
                 actions[agent].append(action)
                 observations[agent].append(o.flatten())
@@ -266,6 +270,7 @@ def worker_fn(worker_id: int,
             "last_value": last_value,
             "last_done": done,
         }
+        # print(f"TRAJ DATA: {trajectory_data}")
 
         data_queue.put(trajectory_data)
 
