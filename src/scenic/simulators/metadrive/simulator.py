@@ -131,7 +131,8 @@ class MetaDriveSimulation(DrivingSimulation):
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
                     vehicle_config=vehicle_config,
-                    use_mesh_terrain=self.render3D,
+                    use_mesh_terrain=False,
+                    height_scale=0.0001,
                     log_level=logging.CRITICAL,
                 )
             )
