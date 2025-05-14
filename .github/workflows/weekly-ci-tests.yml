@@ -1,0 +1,17 @@
+name: Weekly CI tests
+
+# Trigger every Thursday at 9:00 AM Pacific Time (16:00 UTC)
+on:
+  schedule:
+    # - cron: '0 16 * * 4'
+    - cron: '50 16 * * 3'
+
+jobs:
+  run-tests:
+    # Invoke run-tests.yml as a reusable workflow
+    uses: ./.github/workflows/run-tests.yml
+    with:
+      # Use the default branch" (i.e. main)
+      ref: ''
+    # Make sure the same tokens/secrets are passed through
+    # secrets: inherit
