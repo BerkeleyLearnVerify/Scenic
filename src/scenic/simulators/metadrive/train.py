@@ -60,9 +60,9 @@ class Args:
     # Directory to save models
     model_dir: str = "models"
     
-    resume: True
+    use_pretrained: bool = True
     
-    checkpoint_model: "models/start_point.pth"
+    checkpoint_model: str = "models/start_point.pth"
 
 
 LOG_STD_MAX = 2
