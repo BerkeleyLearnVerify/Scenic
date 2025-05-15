@@ -6,7 +6,7 @@ import random
 from math import pi
 root_user = os.path.expanduser("~")
 param verifaiSamplerType = 'ce'
-param map = localPath(root_user + '/ScenicGymClean/assets/maps/CARLA/Town04.xodr')
+param map = localPath(root_user + '/ScenicGym/assets/maps/CARLA/Town04.xodr')
 param carla_map = 'Town04'
 param time_step = 1.0/10
 param camera_position = (311, 255, 0)

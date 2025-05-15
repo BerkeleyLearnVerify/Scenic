@@ -46,11 +46,10 @@ class ScenicZooEnv(ParallelEnv):
         # or if we just reboot the agent. What do people usually do?
         while True:
             try:
+                # print(f"feedback result: {self.feedback_result}")
                 scene, _ = self.scenario.generate(feedback=self.feedback_result)
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
-                    # print(f"AGENTS: {self.agents}")
                     self.agents = simulation.learning_agents
-                    # print(f"AGENTS: {self.agents}")
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None) # TODO maybe call this terminated in the future
@@ -69,15 +68,22 @@ class ScenicZooEnv(ParallelEnv):
                         info = simulation.get_info()
                         reward = simulation.get_reward()
 
-                        # print(f"SIMULATION RESULT: {simulation.result}")
-                        # print(f"STEP NUM: {steps_taken}")
                         if done():
                             # print("DONE!")
-                            self.feedback_result = simulation.result
-                            self.simulation_results.append(simulation.result)
+                            # self.feedback_result = simulation.result
+                            result = simulation.result
+                            self.simulation_results.append(result)
                             simulation.destroy()
                             # print("giving final obs, reward, etc")
-                            actions = yield observation, reward, done(), truncated(), info
+                            # print(f"ego drift: {result.records['ego_drift']}")
+                            # print(f"ego drift: {np.array(result.records['ego_drift'])}")
+
+                            self.feedback_result = min(-np.max(np.array(result.records['ego_drift'])[:, 1]) - reward['agent0'],
+                                                       -np.max(np.array(result.records['car2_drift'])[:, 1]) - reward['agent1'],)
+                            # Note: the yield statement really is the last part to be executed in this run
+                            # in an episode. Shouldn't put code after it
+                            actions = yield observation, reward, done(), truncated(), info 
+
                             break # a little unclean right here
 
                         actions = yield observation, reward, done(), truncated(), info
