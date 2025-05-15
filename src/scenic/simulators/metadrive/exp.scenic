@@ -20,6 +20,8 @@ speed_reward = 0.1
 
 car1_dir = 180
 car2_dir = -90
+ego_x = 312
+car2_y = 247
 
 param ego_y = VerifaiRange(255, 265)
 param car2_x = VerifaiRange(290, 306)
@@ -27,14 +29,14 @@ param car2_x = VerifaiRange(290, 306)
 # ego car is in the lane with the slight curve
 # moves in -y direction, or in +y???
 # (311, 255, 0) good test position
-ego = new Car on (312, globalParameters.ego_y, 0), facing car1_dir deg,
+ego = new Car on (ego_x, globalParameters.ego_y, 0), facing car1_dir deg,
                                 with name "agent0",
                                 with goal (311, 235, 0),
                                 # with behavior FollowLaneBehavior(),
 
 # moves in +x
 # (300, 246, 0) good testing position 
-car2 = new Car on (globalParameters.car2_x, 247, 0), facing car2_dir deg, 
+car2 = new Car on (globalParameters.car2_x, car2_y, 0), facing car2_dir deg, 
                                 with name "agent1",
                                 with goal (320, 246, 0),
                                 # with behavior FollowLaneBehavior(),
@@ -54,9 +56,6 @@ monitor Reward(car1, car2):
     drive_dir_2 = car2_dir * pi/180
 
     while True:
-        # if done:
-            # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
-            # terminate
 
         car1.zero_reward()
         car2.zero_reward()
@@ -95,14 +94,12 @@ monitor Reward(car1, car2):
             car2.add_reward(crash_penalty)
             done = True
 
-        # if done:
-            # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
-            # terminate
-        # print(f"SCENIC PROGRAM REWARD {(car1.reward, car2.reward)}")
         if done:
-            # print(f"LAST REWARD: {(car1.reward, car2.reward)}")
             terminate
         wait
    
 
 require monitor Reward(ego, car2)
+
+record abs(ego.position.x - ego_x) as ego_drift
+record abs(car2.position.y - car2_y) as car2_drift

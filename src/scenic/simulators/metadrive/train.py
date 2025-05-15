@@ -125,7 +125,7 @@ def worker_fn(worker_id: int,
     action_space_dict = {'agent0': gym.spaces.Box(-1.0, 1.0, (2,), np.float32),
                          'agent1': gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
     
-    scenario = scenic.scenarioFromFile("exp.scenic",
+    scenario = scenic.scenarioFromFile(scenic_file,
                                    model="scenic.simulators.metadrive.model",
                                mode2D=True)
 
