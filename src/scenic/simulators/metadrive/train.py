@@ -59,6 +59,10 @@ class Args:
     seed: int = 4
     # Directory to save models
     model_dir: str = "models"
+    
+    resume: True
+    
+    checkpoint_model: "models/start_point.pth"
 
 
 LOG_STD_MAX = 2
@@ -428,7 +432,12 @@ def main() -> None:
     obs_dim = np.prod(obs_space_shape) if isinstance(obs_space_shape, tuple) else obs_space_shape[0]
     # env.close()
     # print(f"OBS_DIM {obs_dim}")
-    model = ActorCritic(obs_dim, action_space).to(device)
+    checkpoint = torch.load(args.checkpoint_model, weights_only=True)
+    model = ActorCritic(obs_dim, action_space) 
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model = model.to(device)
+
+    # model = ActorCritic(obs_dim, action_space).to(device)
     # print(f"GLOBAL MODEL {model}")
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
