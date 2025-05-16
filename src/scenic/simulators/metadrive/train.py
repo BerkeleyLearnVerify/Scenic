@@ -34,7 +34,7 @@ class Args:
     # Number of parallel processes for data collection
     num_workers: int = 16
     # Total timesteps for training
-    total_timesteps: int = 1_000_000 
+    total_timesteps: int = 300_000
     # Timesteps collected by each worker per iteration
     steps_per_worker: int = 256
     # Number of optimization epochs per PPO iteration
@@ -434,7 +434,7 @@ def main() -> None:
     # print(f"OBS_DIM {obs_dim}")
     checkpoint = torch.load(args.checkpoint_model, weights_only=True)
     model = ActorCritic(obs_dim, action_space) 
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint)
     model = model.to(device)
 
     # model = ActorCritic(obs_dim, action_space).to(device)
