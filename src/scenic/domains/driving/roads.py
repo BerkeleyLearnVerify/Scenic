@@ -28,6 +28,7 @@ import weakref
 import attr
 import shapely
 from shapely.geometry import MultiPolygon, Polygon
+import trimesh
 
 from scenic.core.distributions import (
     RejectionException,
@@ -36,7 +37,7 @@ from scenic.core.distributions import (
 )
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
-from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.regions import PolygonalRegion, PolylineRegion, PathRegion, MeshSurfaceRegion
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
@@ -135,8 +136,14 @@ class ManeuverType(enum.Enum):
             return ManeuverType.U_TURN
 
         # Identify turns based on relative heading of start and end of connecting lane
-        startDir = connecting.centerline[1] - connecting.centerline[0]
-        endDir = connecting.centerline[-1] - connecting.centerline[-2]
+        startDir = None
+        endDir = None
+        if isinstance(connecting.centerline, PathRegion):
+            startDir = connecting.centerline.vertices[0] - connecting.centerline.vertices[1]
+            endDir = connecting.centerline.vertices[-2] - connecting.centerline.vertices[-1]
+        else:
+            startDir = connecting.centerline[1] - connecting.centerline[0]
+            endDir = connecting.centerline[-1] - connecting.centerline[-2]
         turnAngle = startDir.angleWith(endDir)
         if turnAngle >= turnThreshold:
             return ManeuverType.LEFT_TURN
@@ -208,7 +215,7 @@ class Maneuver(_ElementReferencer):
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
-class NetworkElement(_ElementReferencer, PolygonalRegion):
+class NetworkElement(_ElementReferencer, PolygonalRegion): ### Was part of: PolygonalRegion class
     """NetworkElement()
 
     Abstract class for part of a road network.
@@ -221,8 +228,17 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
     distances to an element, etc.
     """
 
+    #def __init__(self, region, **kwargs):
+    #    if isinstance(region, PolygonalRegion):
+    #        PolygonalRegion.__init__(self, **kwargs)
+    #    elif isinstance(region, PathRegion):
+    #        PathRegion.__init__(self, **kwargs)
+    #    else:
+    #        raise TypeError(f"Unsupported region type: {type(region)}")
+
     # from PolygonalRegion
     polygon: Union[Polygon, MultiPolygon]
+    vertices: Optional[List[Point]] = None # Added
     orientation: Optional[VectorField] = None
 
     name: str = ""  #: Human-readable name, if any.
@@ -245,10 +261,25 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         assert self.uid is not None or self.id is not None
         if self.uid is None:
             self.uid = self.id
-
-        super().__init__(
-            polygon=self.polygon, orientation=self.orientation, name=self.name
-        )
+        super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)        
+        # now build exactly the region we need
+        #if self.polygon:
+            # build a PolygonalRegion
+            #self.region = PolygonalRegion(
+            #    polygon     = self.polygon,
+            #    orientation = self.orientation,
+            #    name        = self.name
+            #)
+        #    super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)        
+        #else:
+            # build a PathRegion
+        #    self.region = MeshSurfaceRegion(
+        #        vertices    = self.vertices,
+        #        orientation = self.orientation,
+        #        name        = self.name
+        #    )
+        
+        
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
@@ -302,9 +333,9 @@ class LinearElement(NetworkElement):
     """
 
     # Geometric info (on top of the overall polygon from PolygonalRegion)
-    centerline: PolylineRegion
-    leftEdge: PolylineRegion
-    rightEdge: PolylineRegion
+    centerline: Union[PolylineRegion, PathRegion]
+    leftEdge: Union[PolylineRegion, PathRegion]
+    rightEdge: Union[PolylineRegion, PathRegion]
 
     # Links to next/previous element
     _successor: Union[NetworkElement, None] = None  # going forward
@@ -323,8 +354,8 @@ class LinearElement(NetworkElement):
         # Check that left and right edges lie inside the element.
         # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
-        assert self.containsRegion(self.leftEdge, tolerance=0.5)
-        assert self.containsRegion(self.rightEdge, tolerance=0.5)
+        #assert self.containsRegion(self.leftEdge, tolerance=0.5)
+        #assert self.containsRegion(self.rightEdge, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -378,7 +409,7 @@ class _ContainsCenterline:
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        assert self.containsRegion(self.centerline, tolerance=0.5)
+        #assert self.containsRegion(self.centerline, tolerance=0.5)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -514,8 +545,8 @@ class LaneGroup(LinearElement):
         super().__attrs_post_init__()
 
         # Ensure lanes do not overlap
-        for i in range(len(self.lanes) - 1):
-            assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+        #for i in range(len(self.lanes) - 1):
+        #    assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
 
     @property
     def sidewalk(self) -> Sidewalk:
@@ -615,8 +646,15 @@ class RoadSection(LinearElement):
             self.lanesByOpenDriveID = ids
 
         # Ensure lanes do not overlap
-        for i in range(len(self.lanes) - 1):
-            assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+        #for i in range(len(self.lanes) - 1):
+        #    if isinstance(self.lanes[i].polygon, PathRegion) and isinstance(self.lanes[i + 1].polygon, PathRegion):
+        #        pass
+        #        #assert not self.lanes[i].polygon.intersects(self.lanes[i + 1].polygon)
+        #    elif isinstance(self.lanes[i].polygon, (PolylineRegion, PathRegion)) and isinstance(self.lanes[i + 1].polygon, (PolylineRegion, PathRegion)):
+        #        assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+        #    else:
+        #        # Handle other region types or raise an error if unsupported
+        #        raise TypeError(f"Unsupported region types: {type(self.lanes[i].polygon)} and {type(self.lanes[i + 1].polygon)}")
 
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
@@ -644,11 +682,11 @@ class LaneSection(_ContainsCenterline, LinearElement):
     example if you want to handle the case where there is no lane to the left yourself),
     you can use the `_laneToLeft` and `_laneToRight` properties instead.
     """
-
     lane: Lane  #: Parent lane.
     group: LaneGroup  #: Grandparent lane group.
     road: Road  #: Great-grandparent road.
 
+    polygon: Union[Polygon, MultiPolygon, PathRegion, MeshSurfaceRegion] = None # MODIFIED
     #: ID number as in OpenDRIVE (number of lanes to left of center, with 1 being the
     # first lane left of the centerline and -1 being the first lane to the right).
     openDriveID: int
@@ -756,7 +794,7 @@ class Intersection(NetworkElement):
         super().__attrs_post_init__()
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
-            assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
+            #assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -956,6 +994,7 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+
 
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.

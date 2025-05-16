@@ -2,6 +2,7 @@
 
 import abc
 from collections import defaultdict
+import importlib
 import itertools
 import math
 import warnings
@@ -10,6 +11,7 @@ import xml.etree.ElementTree as ET
 import trimesh
 
 import numpy as np
+
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
@@ -31,6 +33,8 @@ from scenic.core.regions import (
 )
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
+
+from scipy.spatial import Delaunay
 
 
 class OpenDriveWarning(UserWarning):
@@ -230,6 +234,7 @@ class Lane:
         self.right_bounds = []
         self.centerline = []
         self.parent_lane_poly = None
+        self.parent_lane_mesh = None
 
     def width_at(self, s):
         # S here is relative to start of LaneSection this lane is in.
@@ -416,7 +421,7 @@ class Road:
         return super_elevation
 
     def get_ref_points(
-        self, num, three_dim=False
+        self, num
     ):  # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
@@ -542,21 +547,46 @@ class Road:
                         left = left_bounds[id_]
                         right = right_bounds[id_][::-1]
                         bounds = left + right
-
+                        if three_dim:
+                            right = right_bounds[id_]
+                            bounds = left + right
+                        
                         if len(bounds) < 3:
                             continue
                         if three_dim:
+                            faces = []
+                            # Create a 3D mesh from the bounds
+                            for i in range(len(left) - 1):
+                                faces.append(
+                                    [
+                                        i,
+                                        i + 1,
+                                        len(left) + i,
+                                    ]
+                                )
+                                faces.append(
+                                    [
+                                        len(left) + i,
+                                        i + 1,
+                                        len(left) + i + 1,
+                                    ]
+                                )
                             mesh = trimesh.Trimesh(
                                 vertices=bounds,
-                                faces=[[i, i + 1, i + 2] for i in range(len(bounds) - 2)],
+                                faces=faces,
                             )
                             if not mesh.is_empty:
                                 cur_sec_meshes.append(mesh)
                                 cur_sec_lane_meshes[id_].append(mesh)
-                            poly = cleanPolygon(Polygon(bounds), tolerance)
+                            # flag any zero-area faces
+                            #zero_idxs = [i for i,a in enumerate(areas) if a < 1e-8]
+                            #if zero_idxs:
+                            #    print(f"Degenerate triangles at indices: {zero_idxs[:10]}…")
+                            
+                            """poly = cleanPolygon(Polygon(bounds), tolerance)
                             if not poly.is_empty:
                                 if poly.geom_type == "MultiPolygon":
-                                    poly = MultiPolygon(
+                                    poly = MultiPolygon( #This part is not necessary for 3D
                                         [
                                             p
                                             for p in poly.geoms
@@ -566,11 +596,12 @@ class Road:
                                     cur_sec_polys.extend(poly.geoms)
                                 else:
                                     cur_sec_polys.append(poly)
-                                cur_sec_lane_polys[id_].append(poly)
+                                cur_sec_lane_polys[id_].append(poly)"""
                         else:
                             poly = cleanPolygon(Polygon(bounds), tolerance)
                             if not poly.is_empty:
                                 if poly.geom_type == "MultiPolygon":
+                                    print("Often")
                                     poly = MultiPolygon(
                                         [
                                             p
@@ -624,13 +655,17 @@ class Road:
                             cur_p[1] - prev_p[1],
                             cur_p[2] - prev_p[2],
                         )  # Need to change tan_vec to 3D
-                    tan_norm = math.hypot(tan_vec[0], tan_vec[1], tan_vec[2])
+                    tan_vec = np.array([tan_vec[0], tan_vec[1], tan_vec[2]])
+                    ref_vec = np.array([0, 0, 1]) if not np.allclose(tan_vec[:2], 0) else np.array([1, 0, 0])
+                    normal_vec = np.cross(tan_vec, ref_vec)
+                    normal_vec /= np.linalg.norm(normal_vec)
+                    """tan_norm = math.hypot(tan_vec[0], tan_vec[1], tan_vec[2])
                     assert tan_norm > 1e-10
                     normal_vec = (
                         -tan_vec[1] / tan_norm,
                         tan_vec[0] / tan_norm,
                         -tan_vec[2] / tan_norm,
-                    )
+                    )## Old code for 3D support, used a version of this for 2D support"""
                     if cur_p[3] < s_stop:
                         # if at end of section, keep current point to be included in
                         # the next section as well; otherwise remove it
@@ -666,7 +701,7 @@ class Road:
                             ]
                             if (
                                 three_dim == False
-                            ):  # ADDED: Removes the z-coordinate from the points
+                            ):
                                 left_bound = (left_bound[0], left_bound[1])
                                 right_bound = (right_bound[0], right_bound[1])
                                 centerline = (centerline[0], centerline[1])
@@ -675,16 +710,16 @@ class Road:
                             lane.left_bounds.append(left_bound)
                             lane.right_bounds.append(right_bound)
                             lane.centerline.append(centerline)
-            if three_dim:  ## Need to add three dimensional support with meshes.
+            if three_dim:
                 assert len(cur_sec_points) >= 2, i
                 sec_points.append(cur_sec_points)
                 sec_meshes.append(
                     trimesh.util.concatenate(cur_sec_meshes)
-                )  # Use trimesh.util.concatenate to merge meshes
+                )
                 for id_ in cur_sec_lane_meshes:
                     mesh = trimesh.util.concatenate(
                         cur_sec_lane_meshes[id_]
-                    )  # Need to replace buffer_union
+                    )
                     cur_sec_lane_meshes[id_] = mesh
                     cur_sec.get_lane(id_).mesh = mesh
                 sec_lane_meshes.append(dict(cur_sec_lane_meshes))
@@ -700,8 +735,8 @@ class Road:
                 for id_ in cur_lane_meshes:
                     mesh = trimesh.util.concatenate(
                         cur_lane_meshes[id_]
-                    )  # Need to replace buffer_union
-                    self.lane_secs[i - 1].get_lane(id_).parent_lane_meshes = len(
+                    )
+                    self.lane_secs[i - 1].get_lane(id_).parent_lane_mesh = len(
                         lane_meshes
                     )
                     lane_meshes.append(mesh)
@@ -768,6 +803,14 @@ class Road:
                     parentIndex = lane.parent_lane_mesh
                     if isinstance(parentIndex, int):
                         lane.parent_lane_mesh = lane_meshes[parentIndex]"""
+            """render_scene = trimesh.scene.Scene()
+            
+            for mesh in lane_meshes:
+                mesh.visual.face_colors = [255, 0, 0, 255]
+                render_scene.add_geometry(mesh)
+            union_mesh.visual.face_colors = [0, 255, 0, 255]
+            #render_scene.add_geometry(union_mesh)
+            render_scene.show()"""
             return (sec_points, sec_meshes, sec_lane_meshes, lane_meshes, union_mesh)
         else:
             for id_ in cur_lane_polys:
@@ -821,15 +864,26 @@ class Road:
     ):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
-        (
-            self.sec_points,
-            self.sec_polys,
-            self.sec_lane_polys,
-            self.lane_polys,
-            self.drivable_region,
-        ) = self.calc_geometry_for_type(
-            drivable_lane_types, num, tolerance, calc_gap=calc_gap
-        )
+        if three_dim:
+            (
+                self.sec_points,
+                self.sec_meshes,
+                self.sec_lane_meshes,
+                self.lane_meshes,
+                self.drivable_region,
+            ) = self.calc_geometry_for_type(
+                drivable_lane_types, num, tolerance, calc_gap=calc_gap,three_dim=three_dim
+            )
+        else:
+            (
+                self.sec_points,
+                self.sec_polys,
+                self.sec_lane_polys,
+                self.lane_polys,
+                self.drivable_region,
+            ) = self.calc_geometry_for_type(
+                drivable_lane_types, num, tolerance, calc_gap=calc_gap,three_dim=three_dim
+            )
 
         for i, sec in enumerate(self.lane_secs):
             sec.drivable_lanes = {}
@@ -864,11 +918,11 @@ class Road:
             assert len(sec.right_edge) >= 2
 
         _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(
-            sidewalk_lane_types, num, tolerance, calc_gap=calc_gap
+            sidewalk_lane_types, num, tolerance, calc_gap=calc_gap, three_dim=three_dim
         )
 
         _, _, _, _, self.shoulder_region = self.calc_geometry_for_type(
-            shoulder_lane_types, num, tolerance, calc_gap=calc_gap
+            shoulder_lane_types, num, tolerance, calc_gap=calc_gap, three_dim=three_dim
         )
 
     def toScenicRoad(self, tolerance, three_dim=True):
@@ -879,12 +933,18 @@ class Road:
         last_section = None
         sidewalkSections = defaultdict(list)
         shoulderSections = defaultdict(list)
-        for sec, pts, sec_poly, lane_polys in zip(
+        # TODO: CHANGE THIS TO USE THE NEW MESHES
+        # Thinking: change the variable names to be more general for 2D and 3D
+        sec_zip = zip(
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
-        ):
-            pts = [
-                pt[:2] for pt in pts
-            ]  # drop s coordinate (Changed from pt[:2] to pt[:3]) (Might need to change)
+        )
+        if three_dim:
+            sec_zip = zip(self.lane_secs, self.sec_points, self.sec_meshes, self.sec_lane_meshes)
+        for sec, pts, sec_shape, lane_shape in sec_zip:
+            if three_dim:
+                pts = [pt[:3] for pt in pts]  # drop s coordinate
+            else:
+                pts = [pt[:2] for pt in pts]  # drop s coordinate
             assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
@@ -904,13 +964,37 @@ class Road:
                 if id_ > 0:  # backward lane
                     left, center, right = right[::-1], center[::-1], left[::-1]
                     succ, pred = pred, succ
-                section = roadDomain.LaneSection(
+                if False:
+                    section = roadDomain.LaneSection(
+                        id=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
+                        mesh=lane_shape[id_].vertices if three_dim else lane_shape[id_],
+                        centerline=(
+                            PathRegion(cleanChain(center))
+                            if three_dim
+                            else PolylineRegion(cleanChain(center))
+                        ),
+                        leftEdge=(
+                            PathRegion(cleanChain(left))
+                            if three_dim
+                            else PolylineRegion(cleanChain(left))
+                        ),
+                        rightEdge=(
+                            PathRegion(cleanChain(right))
+                            if three_dim
+                            else PolylineRegion(cleanChain(right))
+                        ),
+                        successor=succ,
+                        predecessor=pred,
+                        lane=None,  # will set these later
+                        group=None,
+                        road=None,
+                        openDriveID=id_,
+                        isForward=id_ < 0,
+                    )
+                else:
+                    section = roadDomain.LaneSection(
                     id=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
-                    polygon=(
-                        Polygon([(v[0], v[1]) for v in lane_polys[id_].vertices])
-                        if three_dim
-                        else lane_polys[id_]
-                    ),
+                    polygon=lane_shape[id_].vertices if three_dim else lane_shape[id_],
                     centerline=(
                         PathRegion(cleanChain(center))
                         if three_dim
@@ -939,7 +1023,7 @@ class Road:
                 allElements.append(section)
             section = roadDomain.RoadSection(
                 id=f"road{self.id_}_sec{len(roadSections)}",
-                polygon=sec_poly,
+                polygon=sec_shape,
                 centerline=(
                     PathRegion(cleanChain(pts))
                     if three_dim
@@ -1057,6 +1141,8 @@ class Road:
 
         forwardSidewalk = makeSidewalk(forwardSidewalks)
         backwardSidewalk = makeSidewalk(backwardSidewalks)
+        #forwardSidewalk = []
+        #backwardSidewalk = []
 
         def makeShoulder(laneIDs):
             if not laneIDs:
@@ -1077,6 +1163,8 @@ class Road:
 
         forwardShoulder = makeShoulder(forwardShoulders)
         backwardShoulder = makeShoulder(backwardShoulders)
+        #forwardShoulder = []
+        #backwardShoulder = []
 
         # Connect sections to their successors
         next_section = None
@@ -1161,15 +1249,15 @@ class Road:
                             break
                         laneSection = nextSection
                     ls = laneSection._original_lane
-                    assert ls.parent_lane_poly
+                    assert ls.parent_lane_poly or ls.parent_lane_mesh
 
                     if not forward:
                         sections = tuple(reversed(sections))
                     leftPoints, rightPoints, centerPoints = [], [], []
                     for section in sections:
-                        leftPoints.extend(section.leftEdge.points)
-                        rightPoints.extend(section.rightEdge.points)
-                        centerPoints.extend(section.centerline.points)
+                        leftPoints.extend(section.leftEdge.vertices if three_dim else section.leftEdge.points)
+                        rightPoints.extend(section.rightEdge.vertices if three_dim else section.rightEdge.points)
+                        centerPoints.extend(section.centerline.vertices if three_dim else section.centerline.points)
                     leftEdge = (
                         PathRegion(cleanChain(leftPoints))
                         if three_dim
@@ -1187,7 +1275,7 @@ class Road:
                     )
                     lane = roadDomain.Lane(
                         id=f"road{self.id_}_lane{nextID}",
-                        polygon=ls.parent_lane_poly,
+                        polygon=ls.parent_lane_mesh if three_dim else ls.parent_lane_poly,
                         centerline=centerline,
                         leftEdge=leftEdge,
                         rightEdge=rightEdge,
@@ -1224,7 +1312,7 @@ class Road:
             while current and isinstance(current, roadDomain.LaneSection):
                 if current._laneToLeft and current._laneToLeft.isForward == forward:
                     current = current._laneToLeft
-                leftPoints.extend(current.leftEdge.points)
+                leftPoints.extend(current.leftEdge.vertices if three_dim else current.leftEdge.points)
                 current = current._successor
             leftEdge = (
                 PathRegion(cleanChain(leftPoints))
@@ -1236,7 +1324,7 @@ class Road:
             while current and isinstance(current, roadDomain.LaneSection):
                 if current._laneToRight and current._laneToRight.isForward == forward:
                     current = current._laneToRight
-                rightPoints.extend(current.rightEdge.points)
+                rightPoints.extend(current.rightEdge.vertices if three_dim else current.rightEdge.points)
                 current = current._successor
             rightEdge = (
                 PathRegion(cleanChain(rightPoints))
@@ -1250,8 +1338,8 @@ class Road:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
-                polygon=buffer_union(
-                    (lane.polygon for lane in forwardLanes), tolerance=tolerance
+                polygon=trimesh.util.concatenate(lane.polygon for lane in forwardLanes if lane.polygon) if three_dim else buffer_union(
+                    (lane.polygon for lane in forwardLanes if lane.polygon), tolerance=tolerance
                 ),
                 centerline=centerline,
                 leftEdge=leftEdge,
@@ -1271,8 +1359,8 @@ class Road:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
             backwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_backward",
-                polygon=buffer_union(
-                    (lane.polygon for lane in backwardLanes), tolerance=tolerance
+                polygon=trimesh.util.concatenate(lane.polygon for lane in backwardLanes if lane.polygon) if three_dim else buffer_union(
+                    (lane.polygon for lane in backwardLanes if lane.polygon), tolerance=tolerance
                 ),
                 centerline=centerline,
                 leftEdge=leftEdge,
@@ -1517,7 +1605,6 @@ class RoadMap:
                             b_bounds_left[other_id],
                             b_bounds_right[other_id],
                         ]
-                        print(vertices)
                         gap_mesh = trimesh.points.PointCloud(
                             vertices=vertices,
                         ).convex_hull
@@ -1549,21 +1636,45 @@ class RoadMap:
                             elif lane.type_ in self.shoulder_lane_types:
                                 shoulder_polys.append(gap_poly)
         else:
-            drivable_polys = [road.drivable_region for road in self.roads.values()]
-            sidewalk_polys = [road.sidewalk_region for road in self.roads.values()]
-            shoulder_polys = [road.shoulder_region for road in self.roads.values()]
+            if three_dim:
+                drivable_meshes = [road.drivable_region for road in self.roads.values()]
+                sidewalk_meshes = [road.sidewalk_region for road in self.roads.values()]
+                shoulder_meshes = [road.shoulder_region for road in self.roads.values()]
+            else:
+                drivable_polys = [road.drivable_region for road in self.roads.values()]
+                sidewalk_polys = [road.sidewalk_region for road in self.roads.values()]
+                shoulder_polys = [road.shoulder_region for road in self.roads.values()]
 
-        self.drivable_region = buffer_union(drivable_polys, tolerance=self.tolerance)
-        self.sidewalk_region = buffer_union(sidewalk_polys, tolerance=self.tolerance)
-        self.shoulder_region = buffer_union(shoulder_polys, tolerance=self.tolerance)
+
 
         if three_dim:
             self.drivable_region = trimesh.util.concatenate(drivable_meshes)
             self.sidewalk_region = trimesh.util.concatenate(sidewalk_meshes)
             self.shoulder_region = trimesh.util.concatenate(shoulder_meshes)
+        else:
+            self.drivable_region = buffer_union(drivable_polys, tolerance=self.tolerance)
+            self.sidewalk_region = buffer_union(sidewalk_polys, tolerance=self.tolerance)
+            self.shoulder_region = buffer_union(shoulder_polys, tolerance=self.tolerance)
+        if three_dim:
+            render_scene = trimesh.scene.Scene()
+            self.drivable_region.visual.face_colors = [200, 200, 200, 255]
+            #self.drivable_region.fix_normals()
+            render_scene.add_geometry(self.drivable_region)
+            if self.sidewalk_region:
+                self.sidewalk_region.visual.face_colors = [0, 0, 255, 255]
+                #self.sidewalk_region.fix_normals()
+                render_scene.add_geometry(self.sidewalk_region)
+            render_scene.add_geometry(self.sidewalk_region)
+            if self.shoulder_region:
+                self.shoulder_region.visual.face_colors = [0, 255, 0, 255]
+                #self.shoulder_region.fix_normals()
+                render_scene.add_geometry(self.shoulder_region)
+            render_scene.add_geometry(self.shoulder_region)
+            render_scene.show()
 
         if calc_intersect:
             self.calculate_intersections(three_dim=three_dim)
+        
 
     def calculate_intersections(self, three_dim):
         if three_dim:
@@ -1992,8 +2103,12 @@ class RoadMap:
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
+            #print(road)
+            #print(f"Road ID: {road.id_}, Drivable Region: {hasattr(road, 'drivable_region')}")
             if road.drivable_region.is_empty:
                 continue  # not actually a road you can drive on
+            else:
+                pass
             newRoad, elts = road.toScenicRoad(tolerance=self.tolerance)
             registerAll(elts)
             (connectingRoads if road.junction else mainRoads)[id_] = newRoad
@@ -2155,6 +2270,7 @@ class RoadMap:
                             endLane=outgoingLane,
                             intersection=None,  # will be patched once the Intersection is created
                         )
+                        #maneuver = None  # TODO: add maneuver type
                         maneuversForLane[fromLane.lane].append(maneuver)
 
             # Gather maneuvers
@@ -2172,7 +2288,11 @@ class RoadMap:
                         old = self.roads[element.id]
                         assert old.predecessor == jid or old.successor == jid
                         contactStart = old.predecessor == jid
-                    point = element.centerline[0 if contactStart else -1]
+                    point = None
+                    if isinstance(element.centerline, PathRegion):
+                        point = element.centerline.vertices[0 if contactStart else -1]
+                    else:
+                        point = element.centerline[0 if contactStart else -1]
                     points.append(point)
                 centroid = sum(points, Vector(0, 0)) / len(points)
                 pairs = sorted(
@@ -2181,6 +2301,7 @@ class RoadMap:
                 return tuple(elem for elem, pt in pairs)
 
             # Create intersection
+            # TODO: Implement intersections with 3D geometry
             intersection = roadDomain.Intersection(
                 polygon=junction.poly,
                 name=junction.name,
@@ -2193,6 +2314,7 @@ class RoadMap:
                 signals=tuple(allSignals),
                 crossings=(),  # TODO add these
             )
+            
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
@@ -2249,8 +2371,9 @@ class RoadMap:
                 lane.maneuvers = (maneuver,)
 
         def combine(regions):
+            #if isinstance(regions[0], Road):
+            #    return MeshSurfaceRegion.concatenate(regions, buf=self.tolerance)
             return PolygonalRegion.unionAll(regions, buf=self.tolerance)
-
         return roadDomain.Network(
             elements=allElements,
             roads=roads,
