@@ -1144,6 +1144,63 @@ class TestRecord:
             case _:
                 assert False
 
+    def test_record_recorder(self):
+        mod = parse_string_helper("record x to file")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), recorder=Name("file")):
+                assert True
+            case _:
+                assert False
+
+    def test_record_delay(self):
+        mod = parse_string_helper("record x after 5 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), delay=Seconds(Constant(5))):
+                assert True
+            case _:
+                assert False
+
+        mod = parse_string_helper("record x after 5 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), delay=Steps(Constant(5))):
+                assert True
+            case _:
+                assert False
+
+    def test_record_period(self):
+        mod = parse_string_helper("record x every 0.2 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), period=Seconds(Constant(0.2))):
+                assert True
+            case _:
+                assert False
+
+        mod = parse_string_helper("record x every 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), period=Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_record_combined(self):
+        mod = parse_string_helper("record x every 0.2 seconds after 5 seconds to file")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(
+                Name("x"),
+                period=Seconds(Constant(0.2)),
+                delay=Seconds(Constant(5)),
+                recorder=Name("file"),
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_record_initial(self):
         mod = parse_string_helper("record initial x")
         stmt = mod.body[0]
