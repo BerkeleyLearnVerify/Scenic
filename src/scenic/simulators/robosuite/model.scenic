@@ -1,23 +1,15 @@
-# World model for the RoboSuite simulator.
-# Defines objects and properties available in RoboSuite environments.
+# src/scenic/simulators/robosuite/model.scenic
+"""Scenic world model for RoboSuite simulator."""
 
-model scenic.simulators.robosuite.model
+from .simulator import RobosuiteSimulator
 
-# Represents the Franka Emika Panda robot.
-class Panda(Object):
-    """A Scenic model for the Franka Emika Panda robot in RoboSuite."""
-    # This property will be used to map this Scenic object to the
-    # corresponding robot model name in RoboSuite.
-    robosuiteName: 'Panda'
-    width: 0.8
-    length: 0.8
+simulator RobosuiteSimulator(render=True, real_time=True, speed=2.0)
 
-# A simple manipulable cube.
-class ManipulableCube(Object):
-    """A generic cube object for manipulation tasks."""
-    width: 0.05
-    length: 0.05
-    height: 0.05
-
-# TODO: Define a Workspace for RoboSuite environments.
-# workspace = Workspace(...)
+# Base classes
+class RoboSuiteObject(Object):
+    """Base class for RoboSuite objects."""
+    # Physics properties available to all objects
+    density: 1000
+    friction: (1.0, 0.005, 0.0001)
+    solref: (0.02, 1.0)
+    solimp: (0.9, 0.95, 0.001, 0.5, 2.0)

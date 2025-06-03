@@ -1,2 +1,5 @@
-# tests/simulators/robosuite/__init__.py
-"""Tests for Scenic-RoboSuite integration."""
+"""Scenic world model and simulator interface for RoboSuite."""
+
+from .simulator import RobosuiteSimulator, RobosuiteSimulation
+
+__all__ = ['RobosuiteSimulator', 'RobosuiteSimulation']
