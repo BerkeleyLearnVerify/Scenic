@@ -6,13 +6,14 @@ import sys
 import os
 
 # This ensures that the local 'scenic' package is used for the import
-sys.path.insert(0, os.path.abspath('./src'))
+sys.path.insert(0, os.path.abspath("./src"))
 
 print("Testing basic RoboSuite connection...")
 
 # Test 1: Can we import RoboSuite?
 try:
     import robosuite as suite
+
     print("Successfully imported RoboSuite")
 except Exception as e:
     print(f"Failed to import RoboSuite: {e}")
@@ -20,7 +21,7 @@ except Exception as e:
 
 # Test 2: Can we create a basic environment?
 try:
-    env = suite.make('Lift', robots=['Panda'], has_renderer=False, use_camera_obs=False)
+    env = suite.make("Lift", robots=["Panda"], has_renderer=False, use_camera_obs=False)
     print("Successfully created RoboSuite Lift environment")
 except Exception as e:
     print(f"Failed to create environment: {e}")
@@ -39,6 +40,7 @@ except Exception as e:
 try:
     # Corrected import statement:
     from scenic.simulators.robosuite.simulator import RobosuiteSimulator
+
     simulator = RobosuiteSimulator()
     print("Successfully imported and created RobosuiteSimulator")
 except Exception as e:
