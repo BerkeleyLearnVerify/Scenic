@@ -723,6 +723,7 @@ def test_mesh_path_intersection():
         assert r1.containsPoint(point)
         assert r2.containsPoint(point)
 
+
 def test_polygonal_footprint_path_intersection():
     polyline_list = []
 
@@ -737,7 +738,7 @@ def test_polygonal_footprint_path_intersection():
                 target_list.append((x + 1, y, 0))
 
     r1 = PathRegion(polylines=polyline_list)
-    r2 = CircularRegion((0,0), 5)
+    r2 = CircularRegion((0, 0), 5)
 
     r = r1.intersect(r2.footprint)
 
@@ -748,6 +749,7 @@ def test_polygonal_footprint_path_intersection():
         assert r.containsPoint(point)
         assert r1.containsPoint(point)
         assert r2.containsPoint(point)
+
 
 def test_pointset_region():
     PointSetRegion("foo", [(1, 2), (3, 4), (5, 6)])
