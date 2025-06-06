@@ -2,8 +2,8 @@
 
 # This test script should be run from the root of the Scenic repository.
 
-import sys
 import os
+import sys
 
 # This ensures that the local 'scenic' package is used for the import
 sys.path.insert(0, os.path.abspath("./src"))

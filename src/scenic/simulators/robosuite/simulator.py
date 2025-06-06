@@ -5,7 +5,7 @@ Simulator interface for the RoboSuite manipulation framework.
 import robosuite as suite
 
 # Corrected the import for SimulationCreationError
-from scenic.core.simulators import Simulator, Simulation, SimulationCreationError
+from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 
 
 class RobosuiteSimulator(Simulator):
