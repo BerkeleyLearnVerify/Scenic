@@ -1,27 +1,17 @@
-# test_suite_1_shapes.scenic
-"""Test Suite 1: Different Shapes and Colors - FIXED."""
+# examples/robosuite/basic_shapes.scenic
+"""Basic shapes demonstration for RoboSuite integration."""
 
-class TestCube(Object):
-    width: 0.15
-    length: 0.15
-    height: 0.15
-    # Remove shape property - use class name instead
+from scenic.simulators.robosuite.model import *
 
-class TestBall(Object):
-    width: 0.15
-    length: 0.15
-    height: 0.15
-    # Remove shape property - use class name instead
+# Create a simple scene with basic shapes
+cube = Cube at (0, 0, 0.05),
+    with color (1, 0, 0)
 
-class TestCylinder(Object):
-    width: 0.15
-    length: 0.15
-    height: 0.2
-    # Remove shape property - use class name instead
+ball = Ball at (0.1, 0, 0.05),
+    with color (0, 1, 0)
 
-# Different shapes in a line
-red_cube = new TestCube at (-0.4, 0.0, 0.1), with color (1, 0, 0)
-green_ball = new TestBall at (0.0, 0.0, 0.1), with color (0, 1, 0)  
-blue_cylinder = new TestCylinder at (0.4, 0.0, 0.1), with color (0, 0, 1)
+cylinder = Cylinder at (-0.1, 0, 0),
+    with color (0, 0, 1)
 
-ego = green_ball
+# Run for 100 steps
+terminate after 100 steps
