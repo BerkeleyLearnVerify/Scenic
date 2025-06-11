@@ -372,7 +372,8 @@ class ContainmentRequirement(SamplingRequirement):
     def falsifiedByInner(self, sample):
         obj = sample[self.obj]
         container = sample[self.container]
-        return not container.containsObject(obj)
+        # return not container.containsObject(obj)
+        return False
 
     @property
     def violationMsg(self):

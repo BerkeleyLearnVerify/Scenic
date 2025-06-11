@@ -38,7 +38,14 @@ from scenic.core.distributions import (
 )
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
-from scenic.core.regions import Region, PolygonalRegion, PolylineRegion, PathRegion, MeshSurfaceRegion
+from scenic.core.regions import (
+    Region,
+    PolygonalRegion,
+    PolylineRegion,
+    PathRegion,
+    MeshRegion,
+    MeshSurfaceRegion,
+)
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
@@ -140,8 +147,12 @@ class ManeuverType(enum.Enum):
         startDir = None
         endDir = None
         if isinstance(connecting.centerline, PathRegion):
-            startDir = connecting.centerline.vertices[0] - connecting.centerline.vertices[1]
-            endDir = connecting.centerline.vertices[-2] - connecting.centerline.vertices[-1]
+            startDir = (
+                connecting.centerline.vertices[0] - connecting.centerline.vertices[1]
+            )
+            endDir = (
+                connecting.centerline.vertices[-2] - connecting.centerline.vertices[-1]
+            )
         else:
             startDir = connecting.centerline[1] - connecting.centerline[0]
             endDir = connecting.centerline[-1] - connecting.centerline[-2]
@@ -216,7 +227,7 @@ class Maneuver(_ElementReferencer):
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
-class NetworkElement(_ElementReferencer, Region): ### Was part of: PolygonalRegion class
+class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalRegion class
     """NetworkElement()
 
     Abstract class for part of a road network.
@@ -233,8 +244,7 @@ class NetworkElement(_ElementReferencer, Region): ### Was part of: PolygonalRegi
         super().__init__(kwargs)
 
     # from PolygonalRegion
-    polygon: Union[Polygon, MultiPolygon]
-    vertices: Optional[List[Point]] = None # Added
+    polygon: Union[Polygon, MultiPolygon, trimesh.Trimesh]
     orientation: Optional[VectorField] = None
 
     is3D: bool = True  #: Whether this element is 3D (i.e. has height).
@@ -259,8 +269,8 @@ class NetworkElement(_ElementReferencer, Region): ### Was part of: PolygonalRegi
         assert self.uid is not None or self.id is not None
         if self.uid is None:
             self.uid = self.id
-        #self.__init__()
-        #super().__init__(orientation=self.orientation, name=self.name)        
+        # self.__init__()
+        # super().__init__(orientation=self.orientation, name=self.name)
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
@@ -294,27 +304,34 @@ class NetworkElement(_ElementReferencer, Region): ### Was part of: PolygonalRegi
             s += f'id="{self.id}", '
         s += f'uid="{self.uid}">'
         return s
-    #Added:
-    def intersect(self, other):
-        return Region.intersect(other)
-    def containsPoint(self, point):
-        return Region.containsPoint(point)
-    def containsObject(self, obj):
-        return Region.containsObject(obj)
-    def AABB(self):
-        return Region.AABB()
-    def distanceTo(self, point):
-        return Region.distanceTo(point)
-    def containsRegion(self, reg, tolerance):
-        return Region.containsRegion(reg, tolerance)
-    def containsRegionInner(self, reg, tolerance):
-        return Region.containsRegionInner(reg, tolerance)
-    def projectVector(self, point, onDirection):
-        return Region.projectVector(point, onDirection)
-    def uniformPointInner(self):
-        return Region.uniformPointInner()
-    
 
+    # Added:
+    def intersect(self, other):
+        return Region.intersect(self, other)
+
+    def containsPoint(self, point):
+        return Region.containsPoint(self, point)
+
+    def containsObject(self, obj):
+        return Region.containsObject(self, obj)
+
+    def AABB(self):
+        return Region.AABB(self)
+
+    def distanceTo(self, point):
+        return Region.distanceTo(self, point)
+
+    def containsRegion(self, reg, tolerance):
+        return Region.containsRegion(self, reg, tolerance)
+
+    def containsRegionInner(self, reg, tolerance):
+        return Region.containsRegionInner(self, reg, tolerance)
+
+    def projectVector(self, point, onDirection):
+        return Region.projectVector(self, point, onDirection)
+
+    def uniformPointInner(self):
+        return Region.uniformPointInner(self)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -356,8 +373,8 @@ class LinearElement(NetworkElement):
         # Check that left and right edges lie inside the element.
         # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
-        #assert self.containsRegion(self.leftEdge, tolerance=0.5)
-        #assert self.containsRegion(self.rightEdge, tolerance=0.5)
+        # assert self.containsRegion(self.leftEdge, tolerance=0.5)
+        # assert self.containsRegion(self.rightEdge, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -411,7 +428,7 @@ class _ContainsCenterline:
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        #assert self.containsRegion(self.centerline, tolerance=0.5)
+        # assert self.containsRegion(self.centerline, tolerance=0.5)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -474,9 +491,9 @@ class Road(LinearElement):
                 sidewalks.append(self.backwardLanes._sidewalk)
         self.laneGroups = tuple(lgs)
         self.sidewalks = tuple(sidewalks)
-        #if self.is3D:
+        # if self.is3D:
         #   self.sidewalkRegion = trimesh.util.concatenate(sidewalks)
-        #else:
+        # else:
         #    self.sidewalkRegion = PolygonalRegion.unionAll(sidewalks)
 
     def _defaultHeadingAt(self, point):
@@ -550,7 +567,7 @@ class LaneGroup(LinearElement):
         super().__attrs_post_init__()
 
         # Ensure lanes do not overlap
-        #for i in range(len(self.lanes) - 1):
+        # for i in range(len(self.lanes) - 1):
         #    assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
 
     @property
@@ -651,7 +668,7 @@ class RoadSection(LinearElement):
             self.lanesByOpenDriveID = ids
 
         # Ensure lanes do not overlap
-        #for i in range(len(self.lanes) - 1):
+        # for i in range(len(self.lanes) - 1):
         #    if isinstance(self.lanes[i].polygon, PathRegion) and isinstance(self.lanes[i + 1].polygon, PathRegion):
         #        pass
         #        #assert not self.lanes[i].polygon.intersects(self.lanes[i + 1].polygon)
@@ -687,11 +704,14 @@ class LaneSection(_ContainsCenterline, LinearElement):
     example if you want to handle the case where there is no lane to the left yourself),
     you can use the `_laneToLeft` and `_laneToRight` properties instead.
     """
+
     lane: Lane  #: Parent lane.
     group: LaneGroup  #: Grandparent lane group.
     road: Road  #: Great-grandparent road.
 
-    polygon: Union[Polygon, MultiPolygon, PathRegion, MeshSurfaceRegion] = None # MODIFIED
+    polygon: Union[Polygon, MultiPolygon, PathRegion, MeshSurfaceRegion] = (
+        None  # MODIFIED
+    )
     #: ID number as in OpenDRIVE (number of lanes to left of center, with 1 being the
     # first lane left of the centerline and -1 being the first lane to the right).
     openDriveID: int
@@ -799,7 +819,7 @@ class Intersection(NetworkElement):
         super().__attrs_post_init__()
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
-            #assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
+            # assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -948,19 +968,44 @@ class Network:
 
         if self.is3D:
             if self.roadRegion is None:
-                self.roadRegion = MeshSurfaceRegion(trimesh.util.concatenate(self.roads))
-            if self.laneRegion is None:
-                self.laneRegion = MeshSurfaceRegion(trimesh.util.concatenate(self.lanes))
-            if self.intersectionRegion is None:
-                self.intersectionRegion = MeshSurfaceRegion(trimesh.util.concatenate(self.intersections))
-            if self.crossingRegion is None:
-                self.crossingRegion = MeshSurfaceRegion(trimesh.util.concatenate(self.crossings))
-            if self.sidewalkRegion is None:
-                self.sidewalkRegion = MeshSurfaceRegion(trimesh.util.concatenate(self.sidewalks))
-            if self.shoulderRegion is None:
-                meshes = [ sh.polygon for sh in self.shoulders ]
+                meshes = [sh.polygon for sh in self.roads]
                 combined = trimesh.util.concatenate(meshes)
-                self.shoulderRegion = MeshSurfaceRegion(combined)
+                self.shoulderRegion = MeshSurfaceRegion(
+                    combined, centerMesh=False, position=None
+                )
+            if self.laneRegion is None:
+                meshes = [sh.polygon for sh in self.lanes]
+                combined = trimesh.util.concatenate(meshes)
+                self.shoulderRegion = MeshSurfaceRegion(
+                    combined, centerMesh=False, position=None
+                )
+            if self.intersectionRegion is None:
+                meshes = [sh.polygon for sh in self.intersections]
+                combined = trimesh.util.concatenate(meshes)
+                self.shoulderRegion = MeshSurfaceRegion(
+                    combined, centerMesh=False, position=None
+                )
+            if self.crossingRegion is None:
+                if self.crossings == ():
+                    self.crossingRegion = None
+                else:
+                    meshes = [sh.polygon for sh in self.crossings]
+                    combined = trimesh.util.concatenate(meshes)
+                    self.shoulderRegion = MeshSurfaceRegion(
+                        combined, centerMesh=False, position=None
+                    )
+            if self.sidewalkRegion is None:
+                meshes = [sh.polygon for sh in self.sidewalks]
+                combined = trimesh.util.concatenate(meshes)
+                self.sidewalkRegion = MeshSurfaceRegion(
+                    combined, centerMesh=False, position=None
+                )
+            if self.shoulderRegion is None:
+                meshes = [sh.polygon for sh in self.shoulders]
+                combined = trimesh.util.concatenate(meshes)
+                self.shoulderRegion = MeshSurfaceRegion(
+                    combined, centerMesh=False, position=None
+                )
         else:
             if self.roadRegion is None:
                 self.roadRegion = PolygonalRegion.unionAll(self.roads)
@@ -977,13 +1022,17 @@ class Network:
 
         if self.drivableRegion is None:
             if self.is3D:
-                self.drivableRegion = MeshSurfaceRegion(trimesh.util.concatenate(
-                    (
-                        self.laneRegion,
-                        self.roadRegion,  # can contain points slightly outside laneRegion
-                        self.intersectionRegion,
-                    )
-                ))
+                self.drivableRegion = MeshSurfaceRegion(
+                    trimesh.util.concatenate(
+                        (
+                            self.laneRegion.mesh,
+                            self.roadRegion.mesh,  # can contain points slightly outside laneRegion
+                            self.intersectionRegion.mesh,
+                        )
+                    ),
+                    centerMesh=False,
+                    position=None,
+                )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
                     (
@@ -1001,9 +1050,13 @@ class Network:
         )
         assert self.drivableRegion.containsRegion(
             self.intersectionRegion, tolerance=self.tolerance
-        )
+        )"""
         if self.walkableRegion is None:
-            self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+            if self.crossingRegion is None:
+                self.walkableRegion = self.sidewalkRegion
+            else:
+                self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+        """
         assert self.walkableRegion.containsRegion(
             self.sidewalkRegion, tolerance=self.tolerance
         )
@@ -1020,7 +1073,7 @@ class Network:
                     edges.append(road.backwardLanes.curb)
             if self.is3D:
                 # 1. collect all the 3D point arrays from each PathRegion
-                vertex_lists = [ edge.vertices for edge in edges ]
+                vertex_lists = [edge.vertices for edge in edges]
                 # 2. stack them into one big (N×3) array
                 all_vertices = np.vstack(vertex_lists)
                 # 3. build a single PathRegion from that
@@ -1035,10 +1088,24 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         if self.is3D:
-            self._rtree = [elem.polygon for elem in self.elements.values()]
+            meshregions = []
+            for elem in self.elements.values():
+                mesh = elem.polygon
+                if (
+                    isinstance(mesh, trimesh.Trimesh)
+                    and len(mesh.vertices) > 0
+                    and len(mesh.faces) > 0
+                ):
+                    meshregions.append(
+                        MeshSurfaceRegion(mesh, centerMesh=False, position=None)
+                    )
+            self._rtree = shapely.STRtree(
+                [meshes._boundingPolygon for meshes in meshregions]
+            )
         else:
-            self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
-
+            self._rtree = shapely.STRtree(
+                [elem.polygons for elem in self.elements.values()]
+            )
 
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
@@ -1049,7 +1116,7 @@ class Network:
         road = self.roadAt(point)
         return 0 if road is None else road.orientation[point]
 
-    #: File extension for cached versions of processed networks.
+    #: File extension for cached versions of processed netsworks.
     pickledExt = ".snet"
 
     @classmethod
@@ -1183,7 +1250,9 @@ class Network:
         verbosePrint("Parsing OpenDRIVE file...")
         road_map.parse(path)
         verbosePrint("Computing road geometry... (this may take a while)")
-        road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True, three_dim=True)
+        road_map.calculate_geometry(
+            ref_points, calc_gap=fill_gaps, calc_intersect=True, three_dim=True
+        )
         network = road_map.toScenicNetwork(three_dim=True)
         totalTime = time.time() - startTime
         verbosePrint(f"Finished loading OpenDRIVE map in {totalTime:.2f} seconds.")
@@ -1268,16 +1337,35 @@ class Network:
         are still no matches, we return None, unless **reject** is true, in which case we
         reject the current sample.
         """
-        point = shapely.geometry.Point(_toVector(point))
+        p = _toVector(point)  # convert to Scenic Vector
+        point = shapely.geometry.Point(p)  # convert to Shapely Point
 
         def findElementWithin(distance):
+            distance = distance
+            # print("Point:", p)
             target = point if distance == 0 else point.buffer(distance)
+            # print("Target:", target)
             indices = self._rtree.query(target, predicate="intersects")
             candidates = {self._uidForIndex[index] for index in indices}
+            # Need to change this so that candidates is a list of all the geometry matching the x and y coorrdinate
+            # And get the one closest to it.
+            # print(candidates)
             if candidates:
+                closest = None
                 for elem in elems:
                     if elem.uid in candidates:
-                        return elem
+                        MeshSurfaceRegionClosest = None
+                        if closest is not None:
+                            MeshSurfaceRegionClosest = MeshSurfaceRegion(closest.polygon)
+                        MeshSurfaceRegionElem = MeshSurfaceRegion(elem.polygon)
+                        if closest == None:
+                            closest = elem
+                        elif MeshSurfaceRegionElem.distanceTo(
+                            p
+                        ) < MeshSurfaceRegionClosest.distanceTo(p):
+                            closest = elem
+                # print("Closest element found: ", closest)
+                return closest
             return None
 
         # First pass: check for elements containing the point.
@@ -1378,7 +1466,7 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self, labelIncomingLanes=False):
+    def show(self, labelIncomingLanes=False, is3D=True):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
@@ -1388,42 +1476,68 @@ class Network:
             labelIncomingLanes (bool): Whether to label the incoming lanes of
                 intersections with their indices in ``incomingLanes``.
         """
-        import matplotlib.pyplot as plt
 
-        self.walkableRegion.show(plt, style="-", color="#00A0FF")
-        self.shoulderRegion.show(plt, style="-", color="#606060")
-        for road in self.roads:
-            road.show(plt, style="r-")
-            for lane in road.lanes:  # will loop only over lanes of main roads
-                lane.leftEdge.show(plt, style="r--")
-                lane.rightEdge.show(plt, style="r--")
+        if is3D:
+            render_scene = trimesh.scene.Scene()
+            self.drivableRegion.mesh.visual.face_colors = [200, 200, 200, 255]
+            render_scene.add_geometry(self.drivableRegion.mesh)
+            self.shoulderRegion.mesh.visual.face_colors = [0, 0, 255, 255]
+            render_scene.add_geometry(self.shoulderRegion.mesh)
+            self.walkableRegion.mesh.visual.face_colors = [0, 255, 0, 255]
+            render_scene.add_geometry(self.walkableRegion.mesh)
+            # self.intersectionRegion.mesh.visual.face_colors = [0, 255, 0, 255]
+            # render_scene.add_geometry(self.intersectionRegion.mesh)
+            render_scene.show()
 
-                # Draw arrows indicating road direction
-                if lane.centerline.length >= 40:
-                    pts = lane.centerline.pointsSeparatedBy(20)
-                else:
-                    pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
-                hs = [lane.centerline.orientation[pt].yaw for pt in pts]
-                x, y, _ = zip(*pts)
-                u = [math.cos(h + (math.pi / 2)) for h in hs]
-                v = [math.sin(h + (math.pi / 2)) for h in hs]
-                plt.quiver(
-                    x,
-                    y,
-                    u,
-                    v,
-                    pivot="middle",
-                    headlength=4.5,
-                    scale=0.06,
-                    units="dots",
-                    color="#A0A0A0",
-                )
-        for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
-            lane.centerline.show(plt, style=":", color="#A0A0A0")
-        self.intersectionRegion.show(plt, style="g")
-        if labelIncomingLanes:
-            for intersection in self.intersections:
-                for i, lane in enumerate(intersection.incomingLanes):
-                    x, y, _ = lane.centerline[-1]
-                    plt.plot([x], [y], "*b")
-                    plt.annotate(str(i), (x, y))
+        else:
+            import matplotlib.pyplot as plt
+
+            self.walkableRegion.show(plt, style="-", color="#00A0FF")
+            self.shoulderRegion.show(plt, style="-", color="#606060")
+            for road in self.roads:
+                road.show(plt, style="r-")
+                for lane in road.lanes:  # will loop only over lanes of main roads
+                    lane.leftEdge.show(plt, style="r--")
+                    lane.rightEdge.show(plt, style="r--")
+
+                    # Draw arrows indicating road direction
+                    if lane.centerline.length >= 40:
+                        pts = lane.centerline.pointsSeparatedBy(20)
+                    else:
+                        pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
+                    hs = [lane.centerline.orientation[pt].yaw for pt in pts]
+                    x, y, _ = zip(*pts)
+                    u = [math.cos(h + (math.pi / 2)) for h in hs]
+                    v = [math.sin(h + (math.pi / 2)) for h in hs]
+                    plt.quiver(
+                        x,
+                        y,
+                        u,
+                        v,
+                        pivot="middle",
+                        headlength=4.5,
+                        scale=0.06,
+                        units="dots",
+                        color="#A0A0A0",
+                    )
+            for (
+                lane
+            ) in self.lanes:  # draw centerlines of all lanes (including connecting)
+                lane.centerline.show(plt, style=":", color="#A0A0A0")
+            self.intersectionRegion.show(plt, style="g")
+            if labelIncomingLanes:
+                for intersection in self.intersections:
+                    for i, lane in enumerate(intersection.incomingLanes):
+                        x, y, _ = lane.centerline[-1]
+                        plt.plot([x], [y], "*b")
+                        plt.annotate(str(i), (x, y))
+
+    def show3D(self, viewer):
+        self.drivableRegion.mesh.visual.face_colors = [200, 200, 200, 255]
+        viewer.add_geometry(self.drivableRegion.mesh)
+        self.shoulderRegion.mesh.visual.face_colors = [0, 0, 255, 255]
+        viewer.add_geometry(self.shoulderRegion.mesh)
+        self.walkableRegion.mesh.visual.face_colors = [0, 255, 0, 255]
+        viewer.add_geometry(self.walkableRegion.mesh)
+        # self.intersectionRegion.mesh.visual.face_colors = [0, 255, 0, 255]
+        # render_scene.add_geometry(self.intersectionRegion.mesh)

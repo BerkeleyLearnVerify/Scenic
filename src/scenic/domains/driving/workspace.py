@@ -12,6 +12,9 @@ class DrivingWorkspace(Workspace):
 
     def show2D(self, plt):
         self.network.show()
+    
+    def show3D(self, viewer):
+        self.network.show3D(viewer)
 
     @property
     def minimumZoomSize(self):

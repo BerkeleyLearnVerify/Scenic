@@ -1963,9 +1963,7 @@ class MeshSurfaceRegion(MeshRegion):
         point = toVector(point, f"Could not convert {point} to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-
         dist = abs(pq.signed_distance([point.coordinates])[0])
-
         return dist
 
     @property

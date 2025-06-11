@@ -422,7 +422,7 @@ class Road:
 
     def get_ref_points(
         self, num
-    ):  # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
+    ):
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
         constructed into Polygon separately then unioned afterwards to avoid
@@ -578,11 +578,6 @@ class Road:
                             if not mesh.is_empty:
                                 cur_sec_meshes.append(mesh)
                                 cur_sec_lane_meshes[id_].append(mesh)
-                            # flag any zero-area faces
-                            # zero_idxs = [i for i,a in enumerate(areas) if a < 1e-8]
-                            # if zero_idxs:
-                            #    print(f"Degenerate triangles at indices: {zero_idxs[:10]}…")
-
                             """poly = cleanPolygon(Polygon(bounds), tolerance)
                             if not poly.is_empty:
                                 if poly.geom_type == "MultiPolygon":
@@ -601,7 +596,6 @@ class Road:
                             poly = cleanPolygon(Polygon(bounds), tolerance)
                             if not poly.is_empty:
                                 if poly.geom_type == "MultiPolygon":
-                                    print("Often")
                                     poly = MultiPolygon(
                                         [
                                             p
@@ -1007,7 +1001,7 @@ class Road:
                     section = roadDomain.LaneSection(
                         id=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
                         polygon=(
-                            lane_shape[id_].vertices if three_dim else lane_shape[id_]
+                            lane_shape[id_] if three_dim else lane_shape[id_] # CLEANUP
                         ),
                         centerline=(
                             PathRegion(cleanChain(center))
@@ -1715,12 +1709,10 @@ class RoadMap:
             if self.sidewalk_region:
                 self.sidewalk_region.visual.face_colors = [0, 0, 255, 255]
                 render_scene.add_geometry(self.sidewalk_region)
-            render_scene.add_geometry(self.sidewalk_region)
             if self.shoulder_region:
                 self.shoulder_region.visual.face_colors = [0, 255, 0, 255]
                 # self.shoulder_region.fix_normals()
                 render_scene.add_geometry(self.shoulder_region)
-            render_scene.add_geometry(self.shoulder_region)
             render_scene.show()
 
         if calc_intersect:
@@ -2153,8 +2145,6 @@ class RoadMap:
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
-            # print(road)
-            # print(f"Road ID: {road.id_}, Drivable Region: {hasattr(road, 'drivable_region')}")
             if road.drivable_region.is_empty:
                 continue  # not actually a road you can drive on
             else:
@@ -2419,16 +2409,24 @@ class RoadMap:
                     endLane=lane._successor,
                 )
                 lane.maneuvers = (maneuver,)
-
+        render_scene = trimesh.scene.Scene()
         def combine(regions):
             if three_dim:
-                meshes = [ r.polygon for r in regions ]
-                return trimesh.util.concatenate(meshes)
+                if regions == ():
+                    return None
+                
+                """meshes = [ r.polygon for r in regions ]
+                combined = trimesh.util.concatenate(meshes)
+                region = MeshSurfaceRegion(combined, centerMesh=False, position=None)
+                region.mesh.visual.face_colors = [100, 100, 100, 255]
+                render_scene.add_geometry(region.mesh)
+                render_scene.show()
+                return region"""
+                meshes = [r.polygon for r in regions ]
+                combined = trimesh.util.concatenate(meshes)
+                return MeshSurfaceRegion(combined, centerMesh=False, position=None)
             else:
                 return PolygonalRegion.unionAll(regions, buf=self.tolerance)
-        print(combine(lanes))
-        print(combine(roads))
-        print(combine(intersections))
         return roadDomain.Network(
             elements=allElements,
             roads=roads,
