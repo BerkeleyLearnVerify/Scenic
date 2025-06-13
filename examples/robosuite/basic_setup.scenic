@@ -1,3 +1,4 @@
+# examples/robosuite/basic_setup.scenic
 # Basic test scenario for the RoboSuite simulator interface.
 #
 # This scenario is intended to verify that the RoboSuite simulator

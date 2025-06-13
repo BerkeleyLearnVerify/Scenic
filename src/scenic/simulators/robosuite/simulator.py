@@ -1,79 +1,175 @@
-"""
-Simulator interface for the RoboSuite manipulation framework.
-"""
+# src/scenic/simulators/robosuite/simulator.py
+"""RoboSuite Simulator - Fixed shape handling."""
 
-import robosuite as suite
+import numpy as np
+import mujoco
+from typing import Dict, List, Any, Optional, Tuple
 
-# Corrected the import for SimulationCreationError
-from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
+try:
+    import robosuite as suite
+    from robosuite.models import MujocoWorldBase
+    from robosuite.models.arenas import TableArena, EmptyArena
+    from robosuite.models.objects import BoxObject, BallObject, CylinderObject
+except ImportError as e:
+    suite = None
+    _import_error = e
+
+from scenic.core.simulators import Simulation, Simulator
+from scenic.core.vectors import Vector
 
 
 class RobosuiteSimulator(Simulator):
-    """A `Simulator` for the RoboSuite robotics framework."""
-
+    def __init__(self, use_table=False, **kwargs):
+        super().__init__()
+        
+        if suite is None:
+            raise RuntimeError(f"Unable to import RoboSuite: {_import_error}")
+        
+        self.render_mode = kwargs.get('has_renderer', True)
+        self.use_table = use_table
+        
     def createSimulation(self, scene, **kwargs):
-        """Create a new simulation from a Scenic scene."""
-        return RobosuiteSimulation(scene, **kwargs)
+        return RobosuiteSimulation(scene, self.render_mode, self.use_table, **kwargs)
 
 
 class RobosuiteSimulation(Simulation):
-    """A single simulation run in RoboSuite.
-
-    Args:
-        scene (Scene): The Scenic scene to simulate.
-        **kwargs: Other arguments from `Simulator.simulate`.
-    """
-
-    def __init__(self, scene, **kwargs):
-        # It's crucial to call the parent constructor FIRST.
-        # This will set up all the necessary Scenic-internal state and
-        # will call self.setup() for us.
-        super().__init__(scene, **kwargs)
-
+    def __init__(self, scene, render_mode=True, use_table=False, **kwargs):
+        self.render_mode = render_mode
+        self.use_table = use_table
+        self.model = None
+        self.data = None
+        self.viewer = None
+        
+        # Build custom world with proper shape handling
+        self.world = self._build_custom_world(scene)
+        
+        timestep = 0.01
+        kwargs.setdefault('maxSteps', 1000)
+        kwargs.setdefault('name', 'Custom-Scenic-World')
+        
+        super().__init__(scene, timestep=timestep, **kwargs)
+        
+    def _build_custom_world(self, scene):
+        """Build custom world with PROPER SHAPE HANDLING."""
+        print(f"Building custom world with {len(scene.objects)} Scenic objects...")
+        
+        # Start with empty world with ground
+        world = MujocoWorldBase()
+        
+        if self.use_table:
+            arena = TableArena()
+            arena.set_origin([0, 0, 0])
+            world.merge(arena)
+            print("Added table with ground")
+        else:
+            arena = EmptyArena()
+            world.merge(arena) 
+            print("Added ground plane only")
+        
+        # Add Scenic objects with proper shape detection
+        for i, obj in enumerate(scene.objects):
+            print(f"  Adding {type(obj).__name__} at {obj.position}")
+            
+            # Get object properties
+            width = getattr(obj, 'width', 0.05)
+            length = getattr(obj, 'length', 0.05) 
+            height = getattr(obj, 'height', 0.05)
+            color = getattr(obj, 'color', (0.5, 0.5, 0.5))
+            
+            # Convert color
+            if hasattr(color, '__iter__') and len(color) >= 3:
+                rgba = [color[0], color[1], color[2], 1.0]
+            else:
+                rgba = [0.5, 0.5, 0.5, 1.0]
+            
+            # Determine shape based on CLASS NAME (not shape property)
+            class_name = type(obj).__name__.lower()
+            
+            if 'ball' in class_name:
+                # Create ball/sphere
+                radius = width / 2
+                robosuite_obj = BallObject(
+                    name=f"scenic_ball_{i}",
+                    size=[radius],
+                    rgba=rgba
+                ).get_obj()
+                print(f"    → Created BALL (radius: {radius:.3f})")
+                
+            elif 'cylinder' in class_name:
+                # Create cylinder
+                radius = width / 2
+                half_height = height / 2
+                robosuite_obj = CylinderObject(
+                    name=f"scenic_cylinder_{i}",
+                    size=[radius, half_height],
+                    rgba=rgba
+                ).get_obj()
+                print(f"    → Created CYLINDER (radius: {radius:.3f}, height: {height:.3f})")
+                
+            else:
+                # Default to box/cube
+                robosuite_obj = BoxObject(
+                    name=f"scenic_cube_{i}",
+                    size=[width/2, length/2, height/2],
+                    rgba=rgba
+                ).get_obj()
+                print(f"    → Created CUBE (size: {width:.3f}×{length:.3f}×{height:.3f})")
+            
+            # Position object
+            pos_x = obj.position.x
+            pos_y = obj.position.y  
+            pos_z = obj.position.z
+            robosuite_obj.set('pos', f'{pos_x} {pos_y} {pos_z}')
+            
+            # Add to world
+            world.worldbody.append(robosuite_obj)
+            print(f" Positioned at ({pos_x:.2f}, {pos_y:.2f}, {pos_z:.2f})")
+        
+        print("Custom world with PROPER SHAPES built successfully")
+        return world
+        
     def setup(self):
-        """Set up the RoboSuite environment."""
-        # This method is called by the parent __init__ after basic setup.
-        # This is the correct place to create the simulator environment.
-        super().setup()  # This will call createObjectInSimulator for all objects
-
-        # TODO: Extract environment and robot configuration from the Scenic scene.
-        # For now, we use a hardcoded default for initial testing.
-        env_name = "Lift"
-        robots = ["Panda"]
-
-        try:
-            self.env = suite.make(
-                env_name,
-                robots=robots,
-                has_renderer=True,  # Show the GUI for debugging
-                has_offscreen_renderer=False,
-                use_camera_obs=False,  # Do not need camera observations for now
-                control_freq=20,  # Default control frequency
-            )
-            self.env.reset()  # It's good practice to reset the env after creation
-        except Exception as e:
-            raise SimulationCreationError(f"Failed to create RoboSuite environment: {e}")
-
+        super().setup()
+        
+        # Create MuJoCo model
+        self.model = self.world.get_model(mode="mujoco")
+        self.data = mujoco.MjData(self.model)
+        
+        print(f" MuJoCo model created:")
+        print(f" Bodies: {self.model.nbody}")
+        print(f" Geoms: {self.model.ngeom}")
+        
+        # Create viewer
+        if self.render_mode:
+            try:
+                self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                print(" Viewer launched")
+            except Exception as e:
+                print(f" Viewer error: {e}")
+                self.viewer = None
+        
     def createObjectInSimulator(self, obj):
-        """Create the given Scenic object in the RoboSuite simulation."""
-        # This method will translate a Scenic object to a RoboSuite object.
-        # For now, we do nothing as the environment is not yet scene-aware.
-        pass
-
-    def step(self):
-        """Advance the simulation by one time step."""
-        # Create a dummy action of the correct shape.
-        action = [0.0] * self.env.action_spec[0].shape[0]
-        self.env.step(action)
-        # TODO: Update Scenic object properties from self.env.
-
+        return True
+        
     def getProperties(self, obj, properties):
-        """Read the values of the given properties of an object from the simulator."""
-        # This will be responsible for updating Scenic with the state from RoboSuite.
-        raise NotImplementedError("getProperties has not been implemented yet.")
-
+        values = {}
+        for prop in properties:
+            values[prop] = getattr(obj, prop, None)
+        return values
+        
+    def step(self):
+        if self.model and self.data:
+            mujoco.mj_step(self.model, self.data)
+            if self.viewer:
+                self.viewer.sync()
+                
+    def render(self):
+        pass
+            
     def destroy(self):
-        """Clean up after the simulation is over."""
-        if hasattr(self, "env") and self.env:
-            self.env.close()
-        super().destroy()
+        if self.viewer:
+            try:
+                self.viewer.close()
+            except:
+                pass
+            self.viewer = None
