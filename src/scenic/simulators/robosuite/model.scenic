@@ -35,3 +35,43 @@ class Cylinder(RoboSuiteObject):
     length: 0.05
     height: 0.1
     color: (0.2, 0.2, 0.8)  # Blue default
+
+# Base Robot class
+class Robot(RoboSuiteObject):
+    """Base RoboSuite robot."""
+    robot_type: "Panda"
+    gripper_type: "default"
+    controller_config: None
+    initial_qpos: None
+    base_type: "default"
+    width: 0.2
+    length: 0.2
+    height: 0.5
+    joint_positions: [] 
+
+# Specific robot implementations
+class PandaRobot(Robot):
+    """Franka Emika Panda robot."""
+    robot_type: "Panda"
+    gripper_type: "PandaGripper"
+    initial_qpos: [0, -0.785, 0, -2.356, 0, 1.571, 0.785, 0.04, 0.04]
+    height: 0.9
+
+class SawyerRobot(Robot):
+    """Rethink Sawyer robot."""
+    robot_type: "Sawyer"
+    gripper_type: "RethinkGripper"
+    initial_qpos: [0, -0.785, 0, 1.571, 0, -0.785, 0]
+    height: 1.0
+
+# Actions
+import scenic.core.dynamics as dynamics
+
+class SetJointPositions(dynamics.Action):
+    """Action to set robot joint positions."""
+    def __init__(self, positions):
+        self.positions = positions
+    
+    def applyTo(self, agent, sim):
+        """Apply joint position action to robot."""
+        pass
