@@ -583,7 +583,7 @@ class Simulation(abc.ABC):
         )
         self.result = result
 
-        self.cleanup()
+        # self.cleanup()
 
     def cleanup(self):
         # No need to repeat cleanup if we've already done it
