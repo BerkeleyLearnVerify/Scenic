@@ -1052,6 +1052,9 @@ class Object(OrientedPoint):
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
           (an empty tuple if the object is not an agent or this is the first time step).
+        sensors: Dict of ("name": sensor) that populate the observations field every time step
+        observations: Dict of ("name": observation) storing the latest observation of the sensor
+          with the same name
     """
 
     _scenic_properties = {
@@ -1080,6 +1083,9 @@ class Object(OrientedPoint):
         "lastActions": tuple(),
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
+        # Sensor properties
+        "sensors": PropertyDefault((), {}, lambda self: {}),
+        "observations": PropertyDefault((), {"final"}, lambda self: {}),
     }
 
     def __new__(cls, *args, **kwargs):

@@ -2125,8 +2125,12 @@ scenic_require_stmt_name:
     | a=STRING { a.string[1:-1] }
 
 scenic_record_stmt:
-    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
-        s.Record(value=e, name=n, LOCATIONS)
+    | "record" e=expression \
+        p=["every" a=scenic_dynamic_duration { a }] \
+        d=["after" a=scenic_dynamic_duration { a }] \
+        n=['as' a=scenic_require_stmt_name { a }] \
+        r=['to' a=expression { a }] {
+        s.Record(value=e, name=n, recorder=r, delay=d, period=p, LOCATIONS)
      }
 
 scenic_record_initial_stmt:

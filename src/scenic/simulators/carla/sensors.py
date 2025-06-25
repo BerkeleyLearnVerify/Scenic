@@ -1,0 +1,77 @@
+import os
+from time import sleep
+
+import carla
+import cv2
+import numpy as np
+
+from scenic.core.sensors import CallbackSensor
+
+
+class CarlaVisionSensor(CallbackSensor):
+    def __init__(
+        self,
+        offset=(0, 0, 0),
+        rotation=(0, 0, 0),
+        attributes=None,
+        convert=None,
+    ):
+        super().__init__()
+        self.transform = carla.Transform(
+            carla.Location(x=offset[0], y=offset[1], z=offset[2]),
+            carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]),
+        )
+        if isinstance(attributes, str):
+            raise NotImplementedError(
+                "String parsing for attributes is not yet implemented. Feel free to do so."
+            )
+        elif isinstance(attributes, dict):
+            self.attributes = attributes
+        else:
+            self.attributes = {}
+
+        self.convert = None
+        if convert is not None:
+            if isinstance(convert, int):
+                self.convert = convert
+            elif isinstance(convert, str):
+                self.convert = carla.ColorConverter.names[convert]
+            else:
+                raise TypeError("'convert' has to be int or string.")
+
+        self.frame = 0
+
+    blueprint = "sensor.camera.rgb"
+
+    def onData(self, data):
+        super().onData(data)
+        self.frame = data.frame
+
+
+class CarlaRGBSensor(CarlaVisionSensor):
+    def process(self, data):
+        array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (data.height, data.width, 4))  # BGRA format
+        array = array[:, :, :3]  # Take only RGB
+        array = array[:, :, ::-1]  # Revert order
+
+        return array.copy()
+
+
+class CarlaSSSensor(CarlaVisionSensor):
+    blueprint = "sensor.camera.semantic_segmentation"
+
+    def process(self, data):
+        if self.convert is not None:
+            data.convert(self.convert)
+
+        array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (data.height, data.width, 4))  # BGRA format
+
+        if self.convert is not None:
+            array = array[:, :, :3]  # Take only RGB
+            array = array[:, :, ::-1]  # Revert order
+        else:
+            array = array[:, :, 2]  # Take only R
+
+        return array.copy()
