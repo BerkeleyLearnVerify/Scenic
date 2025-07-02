@@ -1342,14 +1342,9 @@ class Network:
 
         def findElementWithin(distance):
             distance = distance
-            # print("Point:", p)
             target = point if distance == 0 else point.buffer(distance)
-            # print("Target:", target)
             indices = self._rtree.query(target, predicate="intersects")
             candidates = {self._uidForIndex[index] for index in indices}
-            # Need to change this so that candidates is a list of all the geometry matching the x and y coorrdinate
-            # And get the one closest to it.
-            # print(candidates)
             if candidates:
                 closest = None
                 for elem in elems:
@@ -1364,7 +1359,6 @@ class Network:
                             p
                         ) < MeshSurfaceRegionClosest.distanceTo(p):
                             closest = elem
-                # print("Closest element found: ", closest)
                 return closest
             return None
 
