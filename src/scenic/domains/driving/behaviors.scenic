@@ -16,9 +16,9 @@ behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
 
-behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
-    try:
-        do FollowLaneBehavior(target_speed=target_speed)
+behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10, pure_pursuit=False):
+    try:    
+        do FollowLaneBehavior(target_speed=target_speed, purePursuit=pure_pursuit)
     interrupt when self.distanceToClosest(_model.Vehicle) <= avoidance_threshold:
         take SetThrottleAction(0), SetBrakeAction(1)
 
@@ -39,7 +39,7 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
-behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
+behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False, purePursuit=False):
     """
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
@@ -77,7 +77,10 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         nearby_intersection = current_lane.centerline[-1]
 
     # instantiate longitudinal and lateral controllers
-    _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
+    if(purePursuit):
+        _lon_controller, _lat_controller = simulation().getPurePursuitControllers(self)
+    else:
+        _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
     while True:
 
@@ -129,11 +132,59 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             in_turning_lane = False
             entering_intersection = False
             target_speed = original_target_speed
-            _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
-        nearest_line_points = current_centerline.nearestSegmentTo(self.position)
-        nearest_line_segment = PolylineRegion(nearest_line_points)
-        cte = nearest_line_segment.signedDistanceTo(self.position)
+            if(purePursuit):
+                _lon_controller, _lat_controller = simulation().getPurePursuitControllers(self)
+            else:
+                _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
+
+
+        if(not purePursuit):
+            nearest_line_points = current_centerline.nearestSegmentTo(self.position)
+            nearest_line_segment = PolylineRegion(nearest_line_points)
+            cte = nearest_line_segment.signedDistanceTo(self.position)
+
+            #Debugging prints
+            #print(f"\n___Debugging___")
+            #print(self.heading)
+            #print(nearest_line_segment.orientation.)
+        else:
+            #get the lookahead distance
+            lookahead_distance = _lat_controller.ld
+
+            #approximate where the point on the path is (that is one lookahead distance away)
+            
+            theta = self.heading + math.pi/2
+            x = lookahead_distance * cos(theta) # maybe make this line and the next two (four?) a helper function
+            y = lookahead_distance * sin(theta)
+            lookahead_point = (self.position.coordinates[0] + x, self.position.coordinates[1] + y, 0)
+
+            adjustment = 0.4
+            nearest_line_points = current_centerline.nearestSegmentTo(lookahead_point)
+            nearest_line_segment = PolylineRegion(nearest_line_points)
+            error = nearest_line_segment.signedDistanceTo(lookahead_point)
+            
+            while error > 0.115 or adjustment > 0.01:
+                if error > 0:
+                    theta -= adjustment
+                else:
+                    theta += adjustment
+
+                x = lookahead_distance * cos(theta)
+                y = lookahead_distance * sin(theta)
+                lookahead_point = (self.position.coordinates[0] + x, self.position.coordinates[1] + y, 0)
+                
+                adjustment /= 2
+                nearest_line_points = current_centerline.nearestSegmentTo(lookahead_point)
+                nearest_line_segment = PolylineRegion(nearest_line_points)
+                error = nearest_line_segment.signedDistanceTo(lookahead_point)
+            
+
+            #get the difference in radians between the target and going straight (+/- needs to be figured out) (set cte here)
+            cte = (self.heading + math.pi/2) - theta
+            # cte = theta - (self.heading- math.pi/2) 
+
+
         if is_oppositeTraffic:
             cte = -cte
 

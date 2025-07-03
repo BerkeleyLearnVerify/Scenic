@@ -13,6 +13,7 @@ which are licensed under the following terms:
 """
 
 from collections import deque
+from math import sin
 
 import numpy as np
 
@@ -107,3 +108,46 @@ class PIDLateralController:
         self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
 
         return np.clip(self.output, -1, 1)
+    
+class PurePursuitLateralController:
+    """
+    Pure Pursuit Controller
+
+    Arguments:
+        wb: wheelbase length
+        ld: lookahead distance
+        dt: time step
+    """
+
+    def __init__(self, wb = 4.5, ld = 4, dt = 0.1):
+        """
+        Todo:
+            find the actual wheelbase and update the default number
+                - it says car length is 4.5 meters, but im not sure if thats wheelbase
+            experiment with the lookahead distance to see what works the best
+        """
+        self.dt = dt 
+        self.wb = wb
+        self.ld = ld
+
+    def run_step(self, cte):
+        """Estimate the steering angle of the vehicle based on the pure pursuit equations.
+
+        Arguments:
+            cte: cross-track error (distance to right of desired trajectory)
+
+        Returns:
+            a signal between -1 and 1, with -1 meaning maximum steering to the left.
+
+        Todo:
+            Find if the equation needs to be updated to consider negative vs positive cte
+            find what maximum steering distance is in radians and scale the return value accordingly
+                -It is not listed in the documentation
+        """
+        rv = np.arctan((2 * self.wb * sin(cte)) / self.ld)
+
+        return rv
+
+
+        
+
