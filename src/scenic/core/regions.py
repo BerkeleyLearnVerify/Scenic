@@ -1070,7 +1070,7 @@ class MeshRegion(Region):
         # Generic case for arbitrary shapes
         if self.mesh.is_watertight:
             projection = trimesh.path.polygons.projected(
-                self.mesh, normal=(0, 0, 1), rpad=1e-4
+                self.mesh, normal=(0, 0, 1), rpad=1e-4, precise=True
             )
         else:
             # Special parameters to use all faces if mesh is not watertight.
@@ -1080,6 +1080,7 @@ class MeshRegion(Region):
                 rpad=1e-4,
                 ignore_sign=False,
                 tol_dot=-float("inf"),
+                precise=True,
             )
 
         return projection
