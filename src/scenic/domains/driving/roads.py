@@ -307,18 +307,22 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     # Added:
     def intersect(self, other):
+        print("intersect")
         return Region.intersect(self, other)
 
     def containsPoint(self, point):
+        print("containsPoint")
         return Region.containsPoint(self, point)
 
     def containsObject(self, obj):
+        print("containsObject")
         return Region.containsObject(self, obj)
 
     def AABB(self):
         return Region.AABB(self)
 
     def distanceTo(self, point):
+        print("distanceTo")
         return Region.distanceTo(self, point)
 
     def containsRegion(self, reg, tolerance):
@@ -970,19 +974,19 @@ class Network:
             if self.roadRegion is None:
                 meshes = [sh.polygon for sh in self.roads]
                 combined = trimesh.util.concatenate(meshes)
-                self.shoulderRegion = MeshSurfaceRegion(
+                self.roadRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None
                 )
             if self.laneRegion is None:
                 meshes = [sh.polygon for sh in self.lanes]
                 combined = trimesh.util.concatenate(meshes)
-                self.shoulderRegion = MeshSurfaceRegion(
+                self.laneRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None
                 )
             if self.intersectionRegion is None:
                 meshes = [sh.polygon for sh in self.intersections]
                 combined = trimesh.util.concatenate(meshes)
-                self.shoulderRegion = MeshSurfaceRegion(
+                self.intersectionRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None
                 )
             if self.crossingRegion is None:
@@ -991,7 +995,7 @@ class Network:
                 else:
                     meshes = [sh.polygon for sh in self.crossings]
                     combined = trimesh.util.concatenate(meshes)
-                    self.shoulderRegion = MeshSurfaceRegion(
+                    self.crossingRegion = MeshSurfaceRegion(
                         combined, centerMesh=False, position=None
                     )
             if self.sidewalkRegion is None:
@@ -1347,18 +1351,16 @@ class Network:
             candidates = {self._uidForIndex[index] for index in indices}
             if candidates:
                 closest = None
+                MeshSurfaceRegionClosest = None
                 for elem in elems:
                     if elem.uid in candidates:
-                        MeshSurfaceRegionClosest = None
-                        if closest is not None:
-                            MeshSurfaceRegionClosest = MeshSurfaceRegion(closest.polygon)
-                        MeshSurfaceRegionElem = MeshSurfaceRegion(elem.polygon)
+                        MeshSurfaceRegionElem = MeshSurfaceRegion(elem.polygon, centerMesh=False)
                         if closest == None:
                             closest = elem
-                        elif MeshSurfaceRegionElem.distanceTo(
-                            p
-                        ) < MeshSurfaceRegionClosest.distanceTo(p):
+                            MeshSurfaceRegionClosest = MeshSurfaceRegion(elem.polygon, centerMesh=False)
+                        elif MeshSurfaceRegionElem.distanceTo(p) < MeshSurfaceRegionClosest.distanceTo(p):
                             closest = elem
+                            MeshSurfaceRegionClosest = MeshSurfaceRegionElem
                 return closest
             return None
 
