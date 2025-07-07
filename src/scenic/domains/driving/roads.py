@@ -1170,6 +1170,8 @@ class Network:
             FileNotFoundError: no readable map was found at the given path.
             ValueError: the given map is of an unknown format.
         """
+        #print("fromFile called with use2DMap =", kwargs.get("use2DMap"))
+        #print(bool== type(kwargs.get("use2DMap")))
         path = pathlib.Path(path)
         ext = path.suffix
 
@@ -1229,6 +1231,7 @@ class Network:
         fill_gaps: bool = True,
         fill_intersections: bool = True,
         elide_short_roads: bool = False,
+        use2DMap: bool = False,
     ):
         """Create a `Network` from an OpenDRIVE file.
 
@@ -1243,8 +1246,7 @@ class Network:
             elide_short_roads: Whether to attempt to fix geometry artifacts by
                 eliding roads with length less than **tolerance**.
         """
-        import scenic.formats.opendrive.xodr_parser as xodr_parser
-
+        import scenic.formats.opendrive.xodr_parser as xodr_parsers
         road_map = xodr_parser.RoadMap(
             tolerance=tolerance,
             fill_intersections=fill_intersections,
@@ -1255,7 +1257,7 @@ class Network:
         road_map.parse(path)
         verbosePrint("Computing road geometry... (this may take a while)")
         road_map.calculate_geometry(
-            ref_points, calc_gap=fill_gaps, calc_intersect=True, three_dim=True
+            ref_points, calc_gap=fill_gaps, calc_intersect=True, use2DMap=use2DMap
         )
         network = road_map.toScenicNetwork(three_dim=True)
         totalTime = time.time() - startTime

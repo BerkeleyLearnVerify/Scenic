@@ -68,10 +68,11 @@ if 'map' not in globalParameters:
     raise RuntimeError('need to specify map before importing driving model '
                        '(set the global parameter "map")')
 param map_options = {}
+options = {**globalParameters.map_options, "use2DMap": globalParameters.use2DMap}
 
 #: The road network being used for the scenario, as a `Network` object.
-network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
-
+#network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
+network : Network = Network.fromFile(globalParameters.map, **options)
 workspace = DrivingWorkspace(network)
 
 ## Various useful objects and regions
