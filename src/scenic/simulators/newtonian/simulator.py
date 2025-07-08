@@ -35,7 +35,7 @@ current_dir = pathlib.Path(__file__).parent.absolute()
 WIDTH = 1280
 HEIGHT = 800
 MAX_ACCELERATION = 5.6  # in m/s2, seems to be a pretty reasonable value
-MAX_BRAKING = 4.6
+MAX_BRAKING = 6.8
 
 ROAD_COLOR = (0, 0, 0)
 ROAD_WIDTH = 2
@@ -196,7 +196,22 @@ class NewtonianSimulation(DrivingSimulation):
     def step(self):
         for obj in self.objects:
             current_speed = obj.velocity.norm()
-            if hasattr(obj, "hand_brake"):
+            # 1) Pedestrian: we stash .control['heading']/['speed']
+            if hasattr(obj, "control") and "speed" in obj.control:
+                h = (
+                    obj.control["heading"]
+                    if obj.control["heading"] is not None
+                    else obj.heading
+                )
+                s = (
+                    obj.control["speed"]
+                    if obj.control["speed"] is not None
+                    else obj.speed
+                )
+                vel = Vector(0, s).rotatedBy(h)
+                obj.setVelocity(vel)
+            # 2) Vehicle: throttle/brake/steer physics
+            elif hasattr(obj, "hand_brake"):
                 forward = obj.velocity.dot(Vector(0, 1).rotatedBy(obj.heading)) >= 0
                 signed_speed = current_speed if forward else -current_speed
                 if obj.hand_brake or obj.brake > 0:
@@ -221,8 +236,12 @@ class NewtonianSimulation(DrivingSimulation):
                 else:
                     obj.angularSpeed = 0
                 obj.speed = abs(signed_speed)
+
+            # 3) Everything else:
             else:
                 obj.speed = current_speed
+
+            # 4) Integrate motion for all
             obj.position += obj.velocity * self.timestep
             obj.heading += obj.angularSpeed * self.timestep
 
