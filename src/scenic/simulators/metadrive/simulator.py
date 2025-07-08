@@ -162,6 +162,10 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading_theta=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
+
+            # Manually initialize pedestrian velocity to Scenic’s starting speed
+            direction = [math.cos(converted_heading), math.sin(converted_heading)]
+            metaDriveActor.set_velocity(direction, obj.speed)
             return
 
         # If the object type is unsupported, raise an error
