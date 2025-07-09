@@ -247,8 +247,6 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
     polygon: Union[Polygon, MultiPolygon, trimesh.Trimesh]
     orientation: Optional[VectorField] = None
 
-    is3D: bool = True  #: Whether this element is 3D (i.e. has height).
-
     name: str = ""  #: Human-readable name, if any.
     #: Unique identifier; from underlying format, if possible.
     #: (In OpenDRIVE, for example, ids are not necessarily unique, so we invent our own.)
@@ -306,23 +304,20 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
         return s
 
     # Added:
+
     def intersect(self, other):
-        print("intersect")
         return Region.intersect(self, other)
 
     def containsPoint(self, point):
-        print("containsPoint")
         return Region.containsPoint(self, point)
 
     def containsObject(self, obj):
-        print("containsObject")
         return Region.containsObject(self, obj)
 
     def AABB(self):
         return Region.AABB(self)
 
     def distanceTo(self, point):
-        print("distanceTo")
         return Region.distanceTo(self, point)
 
     def containsRegion(self, reg, tolerance):
@@ -336,6 +331,9 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def uniformPointInner(self):
         return Region.uniformPointInner(self)
+
+    def polygons(self):
+        return PolygonalRegion(polygon=self.polygon).polygons()
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -944,7 +942,7 @@ class Network:
     #: Distance tolerance for testing inclusion in network elements.
     tolerance: float = 0
 
-    is3D: bool = True
+    use2DMap: float = 0
 
     # convenience regions aggregated from various types of network elements
     drivableRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
@@ -970,7 +968,7 @@ class Network:
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
         self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
 
-        if self.is3D:
+        if self.use2DMap == 0:
             if self.roadRegion is None:
                 meshes = [sh.polygon for sh in self.roads]
                 combined = trimesh.util.concatenate(meshes)
@@ -1025,7 +1023,7 @@ class Network:
                 self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
-            if self.is3D:
+            if self.use2DMap==0:
                 self.drivableRegion = MeshSurfaceRegion(
                     trimesh.util.concatenate(
                         (
@@ -1075,7 +1073,7 @@ class Network:
                     edges.append(road.forwardLanes.curb)
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
-            if self.is3D:
+            if self.use2DMap==0:
                 # 1. collect all the 3D point arrays from each PathRegion
                 vertex_lists = [edge.vertices for edge in edges]
                 # 2. stack them into one big (N×3) array
@@ -1091,7 +1089,7 @@ class Network:
 
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
-        if self.is3D:
+        if self.use2DMap==0:
             meshregions = []
             for elem in self.elements.values():
                 mesh = elem.polygon
@@ -1107,12 +1105,26 @@ class Network:
                 [meshes._boundingPolygon for meshes in meshregions]
             )
         else:
+            """polyregions = []
+            for elem in self.elements.values():
+                polygon = elem.polygon
+                if (
+                    isinstance(polygon, shapely.Polygon)
+                    and not polygon.is_empty
+                    and len(list(polygon.exterior.coords)[:-1]) >= 4
+                ):
+                    polyregions.append(
+                        PolygonalRegion(polygon=polygon)
+                    )
+            self._rtree = shapely.STRtree(
+                [poly._polygons for poly in polyregions]
+            )"""
             self._rtree = shapely.STRtree(
                 [elem.polygons for elem in self.elements.values()]
             )
 
     def _defaultRoadDirection(self, point):
-        """Default value for the `roadDirection` vector field.
+        """Default value for the `roadDirection` vector fie     ld.
 
         :meta private:
         """
@@ -1170,8 +1182,7 @@ class Network:
             FileNotFoundError: no readable map was found at the given path.
             ValueError: the given map is of an unknown format.
         """
-        #print("fromFile called with use2DMap =", kwargs.get("use2DMap"))
-        #print(bool== type(kwargs.get("use2DMap")))
+        print("fromFile called with use2DMap =", kwargs.get("use2DMap"))
         path = pathlib.Path(path)
         ext = path.suffix
 
@@ -1246,7 +1257,10 @@ class Network:
             elide_short_roads: Whether to attempt to fix geometry artifacts by
                 eliding roads with length less than **tolerance**.
         """
-        import scenic.formats.opendrive.xodr_parser as xodr_parsers
+        import scenic.formats.opendrive.xodr_parser as xodr_parser
+        print("fromOpenDrive called with use2DMap =", use2DMap)
+        print("Test")
+        #breakpoint()
         road_map = xodr_parser.RoadMap(
             tolerance=tolerance,
             fill_intersections=fill_intersections,
@@ -1259,7 +1273,7 @@ class Network:
         road_map.calculate_geometry(
             ref_points, calc_gap=fill_gaps, calc_intersect=True, use2DMap=use2DMap
         )
-        network = road_map.toScenicNetwork(three_dim=True)
+        network = road_map.toScenicNetwork(use2DMap=use2DMap)
         totalTime = time.time() - startTime
         verbosePrint(f"Finished loading OpenDRIVE map in {totalTime:.2f} seconds.")
         return network

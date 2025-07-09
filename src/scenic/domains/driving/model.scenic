@@ -69,7 +69,7 @@ if 'map' not in globalParameters:
                        '(set the global parameter "map")')
 param map_options = {}
 options = {**globalParameters.map_options, "use2DMap": globalParameters.use2DMap}
-
+print(f'Loading map from {globalParameters.map} with options {options}...')
 #: The road network being used for the scenario, as a `Network` object.
 #network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
 network : Network = Network.fromFile(globalParameters.map, **options)
