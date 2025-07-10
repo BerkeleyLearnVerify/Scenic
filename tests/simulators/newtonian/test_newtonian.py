@@ -59,3 +59,13 @@ def test_pickle(loadLocalScenario):
     simulation = simulator.simulate(scene, maxSteps=100)
     egoPos, otherPos = simulation.result.trajectory[-1]
     assert egoPos.distanceTo(otherPos) < 1
+
+
+def test_pedestrian_movement(loadLocalScenario):
+    scenario = loadLocalScenario("pedestrian.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = NewtonianSimulator()
+    simulation = simulator.simulate(scene, maxSteps=8)
+    init = simulation.result.records["InitialPos"]
+    fin = simulation.result.records["FinalPos"]
+    assert init != fin, f"Pedestrian did not move."
