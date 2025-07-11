@@ -30,8 +30,9 @@ from scenic.core.regions import (
     PolylineRegion,
     PathRegion,
     MeshSurfaceRegion,
+    EmptyRegion
 )
-from scenic.core.vectors import Vector
+from scenic.core.vectors import Vector, VectorField
 from scenic.domains.driving import roads as roadDomain
 
 from scipy.spatial import Delaunay
@@ -913,7 +914,7 @@ class Road:
                 section = roadDomain.LaneSection(
                     id=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
                     polygon=(
-                        lane_shape[id_] if use2DMap==0 else lane_shape[id_] # CLEANUP
+                        lane_shape[id_]
                     ),
                     centerline=(
                         PathRegion(cleanChain(center))
@@ -937,6 +938,7 @@ class Road:
                     road=None,
                     openDriveID=id_,
                     isForward=id_ < 0,
+                    region=MeshSurfaceRegion(lane_shape[id_], centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(lane_shape[id_]),
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
@@ -963,6 +965,7 @@ class Road:
                 predecessor=last_section,
                 road=None,  # will set later
                 lanesByOpenDriveID=laneSections,
+                region=MeshSurfaceRegion(sec_shape, centerMesh=None, position=None) if use2DMap==0 else PolygonalRegion(sec_shape)
             )
             roadSections.append(section)
             allElements.append(section)
@@ -1066,6 +1069,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 crossings=(),  # TODO add crosswalks
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(union),
             )
             allElements.append(sidewalk)
             return sidewalk
@@ -1088,6 +1092,7 @@ class Road:
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
                 road=None,
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(union),
             )
             allElements.append(shoulder)
             return shoulder
@@ -1224,6 +1229,7 @@ class Road:
                         road=None,
                         sections=tuple(sections),
                         successor=successorLane,  # will correct inter-road links later
+                        region=MeshSurfaceRegion(ls.parent_lane_mesh, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(ls.parent_lane_poly),
                     )
                     nextID += 1
                     for section in sections:
@@ -1281,17 +1287,11 @@ class Road:
 
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
+            shape = trimesh.util.concatenate(lane.polygon for lane in forwardLanes if lane.polygon) if use2DMap==0 else buffer_union((lane.polygon for lane in forwardLanes if lane.polygon),tolerance=tolerance,)
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
                 polygon=(
-                    trimesh.util.concatenate(
-                        lane.polygon for lane in forwardLanes if lane.polygon
-                    )
-                    if use2DMap==0
-                    else buffer_union(
-                        (lane.polygon for lane in forwardLanes if lane.polygon),
-                        tolerance=tolerance,
-                    )
+                    shape
                 ),
                 centerline=centerline,
                 leftEdge=leftEdge,
@@ -1303,23 +1303,18 @@ class Road:
                 bikeLane=None,
                 shoulder=forwardShoulder,
                 opposite=None,
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(shape),
             )
             allElements.append(forwardGroup)
         else:
             forwardGroup = None
         if backwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
+            shape = trimesh.util.concatenate(lane.polygon for lane in backwardLanes if lane.polygon) if use2DMap==0 else buffer_union((lane.polygon for lane in backwardLanes if lane.polygon), tolerance=tolerance,)
             backwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_backward",
                 polygon=(
-                    trimesh.util.concatenate(
-                        lane.polygon for lane in backwardLanes if lane.polygon
-                    )
-                    if use2DMap==0
-                    else buffer_union(
-                        (lane.polygon for lane in backwardLanes if lane.polygon),
-                        tolerance=tolerance,
-                    )
+                    shape
                 ),
                 centerline=centerline,
                 leftEdge=leftEdge,
@@ -1331,6 +1326,7 @@ class Road:
                 bikeLane=None,
                 shoulder=backwardShoulder,
                 opposite=forwardGroup,
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(shape),
             )
             allElements.append(backwardGroup)
             if forwardGroup:
@@ -1378,6 +1374,7 @@ class Road:
             sections=roadSections,
             signals=tuple(roadSignals),
             crossings=(),  # TODO add these!
+            region=MeshSurfaceRegion(self.drivable_region, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(self.drivable_region),
         )
         allElements.append(road)
 
@@ -2250,8 +2247,8 @@ class RoadMap:
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
                 crossings=(),  # TODO add these
+                region=MeshSurfaceRegion(junction.poly, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(junction.poly),
             )
-
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
@@ -2313,7 +2310,18 @@ class RoadMap:
                     return None
                 meshes = [r.polygon for r in regions ]
                 combined = trimesh.util.concatenate(meshes)
-                return MeshSurfaceRegion(combined, centerMesh=False, position=None)
+                regs = []
+                for reg in regions:
+                    if (
+                        isinstance(reg.polygon, trimesh.Trimesh)
+                        and len(reg.polygon.vertices) > 0
+                        and len(reg.polygon.faces) > 0
+                    ):
+                        regs.append(reg)
+                    else:
+                        print("Warning: EmptyRegion encountered in combine")
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                return MeshSurfaceRegion(combined, centerMesh=False, position=None, orientation=orientation)
             else:
                 return PolygonalRegion.unionAll(regions, buf=self.tolerance)
         return roadDomain.Network(

@@ -45,6 +45,7 @@ from scenic.core.regions import (
     PathRegion,
     MeshRegion,
     MeshSurfaceRegion,
+    EmptyRegion
 )
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
@@ -246,6 +247,7 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
     # from PolygonalRegion
     polygon: Union[Polygon, MultiPolygon, trimesh.Trimesh]
     orientation: Optional[VectorField] = None
+    region: Union[PolygonalRegion, MeshRegion] = None  #: The region of the element.
 
     name: str = ""  #: Human-readable name, if any.
     #: Unique identifier; from underlying format, if possible.
@@ -306,34 +308,31 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
     # Added:
 
     def intersect(self, other):
-        return Region.intersect(self, other)
+        return self.region.intersect(other)
 
     def containsPoint(self, point):
-        return Region.containsPoint(self, point)
+        return self.region.containsPoint(point)
 
     def containsObject(self, obj):
-        return Region.containsObject(self, obj)
+        return self.region.containsObject(self, obj)
 
     def AABB(self):
-        return Region.AABB(self)
+        return self.region.AABB(self)
 
     def distanceTo(self, point):
-        return Region.distanceTo(self, point)
+        return self.region.distanceTo(point)
 
     def containsRegion(self, reg, tolerance):
-        return Region.containsRegion(self, reg, tolerance)
+        return self.region.containsRegion(self, reg, tolerance)
 
     def containsRegionInner(self, reg, tolerance):
-        return Region.containsRegionInner(self, reg, tolerance)
+        return self.region.containsRegionInner(self, reg, tolerance)
 
     def projectVector(self, point, onDirection):
-        return Region.projectVector(self, point, onDirection)
+        return self.region.projectVector(self, point, onDirection)
 
     def uniformPointInner(self):
-        return Region.uniformPointInner(self)
-
-    def polygons(self):
-        return PolygonalRegion(polygon=self.polygon).polygons()
+        return self.region.uniformPointInner(self)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -391,7 +390,9 @@ class LinearElement(NetworkElement):
         """
         point = _toVector(point)
         start, end = self.centerline.nearestSegmentTo(point)
-        return start.angleTo(end)
+        direction = end - start
+        sphericalCoords = direction.sphericalCoordinates()
+        return Orientation.fromEuler(sphericalCoords[1], sphericalCoords[2], 0)
 
     @distributionFunction
     def flowFrom(
@@ -972,20 +973,35 @@ class Network:
             if self.roadRegion is None:
                 meshes = [sh.polygon for sh in self.roads]
                 combined = trimesh.util.concatenate(meshes)
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.roadRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None
+                    combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.laneRegion is None:
                 meshes = [sh.polygon for sh in self.lanes]
                 combined = trimesh.util.concatenate(meshes)
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.laneRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None
+                    combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.intersectionRegion is None:
                 meshes = [sh.polygon for sh in self.intersections]
                 combined = trimesh.util.concatenate(meshes)
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.intersectionRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None
+                    combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.crossingRegion is None:
                 if self.crossings == ():
@@ -993,20 +1009,35 @@ class Network:
                 else:
                     meshes = [sh.polygon for sh in self.crossings]
                     combined = trimesh.util.concatenate(meshes)
+                    regs = []
+                    for reg in self.roads:
+                        if reg != EmptyRegion("Empty"):
+                            regs.append(reg)
+                    orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                     self.crossingRegion = MeshSurfaceRegion(
-                        combined, centerMesh=False, position=None
+                        combined, centerMesh=False, position=None, orientation=orientation 
                     )
             if self.sidewalkRegion is None:
                 meshes = [sh.polygon for sh in self.sidewalks]
                 combined = trimesh.util.concatenate(meshes)
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.sidewalkRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None
+                    combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.shoulderRegion is None:
                 meshes = [sh.polygon for sh in self.shoulders]
                 combined = trimesh.util.concatenate(meshes)
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.shoulderRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None
+                    combined, centerMesh=False, position=None, orientation=orientation 
                 )
         else:
             if self.roadRegion is None:
@@ -1024,16 +1055,30 @@ class Network:
 
         if self.drivableRegion is None:
             if self.use2DMap==0:
+                combined = trimesh.util.concatenate(
+                    (
+                        self.laneRegion.mesh,
+                        self.roadRegion.mesh,  # can contain points slightly outside laneRegion
+                        self.intersectionRegion.mesh,
+                    )
+                )
+                regs = []
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                for reg in self.roads:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                for reg in self.intersections:
+                    if reg != EmptyRegion("Empty"):
+                        regs.append(reg)
+                #regs=[self.laneRegion, self.roadRegion, self.intersectionRegion]
+                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.drivableRegion = MeshSurfaceRegion(
-                    trimesh.util.concatenate(
-                        (
-                            self.laneRegion.mesh,
-                            self.roadRegion.mesh,  # can contain points slightly outside laneRegion
-                            self.intersectionRegion.mesh,
-                        )
-                    ),
+                    combined,
                     centerMesh=False,
                     position=None,
+                    orientation=orientation
                 )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
@@ -1370,13 +1415,10 @@ class Network:
                 MeshSurfaceRegionClosest = None
                 for elem in elems:
                     if elem.uid in candidates:
-                        MeshSurfaceRegionElem = MeshSurfaceRegion(elem.polygon, centerMesh=False)
                         if closest == None:
                             closest = elem
-                            MeshSurfaceRegionClosest = MeshSurfaceRegion(elem.polygon, centerMesh=False)
-                        elif MeshSurfaceRegionElem.distanceTo(p) < MeshSurfaceRegionClosest.distanceTo(p):
+                        elif elem.distanceTo(p) < closest.distanceTo(p):
                             closest = elem
-                            MeshSurfaceRegionClosest = MeshSurfaceRegionElem
                 return closest
             return None
 
