@@ -111,18 +111,12 @@ We suggest upgrading to a newer version of CARLA so that you can use :command:`p
 To start CARLA, run the command :command:`./CarlaUE4.sh` in your CARLA folder (for **CARLA 0.10.0**, use :command:`./CarlaUnreal.sh` instead).
 Once CARLA is running, you can run dynamic Scenic scenarios following the instructions in :ref:`the dynamics tutorial <dynamics_running_examples>`.
 
-.. note::
-
-   All scenarios in ``examples/carla`` run unmodified on both CARLA 0.9.x and 0.10.0
-   (except **carlaChallenge4**, which uses a bicycle blueprint removed in 0.10.0).
-   Only the upgraded **Town10HD_Opt** map is supported in 0.10.0.
-
-   If you write new scenarios against CARLA 0.10.0, remember the blueprint library
-   has changed. It’s a good idea to inspect which blueprints are available before
-   selecting your IDs::
-
-       client.get_world().get_blueprint_library()
-
+.. note:: CARLA 0.10.0 compatibility
+	
+   - All ``examples/carla`` scenarios now support both CARLA 0.9.x and 0.10.0.  
+   - Only the **Town10HD_Opt** map is available in 0.10.0.  
+   - The 0.10.0 blueprint library is different (for example, bicycle blueprints are currently unavailable).
+   - There are some differences in physics in 0.10.0 (for example, pedestrians movement is slower). 
 
 
 Grand Theft Auto V

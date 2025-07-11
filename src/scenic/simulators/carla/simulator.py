@@ -50,8 +50,6 @@ class CarlaSimulator(DrivingSimulator):
         if carla_map is not None:
             try:
                 self.world = self.client.load_world(carla_map)
-                # self.world = self.client.get_world()
-                # print("CURRENT CARLA MAP: ", self.world.get_map().name)
             except Exception as e:
                 raise RuntimeError(f"CARLA could not load world '{carla_map}'") from e
         else:
@@ -162,7 +160,6 @@ class CarlaSimulation(DrivingSimulation):
             self.cameraManager.set_sensor(camIndex)
             if self.client.get_server_version() != "0.10.0":
                 self.cameraManager.set_transform(self.camTransform)
-            # self.cameraManager.set_transform(self.camTransform)
 
         self.world.tick()  ## allowing manualgearshift to take effect    # TODO still need this?
 
@@ -232,7 +229,7 @@ class CarlaSimulation(DrivingSimulation):
         if carlaActor is None:
             raise SimulationCreationError(f"Unable to spawn object {obj}")
         obj.carlaActor = carlaActor
-        
+
         carlaActor.set_simulate_physics(obj.physics)
 
         if isinstance(carlaActor, carla.Vehicle):
@@ -312,7 +309,7 @@ class CarlaSimulation(DrivingSimulation):
     def destroy(self):
         # Tick once so CARLA registers any pending spawns, allowing destroy() to clean them up after a partial spawn failure.
         self.world.tick()
-        
+
         for obj in self.objects:
             if obj.carlaActor is not None:
                 if isinstance(obj.carlaActor, carla.Vehicle):

@@ -48,7 +48,6 @@ def model_blueprint(simulator, mapPath, town, modelType, modelName):
 
             model scenic.simulators.carla.model
             ego = new {modelType} with blueprint '{modelName}',
-                # at (-107.52, -50.87),
                 at (-3.3, -68),
                 with regionContainedIn None
             terminate after 1 steps
@@ -90,6 +89,7 @@ model_data = {
     "TrafficWarning": trafficwarningModels,
     "Pedestrian": walkerModels,
 }
+
 
 @pytest.mark.parametrize(
     "modelType, modelName",

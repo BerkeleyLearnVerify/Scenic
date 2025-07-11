@@ -235,10 +235,6 @@ class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
         self.control.direction = _utils.scenicToCarlaVector3D(*direction)
 
     def setWalkingSpeed(self, speed):
-        # if blueprints.is_carla_0_10:
-        #     speed *= 3.6
-        # if blueprints.carla_pkg_version == "0.9.15":
-        #     speed /= 10
         self.control.speed = speed
 
 
