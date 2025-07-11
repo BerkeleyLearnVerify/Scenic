@@ -1,7 +1,7 @@
 """
 TITLE: Bypassing 04
 AUTHOR: Francis Indaheng, findaheng@berkeley.edu
-DESCRIPTION: Ego vehicle performs multiple lane changes to bypass 
+DESCRIPTION: Ego vehicle performs multiple lane changes to bypass
 two slow adversary vehicles.
 SOURCE: NHSTA, #16
 
@@ -13,25 +13,25 @@ To run this file using the Carla simulator:
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../assets/maps/CARLA/Town03.xodr')
-param carla_map = 'Town03'
+param map = localPath('../../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #################################
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz_2017'
+MODEL = 'vehicle.nissan.patrol'
 
 param EGO_SPEED = VerifaiRange(6, 8)
 
-param ADV1_DIST = VerifaiRange(20, 25)
-param ADV2_DIST = globalParameters.ADV1_DIST + VerifaiRange(15, 20)
+param ADV1_DIST = VerifaiRange(25, 30)
+param ADV2_DIST = globalParameters.ADV1_DIST + VerifaiRange(25, 30)
 param ADV_SPEED = VerifaiRange(2, 4)
 
 BYPASS_DIST = 15
 INIT_DIST = 50
-TERM_DIST = globalParameters.ADV2_DIST + 15
+TERM_DIST = globalParameters.ADV2_DIST + 25
 
 #################################
 # AGENT BEHAVIORS               #

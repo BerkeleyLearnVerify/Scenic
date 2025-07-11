@@ -2721,10 +2721,6 @@ class PathRegion(Region):
                 # Extract vertex
                 cast_pt = toVector(pt)
 
-                # Filter out zero distance segments
-                if last_pt == cast_pt:
-                    continue
-
                 if cast_pt not in self.vec_to_vert:
                     self.vec_to_vert[cast_pt] = vertex_iter
                     vertex_iter += 1

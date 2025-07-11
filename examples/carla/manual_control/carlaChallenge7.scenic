@@ -9,8 +9,8 @@ To run this file using the Carla simulator:
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town05'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD_Opt'
 param render = 0
 model scenic.simulators.carla.model
 
@@ -58,7 +58,7 @@ adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneu
 ego_spawn_pt = new OrientedPoint in ego_maneuver.startLane.centerline
 adv_spawn_pt = new OrientedPoint in adv_maneuver.startLane.centerline
 
-# Set a specific vehicle model for the Truck. 
+# Set a specific vehicle model for the Truck.
 # The referenceable types of vehicles supported in carla are listed in scenic/simulators/carla/model.scenic
 # For each vehicle type, the supported models are listed in scenic/simulators/carla/blueprints.scenic
 ego = new Car at ego_spawn_pt,

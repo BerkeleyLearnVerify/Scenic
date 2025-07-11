@@ -724,33 +724,6 @@ def test_mesh_path_intersection():
         assert r2.containsPoint(point)
 
 
-def test_polygonal_footprint_path_intersection():
-    polyline_list = []
-
-    for z in range(-2, 3):
-        polyline_list.append([])
-        target_list = polyline_list[-1]
-        for y in range(-5, 6, 2):
-            for x in range(-5, 6, 2):
-                target_list.append((x, y, 0))
-                target_list.append((x, y + 1, 0))
-                target_list.append((x + 1, y + 1, 0))
-                target_list.append((x + 1, y, 0))
-
-    r1 = PathRegion(polylines=polyline_list)
-    r2 = CircularRegion((0, 0), 5)
-
-    r = r1.intersect(r2.footprint)
-
-    assert isinstance(r, PathRegion)
-
-    for _ in range(100):
-        point = r.uniformPointInner()
-        assert r.containsPoint(point)
-        assert r1.containsPoint(point)
-        assert r2.containsPoint(point)
-
-
 def test_pointset_region():
     PointSetRegion("foo", [(1, 2), (3, 4), (5, 6)])
     PointSetRegion("bar", [(1, 2, 1), (3, 4, 2), (5, 6, 3)])

@@ -47,7 +47,10 @@ def model_blueprint(simulator, mapPath, town, modelType, modelName):
             param time_step = 1.0/10
 
             model scenic.simulators.carla.model
-            ego = new {modelType} with blueprint '{modelName}'
+            ego = new {modelType} with blueprint '{modelName}',
+                # at (-107.52, -50.87),
+                at (-3.3, -68),
+                with regionContainedIn None
             terminate after 1 steps
         """
     scenario = compileScenic(code, mode2D=True)
@@ -88,11 +91,10 @@ model_data = {
     "Pedestrian": walkerModels,
 }
 
-
 @pytest.mark.parametrize(
     "modelType, modelName",
     [(type, name) for type, names in model_data.items() for name in names],
 )
 def test_model_blueprints(getCarlaSimulator, modelType, modelName):
-    simulator, town, mapPath = getCarlaSimulator("Town01")
+    simulator, town, mapPath = getCarlaSimulator()
     model_blueprint(simulator, mapPath, town, modelType, modelName)

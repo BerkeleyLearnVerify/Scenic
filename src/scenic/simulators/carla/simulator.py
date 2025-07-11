@@ -17,6 +17,10 @@ if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosit
 import pygame
 
 from scenic.core.simulators import SimulationCreationError
+from scenic.domains.driving.controllers import (
+    PIDLateralController,
+    PIDLongitudinalController,
+)
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.carla.blueprints import oldBlueprintNames
 import scenic.simulators.carla.utils.utils as utils
@@ -33,7 +37,7 @@ class CarlaSimulator(DrivingSimulator):
         map_path,
         address="127.0.0.1",
         port=2000,
-        timeout=10,
+        timeout=60,
         render=True,
         record="",
         timestep=0.1,
@@ -46,6 +50,8 @@ class CarlaSimulator(DrivingSimulator):
         if carla_map is not None:
             try:
                 self.world = self.client.load_world(carla_map)
+                # self.world = self.client.get_world()
+                # print("CURRENT CARLA MAP: ", self.world.get_map().name)
             except Exception as e:
                 raise RuntimeError(f"CARLA could not load world '{carla_map}'") from e
         else:
@@ -154,7 +160,9 @@ class CarlaSimulation(DrivingSimulation):
             self.cameraManager = visuals.CameraManager(self.world, egoActor, self.hud)
             self.cameraManager._transform_index = camPosIndex
             self.cameraManager.set_sensor(camIndex)
-            self.cameraManager.set_transform(self.camTransform)
+            if self.client.get_server_version() != "0.10.0":
+                self.cameraManager.set_transform(self.camTransform)
+            # self.cameraManager.set_transform(self.camTransform)
 
         self.world.tick()  ## allowing manualgearshift to take effect    # TODO still need this?
 
@@ -224,7 +232,7 @@ class CarlaSimulation(DrivingSimulation):
         if carlaActor is None:
             raise SimulationCreationError(f"Unable to spawn object {obj}")
         obj.carlaActor = carlaActor
-
+        
         carlaActor.set_simulate_physics(obj.physics)
 
         if isinstance(carlaActor, carla.Vehicle):
@@ -302,6 +310,9 @@ class CarlaSimulation(DrivingSimulation):
         return values
 
     def destroy(self):
+        # Tick once so CARLA registers any pending spawns, allowing destroy() to clean them up after a partial spawn failure.
+        self.world.tick()
+        
         for obj in self.objects:
             if obj.carlaActor is not None:
                 if isinstance(obj.carlaActor, carla.Vehicle):
@@ -310,6 +321,7 @@ class CarlaSimulation(DrivingSimulation):
                     obj.carlaController.stop()
                     obj.carlaController.destroy()
                 obj.carlaActor.destroy()
+
         if self.render and self.cameraManager:
             self.cameraManager.destroy_sensor()
 
@@ -317,3 +329,53 @@ class CarlaSimulation(DrivingSimulation):
 
         self.world.tick()
         super().destroy()
+
+    def getLaneFollowingControllers(self, agent):
+        if self.client.get_server_version() == "0.10.0":
+            dt = self.timestep
+            if agent.isCar:
+                lon_controller = PIDLongitudinalController(
+                    K_P=1.0, K_D=0.2, K_I=1.4, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=1.0, K_D=0.2, K_I=0.0, dt=dt)
+            else:
+                lon_controller = PIDLongitudinalController(
+                    K_P=0.5, K_D=0.05, K_I=0.0, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=1.0, K_D=0.2, K_I=0.0, dt=dt)
+            return lon_controller, lat_controller
+        return super().getLaneFollowingControllers(agent)
+
+    def getTurningControllers(self, agent):
+        """Get longitudinal and lateral controllers for turning."""
+        if self.client.get_server_version() == "0.10.0":
+            dt = self.timestep
+            if agent.isCar:
+                lon_controller = PIDLongitudinalController(
+                    K_P=1.0, K_D=0.2, K_I=1.4, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=2.0, K_D=0.2, K_I=0.0, dt=dt)
+            else:
+                lon_controller = PIDLongitudinalController(
+                    K_P=0.5, K_D=0.05, K_I=0.0, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=2.0, K_D=0.2, K_I=0.0, dt=dt)
+            return lon_controller, lat_controller
+        return super().getTurningControllers(agent)
+
+    def getLaneChangingControllers(self, agent):
+        """Get longitudinal and lateral controllers for lane changing."""
+        if self.client.get_server_version() == "0.10.0":
+            dt = self.timestep
+            if agent.isCar:
+                lon_controller = PIDLongitudinalController(
+                    K_P=1.0, K_D=0.2, K_I=1.4, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=0.08, K_D=0.3, K_I=0.0, dt=dt)
+            else:
+                lon_controller = PIDLongitudinalController(
+                    K_P=0.5, K_D=0.05, K_I=0.0, dt=dt
+                )
+                lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+            return lon_controller, lat_controller
+        return super().getLaneChangingControllers(agent)
