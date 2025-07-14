@@ -14,6 +14,15 @@ class RoboSuiteObject(Object):
     solref: (0.02, 1.0)
     solimp: (0.9, 0.95, 0.001, 0.5, 2.0)
 
+# XML-based object support
+class XMLObject(RoboSuiteObject):
+    """Object defined via MuJoCo XML."""
+    xml_path: None      # Path to XML file
+    xml_string: None    # XML content as string
+    
+    # Material specification
+    material: {}        # Dict with 'name', 'texture', 'attributes'
+
 # Basic objects with proper default sizes
 class Cube(RoboSuiteObject):
     """Cubic object."""
@@ -47,10 +56,7 @@ class Robot(RoboSuiteObject):
     width: 0.2
     length: 0.2
     height: 0.5
-    joint_positions: []
-    joint_velocities: []
-    end_effector_position: Vector(0, 0, 0)
-    gripper_state: "open" 
+    joint_positions: [] 
 
 # Specific robot implementations
 class PandaRobot(Robot):
@@ -67,58 +73,94 @@ class SawyerRobot(Robot):
     initial_qpos: [0, -0.785, 0, 1.571, 0, -0.785, 0]
     height: 1.0
 
-# Arena classes
-class EmptyArena(RoboSuiteObject):
-    """Empty arena with just a floor."""
-    width: 0
-    length: 0
-    height: 0
+# Environment objects
+class Arena(RoboSuiteObject):
+    """Base class for RoboSuite arenas."""
+    pass
 
-class TableArena(RoboSuiteObject):
-    """Arena with a table in the center."""
-    width: 0
-    length: 0
-    height: 0
+class EmptyArena(Arena):
+    """Empty arena with just floor."""
+    pass
 
-class BinsArena(RoboSuiteObject):
-    """Arena with bins for sorting tasks."""
-    width: 0
-    length: 0
-    height: 0
+class TableArena(Arena):
+    """Standard table arena."""
+    table_height: 0.8
+    table_width: 1.0
+    table_length: 0.8
 
-class CustomArena(RoboSuiteObject):
-    """Custom arena from XML."""
-    xml_string: ""
-    width: 0
-    length: 0
-    height: 0
+class BinsArena(Arena):
+    """Two bins for pick-and-place tasks."""
+    bin_size: 0.3
+    bin_height: 0.1
 
-# Table classes
+class PegsArena(Arena):
+    """Pegboard for insertion tasks."""
+    board_size: 0.3
+    peg_radius: 0.015
+
+class WipeArena(Arena):
+    """Table with markers for wiping tasks."""
+    table_height: 0.8
+    marker_size: 0.08
+
+class CustomArena(Arena):
+    """Custom arena defined via XML."""
+    xml_string: None
+    xml_path: None
+    
+    # Custom objects to add to empty arena
+    objects: []
+
+# Legacy table support
 class Table(RoboSuiteObject):
-    """Standard table (part of TableArena)."""
-    width: 1.2
+    """Table object (creates TableArena)."""
+    width: 1.0
     length: 0.8
     height: 0.8
 
 class PositionableTable(RoboSuiteObject):
-    """Table that can be positioned anywhere."""
+    """Table with full position control."""
     width: 1.0
     length: 0.8
     height: 0.8
-    color: (0.9, 0.9, 0.9)  # Light gray
 
-# XML-based objects
-class XMLObject(RoboSuiteObject):
-    """Object defined by XML file or string."""
-    xml_path: None
-    xml_string: None
-    xml_size: None  # Optional size override [width, length, height]
+class Bin(RoboSuiteObject):
+    """Bin/container object."""
+    width: 0.3
+    length: 0.3
+    height: 0.2
+
+class Door(RoboSuiteObject):
+    """Door object for manipulation."""
+    width: 0.5
+    length: 0.05
+    height: 0.8
+
+# XML-based custom objects
+class CustomBox(XMLObject):
+    """Example box with inline XML."""
     width: 0.1
     length: 0.1
     height: 0.1
+    
+    xml_string: '''
+    <mujoco model="custom_box">
+        <body name="box_main">
+            <geom name="box_collision" type="box" size="0.05 0.05 0.05" 
+                  group="0" rgba="0.5 0.5 0.5 1"/>
+            <geom name="box_visual" type="box" size="0.05 0.05 0.05" 
+                  group="1" rgba="1 0 0 1"/>
+        </body>
+    </mujoco>
+    '''
 
-class CustomXMLObject(XMLObject):
-    """Convenience class for custom XML objects."""
+class MeshObject(XMLObject):
+    """Object loaded from mesh file."""
+    pass  # Define xml_path in instance
+
+# Deprecated - use XMLObject instead
+class XMLBasedObject(XMLObject):
+    """Deprecated: Use XMLObject instead."""
     pass
 
 # Actions
@@ -131,32 +173,4 @@ class SetJointPositions(dynamics.Action):
     
     def applyTo(self, agent, sim):
         """Apply joint position action to robot."""
-        pass
-
-class SetGripperState(dynamics.Action):
-    """Action to open/close robot gripper."""
-    def __init__(self, state):
-        self.state = state  # 1.0 for open, -1.0 for closed
-    
-    def applyTo(self, agent, sim):
-        """Apply gripper action to robot."""
-        pass
-
-class MoveToPosition(dynamics.Action):
-    """Action to move robot end-effector to position."""
-    def __init__(self, position, duration=2.0):
-        self.position = position
-        self.duration = duration
-    
-    def applyTo(self, agent, sim):
-        """Apply movement action to robot."""
-        pass
-
-class SetJointVelocities(dynamics.Action):
-    """Action to set robot joint velocities."""
-    def __init__(self, velocities):
-        self.velocities = velocities
-    
-    def applyTo(self, agent, sim):
-        """Apply joint velocity action to robot."""
         pass

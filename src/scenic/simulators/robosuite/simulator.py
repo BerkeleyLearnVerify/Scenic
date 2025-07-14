@@ -1,14 +1,17 @@
 # src/scenic/simulators/robosuite/simulator.py
-"""RoboSuite Simulator for Scenic."""
+"""RoboSuite Simulator for Scenic. Version 1.7"""
 
 import numpy as np
 import mujoco
+import time
+import math
+import xml.etree.ElementTree as ET
 
 try:
     import robosuite as suite
     from robosuite.models import MujocoWorldBase
-    from robosuite.models.arenas import EmptyArena, TableArena, BinsArena
-    from robosuite.models.objects import BoxObject, BallObject, CylinderObject
+    from robosuite.models.arenas import EmptyArena, TableArena
+    from robosuite.models.objects import BoxObject, BallObject, CylinderObject, MujocoXMLObject
     from robosuite.robots import ROBOT_CLASS_MAPPING
 except ImportError as e:
     suite = None
@@ -17,8 +20,6 @@ except ImportError as e:
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
 from .utils import scenic_to_rgba
-from .xml_builder import RoboSuiteXMLBuilder
-from .xml_objects import create_xml_object
 
 
 class RobosuiteSimulator(Simulator):
@@ -51,9 +52,6 @@ class RobosuiteSimulation(Simulation):
         self._body_id_map = {}
         self._prev_positions = {}
         self._robots = []
-        self._arena = None
-        self._tables = []
-        self._xml_builder = RoboSuiteXMLBuilder()
         
         # Set timestep parameters
         self.timestep = kwargs.get('timestep') or 0.1
@@ -67,17 +65,30 @@ class RobosuiteSimulation(Simulation):
         # Create world
         self.world = MujocoWorldBase()
         
-        # Check if scene has an arena object, otherwise use EmptyArena
-        arena_obj = self._find_arena_in_scene()
-        if arena_obj:
-            self._arena = self._create_arena_from_object(arena_obj)
+        # Import xml_builder for PositionableTable support
+        from .xml_builder import RoboSuiteXMLBuilder
+        self.xml_builder = RoboSuiteXMLBuilder()
+        
+        # Check for custom table positioning
+        custom_tables = [obj for obj in self.scene.objects 
+                        if type(obj).__name__ == 'PositionableTable']
+        
+        if custom_tables:
+            # Use xml_builder for custom positioned table
+            table = custom_tables[0]
+            arena = self.xml_builder.create_positionable_table(
+                table.position,
+                [table.width, table.length, table.height]
+            )
         else:
-            self._arena = EmptyArena()
+            # Default arena selection
+            has_table = any(type(obj).__name__ == 'Table' 
+                          for obj in self.scene.objects)
+            arena = TableArena() if has_table else EmptyArena()
+            
+        self.world.merge(arena)
         
-        # Merge arena into world
-        self.world.merge(self._arena)
-        
-        # Create objects (including tables)
+        # Create objects
         super().setup()
         
         # Build MuJoCo model
@@ -86,6 +97,10 @@ class RobosuiteSimulation(Simulation):
         
         # Map body names to IDs
         self._setup_body_mapping()
+        
+        # Set physics parameters
+        self.model.opt.gravity[2] = -9.81
+        self.model.opt.timestep = self.physics_timestep
         
         # Initialize robot positions
         self._initialize_robots()
@@ -103,38 +118,7 @@ class RobosuiteSimulation(Simulation):
                 self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
             except:
                 self.viewer = None
-    
-    def _find_arena_in_scene(self):
-        """Find arena object in the scene."""
-        for obj in self.objects:
-            if self._is_arena_object(obj):
-                return obj
-        return None
-    
-    def _is_arena_object(self, obj):
-        """Check if object is an arena."""
-        arena_classes = self._get_arena_classes()
-        return type(obj).__name__ in arena_classes
-    
-    def _get_arena_classes(self):
-        """Get list of arena class names."""
-        return ['EmptyArena', 'TableArena', 'BinsArena', 'PegArena', 'CustomArena']
-    
-    def _create_arena_from_object(self, arena_obj):
-        """Create RoboSuite arena from Scenic arena object."""
-        arena_type = type(arena_obj).__name__
-        
-        if arena_type == 'EmptyArena':
-            return EmptyArena()
-        elif arena_type == 'TableArena':
-            return TableArena()
-        elif arena_type == 'BinsArena':
-            return BinsArena()
-        elif arena_type == 'CustomArena' and hasattr(arena_obj, 'xml_string'):
-            return self._xml_builder.create_arena_from_xml_string(arena_obj.xml_string)
-        else:
-            # Default to empty arena
-            return EmptyArena()
+
     
     def _setup_body_mapping(self):
         """Map body names to MuJoCo IDs."""
@@ -182,19 +166,35 @@ class RobosuiteSimulation(Simulation):
                         actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator_name)
                         if actuator_id != -1:
                             self.data.ctrl[actuator_id] = init_qpos[i]
-    
+        
     def createObjectInSimulator(self, obj):
         """Create a Scenic object in the RoboSuite simulator."""
-        # Skip arena objects as they're handled in setup
-        if self._is_arena_object(obj):
+        # Skip arena objects - they're handled in setup()
+        if type(obj).__name__ in self._get_arena_classes():
             return
-            
+        
         if hasattr(obj, 'robot_type'):
             self._create_robot(obj)
-        elif type(obj).__name__ in ['Table', 'PositionableTable']:
-            self._create_table(obj)
+        elif type(obj).__name__ == 'Table':
+            pass  # Handled by arena selection
+        elif type(obj).__name__ == 'PositionableTable':
+            # Skip if single table (handled as arena)
+            custom_tables = [o for o in self.scene.objects 
+                           if type(o).__name__ == 'PositionableTable']
+            if len(custom_tables) == 1:
+                pass  # Handled in setup() as arena
+            else:
+                # Multiple tables - create as object
+                table_obj = self.xml_builder.create_positionable_table_object(
+                    [obj.width, obj.length, obj.height],
+                    name=f"table_{id(obj)}"
+                )
+                table_obj.set_base_xpos([obj.position.x, obj.position.y, obj.position.z])
+                self.world.merge(table_obj)
+                obj._robosuite_name = table_obj.name
         elif hasattr(obj, 'xml_path') or hasattr(obj, 'xml_string'):
-            self._create_xml_object(obj)
+            # Use enhanced XML builder for XML-based objects
+            self._create_xml_enhanced_object(obj)
         else:
             self._create_object(obj)
     
@@ -234,6 +234,31 @@ class RobosuiteSimulation(Simulation):
         obj._initial_qpos = initial_qpos or robot.init_qpos
         self._robots.append(obj)
     
+    def _create_xml_enhanced_object(self, obj):
+        """Create object using enhanced XML builder with mjcf_utils."""
+        # Create RoboSuite object from Scenic object
+        robosuite_obj = self.xml_builder.create_scenic_object(obj)
+        
+        # Set position
+        pos = obj.position
+        # Account for bottom-center positioning in Scenic
+        if hasattr(obj, 'height'):
+            # Adjust z position to account for object height
+            robosuite_obj.set_base_xpos([pos.x, pos.y, pos.z + obj.height/2])
+        else:
+            robosuite_obj.set_base_xpos([pos.x, pos.y, pos.z])
+        
+        # Set orientation if available
+        if hasattr(obj, 'yaw'):
+            robosuite_obj.set_base_ori([0, 0, obj.yaw])
+        
+        # Merge into world
+        self.world.merge(robosuite_obj)
+        
+        # Store references
+        obj._robosuite_name = robosuite_obj.name
+        obj._robosuite_object = robosuite_obj
+    
     def _create_object(self, obj):
         """Create a regular object in the simulation."""
         class_name = type(obj).__name__.lower()
@@ -267,48 +292,7 @@ class RobosuiteSimulation(Simulation):
         
         self.world.worldbody.append(mj_obj)
         obj._robosuite_name = name
-    
-    def _create_table(self, obj):
-        """Create a table object in the simulation."""
-        # For PositionableTable, create a custom table at specific position
-        if type(obj).__name__ == 'PositionableTable':
-            table_size = [obj.width, obj.length, obj.height]
-            table_obj = self._xml_builder.create_positionable_table_object(
-                table_size, 
-                name=f"table_{len(self._tables)}",
-                orientation=getattr(obj, 'orientation', None)
-            )
-            
-            # Set position
-            pos = obj.position
-            table_obj.set_base_xpos([pos.x, pos.y, pos.z])
-            
-            # Merge into world
-            self.world.merge(table_obj)
-            self._tables.append(obj)
-            obj._robosuite_name = table_obj.naming_prefix
-        else:
-            # Regular Table object - this should have been handled as arena
-            pass
-    
-    def _create_xml_object(self, obj):
-        """Create an object from XML definition."""
-        name = f"xml_obj_{len(self.world.worldbody)}"
         
-        # Use xml_objects module to create the object
-        rs_obj = create_xml_object(obj, name)
-        
-        # Get the object model
-        mj_obj = rs_obj.get_obj()
-        
-        # Set position
-        pos = obj.position
-        mj_obj.set('pos', f'{pos.x} {pos.y} {pos.z}')
-        
-        # Add to world
-        self.world.worldbody.append(mj_obj)
-        obj._robosuite_name = name
-    
     def executeActions(self, allActions):
         """Execute actions for all agents."""
         super().executeActions(allActions)
@@ -316,16 +300,8 @@ class RobosuiteSimulation(Simulation):
         for robot_obj in self._robots:
             if robot_obj in allActions and allActions[robot_obj]:
                 for action in allActions[robot_obj]:
-                    if action:
-                        action_name = action.__class__.__name__
-                        if action_name == 'SetJointPositions':
-                            self._apply_robot_action(robot_obj, action.positions)
-                        elif action_name == 'SetGripperState':
-                            self._apply_gripper_action(robot_obj, action.state)
-                        elif action_name == 'MoveToPosition':
-                            self._apply_move_action(robot_obj, action.position, action.duration)
-                        elif action_name == 'SetJointVelocities':
-                            self._apply_velocity_action(robot_obj, action.velocities)
+                    if action and action.__class__.__name__ == 'SetJointPositions':
+                        self._apply_robot_action(robot_obj, action.positions)
     
     def _apply_robot_action(self, robot_obj, positions):
         """Apply joint position control to a robot."""
@@ -340,40 +316,79 @@ class RobosuiteSimulation(Simulation):
                 actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator)
                 if actuator_id != -1:
                     self.data.ctrl[actuator_id] = float(positions[i])
-    
-    def _apply_gripper_action(self, robot_obj, state):
-        """Apply gripper open/close action."""
-        robot_model = robot_obj._robot_model
         
-        # Find gripper actuators (usually last 2 actuators)
-        gripper_actuators = robot_model.actuators[-2:]
+    def step(self):
+        """Run one timestep of the simulation."""
+        # Store positions before physics
+        for name, body_id in self._body_id_map.items():
+            self._prev_positions[name] = self.data.xpos[body_id].copy()
         
-        for actuator in gripper_actuators:
-            actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator)
-            if actuator_id != -1:
-                # state: 1.0 for open, -1.0 for closed
-                if state > 0:
-                    self.data.ctrl[actuator_id] = 0.04  # Open position
-                else:
-                    self.data.ctrl[actuator_id] = 0.0   # Closed position
-    
-    def _apply_move_action(self, robot_obj, target_position, duration):
-        """Apply end-effector movement action (simplified)."""
-        # This is a simplified implementation - in practice would use IK
-        # For now, just store the target for future implementation
-        robot_obj._target_position = target_position
-        robot_obj._move_duration = duration
-    
-    def _apply_velocity_action(self, robot_obj, velocities):
-        """Apply joint velocity control."""
-        robot_model = robot_obj._robot_model
+        # Run physics
+        if self.real_time and self.viewer:
+            step_interval = (self.timestep / self.speed) / self.physics_steps
+            for i in range(self.physics_steps):
+                step_start = time.monotonic()
+                mujoco.mj_step(self.model, self.data)
+                
+                if i % 25 == 0:
+                    self.viewer.sync()
+                    
+                elapsed = time.monotonic() - step_start
+                if elapsed < step_interval:
+                    time.sleep(step_interval - elapsed)
+        else:
+            for _ in range(self.physics_steps):
+                mujoco.mj_step(self.model, self.data)
+            if self.viewer:
+                self.viewer.sync()
         
-        if not isinstance(velocities, (list, tuple)):
-            return
-            
-        # For velocity control, we'd need to implement a velocity controller
-        # For now, store velocities for future implementation
-        robot_obj._target_velocities = velocities
+        self._step_count += 1
+        
+        # Update joint positions for all robots after physics step
+        for robot_obj in self._robots:
+            joint_pos = []
+            for joint in robot_obj._robot_model.joints:
+                joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint)
+                if joint_id != -1:
+                    qpos_addr = self.model.jnt_qposadr[joint_id]
+                    joint_pos.append(self.data.qpos[qpos_addr])
+            robot_obj.joint_positions = joint_pos
+    
+    def _get_arena_classes(self):
+        """Get tuple of arena class names for isinstance check."""
+        # Check for arena types by class name since we can't import .scenic files
+        arena_class_names = ['Arena', 'EmptyArena', 'TableArena', 'BinsArena', 'PegsArena', 'WipeArena', 'CustomArena']
+        return arena_class_names
+    
+    def _create_arena_from_object(self, arena_obj):
+        """Create RoboSuite arena from Scenic arena object."""
+        arena_type = type(arena_obj).__name__
+        
+        if arena_type == 'EmptyArena':
+            return EmptyArena()
+        elif arena_type == 'TableArena':
+            from robosuite.models.arenas import TableArena as RSTableArena
+            return RSTableArena()
+        elif arena_type == 'BinsArena':
+            from robosuite.models.arenas import BinsArena as RSBinsArena
+            return RSBinsArena()
+        elif arena_type == 'PegsArena':
+            from robosuite.models.arenas import PegsArena as RSPegsArena
+            return RSPegsArena()
+        elif arena_type == 'WipeArena':
+            from robosuite.models.arenas import WipeArena as RSWipeArena
+            return RSWipeArena()
+        elif arena_type == 'CustomArena':
+            # Create custom arena from XML
+            if hasattr(arena_obj, 'xml_string') and arena_obj.xml_string:
+                return self.xml_builder.create_arena_from_xml_string(arena_obj.xml_string)
+            elif hasattr(arena_obj, 'xml_path') and arena_obj.xml_path:
+                return self.xml_builder.create_arena_from_xml_path(arena_obj.xml_path)
+            else:
+                # Create empty arena and add custom objects
+                return EmptyArena()
+        else:
+            return EmptyArena()
     
     def getProperties(self, obj, properties):
         """Read object properties from the simulator."""
@@ -383,26 +398,52 @@ class RobosuiteSimulation(Simulation):
         if not hasattr(obj, '_robosuite_name'):
             return {prop: getattr(obj, prop) for prop in properties}
         
-        values = {}
         body_id = self._body_id_map.get(obj._robosuite_name, -1)
+        if body_id == -1:
+            return {prop: getattr(obj, prop) for prop in properties}
         
+        values = {}
         for prop in properties:
-            if prop == 'position' and body_id != -1:
-                # Get actual position from simulator
+            if prop == 'position':
                 pos = self.data.xpos[body_id]
                 values[prop] = Vector(pos[0], pos[1], pos[2])
-            elif prop == 'velocity' and body_id != -1:
-                # Get linear velocity
-                vel = self.data.cvel[body_id][:3]
-                values[prop] = Vector(vel[0], vel[1], vel[2])
-            elif prop == 'orientation' and body_id != -1:
-                # Get quaternion orientation
-                quat = self.data.xquat[body_id]
-                values[prop] = list(quat)
+            elif prop == 'velocity':
+                values[prop] = self._get_velocity(obj._robosuite_name, body_id)
+            elif prop == 'speed':
+                vel = self._get_velocity(obj._robosuite_name, body_id)
+                values[prop] = np.linalg.norm([vel.x, vel.y, vel.z])
+            elif prop in ['yaw', 'pitch', 'roll']:
+                values[prop] = self._get_euler_angle(body_id, prop)
             else:
                 values[prop] = getattr(obj, prop)
                 
         return values
+    
+    def _get_velocity(self, name, body_id):
+        """Calculate velocity for a body."""
+        body_dofadr = self.model.body_dofadr[body_id]
+        body_dofnum = self.model.body_dofnum[body_id]
+        
+        if body_dofnum >= 3:
+            vel = self.data.qvel[body_dofadr:body_dofadr+3]
+        else:
+            current_pos = self.data.xpos[body_id]
+            prev_pos = self._prev_positions.get(name, current_pos)
+            vel = (current_pos - prev_pos) / self.timestep
+            
+        return Vector(vel[0], vel[1], vel[2])
+    
+    def _get_euler_angle(self, body_id, angle_type):
+        """Get Euler angles from quaternion."""
+        w, x, y, z = self.data.xquat[body_id]
+        
+        if angle_type == 'yaw':
+            return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        elif angle_type == 'pitch':
+            sin_pitch = 2.0 * (w * y - z * x)
+            return math.asin(np.clip(sin_pitch, -1.0, 1.0))
+        elif angle_type == 'roll':
+            return math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
     
     def _get_robot_properties(self, obj, properties):
         """Get properties for a robot object."""
@@ -427,75 +468,10 @@ class RobosuiteSimulation(Simulation):
                 values[prop] = joint_pos
                 # Update object's attribute for record statement
                 obj.joint_positions = joint_pos
-            elif prop == 'joint_velocities':
-                joint_vel = []
-                for joint in obj._robot_model.joints:
-                    joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint)
-                    if joint_id != -1:
-                        qvel_addr = self.model.jnt_dofadr[joint_id]
-                        joint_vel.append(self.data.qvel[qvel_addr])
-                values[prop] = joint_vel
-            elif prop == 'end_effector_position':
-                # Get end-effector body position
-                ee_name = obj._robot_model.naming_prefix + "gripper0_grip_site"
-                site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, ee_name)
-                if site_id != -1:
-                    pos = self.data.site_xpos[site_id]
-                    values[prop] = Vector(pos[0], pos[1], pos[2])
-                else:
-                    values[prop] = Vector(0, 0, 0)
-            elif prop == 'gripper_state':
-                # Get gripper joint positions
-                gripper_joints = obj._robot_model.joints[-2:]  # Usually last 2 joints
-                gripper_pos = []
-                for joint in gripper_joints:
-                    joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint)
-                    if joint_id != -1:
-                        qpos_addr = self.model.jnt_qposadr[joint_id]
-                        gripper_pos.append(self.data.qpos[qpos_addr])
-                # Average position: > 0.02 is open, < 0.02 is closed
-                avg_pos = sum(gripper_pos) / len(gripper_pos) if gripper_pos else 0
-                values[prop] = 'open' if avg_pos > 0.02 else 'closed'
             else:
                 values[prop] = getattr(obj, prop)
         
         return values
-    
-    def step(self):
-        """Run one simulation step."""
-        super().step()
-        
-        # Physics stepping
-        for _ in range(self.physics_steps):
-            mujoco.mj_step(self.model, self.data)
-        
-        # Update viewer if rendering
-        if self.viewer and self.viewer.is_running():
-            self.viewer.sync()
-            
-            # Control simulation speed
-            if self.real_time:
-                import time
-                time.sleep(self.physics_timestep / self.speed)
-        
-        # Update step count
-        self._step_count += 1
-        
-        # Update tracked properties for all objects
-        self._update_tracked_properties()
-    
-    def _update_tracked_properties(self):
-        """Update positions and velocities for tracked objects."""
-        for obj_name, body_id in self._body_id_map.items():
-            if body_id != -1:
-                # Store current position for velocity calculation
-                current_pos = self.data.xpos[body_id].copy()
-                if obj_name in self._prev_positions:
-                    # Calculate velocity (simplified) - for future use
-                    # dt = self.timestep
-                    # vel = (current_pos - self._prev_positions[obj_name]) / dt
-                    pass
-                self._prev_positions[obj_name] = current_pos
         
     def destroy(self):
         """Clean up the simulation."""
