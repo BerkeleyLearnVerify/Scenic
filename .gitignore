@@ -141,3 +141,6 @@ dmypy.json
 src/scenic/syntax/parser.py
 
 simulation.gif
+
+# Commit planning files
+commit_plan.md
