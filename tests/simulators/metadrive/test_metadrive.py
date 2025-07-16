@@ -155,6 +155,8 @@ def test_initial_velocity_movement(getMetadriveSimulator):
     assert dx < -0.1, f"Expected car to move west (negative dx), but got dx = {dx}"
 
 
+@pytest.mark.slow
+@pytest.mark.graphical
 def test_static_pedestrian(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator(
         "Town01", render=True, render3D=True
