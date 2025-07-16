@@ -197,7 +197,13 @@ class NewtonianSimulation(DrivingSimulation):
         for obj in self.objects:
             current_speed = obj.velocity.norm()
             # 1) Pedestrian: we stash .control['heading']/['speed']
-            if hasattr(obj, "control") and "speed" in obj.control:
+            if (
+                hasattr(obj, "control")
+                and "speed" in obj.control
+                and (
+                    obj.control["heading"] is not None or obj.control["speed"] is not None
+                )
+            ):
                 h = (
                     obj.control["heading"]
                     if obj.control["heading"] is not None
@@ -208,8 +214,7 @@ class NewtonianSimulation(DrivingSimulation):
                     if obj.control["speed"] is not None
                     else obj.speed
                 )
-                vel = Vector(0, s).rotatedBy(h)
-                obj.setVelocity(vel)
+                obj.velocity = Vector(0, s).rotatedBy(h)
             # 2) Vehicle: throttle/brake/steer physics
             elif hasattr(obj, "hand_brake"):
                 forward = obj.velocity.dot(Vector(0, 1).rotatedBy(obj.heading)) >= 0

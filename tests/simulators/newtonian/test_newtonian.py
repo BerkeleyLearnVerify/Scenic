@@ -68,4 +68,4 @@ def test_pedestrian_movement(loadLocalScenario):
     simulation = simulator.simulate(scene, maxSteps=8)
     init = simulation.result.records["InitialPos"]
     fin = simulation.result.records["FinalPos"]
-    assert init != fin, f"Pedestrian did not move."
+    assert init != fin, "Pedestrian did not move."
