@@ -1,9 +1,9 @@
 """
 TITLE: Bypassing 03
 AUTHOR: Francis Indaheng, findaheng@berkeley.edu
-DESCRIPTION: Ego vehicle performs a lane change to bypass a slow 
-adversary vehicle but cannot return to its original lane because 
-the adversary accelerates. Ego vehicle must then slow down to avoid 
+DESCRIPTION: Ego vehicle performs a lane change to bypass a slow
+adversary vehicle but cannot return to its original lane because
+the adversary accelerates. Ego vehicle must then slow down to avoid
 collision with leading vehicle in new lane.
 SOURCE: NHSTA, #16
 
@@ -15,15 +15,15 @@ To run this file using the Carla simulator:
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../assets/maps/CARLA/Town03.xodr')
-param carla_map = 'Town03'
+param map = localPath('../../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #################################
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz_2017'
+MODEL = 'vehicle.nissan.patrol'
 
 param EGO_SPEED = VerifaiRange(7, 10)
 param EGO_BRAKE = VerifaiRange(0.7, 1.0)
@@ -67,7 +67,7 @@ behavior EgoBehavior():
                 do DecelerateBehavior(globalParameters.EGO_BRAKE)
             interrupt when (distance to lead) > SAFE_DIST:
                 do FollowLaneBehavior(target_speed=LEAD_SPEED) for TERM_TIME seconds
-                terminate 
+                terminate
 
 behavior AdversaryBehavior():
     do FollowLaneBehavior(target_speed=globalParameters.ADV_INIT_SPEED) \

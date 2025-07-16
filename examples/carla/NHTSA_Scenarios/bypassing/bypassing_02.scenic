@@ -1,7 +1,7 @@
 """
 TITLE: Bypassing 02
 AUTHOR: Francis Indaheng, findaheng@berkeley.edu
-DESCRIPTION: Adversary vehicle performs a lane change to bypass the 
+DESCRIPTION: Adversary vehicle performs a lane change to bypass the
 slow ego vehicle before returning to its original lane.
 SOURCE: NHSTA, #16
 
@@ -13,22 +13,22 @@ To run this file using the Carla simulator:
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../assets/maps/CARLA/Town03.xodr')
-param carla_map = 'Town03'
+param map = localPath('../../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #################################
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz_2017'
+MODEL = 'vehicle.nissan.patrol'
 
 param EGO_SPEED = VerifaiRange(2, 4)
 
-param ADV_DIST = VerifaiRange(-25, -10)
-param ADV_SPEED = VerifaiRange(7, 10)
+param ADV_DIST = VerifaiRange(-35, -25)
+param ADV_SPEED = VerifaiRange(6, 8)
 
-BYPASS_DIST = [15, 10]
+BYPASS_DIST = [25, 10]
 INIT_DIST = 50
 TERM_TIME = 5
 
@@ -53,7 +53,7 @@ behavior AdversaryBehavior():
                 laneSectionToSwitch=slowerLaneSec,
                 target_speed=globalParameters.ADV_SPEED)
         do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED) for TERM_TIME seconds
-        terminate 
+        terminate
 
 #################################
 # SPATIAL RELATIONS             #

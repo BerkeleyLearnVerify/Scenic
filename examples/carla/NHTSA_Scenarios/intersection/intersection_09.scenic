@@ -1,7 +1,7 @@
 """
 TITLE: Intersection 09
 AUTHOR: Francis Indaheng, findaheng@berkeley.edu
-DESCRIPTION: Ego vehicle makes a right turn at 3-way intersection 
+DESCRIPTION: Ego vehicle makes a right turn at 3-way intersection
 while adversary vehicle from lateral lane goes straight.
 SOURCE: NHSTA, #28 #29
 
@@ -13,15 +13,15 @@ To run this file using the Carla simulator:
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
-param carla_map = 'Town05'
+param map = localPath('../../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #################################
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz_2017'
+MODEL = 'vehicle.nissan.patrol'
 
 EGO_INIT_DIST = [20, 25]
 param EGO_SPEED = VerifaiRange(7, 10)
