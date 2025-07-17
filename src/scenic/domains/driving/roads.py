@@ -314,25 +314,25 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
         return self.region.containsPoint(point)
 
     def containsObject(self, obj):
-        return self.region.containsObject(self, obj)
+        return self.region.containsObject(obj)
 
     def AABB(self):
-        return self.region.AABB(self)
+        return self.region.AABB()
 
     def distanceTo(self, point):
         return self.region.distanceTo(point)
 
     def containsRegion(self, reg, tolerance):
-        return self.region.containsRegion(self, reg, tolerance)
+        return self.region.containsRegion(reg, tolerance)
 
     def containsRegionInner(self, reg, tolerance):
-        return self.region.containsRegionInner(self, reg, tolerance)
+        return self.region.containsRegionInner(reg, tolerance)
 
     def projectVector(self, point, onDirection):
-        return self.region.projectVector(self, point, onDirection)
+        return self.region.projectVector(point, onDirection)
 
     def uniformPointInner(self):
-        return self.region.uniformPointInner(self)
+        return self.region.uniformPointInner()
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -1165,7 +1165,7 @@ class Network:
                 [poly._polygons for poly in polyregions]
             )"""
             self._rtree = shapely.STRtree(
-                [elem.polygons for elem in self.elements.values()]
+                [elem.polygon for elem in self.elements.values()]
             )
 
     def _defaultRoadDirection(self, point):
@@ -1520,7 +1520,7 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self, labelIncomingLanes=False, is3D=True):
+    def show(self, labelIncomingLanes=False, use2DMap=0):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
@@ -1531,7 +1531,7 @@ class Network:
                 intersections with their indices in ``incomingLanes``.
         """
 
-        if is3D:
+        if use2DMap == 1:
             render_scene = trimesh.scene.Scene()
             self.drivableRegion.mesh.visual.face_colors = [200, 200, 200, 255]
             render_scene.add_geometry(self.drivableRegion.mesh)

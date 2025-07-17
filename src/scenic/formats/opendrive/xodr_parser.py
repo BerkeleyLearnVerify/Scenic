@@ -938,7 +938,7 @@ class Road:
                     road=None,
                     openDriveID=id_,
                     isForward=id_ < 0,
-                    region=MeshSurfaceRegion(lane_shape[id_], centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(lane_shape[id_]),
+                    region=MeshSurfaceRegion(lane_shape[id_], centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=lane_shape[id_]),
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
@@ -965,7 +965,7 @@ class Road:
                 predecessor=last_section,
                 road=None,  # will set later
                 lanesByOpenDriveID=laneSections,
-                region=MeshSurfaceRegion(sec_shape, centerMesh=None, position=None) if use2DMap==0 else PolygonalRegion(sec_shape)
+                region=MeshSurfaceRegion(sec_shape, centerMesh=None, position=None) if use2DMap==0 else PolygonalRegion(polygon=sec_shape)
             )
             roadSections.append(section)
             allElements.append(section)
@@ -1069,7 +1069,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 crossings=(),  # TODO add crosswalks
-                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(union),
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=union),
             )
             allElements.append(sidewalk)
             return sidewalk
@@ -1092,7 +1092,7 @@ class Road:
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
                 road=None,
-                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(union),
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=union),
             )
             allElements.append(shoulder)
             return shoulder
@@ -1229,7 +1229,7 @@ class Road:
                         road=None,
                         sections=tuple(sections),
                         successor=successorLane,  # will correct inter-road links later
-                        region=MeshSurfaceRegion(ls.parent_lane_mesh, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(ls.parent_lane_poly),
+                        region=MeshSurfaceRegion(ls.parent_lane_mesh, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=ls.parent_lane_poly),
                     )
                     nextID += 1
                     for section in sections:
@@ -1303,7 +1303,7 @@ class Road:
                 bikeLane=None,
                 shoulder=forwardShoulder,
                 opposite=None,
-                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(shape),
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=shape),
             )
             allElements.append(forwardGroup)
         else:
@@ -1326,7 +1326,7 @@ class Road:
                 bikeLane=None,
                 shoulder=backwardShoulder,
                 opposite=forwardGroup,
-                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(shape),
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=shape),
             )
             allElements.append(backwardGroup)
             if forwardGroup:
@@ -1374,7 +1374,7 @@ class Road:
             sections=roadSections,
             signals=tuple(roadSignals),
             crossings=(),  # TODO add these!
-            region=MeshSurfaceRegion(self.drivable_region, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(self.drivable_region),
+            region=MeshSurfaceRegion(self.drivable_region, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=self.drivable_region),
         )
         allElements.append(road)
 
@@ -2247,7 +2247,7 @@ class RoadMap:
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
                 crossings=(),  # TODO add these
-                region=MeshSurfaceRegion(junction.poly, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(junction.poly),
+                region=MeshSurfaceRegion(junction.poly, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=junction.poly),
             )
             register(intersection)
             intersections[jid] = intersection
