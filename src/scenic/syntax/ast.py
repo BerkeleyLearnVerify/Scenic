@@ -18,7 +18,7 @@ class AST(ast.AST):
     def __init_subclass__(cls):
         super().__init_subclass__()
         fts = _getFields(cls)
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 13):
             # The Python 3.13+ ast.AST initializer expects types like X | None, but we
             # use Optional[X] for compatibility; convert the latter into the former.
             optionalTy = type(Optional[str])
