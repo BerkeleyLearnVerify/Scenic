@@ -22,7 +22,7 @@ behavior PullIntoRoad():
         wait
     do FollowLaneBehavior(laneToFollow=ego.lane)
 
-ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5, pure_pursuit=True)
+ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5, pure_pursuit=True, plot=True)
 
 rightCurb = ego.laneGroup.curb
 spot = new OrientedPoint on visible rightCurb

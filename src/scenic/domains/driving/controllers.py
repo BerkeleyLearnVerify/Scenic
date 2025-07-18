@@ -117,9 +117,10 @@ class PurePursuitLateralController:
         wb: wheelbase length
         ld: lookahead distance
         dt: time step
+        cl: car length
     """
 
-    def __init__(self, wb = 4.5, ld = 4, dt = 0.1):
+    def __init__(self, cl = 4.5, ld = 7, dt = 0.1):
         """
         Todo:
             find the actual wheelbase and update the default number
@@ -127,7 +128,8 @@ class PurePursuitLateralController:
             experiment with the lookahead distance to see what works the best
         """
         self.dt = dt 
-        self.wb = wb
+        carLengthToWheelBaseRatio = 0.65
+        self.wb = cl * carLengthToWheelBaseRatio
         self.ld = ld
 
     def run_step(self, cte):
