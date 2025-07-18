@@ -25,6 +25,7 @@ from trimesh.transformations import (
     compose_matrix,
     identity_matrix,
     quaternion_matrix,
+    transform_points,
     translation_matrix,
 )
 import trimesh.voxel
@@ -947,8 +948,10 @@ class MeshRegion(Region):
         if self.centerMesh:
             mesh.vertices -= mesh.bounding_box.center_mass
 
-        # Apply scaling, rotation, and translation, if any
-        mesh.apply_transform(self._transform)
+        # Apply scaling, rotation, and translation, if any.
+        # N.B. Avoid using Trimesh.apply_transform since it generates random numbers (!)
+        # to check if the transform flips windings; ours are rigid motions, so don't.
+        mesh.vertices = transform_points(mesh.vertices, matrix=self._transform)
 
         return mesh
 
@@ -1070,7 +1073,7 @@ class MeshRegion(Region):
         # Generic case for arbitrary shapes
         if self.mesh.is_watertight:
             projection = trimesh.path.polygons.projected(
-                self.mesh, normal=(0, 0, 1), rpad=1e-4
+                self.mesh, normal=(0, 0, 1), rpad=1e-4, precise=True
             )
         else:
             # Special parameters to use all faces if mesh is not watertight.
@@ -1080,6 +1083,7 @@ class MeshRegion(Region):
                 rpad=1e-4,
                 ignore_sign=False,
                 tol_dot=-float("inf"),
+                precise=True,
             )
 
         return projection
@@ -1494,7 +1498,7 @@ class MeshVolumeRegion(MeshRegion):
             if slice_3d is None:
                 return nowhere
 
-            slice_2d, _ = slice_3d.to_planar(to_2D=numpy.eye(4))
+            slice_2d, _ = slice_3d.to_2D(to_2D=numpy.eye(4))
             polygons = MultiPolygon(slice_2d.polygons_full) & other.polygons
 
             if polygons.is_empty:
@@ -3203,7 +3207,7 @@ class CircularRegion(PolygonalRegion):
     @distributionFunction
     def _makePolygons(center, radius, resolution):
         ctr = makeShapelyPoint(center)
-        return ctr.buffer(radius, resolution=resolution)
+        return ctr.buffer(radius, quad_segs=resolution)
 
     ## Lazy Construction Methods ##
     def sampleGiven(self, value):
@@ -3297,7 +3301,7 @@ class SectorRegion(PolygonalRegion):
     @distributionFunction
     def _makePolygons(center, radius, heading, angle, resolution):
         ctr = makeShapelyPoint(center)
-        circle = ctr.buffer(radius, resolution=resolution)
+        circle = ctr.buffer(radius, quad_segs=resolution)
         if angle >= math.tau - 0.001:
             polygon = circle
         else:
