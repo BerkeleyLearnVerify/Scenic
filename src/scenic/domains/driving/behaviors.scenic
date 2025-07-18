@@ -4,10 +4,15 @@ These behaviors are automatically imported when using the driving domain.
 """
 
 import math
+import matplotlib.pyplot as plt
+import csv
 
 from scenic.domains.driving.actions import *
 import scenic.domains.driving.model as _model
 from scenic.domains.driving.roads import ManeuverType
+from shapely.geometry import Point as ShapelyPoint
+from shapely.geometry import LineString
+from shapely.geometry import MultiPoint
 
 def concatenateCenterlines(centerlines=[]):
     return PolylineRegion.unionAll(centerlines)
@@ -16,9 +21,9 @@ behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
 
-behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
-    try:
-        do FollowLaneBehavior(target_speed=target_speed)
+behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10, pure_pursuit=False, plot=False):
+    try:    
+        do FollowLaneBehavior(target_speed=target_speed, purePursuit=pure_pursuit, plot=plot)
     interrupt when self.distanceToClosest(_model.Vehicle) <= avoidance_threshold:
         take SetThrottleAction(0), SetBrakeAction(1)
 
@@ -39,7 +44,7 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
-behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
+behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False, purePursuit=False, plot=False):
     """
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
@@ -52,6 +57,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
     :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
     :param laneToFollow: If the lane to follow is different from the lane that the vehicle is on, this parameter can be used to specify that lane. By default, this variable will be set to None, which means that the vehicle will follow the lane that it is currently on.
     """
+    plotData = []
     
     past_steer_angle = 0
     past_speed = 0 # making an assumption here that the agent starts from zero speed
@@ -77,7 +83,10 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         nearby_intersection = current_lane.centerline[-1]
 
     # instantiate longitudinal and lateral controllers
-    _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
+    if(purePursuit):
+        _lon_controller, _lat_controller = simulation().getPurePursuitControllers(self)
+    else:
+        _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
     while True:
 
@@ -129,11 +138,93 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             in_turning_lane = False
             entering_intersection = False
             target_speed = original_target_speed
-            _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
-        nearest_line_points = current_centerline.nearestSegmentTo(self.position)
-        nearest_line_segment = PolylineRegion(nearest_line_points)
-        cte = nearest_line_segment.signedDistanceTo(self.position)
+            if(purePursuit):
+                _lon_controller, _lat_controller = simulation().getPurePursuitControllers(self)
+            else:
+                _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
+
+
+        if(not purePursuit):
+            nearest_line_points = current_centerline.nearestSegmentTo(self.position)
+            nearest_line_segment = PolylineRegion(nearest_line_points)
+            cte = nearest_line_segment.signedDistanceTo(self.position)
+
+            #Debugging prints
+            #print(f"\n___Debugging___")
+            #print(self.heading)
+            #print(nearest_line_segment.orientation.)
+        else:
+
+            # Define variables
+            lookahead_distance = _lat_controller.ld
+            circlular_region = CircularRegion(self.position, lookahead_distance, resolution = 64)
+            polyline_circle = circlular_region.boundary
+            shapely_boundary = polyline_circle.lineString # extract shapley circle and shapely path
+            line = current_centerline.lineString
+            distance = current_centerline.lineString.project(ShapelyPoint(self.position.coordinates[0], self.position.coordinates[1]))
+            coords = []
+            try: 
+                coords = list(line.coords) # lineString case
+            except NotImplementedError:
+                for geom in line.geoms: # multilinestring case
+                    coords.extend(list(geom.coords))
+            
+
+            # Splitting the path into two parts, the part in front of the ego and behind it
+
+            output = []
+            for j, p in enumerate(coords):
+                pd = line.project(ShapelyPoint(p[0], p[1]))
+                if pd == distance:
+                    output = [
+                        LineString(coords[:j+1]),
+                        LineString(coords[j:])]
+                    break
+                if pd > distance:
+                    cp = line.interpolate(distance)
+                    output = [
+                        LineString(coords[:j] + [(cp.x, cp.y, 0)]),
+                        LineString([(cp.x, cp.y, 0)] + coords[j:])]
+                    break
+
+
+            # Get intersection points of the circle with the second half of the path
+
+            shapely_intersection = shapely_boundary.intersection(output[1])
+            candidate_points = []
+            if isinstance(shapely_intersection, ShapelyPoint):
+                candidate_points = [shapely_intersection]
+            elif isinstance(shapely_intersection, MultiPoint):
+                candidate_points = list(shapely_intersection.geoms)
+            assert all(isinstance(p, ShapelyPoint) for p in candidate_points)
+
+
+            # Find lookahead point by traversing the path
+
+            if len(candidate_points) == 0:
+                print("No candidate point found")
+                cte = 0
+            else:
+                lookahead_point = candidate_points[0]
+                best_distance = output[1].project(ShapelyPoint(candidate_points[0].x, candidate_points[0].y))
+                if len(candidate_points) > 1:
+                    for point in candidate_points:
+                        point_distance = output[1].project(ShapelyPoint(point.x, point.y))
+                        if point_distance < distance:
+                            lookahead_point = point
+                            best_distance = point_distance
+
+
+                # Find the theta value/cte to feed to the pure pursuit algorithm
+                
+                theta = math.atan2(lookahead_point.y - self.position.coordinates[1], lookahead_point.x - self.position.coordinates[0])
+                cte = (self.heading + math.pi/2) - theta
+
+
+            # done
+
+
         if is_oppositeTraffic:
             cte = -cte
 
@@ -148,6 +239,26 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
         past_speed = current_speed
+
+        if plot:
+
+            nearest_line_points = current_centerline.nearestSegmentTo(self.position) 
+            nearest_line_segment = PolylineRegion(nearest_line_points)
+            err = abs(nearest_line_segment.signedDistanceTo(self.position))
+            plotData.append(err)
+
+            """
+            if len(plotData) == 125:
+                with open('pid_err.csv', 'a', newline='') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(plotData)
+            """
+
+            plt.plot(plotData)
+            plt.ylabel('some numbers')
+            plt.draw()
+            plt.pause(0.001)
+            plt.clf()
 
 
 behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None, turn_speed=None):
