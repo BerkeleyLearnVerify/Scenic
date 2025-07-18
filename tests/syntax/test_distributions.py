@@ -707,11 +707,11 @@ def test_reproducibility_3d():
     scenario = compileScenic(
         """
         ego = new Object
-        workspace = Workspace(SpheroidRegion(dimensions=(5,5,5)))
+        workspace = Workspace(SpheroidRegion(dimensions=(25,15,10)))
         region = BoxRegion(dimensions=(25,15,0.1))
-        #obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)
+        obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)
         obj_2 = new Object in workspace, facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
-        #obj_3 = new Object in workspace, on region
+        obj_3 = new Object in workspace, on region
         param foo = ego intersects obj_2
         x = Range(0, 1)
         require x > 0.8

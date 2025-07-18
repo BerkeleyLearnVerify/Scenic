@@ -25,6 +25,7 @@ from trimesh.transformations import (
     compose_matrix,
     identity_matrix,
     quaternion_matrix,
+    transform_points,
     translation_matrix,
 )
 import trimesh.voxel
@@ -947,8 +948,10 @@ class MeshRegion(Region):
         if self.centerMesh:
             mesh.vertices -= mesh.bounding_box.center_mass
 
-        # Apply scaling, rotation, and translation, if any
-        mesh.apply_transform(self._transform)
+        # Apply scaling, rotation, and translation, if any.
+        # N.B. Avoid using Trimesh.apply_transform since it generates random numbers (!)
+        # to check if the transform flips windings; ours are rigid motions, so don't.
+        mesh.vertices = transform_points(mesh.vertices, matrix=self._transform)
 
         return mesh
 
