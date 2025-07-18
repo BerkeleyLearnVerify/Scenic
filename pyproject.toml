@@ -60,7 +60,7 @@ metadrive = [
 	"sumolib >= 1.21.0",
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
-	"pytest >= 7.0.0, <8",
+	"pytest >= 7.0.0, <9",
 	"pytest-cov >= 3.0.0",
 	"pytest-randomly ~= 3.2",
 ]
