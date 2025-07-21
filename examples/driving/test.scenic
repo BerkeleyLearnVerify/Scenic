@@ -4,7 +4,7 @@ model scenic.domains.driving.model
 select_road = Uniform(*network.roads)
 select_lane = Uniform(*select_road.lanes)
 
-ego = new Car with regionContainedIn everywhere
+ego = new Car on road
 #ego.parentOrientation = ego.road.orientation[ego.position]
 
 def foo():
@@ -13,10 +13,7 @@ def foo():
     print(f"EGO ROAD: {network.roadAt(ego.position)}")
     return True
 require foo()
-
-require ego.z > 8
-require ego.x > 5
-require ego.x < 15
+# with regionContainedIn everywhere
 # x = 10, y = -12
 # at (10,-12, 100),
 #"""at (10,-12, 11.493139700648731)"""

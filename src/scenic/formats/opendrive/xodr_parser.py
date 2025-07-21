@@ -2303,20 +2303,13 @@ class RoadMap:
                     endLane=lane._successor,
                 )
                 lane.maneuvers = (maneuver,)
-        render_scene = trimesh.scene.Scene()
         def combine(regions):
             if use2DMap==0:
-                if regions == ():
-                    return None
                 meshes = [r.polygon for r in regions ]
                 combined = trimesh.util.concatenate(meshes)
                 regs = []
                 for reg in regions:
-                    if (
-                        isinstance(reg.polygon, trimesh.Trimesh)
-                        and len(reg.polygon.vertices) > 0
-                        and len(reg.polygon.faces) > 0
-                    ):
+                    if reg.region != EmptyRegion("Empty"):
                         regs.append(reg)
                     else:
                         print("Warning: EmptyRegion encountered in combine")
