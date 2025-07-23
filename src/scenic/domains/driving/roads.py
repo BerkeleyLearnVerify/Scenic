@@ -1227,7 +1227,6 @@ class Network:
             FileNotFoundError: no readable map was found at the given path.
             ValueError: the given map is of an unknown format.
         """
-        print("fromFile called with use2DMap =", kwargs.get("use2DMap"))
         path = pathlib.Path(path)
         ext = path.suffix
 
@@ -1303,9 +1302,6 @@ class Network:
                 eliding roads with length less than **tolerance**.
         """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
-        print("fromOpenDrive called with use2DMap =", use2DMap)
-        print("Test")
-        #breakpoint()
         road_map = xodr_parser.RoadMap(
             tolerance=tolerance,
             fill_intersections=fill_intersections,
@@ -1579,5 +1575,3 @@ class Network:
         viewer.add_geometry(self.shoulderRegion.mesh)
         self.walkableRegion.mesh.visual.face_colors = [255, 0, 0, 255]
         viewer.add_geometry(self.walkableRegion.mesh)
-        # self.intersectionRegion.mesh.visual.face_colors = [0, 255, 0, 255]
-        # render_scene.add_geometry(self.intersectionRegion.mesh)

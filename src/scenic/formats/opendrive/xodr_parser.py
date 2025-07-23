@@ -548,13 +548,13 @@ class Road:
                         left = left_bounds[id_]
                         right = right_bounds[id_][::-1]
                         bounds = left + right
-                        if use2DMap==0:
+                        if not use2DMap:
                             right = right_bounds[id_]
                             bounds = left + right
 
                         if len(bounds) < 3:
                             continue
-                        if use2DMap==0:
+                        if not use2DMap:
                             faces = []
                             # Create a 3D mesh from the bounds
                             for i in range(len(left) - 1):
@@ -675,7 +675,7 @@ class Road:
                                 cur_p[1] + normal_vec[1] * halfway,
                                 cur_p[2] + normal_vec[2] * halfway,
                             ]
-                            if use2DMap == True:
+                            if use2DMap:
                                 left_bound = (left_bound[0], left_bound[1])
                                 right_bound = (right_bound[0], right_bound[1])
                                 centerline = (centerline[0], centerline[1])
@@ -684,7 +684,7 @@ class Road:
                             lane.left_bounds.append(left_bound)
                             lane.right_bounds.append(right_bound)
                             lane.centerline.append(centerline)
-            if use2DMap==0:
+            if not use2DMap:
                 assert len(cur_sec_points) >= 2, i
                 sec_points.append(cur_sec_points)
                 sec_meshes.append(trimesh.util.concatenate(cur_sec_meshes))
@@ -734,7 +734,7 @@ class Road:
                 cur_lane_polys = next_lane_polys
 
         # Implementing Three Dimensional Support
-        if use2DMap==0:
+        if not use2DMap:
             for id_ in cur_lane_meshes:
                 mesh = trimesh.util.concatenate(cur_lane_meshes[id_])
                 cur_sec.get_lane(id_).parent_lane_mesh = len(lane_meshes)
@@ -803,7 +803,7 @@ class Road:
     ):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
-        if use2DMap==0:
+        if not use2DMap:
             (
                 self.sec_points,
                 self.sec_meshes,
@@ -883,12 +883,12 @@ class Road:
         sec_zip = zip(
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
         )
-        if use2DMap==0:
+        if not use2DMap:
             sec_zip = zip(
                 self.lane_secs, self.sec_points, self.sec_meshes, self.sec_lane_meshes
             )
         for sec, pts, sec_shape, lane_shape in sec_zip:
-            if use2DMap==0:
+            if not use2DMap:
                 pts = [pt[:3] for pt in pts]  # drop s coordinate
             else:
                 pts = [pt[:2] for pt in pts]  # drop s coordinate
@@ -918,17 +918,17 @@ class Road:
                     ),
                     centerline=(
                         PathRegion(cleanChain(center))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(center))
                     ),
                     leftEdge=(
                         PathRegion(cleanChain(left))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(left))
                     ),
                     rightEdge=(
                         PathRegion(cleanChain(right))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(right))
                     ),
                     successor=succ,
@@ -938,7 +938,7 @@ class Road:
                     road=None,
                     openDriveID=id_,
                     isForward=id_ < 0,
-                    region=MeshSurfaceRegion(lane_shape[id_], centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=lane_shape[id_]),
+                    region=MeshSurfaceRegion(lane_shape[id_], centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=lane_shape[id_]),
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
@@ -948,24 +948,24 @@ class Road:
                 polygon=sec_shape,
                 centerline=(
                     PathRegion(cleanChain(pts))
-                    if use2DMap==0
+                    if not use2DMap
                     else PolylineRegion(cleanChain(pts))
                 ),
                 leftEdge=(
                     PathRegion(cleanChain(sec.left_edge))
-                    if use2DMap==0
+                    if not use2DMap
                     else PolylineRegion(cleanChain(sec.left_edge))
                 ),
                 rightEdge=(
                     PathRegion(cleanChain(sec.right_edge))
-                    if use2DMap==0
+                    if not use2DMap
                     else PolylineRegion(cleanChain(sec.right_edge))
                 ),
                 successor=None,
                 predecessor=last_section,
                 road=None,  # will set later
                 lanesByOpenDriveID=laneSections,
-                region=MeshSurfaceRegion(sec_shape, centerMesh=None, position=None) if use2DMap==0 else PolygonalRegion(polygon=sec_shape)
+                region=MeshSurfaceRegion(sec_shape, centerMesh=None, position=None) if not use2DMap else PolygonalRegion(polygon=sec_shape)
             )
             roadSections.append(section)
             allElements.append(section)
@@ -1009,12 +1009,12 @@ class Road:
                     rightPoints.extend(reversed(leftSec.left_bounds))
             leftEdge = (
                 PathRegion(cleanChain(leftPoints))
-                if use2DMap==0
+                if not use2DMap
                 else PolylineRegion(cleanChain(leftPoints))
             )
             rightEdge = (
                 PathRegion(cleanChain(rightPoints))
-                if use2DMap==0
+                if not use2DMap
                 else PolylineRegion(cleanChain(rightPoints))
             )
 
@@ -1032,12 +1032,12 @@ class Road:
                     centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
             centerline = (
                 PathRegion(cleanChain(centerPoints))
-                if use2DMap==0
+                if not use2DMap
                 else PolylineRegion(cleanChain(centerPoints))
             )
             allShape = None
             union = None
-            if use2DMap==0:
+            if not use2DMap:
                 allShape = (
                     sec.mesh
                     for id_ in range(rightmost, leftmost + 1)
@@ -1069,7 +1069,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 crossings=(),  # TODO add crosswalks
-                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=union),
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=union),
             )
             allElements.append(sidewalk)
             return sidewalk
@@ -1092,7 +1092,7 @@ class Road:
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
                 road=None,
-                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=union),
+                region=MeshSurfaceRegion(union, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=union),
             )
             allElements.append(shoulder)
             return shoulder
@@ -1191,37 +1191,37 @@ class Road:
                     for section in sections:
                         leftPoints.extend(
                             section.leftEdge.vertices
-                            if use2DMap==0
+                            if not use2DMap
                             else section.leftEdge.points
                         )
                         rightPoints.extend(
                             section.rightEdge.vertices
-                            if use2DMap==0
+                            if not use2DMap
                             else section.rightEdge.points
                         )
                         centerPoints.extend(
                             section.centerline.vertices
-                            if use2DMap==0
+                            if not use2DMap
                             else section.centerline.points
                         )
                     leftEdge = (
                         PathRegion(cleanChain(leftPoints))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(leftPoints))
                     )
                     rightEdge = (
                         PathRegion(cleanChain(rightPoints))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(rightPoints))
                     )
                     centerline = (
                         PathRegion(cleanChain(centerPoints))
-                        if use2DMap==0
+                        if not use2DMap
                         else PolylineRegion(cleanChain(centerPoints))
                     )
                     lane = roadDomain.Lane(
                         id=f"road{self.id_}_lane{nextID}",
-                        polygon=ls.parent_lane_mesh if use2DMap==0 else ls.parent_lane_poly,
+                        polygon=ls.parent_lane_mesh if not use2DMap else ls.parent_lane_poly,
                         centerline=centerline,
                         leftEdge=leftEdge,
                         rightEdge=rightEdge,
@@ -1229,7 +1229,7 @@ class Road:
                         road=None,
                         sections=tuple(sections),
                         successor=successorLane,  # will correct inter-road links later
-                        region=MeshSurfaceRegion(ls.parent_lane_mesh, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=ls.parent_lane_poly),
+                        region=MeshSurfaceRegion(ls.parent_lane_mesh, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=ls.parent_lane_poly),
                     )
                     nextID += 1
                     for section in sections:
@@ -1260,12 +1260,12 @@ class Road:
                 if current._laneToLeft and current._laneToLeft.isForward == forward:
                     current = current._laneToLeft
                 leftPoints.extend(
-                    current.leftEdge.vertices if use2DMap==0 else current.leftEdge.points
+                    current.leftEdge.vertices if not use2DMap else current.leftEdge.points
                 )
                 current = current._successor
             leftEdge = (
                 PathRegion(cleanChain(leftPoints))
-                if use2DMap==0
+                if not use2DMap
                 else PolylineRegion(cleanChain(leftPoints))
             )
             rightPoints = []
@@ -1274,12 +1274,12 @@ class Road:
                 if current._laneToRight and current._laneToRight.isForward == forward:
                     current = current._laneToRight
                 rightPoints.extend(
-                    current.rightEdge.vertices if use2DMap==0 else current.rightEdge.points
+                    current.rightEdge.vertices if not use2DMap else current.rightEdge.points
                 )
                 current = current._successor
             rightEdge = (
                 PathRegion(cleanChain(rightPoints))
-                if use2DMap==0
+                if not use2DMap
                 else PolylineRegion(cleanChain(rightPoints))
             )
             middleLane = startLanes[len(startLanes) // 2].lane  # rather arbitrary
@@ -1287,7 +1287,7 @@ class Road:
 
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
-            shape = trimesh.util.concatenate(lane.polygon for lane in forwardLanes if lane.polygon) if use2DMap==0 else buffer_union((lane.polygon for lane in forwardLanes if lane.polygon),tolerance=tolerance,)
+            shape = trimesh.util.concatenate(lane.polygon for lane in forwardLanes if lane.polygon) if not use2DMap else buffer_union((lane.polygon for lane in forwardLanes if lane.polygon),tolerance=tolerance,)
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
                 polygon=(
@@ -1303,14 +1303,14 @@ class Road:
                 bikeLane=None,
                 shoulder=forwardShoulder,
                 opposite=None,
-                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=shape),
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=shape),
             )
             allElements.append(forwardGroup)
         else:
             forwardGroup = None
         if backwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
-            shape = trimesh.util.concatenate(lane.polygon for lane in backwardLanes if lane.polygon) if use2DMap==0 else buffer_union((lane.polygon for lane in backwardLanes if lane.polygon), tolerance=tolerance,)
+            shape = trimesh.util.concatenate(lane.polygon for lane in backwardLanes if lane.polygon) if not use2DMap else buffer_union((lane.polygon for lane in backwardLanes if lane.polygon), tolerance=tolerance,)
             backwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_backward",
                 polygon=(
@@ -1326,7 +1326,7 @@ class Road:
                 bikeLane=None,
                 shoulder=backwardShoulder,
                 opposite=forwardGroup,
-                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=shape),
+                region=MeshSurfaceRegion(shape, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=shape),
             )
             allElements.append(backwardGroup)
             if forwardGroup:
@@ -1357,7 +1357,7 @@ class Road:
             leftEdge = forwardGroup.leftEdge
         centerline = (
             PathRegion(tuple(pt[:3] for pt in self.ref_line_points))
-            if use2DMap==0
+            if not use2DMap
             else PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
         )  # Changed from pt[:2] to pt[:3] (Might need to change this)
         road = roadDomain.Road(
@@ -1374,7 +1374,7 @@ class Road:
             sections=roadSections,
             signals=tuple(roadSignals),
             crossings=(),  # TODO add these!
-            region=MeshSurfaceRegion(self.drivable_region, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=self.drivable_region),
+            region=MeshSurfaceRegion(self.drivable_region, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=self.drivable_region),
         )
         allElements.append(road)
 
@@ -1488,7 +1488,7 @@ class RoadMap:
                 shoulder_lane_types=self.shoulder_lane_types,
                 use2DMap=use2DMap,
             )
-            if use2DMap==0:
+            if not use2DMap:
                 self.sec_lane_meshes.extend(road.sec_lane_meshes)
                 self.lane_meshes.extend(road.lane_meshes)
             else:
@@ -1502,7 +1502,7 @@ class RoadMap:
             drivable_meshes = []
             sidewalk_meshes = []
             shoulder_meshes = []
-            if use2DMap==0:
+            if not use2DMap:
                 for road in self.roads.values():
                     drivable_mesh = road.drivable_region
                     sidewalk_mesh = road.sidewalk_region
@@ -1592,7 +1592,7 @@ class RoadMap:
                             elif lane.type_ in self.shoulder_lane_types:
                                 shoulder_polys.append(gap_poly)
         else:
-            if use2DMap==0:
+            if not use2DMap:
                 drivable_meshes = [road.drivable_region for road in self.roads.values()]
                 sidewalk_meshes = [road.sidewalk_region for road in self.roads.values()]
                 shoulder_meshes = [road.shoulder_region for road in self.roads.values()]
@@ -1601,7 +1601,7 @@ class RoadMap:
                 sidewalk_polys = [road.sidewalk_region for road in self.roads.values()]
                 shoulder_polys = [road.shoulder_region for road in self.roads.values()]
 
-        if use2DMap==0:
+        if not use2DMap:
             self.drivable_region = trimesh.util.concatenate(drivable_meshes)
             self.sidewalk_region = trimesh.util.concatenate(sidewalk_meshes)
             self.shoulder_region = trimesh.util.concatenate(shoulder_meshes)
@@ -1613,7 +1613,7 @@ class RoadMap:
             self.calculate_intersections(use2DMap=use2DMap)
 
     def calculate_intersections(self, use2DMap):
-        if use2DMap==0:
+        if not use2DMap:
             intersect_meshes = []
             for junc in self.junctions.values():
                 junc_meshes = [self.roads[i].drivable_region for i in junc.paths]
@@ -2247,7 +2247,7 @@ class RoadMap:
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
                 crossings=(),  # TODO add these
-                region=MeshSurfaceRegion(junction.poly, centerMesh=False, position=None) if use2DMap==0 else PolygonalRegion(polygon=junction.poly),
+                region=MeshSurfaceRegion(junction.poly, centerMesh=False, position=None) if not use2DMap else PolygonalRegion(polygon=junction.poly),
             )
             register(intersection)
             intersections[jid] = intersection
@@ -2304,7 +2304,7 @@ class RoadMap:
                 )
                 lane.maneuvers = (maneuver,)
         def combine(regions):
-            if use2DMap==0:
+            if not use2DMap:
                 meshes = [r.polygon for r in regions ]
                 combined = trimesh.util.concatenate(meshes)
                 regs = []
