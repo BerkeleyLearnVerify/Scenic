@@ -326,6 +326,7 @@ class Road:
         self.junction = junction if junction != "-1" else None
         self.predecessor = None
         self.successor = None
+        self.crosswalks = []
         self.signals = []  # List of Signal objects.
         self.lane_secs = []  # List of LaneSection objects.
         self.ref_line = []  # List of Curve objects defining reference line.
@@ -1512,6 +1513,40 @@ class RoadMap:
                 refLine.append(lastCurve)
             assert refLine
             road.ref_line = refLine
+
+
+            '''
+            Parsing Crosswalks
+               -Crosswalks are objects
+               -Objects are represented by <objects> element within the <road> element
+               -A single object is represented by the <object> element within <objects>
+               -Complex objects may be further described using <outline> elements
+            '''
+
+            objects_element = r.find("objects")
+            if objects_element is not None:
+                for obj in objects_element.iter("object"):
+                    if obj.get("type") == "crosswalk":
+                        cw = {
+                            "type": obj.get("type"),
+                            "subType": obj.get("subType"),
+                            "id": obj.get("id"),
+
+                            "s": float(obj.get("s", 0.0)), #0.0 is default
+                            "t": float(obj.get("t", 0.0)), #0.0 is default
+                            "zOffset": float(obj.get("zOffset", 0.0)), #0.0 is default
+                            "orientation": obj.get("orientation", "none"),
+
+                            "length": float(obj.get("length", 0.0)), #0.0 is default
+                            "width": float(obj.get("width", 0.0)), #0.0 is default
+                            "hdg": float(obj.get("hdg", 0.0)), #0.0 is default
+                            "pitch": float(obj.get("pitch", 0.0)), #0.0 is default
+                            "roll": float(obj.get("roll", 0.0)), #0.0 is default
+                        }
+                        road.crosswalks.append(cw)
+
+
+
 
             # Parse lanes:
             lanes = r.find("lanes")
