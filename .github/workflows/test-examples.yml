@@ -8,6 +8,8 @@ on:
         required: true
         type: string
 
+permissions: {}
+
 jobs:
   call-run-tests:
     uses: ./.github/workflows/run-tests.yml
