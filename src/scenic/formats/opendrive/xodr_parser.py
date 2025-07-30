@@ -1119,8 +1119,8 @@ class Crosswalk:
         self.pitch = pitch
         self.roll = roll
 
-        self.outlines = []
-        self.markings = []
+        self.outlines = outlines
+        self.markings = markings
 
     def is_valid(self):
         return self.length > 0 and self.width > 0
