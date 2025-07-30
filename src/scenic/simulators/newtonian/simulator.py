@@ -196,7 +196,7 @@ class NewtonianSimulation(DrivingSimulation):
     def step(self):
         for obj in self.objects:
             current_speed = obj.velocity.norm()
-            # 1) Pedestrian: we stash .control['heading']/['speed']
+            # 1) Pedestrians using walking controls (SetWalkingSpeed/Direction)
             if (
                 hasattr(obj, "control")
                 and "speed" in obj.control
@@ -216,7 +216,7 @@ class NewtonianSimulation(DrivingSimulation):
                 )
                 obj.velocity = Vector(0, s).rotatedBy(h)
             # 2) Vehicle: throttle/brake/steer physics
-            elif hasattr(obj, "hand_brake"):
+            elif getattr(obj, "isCar", False):
                 forward = obj.velocity.dot(Vector(0, 1).rotatedBy(obj.heading)) >= 0
                 signed_speed = current_speed if forward else -current_speed
                 if obj.hand_brake or obj.brake > 0:

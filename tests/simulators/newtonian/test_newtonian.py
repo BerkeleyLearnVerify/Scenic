@@ -69,3 +69,17 @@ def test_pedestrian_movement(loadLocalScenario):
     init = simulation.result.records["InitialPos"]
     fin = simulation.result.records["FinalPos"]
     assert init != fin, "Pedestrian did not move."
+
+
+def test_pedestrian_velocity_vector(loadLocalScenario):
+    scenario = loadLocalScenario("pedestrian_velocity.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = NewtonianSimulator()
+    simulation = simulator.simulate(scene, maxSteps=8)
+    init = simulation.result.records["InitialPos"]
+    fin = simulation.result.records["FinalPos"]
+    dx = fin[0] - init[0]
+    dy = fin[1] - init[1]
+    # Expect movement northeast (positive dx and dy)
+    assert dx > 0.1, f"Expected positive x movement (east), got dx = {dx}"
+    assert dy > 0.1, f"Expected positive y movement (north), got dy = {dy}"
