@@ -326,7 +326,7 @@ class Road:
         self.junction = junction if junction != "-1" else None
         self.predecessor = None
         self.successor = None
-        self.crosswalks = []
+        self.crosswalks = [] #List of Crosswalk objects
         self.signals = []  # List of Signal objects.
         self.lane_secs = []  # List of LaneSection objects.
         self.ref_line = []  # List of Curve objects defining reference line.
@@ -1102,6 +1102,28 @@ class Road:
 
         return road, allElements
 
+class Crosswalk:
+    def __init__(self, type_, subType, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines, markings): 
+        self.type_ = type_ #Unsure whether I should include type
+        self.subType = subType #Unsure whether I should include subType
+        self.id_ = id_
+        
+        self.s = s
+        self.t = t
+        self.zOffset = zOffset
+        self.orientation = orientation
+
+        self.length = length
+        self.width = width
+        self.hdg = hdg
+        self.pitch = pitch
+        self.roll = roll
+
+        self.outlines = []
+        self.markings = []
+
+    def is_valid(self):
+        return self.length > 0 and self.width > 0
 
 class Signal:
     """Traffic lights, stop signs, etc."""
@@ -1328,6 +1350,76 @@ class RoadMap:
                         RoadLink(road_id, c.connecting_id, contact, c.connecting_contact)
                     )
 
+    def __parse_crosswalk(self, crosswalk_elem):
+        '''
+            Parse Crosswalks
+               -Crosswalks are objects
+               -Objects are represented by <objects> element within the <road> element
+               -A single object is represented by the <object> element within <objects>: <objects> --> <object>
+               -Complex objects may be further described using <outline> elements
+                    -<object> --> <outlines> --> <outline>
+                    -<cornerRoad> and <cornerLocal> elements (mutually exlcusive) are mandatory elements within the <outline> element.
+                        -Corner points of an object that use s- and t-coordinates are represented by the <cornerRoad> element
+                -Marking describes the road marks of any objects like crosswalks
+                    -<markings> --> <marking>
+            '''
+
+        cw = Crosswalk(
+            type_ = crosswalk_elem.get("type"),
+            subType = crosswalk_elem.get("subType"),
+            id_ = crosswalk_elem.get("id"),
+            s = float(crosswalk_elem.get("s", 0.0)), #0.0 is default
+            t = float(crosswalk_elem.get("t", 0.0)),
+            zOffset = float(crosswalk_elem.get("zOffset", 0.0)),
+            orientation = crosswalk_elem.get("orientation"),
+            length = float(crosswalk_elem.get("length", 0.0)),
+            width = float(crosswalk_elem.get("width", 0.0)),
+            hdg = float(crosswalk_elem.get("hdg", 0.0)),
+            pitch = float(crosswalk_elem.get("pitch", 0.0)),
+            roll = float(crosswalk_elem.get("roll", 0.0)),
+            outlines = [],
+            markings = []
+        )
+
+        #Parse outlines
+        outlines_elem = crosswalk_elem.find("outlines") #Look for <outlines> tag inside the crosswalk object
+        if outlines_elem is not None:
+            for outline_elem in outlines_elem.iter("outline"): #Go through each individual outline 
+                corners = [] #Store the data for all the corner points of one outline
+                for corner_elem in outline_elem.iter("cornerRoad"): #Extract cornerRoad attributes and store each "cornerRoad"'s attributes as a dictionary
+                    corners.append({
+                        "dz": float(corner_elem.get("dz", 0.0)),
+                        "height": float(corner_elem.get("height", 0.0)),
+                        "id": int(corner_elem.get("id", 0.0)),
+                        "s": float(corner_elem.get("s", 0.0)),
+                        "t": float(corner_elem.get("t", 0.0)),
+                    })
+                cw.outlines.append(corners)
+        
+        #Parse markings
+        markings_elem = crosswalk_elem.find("markings") #Find all markings inside the crosswalk object and go through them in the for loop
+        if markings_elem is not None:
+            for marking_elem in markings_elems.iter("marking"): #Extract attributes and store in a dictionary
+                marking = {
+                    "color": marking_elem.get("color", "white"),
+                    "lineLength": float(marking_elem.get("lineLength", 0.0)),
+                    "side": marking_elem.get("side", "none"),
+                    "spaceLength": float(marking_elem.get("spaceLength", 0.0)),
+                    "startOffset": float(marking_elem.get("startOffset", 0.0)),
+                    "stopOffset": float(marking_elem.get("stopOffset", 0.0)),
+                    "weight": float(marking_elem.get("weight", 0.0)),
+                    "width": float(marking_elem.get("width", 0.0)),
+                    "zOffset": float(marking_elem.get("zOffset", 0.0)),
+                }
+
+                for corner_ref in marking_elem.iter("cornerReference"): #Loop through all the cornerReference elements inside marking and get IDs
+                    marking["cornerRefs"].append(int(corner_ref.get("id", 0)))
+
+                cw.markings.append(marking)
+        
+        return cw
+
+
     def __parse_signal_validity(self, validity_elem):
         if validity_elem is None:
             return None
@@ -1514,39 +1606,13 @@ class RoadMap:
             assert refLine
             road.ref_line = refLine
 
-
-            '''
-            Parsing Crosswalks
-               -Crosswalks are objects
-               -Objects are represented by <objects> element within the <road> element
-               -A single object is represented by the <object> element within <objects>
-               -Complex objects may be further described using <outline> elements
-            '''
-
-            objects_element = r.find("objects")
-            if objects_element is not None:
-                for obj in objects_element.iter("object"):
+            #Parse crosswalks
+            objects_elem = r.find("objects") #All the objects on the road
+            if objects_elem is not None:
+                for obj in objects_elem.iter("object"): #Go through each specific object and check if it is a crosswalk
                     if obj.get("type") == "crosswalk":
-                        cw = {
-                            "type": obj.get("type"),
-                            "subType": obj.get("subType"),
-                            "id": obj.get("id"),
-
-                            "s": float(obj.get("s", 0.0)), #0.0 is default
-                            "t": float(obj.get("t", 0.0)), #0.0 is default
-                            "zOffset": float(obj.get("zOffset", 0.0)), #0.0 is default
-                            "orientation": obj.get("orientation", "none"),
-
-                            "length": float(obj.get("length", 0.0)), #0.0 is default
-                            "width": float(obj.get("width", 0.0)), #0.0 is default
-                            "hdg": float(obj.get("hdg", 0.0)), #0.0 is default
-                            "pitch": float(obj.get("pitch", 0.0)), #0.0 is default
-                            "roll": float(obj.get("roll", 0.0)), #0.0 is default
-                        }
+                        cw = self.__parse_crosswalk(obj)
                         road.crosswalks.append(cw)
-
-
-
 
             # Parse lanes:
             lanes = r.find("lanes")
