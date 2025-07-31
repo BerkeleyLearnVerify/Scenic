@@ -1378,45 +1378,52 @@ class RoadMap:
             pitch = float(crosswalk_elem.get("pitch", 0.0)),
             roll = float(crosswalk_elem.get("roll", 0.0)),
             outlines = [],
-            markings = []
+            markings = [],
         )
 
-        #Parse outlines
-        outlines_elem = crosswalk_elem.find("outlines") #Look for <outlines> tag inside the crosswalk object
-        if outlines_elem is not None:
-            for outline_elem in outlines_elem.iter("outline"): #Go through each individual outline 
-                corners = [] #Store the data for all the corner points of one outline
-                for corner_elem in outline_elem.iter("cornerRoad"): #Extract cornerRoad attributes and store each "cornerRoad"'s attributes as a dictionary
-                    corners.append({
-                        "dz": float(corner_elem.get("dz", 0.0)),
-                        "height": float(corner_elem.get("height", 0.0)),
-                        "id": int(corner_elem.get("id", 0.0)),
-                        "s": float(corner_elem.get("s", 0.0)),
-                        "t": float(corner_elem.get("t", 0.0)),
-                    })
-                cw.outlines.append(corners)
-        
-        #Parse markings
-        markings_elem = crosswalk_elem.find("markings") #Find all markings inside the crosswalk object and go through them in the for loop
-        if markings_elem is not None:
-            for marking_elem in markings_elems.iter("marking"): #Extract attributes and store in a dictionary
-                marking = {
-                    "color": marking_elem.get("color", "white"),
-                    "lineLength": float(marking_elem.get("lineLength", 0.0)),
-                    "side": marking_elem.get("side", "none"),
-                    "spaceLength": float(marking_elem.get("spaceLength", 0.0)),
-                    "startOffset": float(marking_elem.get("startOffset", 0.0)),
-                    "stopOffset": float(marking_elem.get("stopOffset", 0.0)),
-                    "weight": float(marking_elem.get("weight", 0.0)),
-                    "width": float(marking_elem.get("width", 0.0)),
-                    "zOffset": float(marking_elem.get("zOffset", 0.0)),
-                }
+        #Parse outlines (fixed)
+        for outline_elem in crosswalk_elem.iter("outline"):
+            corners = []
+            for corner_elem in outline_elem.iter("cornerRoad"):
+                corners.append({
+                    "dz": float(corner_elem.get("dz", 0.0)),
+                    "height": float(corner_elem.get("height", 0.0)),
+                    "id": int(corner_elem.get("id", 0.0)),
+                    "s": float(corner_elem.get("s", 0.0)),
+                    "t": float(corner_elem.get("t", 0.0)),
+                })
 
-                for corner_ref in marking_elem.iter("cornerReference"): #Loop through all the cornerReference elements inside marking and get IDs
-                    marking["cornerRefs"].append(int(corner_ref.get("id", 0)))
+            for corner_elem in outline_elem.iter("cornerLocal"):
+                corners.append({
+                    "height": float(corner_elem.get("height", 0.0)),
+                    "id": int(corner_elem.get("id", 0.0)),
+                    "u": float(corner_elem.get("u", 0.0)),
+                    "v": float(corner_elem.get("v", 0.0)),
+                    "z": float(corner_elem.get("z", 0.0)),
+                })
 
-                cw.markings.append(marking)
+            cw.outlines.append(corners)
         
+        #Parse markings (fixed)
+        for marking_elem in crosswalk_elem.iter("marking"):
+            marking = {
+                "color": marking_elem.get("color", "white"),
+                "lineLength": float(marking_elem.get("lineLength", 0.0)),
+                "side": marking_elem.get("side", "none"),
+                "spaceLength": float(marking_elem.get("spaceLength", 0.0)),
+                "startOffset": float(marking_elem.get("startOffset", 0.0)),
+                "stopOffset": float(marking_elem.get("stopOffset", 0.0)),
+                "weight": float(marking_elem.get("weight", 0.0)),
+                "width": float(marking_elem.get("width", 0.0)),
+                "zOffset": float(marking_elem.get("zOffset", 0.0)),
+            }
+
+            marking["cornerRefs"] = []
+            for corner_ref in marking_elem.iter("cornerReference"): #Loop through all the cornerReference elements inside marking and get IDs
+                marking["cornerRefs"].append(int(corner_ref.get("id", 0)))
+
+            cw.markings.append(marking)
+
         return cw
 
 
