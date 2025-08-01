@@ -45,12 +45,11 @@ class DrivingSimulation(Simulation):
             lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
     
-    def getPurePursuitControllers(self, agent):
+    def getPurePursuitControllers(self, agent, cl = 4.5, ld = 7, clwbr = 0.65):
         dt = self.timestep
 
-        #just assuming this is a car for development
         lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = PurePursuitLateralController(dt = dt)
+        lat_controller = PurePursuitLateralController(cl = 4.5, ld = 7, dt = dt, clwbr = 0.65)
 
         return lon_controller, lat_controller
     
