@@ -59,9 +59,18 @@ class Car(Vehicle, Steers):
         return True
 
 class Pedestrian(Pedestrian, NewtonianActor, Walks):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.control = {'heading': None, 'speed': None}
+
+    def setWalkingDirection(self, heading):
+        self.control['heading'] = heading
+
+    def setWalkingSpeed(self, speed):
+        self.control['speed'] = speed
 
 class Debris:
     """Abstract class for debris scattered randomly in the workspace."""
     position: new Point in workspace
     yaw: Range(0, 360) deg
+
