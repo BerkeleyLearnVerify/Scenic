@@ -21,11 +21,17 @@ behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
 
-behavior DriveAvoidingCollisions(_lon_controller, _lat_controller, target_speed=25, avoidance_threshold=10):
+behavior DriveAvoidingCollisions(lon_controller = None, lat_controller = None, target_speed=25, avoidance_threshold=10):
+    _lon_controller = lon_controller
+    _lat_controller = lat_controller
     try:    
         do FollowLaneBehavior(_lon_controller, _lat_controller, target_speed=target_speed)
     interrupt when self.distanceToClosest(_model.Vehicle) <= avoidance_threshold:
-        take SetThrottleAction(0), SetBrakeActioakeAction(False), SetThrottleAction(0.5)
+        take SetThrottleAction(0), SetBrakeAction(1)
+
+behavior AccelerateForwardBehavior():
+    take SetReverseAction(False), SetHandBrakeAction(False), SetThrottleAction(0.5)
+    take SetThrottleAction(0), SetHandBrakeAction(False), SetThrottleAction(0.5)
 
 behavior WalkForwardBehavior():
     """Walk forward behavior for pedestrians.
@@ -41,7 +47,7 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
-behavior FollowLaneBehavior(_lon_controller = None, _lat_controller = None, target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
+behavior FollowLaneBehavior(lon_controller = None, lat_controller = None, target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
     """
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
@@ -56,15 +62,14 @@ behavior FollowLaneBehavior(_lon_controller = None, _lat_controller = None, targ
     """
 
     #Initializing controllers to default if not specified
-    if _lon_controller is None or _lat_controller is None:
+    if lon_controller is None or lat_controller is None:
         default_lon_controller, default_lat_controller = simulation().getPurePursuitControllers(self)
 
-        if _lon_controller is None:
-            _lon_controller = default_lon_controller
+        if lon_controller is None:
+            lon_controller = default_lon_controller
 
-            _lon_controller = 
-        if _lat_controller is None:
-            _lat_controller = default_lat_controller
+        if lat_controller is None:
+            lat_controller = default_lat_controller
 
     
     past_steer_angle = 0
@@ -141,24 +146,23 @@ behavior FollowLaneBehavior(_lon_controller = None, _lat_controller = None, targ
             entering_intersection = False
             target_speed = original_target_speed
 
-            if _lon_controller is None or _lat_controller is None:
+            if lon_controller is None or lat_controller is None:
                 default_lon_controller, default_lat_controller = simulation().getPurePursuitControllers(self)
 
-                if _lon_controller is None:
-                    _lon_controller = default_lon_controller
+                if lon_controller is None:
+                    lon_controller = default_lon_controller
 
-                    _lon_controller = 
-                if _lat_controller is None:
-                    _lat_controller = default_lat_controller
+                if lat_controller is None:
+                    lat_controller = default_lat_controller
 
 
         speed_error = target_speed - current_speed
 
         # compute throttle : Longitudinal Control
-        throttle = _lon_controller.run_step(speed_error)
+        throttle = lon_controller.run_step(speed_error)
 
         # compute steering : Lateral Control
-        current_steer_angle = _lat_controller.run_step(current_centerline, self, is_oppositeTraffic)
+        current_steer_angle = lat_controller.run_step(current_centerline, self, is_oppositeTraffic)
 
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
@@ -167,7 +171,7 @@ behavior FollowLaneBehavior(_lon_controller = None, _lat_controller = None, targ
         #plot code starts here
 
 
-behavior FollowTrajectoryBehavior(_lon_controller = None, _lat_controller = None, target_speed = 10, trajectory = None, turn_speed=None):
+behavior FollowTrajectoryBehavior(lon_controller = None, lat_controller = None, target_speed = 10, trajectory = None, turn_speed=None):
     """
     Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
 
@@ -186,7 +190,10 @@ behavior FollowTrajectoryBehavior(_lon_controller = None, _lat_controller = None
     traj_centerline = [traj.centerline for traj in trajectory]
     trajectory_centerline = concatenateCenterlines(traj_centerline)
 
-    do.FollowLaneBehavior(_lon_controller = _lon_controller, _lat_controller = _lat_controller, target_speed = target_speed, laneToFollow = traj_centerline)
+    _lon_controller = lon_controller
+    _lat_controller = lat_controller
+
+    do FollowLaneBehavior(lon_controller = _lon_controller, lat_controller = _lat_controller, target_speed = target_speed, laneToFollow = traj_centerline)
 
 
 
@@ -203,7 +210,7 @@ behavior TurnBehavior(trajectory, target_speed=6):
         trajectory_centerline = concatenateCenterlines([traj.centerline for traj in trajectory])
 
     # instantiate longitudinal and lateral controllers
-    _lon_controller, _lat_controller = simulation().getTurningControllers(self)
+    lon_controller, lat_controller = simulation().getTurningControllers(self)
 
     past_steer_angle = 0
 
@@ -217,10 +224,10 @@ behavior TurnBehavior(trajectory, target_speed=6):
         speed_error = target_speed - current_speed
 
         # compute throttle : Longitudinal Control
-        throttle = _lon_controller.run_step(speed_error)
+        throttle = lon_controller.run_step(speed_error)
 
         # compute steering : Latitudinal Control
-        current_steer_angle = _lat_controller.run_step(cte)
+        current_steer_angle = lat_controller.run_step(cte)
 
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
@@ -249,7 +256,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
         nearby_intersection = current_lane.centerline[-1]
 
     # instantiate longitudinal and lateral controllers
-    _lon_controller, _lat_controller = simulation().getLaneChangingControllers(self)
+    lon_controller, lat_controller = simulation().getLaneChangingControllers(self)
 
     past_steer_angle = 0
 
@@ -294,10 +301,10 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
         speed_error = target_speed - current_speed
 
         # compute throttle : Longitudinal Control
-        throttle = _lon_controller.run_step(speed_error)
+        throttle = lon_controller.run_step(speed_error)
 
         # compute steering : Latitudinal Control
-        current_steer_angle = _lat_controller.run_step(cte)
+        current_steer_angle = lat_controller.run_step(cte)
 
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle

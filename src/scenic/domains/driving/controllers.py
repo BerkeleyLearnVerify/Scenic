@@ -13,7 +13,7 @@ which are licensed under the following terms:
 """
 
 from collections import deque
-from math import sin
+import math
 
 import numpy as np
 
@@ -134,10 +134,10 @@ class PurePursuitLateralController:
         ld: lookahead distance
         dt: time step
         cl: car length
-        clbwr: car length to wheel base ratio
+        clwbr: car length to wheel base ratio
     """
 
-    def __init__(self, cl = 4.5, ld = 7, dt = 0.1, clwbr = 0.65):
+    def __init__(self, cl, ld = 7, dt = 0.1, clwbr = 0.65):
         """
         Todo:
             find the actual wheelbase and update the default number
@@ -146,8 +146,10 @@ class PurePursuitLateralController:
         """
         self.dt = dt 
         self.wb = cl * clwbr
+        self.clwbr = clwbr
         self.ld = ld
         self.past_cte = 0
+        self.max_steering_angle = np.arctan((2 * self.wb) / self.ld)
 
     def run_step(self, input_trajectory, ego, opposite_traffic):
         """Estimate the steering angle of the vehicle based on the pure pursuit equations.
@@ -171,7 +173,7 @@ class PurePursuitLateralController:
         lookahead_distance = self.ld
         circlular_region = CircularRegion(ego.position, lookahead_distance, resolution = 64)
         polyline_circle = circlular_region.boundary
-        shapely_boundary = polyline_circle.lineString # extract shapley circle and shapely path
+        shapely_boundary = polyline_circle.lineString # extract shapely circle and shapely path
         line = input_trajectory.lineString
         distance = input_trajectory.lineString.project(ShapelyPoint(ego.position.coordinates[0], ego.position.coordinates[1]))
         coords = []
@@ -184,17 +186,17 @@ class PurePursuitLateralController:
 
         # Splitting the path into two parts, the part in front of the ego and behind it
 
-        output = []
+        split_trajectory = []
         for j, p in enumerate(coords):
             pd = line.project(ShapelyPoint(p[0], p[1]))
             if pd == distance:
-                output = [
+                split_trajectory = [
                     LineString(coords[:j+1]),
                     LineString(coords[j:])]
                 break
             if pd > distance:
                 cp = line.interpolate(distance)
-                output = [
+                split_trajectory = [
                     LineString(coords[:j] + [(cp.x, cp.y, 0)]),
                     LineString([(cp.x, cp.y, 0)] + coords[j:])]
                 break
@@ -202,12 +204,14 @@ class PurePursuitLateralController:
 
         # Get intersection points of the circle with the second half of the path
 
-        shapely_intersection = shapely_boundary.intersection(output[1])
-        candidate_points = []
+        shapely_intersection = shapely_boundary.intersection(split_trajectory[1])
+
         if isinstance(shapely_intersection, ShapelyPoint):
             candidate_points = [shapely_intersection]
         elif isinstance(shapely_intersection, MultiPoint):
             candidate_points = list(shapely_intersection.geoms)
+        else:
+            candidate_points = []
         assert all(isinstance(p, ShapelyPoint) for p in candidate_points)
 
 
@@ -220,31 +224,21 @@ class PurePursuitLateralController:
             # Pure Pursuit is a self correcting algorithm so it should be fine
             cte = self.past_cte
         else:
+            candidate_points.sort(key=lambda point: split_trajectory[1].project(ShapelyPoint(point.x, point.y)))
             lookahead_point = candidate_points[0]
-            best_distance = output[1].project(ShapelyPoint(candidate_points[0].x, candidate_points[0].y))
-            if len(candidate_points) > 1:
-                for point in candidate_points:
-                    point_distance = output[1].project(ShapelyPoint(point.x, point.y))
-                    if point_distance < distance:
-                        lookahead_point = point
-                        best_distance = point_distance
 
 
             # Find the theta value/cte to feed to the pure pursuit algorithm
             
             theta = math.atan2(lookahead_point.y - ego.position.coordinates[1], lookahead_point.x - ego.position.coordinates[0])
-            cte = (self.heading + math.pi/2) - theta
+            cte = (ego.heading + math.pi/2) - theta
             self.past_cte = cte
         
         if opposite_traffic:
             cte = -1 * cte
 
-        # done
-
-        rv = np.arctan((2 * self.wb * sin(cte)) / self.ld)
+        # perform pure pursuit calculation and normalize it from -1 to 1
+        steering_angle = np.arctan((2 * self.wb * math.sin(cte)) / self.ld)
+        rv = steering_angle / self.max_steering_angle
 
         return rv
-
-
-        
-

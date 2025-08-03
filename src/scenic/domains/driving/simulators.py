@@ -49,7 +49,7 @@ class DrivingSimulation(Simulation):
         dt = self.timestep
 
         lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = PurePursuitLateralController(cl = 4.5, ld = 7, dt = dt, clwbr = 0.65)
+        lat_controller = PurePursuitLateralController(cl = agent.length, ld = 7, dt = dt, clwbr = 0.65)
 
         return lon_controller, lat_controller
     

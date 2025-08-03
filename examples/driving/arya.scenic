@@ -20,10 +20,9 @@ model scenic.domains.driving.model
 behavior PullIntoRoad():
     while (distance from self to ego) > 15:
         wait
-    _lon_controller, _lat_controller = simulation().getPurePursuitControllers()
-    do FollowLaneBehavior(_lon_controller, _lat_controller, laneToFollow=ego.lane)
+    do FollowLaneBehavior(laneToFollow=ego.lane)
 
-ego = new Car with behavior DriveAvoidingCollisions(_lon_controller, _lat_controller, avoidance_threshold=5, pure_pursuit=True, plot=True)
+ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 
 rightCurb = ego.laneGroup.curb
 spot = new OrientedPoint on visible rightCurb
@@ -43,4 +42,4 @@ monitor StopAfterInteraction():
         wait
     terminate
 require monitor StopAfterInteraction()
-terminate after 15 seconds   # in case ego never breaks
+terminate after 30 seconds   # in case ego never breaks
