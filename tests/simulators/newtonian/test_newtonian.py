@@ -6,7 +6,8 @@ import pytest
 
 from scenic.domains.driving.roads import Network
 from scenic.simulators.newtonian import NewtonianSimulator
-from tests.utils import pickle_test, sampleScene, tryPickling
+from tests.conftest import getAssetPath
+from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
 def test_basic(loadLocalScenario):
@@ -61,18 +62,48 @@ def test_pickle(loadLocalScenario):
     assert egoPos.distanceTo(otherPos) < 1
 
 
-def test_pedestrian_movement(loadLocalScenario):
-    scenario = loadLocalScenario("pedestrian.scenic", mode2D=True)
+def test_pedestrian_movement(getAssetPath):
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+
+    code = f"""
+    param map = r'{mapPath}'
+    param render = False
+    model scenic.simulators.newtonian.driving_model
+
+    behavior Walk():
+        take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(1)
+
+    ped = new Pedestrian with regionContainedIn None,
+        with behavior Walk()
+
+    record initial ped.position as InitialPos
+    record final ped.position as FinalPos
+    terminate after 8 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
     scene, _ = scenario.generate(maxIterations=1)
     simulator = NewtonianSimulator()
     simulation = simulator.simulate(scene, maxSteps=8)
     init = simulation.result.records["InitialPos"]
     fin = simulation.result.records["FinalPos"]
-    assert init != fin, "Pedestrian did not move."
+    assert init.distanceTo(fin) > 0.1, "Pedestrian did not move."
 
 
-def test_pedestrian_velocity_vector(loadLocalScenario):
-    scenario = loadLocalScenario("pedestrian_velocity.scenic", mode2D=True)
+def test_pedestrian_velocity_vector(getAssetPath):
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+
+    code = f"""
+    param render = False
+    param map = r'{mapPath}'
+    model scenic.simulators.newtonian.driving_model
+
+    ped = new Pedestrian on sidewalk, with velocity (1, 1)
+
+    record initial ped.position as InitialPos
+    record final ped.position as FinalPos
+    terminate after 8 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
     scene, _ = scenario.generate(maxIterations=1)
     simulator = NewtonianSimulator()
     simulation = simulator.simulate(scene, maxSteps=8)
