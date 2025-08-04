@@ -10,7 +10,10 @@ import scenic.domains.driving.model as _model
 from scenic.domains.driving.roads import ManeuverType
 
 def concatenateCenterlines(centerlines=[]):
-    return PolylineRegion.unionAll(centerlines)
+    if isinstance(centerlines[0], PathRegion):
+        return PathRegion(polylines=centerlines)
+    else:
+        return PolylineRegion.unionAll(centerlines)
 
 behavior ConstantThrottleBehavior(x):
     while True:
