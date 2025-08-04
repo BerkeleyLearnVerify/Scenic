@@ -917,17 +917,17 @@ class Road:
                         lane_shape[id_]
                     ),
                     centerline=(
-                        PathRegion(cleanChain(center))
+                        PathRegion(points=cleanChain(center))
                         if not use2DMap
                         else PolylineRegion(cleanChain(center))
                     ),
                     leftEdge=(
-                        PathRegion(cleanChain(left))
+                        PathRegion(points=cleanChain(left))
                         if not use2DMap
                         else PolylineRegion(cleanChain(left))
                     ),
                     rightEdge=(
-                        PathRegion(cleanChain(right))
+                        PathRegion(points=cleanChain(right))
                         if not use2DMap
                         else PolylineRegion(cleanChain(right))
                     ),
@@ -947,17 +947,17 @@ class Road:
                 id=f"road{self.id_}_sec{len(roadSections)}",
                 polygon=sec_shape,
                 centerline=(
-                    PathRegion(cleanChain(pts))
+                    PathRegion(points=cleanChain(pts))
                     if not use2DMap
                     else PolylineRegion(cleanChain(pts))
                 ),
                 leftEdge=(
-                    PathRegion(cleanChain(sec.left_edge))
+                    PathRegion(points=cleanChain(sec.left_edge))
                     if not use2DMap
                     else PolylineRegion(cleanChain(sec.left_edge))
                 ),
                 rightEdge=(
-                    PathRegion(cleanChain(sec.right_edge))
+                    PathRegion(points=cleanChain(sec.right_edge))
                     if not use2DMap
                     else PolylineRegion(cleanChain(sec.right_edge))
                 ),
@@ -1008,12 +1008,12 @@ class Road:
                     leftPoints.extend(reversed(rightSec.right_bounds))
                     rightPoints.extend(reversed(leftSec.left_bounds))
             leftEdge = (
-                PathRegion(cleanChain(leftPoints))
+                PathRegion(points=cleanChain(leftPoints))
                 if not use2DMap
                 else PolylineRegion(cleanChain(leftPoints))
             )
             rightEdge = (
-                PathRegion(cleanChain(rightPoints))
+                PathRegion(points=cleanChain(rightPoints))
                 if not use2DMap
                 else PolylineRegion(cleanChain(rightPoints))
             )
@@ -1031,7 +1031,7 @@ class Road:
                     r = rightEdge.lineString.interpolate(d, normalized=True)
                     centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
             centerline = (
-                PathRegion(cleanChain(centerPoints))
+                PathRegion(points=cleanChain(centerPoints))
                 if not use2DMap
                 else PolylineRegion(cleanChain(centerPoints))
             )
@@ -1203,17 +1203,17 @@ class Road:
                             else section.centerline.points
                         )
                     leftEdge = (
-                        PathRegion(cleanChain(leftPoints))
+                        PathRegion(points=cleanChain(leftPoints))
                         if not use2DMap
                         else PolylineRegion(cleanChain(leftPoints))
                     )
                     rightEdge = (
-                        PathRegion(cleanChain(rightPoints))
+                        PathRegion(points=cleanChain(rightPoints))
                         if not use2DMap
                         else PolylineRegion(cleanChain(rightPoints))
                     )
                     centerline = (
-                        PathRegion(cleanChain(centerPoints))
+                        PathRegion(points=cleanChain(centerPoints))
                         if not use2DMap
                         else PolylineRegion(cleanChain(centerPoints))
                     )
@@ -1262,7 +1262,7 @@ class Road:
                 )
                 current = current._successor
             leftEdge = (
-                PathRegion(cleanChain(leftPoints))
+                PathRegion(points=cleanChain(leftPoints))
                 if not use2DMap
                 else PolylineRegion(cleanChain(leftPoints))
             )
@@ -1276,7 +1276,7 @@ class Road:
                 )
                 current = current._successor
             rightEdge = (
-                PathRegion(cleanChain(rightPoints))
+                PathRegion(points=cleanChain(rightPoints))
                 if not use2DMap
                 else PolylineRegion(cleanChain(rightPoints))
             )
@@ -1354,7 +1354,7 @@ class Road:
         else:
             leftEdge = forwardGroup.leftEdge
         centerline = (
-            PathRegion(tuple(pt[:3] for pt in self.ref_line_points))
+            PathRegion(points=tuple(pt[:3] for pt in self.ref_line_points))
             if not use2DMap
             else PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
         )  # Changed from pt[:2] to pt[:3] (Might need to change this)
