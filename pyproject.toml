@@ -64,7 +64,7 @@ test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest-cov >= 3.0.0",
 	"pytest-randomly ~= 3.2",
 ]
-test-full-without-metadrive = [  # like 'test', but adds optional dependencies excluding MetaDrive (for Python ≥ 3.12)
+test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
 	"astor >= 0.8.1",
@@ -72,15 +72,13 @@ test-full-without-metadrive = [  # like 'test', but adds optional dependencies e
 	"dill",
 	"exceptiongroup",
 	"inflect ~= 5.5",
+	'metadrive-simulator >= 0.4.3; python_version <= "3.11"',  # listed directly (not scenic[metadrive]) to work around tox issue that ignored the python_version<=3.11 guard
 	"pygments ~= 2.11",
 	"sphinx >= 6.2.0, <8",
 	"sphinx_rtd_theme >= 0.5.2",
 	"sphinx-tabs ~= 3.4.1",
+	'sumolib >= 1.21.0; python_version <= "3.11"',  # required for MetaDrive
 	"verifai >= 2.1.0b1",
-]
-test-full = [  # like 'test-full-without-metadrive', but also includes MetaDrive (only for Python ≤ 3.11)
-	"scenic[test-full-without-metadrive]",
-	'scenic[metadrive]; python_version <= "3.11"',  # MetaDrive only supports Python ≤ 3.11; excluded for newer versions
 ]
 dev = [
 	"scenic[test-full]",
