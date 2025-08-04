@@ -1,23 +1,34 @@
-# src/scenic/simulators/robosuite/model.scenic
-
 """Scenic world model for RoboSuite simulator."""
 
 from .simulator import RobosuiteSimulator
 
-# Simulator
-simulator RobosuiteSimulator(render=True, real_time=False, speed=1.0)
-
-# Global parameters
+# Global parameters with defaults
 param use_environment = None
 param env_config = {}
 param controller_config = None
+param camera_view = None
+param render = True
+param real_time = True  # Default: real-time ON
+param speed = 1.0
 
-# Base class
+# Simulator - uses parameters from above
+simulator RobosuiteSimulator(
+    render=globalParameters.render,
+    real_time=globalParameters.real_time,
+    speed=globalParameters.speed,
+    use_environment=globalParameters.use_environment,
+    env_config=globalParameters.env_config,
+    controller_config=globalParameters.controller_config,
+    camera_view=globalParameters.camera_view
+)
+
+# Base class  
 class RoboSuiteObject(Object):
     density: 1000
     friction: (1.0, 0.005, 0.0001)
     solref: (0.02, 1.0)
     solimp: (0.9, 0.95, 0.001, 0.5, 2.0)
+    shape: BoxShape()  # Default shape
 
 # Objects
 class XMLObject(RoboSuiteObject):
@@ -40,6 +51,22 @@ class Cylinder(RoboSuiteObject):
     width: 0.05
     height: 0.1
     color: (0.2, 0.2, 0.8)
+
+# Environment-specific objects
+class LiftCube(Cube):
+    """Cube in Lift environment."""
+    envObjectName: "cube"  # Public attribute
+    allowCollisions: True
+
+class StackCubeA(Cube):
+    """First cube in Stack environment."""
+    envObjectName: "cubeA"  # Public attribute
+    allowCollisions: True
+
+class StackCubeB(Cube):
+    """Second cube in Stack environment."""
+    envObjectName: "cubeB"  # Public attribute
+    allowCollisions: True
 
 # Robots
 class Robot(RoboSuiteObject):
@@ -67,6 +94,12 @@ class SawyerRobot(Robot):
     gripper_type: "RethinkGripper"
     initial_qpos: [0, -0.785, 0, 1.571, 0, -0.785, 0]
     height: 1.0
+
+class UR5eRobot(Robot):
+    robot_type: "UR5e"
+    gripper_type: "Robotiq85Gripper"
+    initial_qpos: None  # Use default
+    height: 0.85
 
 # Arenas
 class Arena(RoboSuiteObject):
@@ -142,7 +175,7 @@ behavior RobustLiftBehavior():
     
     # Move above object
     for step in range(100):
-        obs = sim._current_obs
+        obs = sim.getCurrentObservation()
         if not obs or 'cube_pos' not in obs or 'robot0_eef_pos' not in obs:
             wait; continue
         
@@ -159,7 +192,7 @@ behavior RobustLiftBehavior():
     
     # Move down
     for step in range(80):
-        obs = sim._current_obs
+        obs = sim.getCurrentObservation()
         if not obs or 'cube_pos' not in obs or 'robot0_eef_pos' not in obs:
             wait; continue
         
@@ -180,7 +213,7 @@ behavior RobustLiftBehavior():
     
     # Lift
     for step in range(100):
-        obs = sim._current_obs
+        obs = sim.getCurrentObservation()
         if not obs or 'cube_pos' not in obs or 'robot0_eef_pos' not in obs:
             wait; continue
         
