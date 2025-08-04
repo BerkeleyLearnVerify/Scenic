@@ -3,6 +3,8 @@ on:
   issues:
     types: [opened]
 
+permissions: {}
+
 jobs:
     generate-issue-link:
         runs-on: ubuntu-latest

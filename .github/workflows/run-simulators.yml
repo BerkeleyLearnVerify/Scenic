@@ -4,6 +4,8 @@ on:
   # portal of the repo!!! Do not modify this workflow's trigger!
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
     start_ec2_instance:
       name: start_ec2_instance
