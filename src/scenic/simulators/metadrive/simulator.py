@@ -8,7 +8,9 @@ except ImportError as e:
         "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
     ) from e
 
+from datetime import datetime
 import logging
+import os
 import sys
 import time
 
@@ -32,6 +34,9 @@ class MetaDriveSimulator(DrivingSimulator):
         render=True,
         render3D=False,
         real_time=True,
+        screen_record=False,
+        screen_record_filename=None,
+        screen_record_path="metadrive_gifs",
     ):
         super().__init__()
         self.render = render
@@ -40,7 +45,21 @@ class MetaDriveSimulator(DrivingSimulator):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
+        self.screen_record = screen_record
+        self.screen_record_filename = screen_record_filename
+        self.screen_record_path = screen_record_path
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+
+        if self.screen_record and self.render3D:
+            raise SimulationCreationError(
+                "screen_record=True requires 2D rendering: set render3D=False."
+            )
+
+        if self.screen_record and not self.render:
+            raise SimulationCreationError(
+                "screen_record=True requires rendering to be enabled: set render=True."
+            )
+
         if self.render and not self.render3D:
             self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
         else:
@@ -56,6 +75,9 @@ class MetaDriveSimulator(DrivingSimulator):
             timestep=self.timestep,
             sumo_map=self.sumo_map,
             real_time=self.real_time,
+            screen_record=self.screen_record,
+            screen_record_filename=self.screen_record_filename,
+            screen_record_path=self.screen_record_path,
             scenic_offset=self.scenic_offset,
             sumo_map_boundary=self.sumo_map_boundary,
             film_size=self.film_size,
@@ -73,6 +95,9 @@ class MetaDriveSimulation(DrivingSimulation):
         timestep,
         sumo_map,
         real_time,
+        screen_record,
+        screen_record_filename,
+        screen_record_path,
         scenic_offset,
         sumo_map_boundary,
         film_size,
@@ -95,6 +120,9 @@ class MetaDriveSimulation(DrivingSimulation):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
+        self.screen_record = screen_record
+        self.screen_record_filename = screen_record_filename
+        self.screen_record_path = screen_record_path
         self.scenic_offset = scenic_offset
         self.sumo_map_boundary = sumo_map_boundary
         self.film_size = film_size
@@ -207,7 +235,11 @@ class MetaDriveSimulation(DrivingSimulation):
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
             self.client.render(
-                mode="topdown", semantic_map=True, film_size=self.film_size, scaling=5
+                mode="topdown",
+                semantic_map=True,
+                film_size=self.film_size,
+                scaling=5,
+                screen_record=self.screen_record,
             )
 
         # If real-time synchronization is enabled, sleep to maintain real-time pace
@@ -218,6 +250,17 @@ class MetaDriveSimulation(DrivingSimulation):
                 time.sleep(self.timestep - elapsed_time)
 
     def destroy(self):
+        if self.screen_record:
+            filename = self.screen_record_filename or datetime.now().strftime(
+                "%Y%m%d_%H%M%S"
+            )
+            if not filename.endswith(".gif"):
+                filename += ".gif"
+            path = os.path.join(self.screen_record_path, filename)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            print(f"Saving screen recording to {path}")
+            self.client.top_down_renderer.generate_gif(path)
+
         if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
             if object_ids:
