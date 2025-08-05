@@ -24,8 +24,8 @@ def main(path):
                 print(f"length: {cw.length:.2f}")
                 print(f"width: {cw.width:.2f}")
                 print(f"hdg: {cw.hdg:.2f}")
-                print(f"pitch: {cw.pitch:.2f}")
-                print(f"roll: {cw.roll:.2f}")
+                print(f"pitch: {cw.pitch:.8f}")
+                print(f"roll: {cw.roll:.8f}")
 
                 print(f"outlines: {cw.outlines}")
                 print(f"markings: {len(cw.markings)}")
