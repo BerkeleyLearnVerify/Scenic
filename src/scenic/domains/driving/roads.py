@@ -1133,13 +1133,8 @@ class Network:
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
             if self.use2DMap==0:
-                # NEED TO FIX: this is not correct for 3D maps
-                # 1. collect all the 3D point arrays from each PathRegion
                 vertex_lists = [edge.vertices for edge in edges]
-                # 2. stack them into one big (N×3) array
-                all_vertices = np.vstack(vertex_lists)
-                # 3. build a single PathRegion from that
-                self.curbRegion = PathRegion(points=all_vertices) 
+                self.curbRegion = PathRegion(polylines=vertex_lists)
             else:
                 self.curbRegion = PolylineRegion.unionAll(edges)
 

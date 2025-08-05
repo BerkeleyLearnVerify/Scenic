@@ -220,7 +220,7 @@ behavior TurnBehavior(trajectory, target_speed=6):
     it will terminate if the vehicle is outside of an intersection.
     """
 
-    if isinstance(trajectory, PolylineRegion):
+    if isinstance(trajectory, PolylineRegion) or isinstance(trajectory, PathRegion):
         trajectory_centerline = trajectory
     else:
         trajectory_centerline = concatenateCenterlines([traj.centerline for traj in trajectory])
