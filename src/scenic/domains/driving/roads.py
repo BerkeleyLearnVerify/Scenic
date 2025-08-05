@@ -1139,7 +1139,7 @@ class Network:
                 # 2. stack them into one big (N×3) array
                 all_vertices = np.vstack(vertex_lists)
                 # 3. build a single PathRegion from that
-                self.curbRegion = PathRegion(all_vertices) 
+                self.curbRegion = PathRegion(points=all_vertices) 
             else:
                 self.curbRegion = PolylineRegion.unionAll(edges)
 

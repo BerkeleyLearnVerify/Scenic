@@ -2707,7 +2707,7 @@ class PathRegion(Region):
         If the region consists of multiple polylines, this order is linear
         along each polyline but arbitrary across different polylines.
         """
-        return Vector(*self.points[i])
+        return self.vertices[i]
 
     def uniformPointInner(self):
         # Pick an edge, weighted by length, and extract its two points
