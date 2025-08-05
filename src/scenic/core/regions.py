@@ -2701,6 +2701,19 @@ class PathRegion(Region):
             tuple(numpy.amax(self.vertices, axis=0)),
         )
     
+    @distributionMethod
+    def signedDistanceTo(self, point) -> float:
+        """Compute the signed distance of the PathRegion to a point.
+
+        The distance is positive if the point is left of the nearest segment,
+        and negative otherwise.
+        """
+        dist = self.distanceTo(point)
+        start, end = self.nearestSegmentTo(point)
+        rp = point - start
+        tangent = end - start
+        return dist if tangent.angleWith(rp) >= 0 else -dist
+
     def __getitem__(self, i) -> Vector:
         """Get the ith point along this polyline.
 
