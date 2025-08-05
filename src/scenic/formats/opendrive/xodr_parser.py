@@ -1101,6 +1101,69 @@ class Road:
                 del sec._original_lane
 
         return road, allElements
+    
+
+    def xyz_heading_at_s(self, s):
+        '''
+        -s-axis follows the tangent of the road reference line
+        -Each individual curve has a local s-axis coordinate system
+            -0 at the start of the curve
+            -length of the curve at the end of the curve
+
+        -This function converts a global s-coordinate to x,y,z and returns the heading as well
+            -x,y,z
+                -Need to find the curve that the s-coordinate is on
+                    -Iterate through each curve and check if the s-coordinate is within the curve
+                    -Accumulate length of the curves
+                    -Stop once cumulative length + curve length is greater than or equal to s
+            -heading
+                -Orientation of the road center-line (which way its facing)
+                -Lateral offset i.e, left/right depend on which way the road object is facing
+        '''
+        
+        cumalative_curve_length = 0.0 #Accumulate length of the curves
+
+        for curve in self.ref_line: #Iterate through each curve in the road reference line (self.ref_line --> list of curves)
+            if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on; epsilon margin to allow for numerical error
+                local_s = s - cumalative_curve_length #Figure out the local s-coordinate on the curve (how many units into the curve are we?)
+                x,y,z = curve.point_at(local_s) #Get the x,y,z position
+
+                '''
+                -For a more general use-case we need to calculate heading as shown below. 
+                -Crosswalk object already has a heading attribute so we comment out calculating the heading
+                    -When left uncommented an IndexError: list index out of range was raised
+                '''
+                # heading = self.heading_at(Point(x,y)) #Orientation of the road center-line (which way its facing). This is for a more general use-case 
+                # return (x,y,z), heading
+
+                return (x,y,z)
+          
+            cumalative_curve_length = cumalative_curve_length + curve.length #Update cumulative length of curves until we find the right curve
+        
+        #If we get to the end of the road reference line, we need to get the heading of the last curve
+        x,y,z = self.ref_line[-1].point_at(self.ref_line[-1].length)
+
+        '''
+        -For a more general use-case we need to calculate heading as shown below. 
+        -Crosswalk object already has a heading attribute so we comment out calculating the heading
+            -When left uncommented an IndexError: list index out of range was raised
+        '''
+        # heading = self.heading_at(Point(x, y))
+        # return (x, y, z), heading
+
+        return (x,y,z)
+
+
+    def st_to_xyz(self, s, t, h, heading):
+        (x_ref, y_ref, z_ref) = self.xyz_heading_at_s(s) #Only use centerline position. Ignore heading for testing purposes
+
+        #Use t and heading to figure out whether to go left or right from centerline
+        x = x_ref - t * math.sin(heading)
+        y = y_ref + t * math.cos(heading)
+        z = z_ref + h #Height offset
+
+        return (x,y,z)
+
 
 class Crosswalk:
     def __init__(self, type_, subType, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines, markings): 

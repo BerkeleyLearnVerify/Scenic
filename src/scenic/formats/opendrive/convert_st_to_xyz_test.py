@@ -1,6 +1,8 @@
 import sys
+import math
 
 from scenic.formats.opendrive import xodr_parser
+
 
 def main(path):
     road_map = xodr_parser.RoadMap() #Create an instance of the RoadMap class. Empty for now
@@ -13,23 +15,32 @@ def main(path):
 
             for cw in road.crosswalks: #road.crosswalks gets appended to in xodr_parser
                 #print(f"type: {cw.type_}")
-                print(f"subType: {cw.subType}")
+                #print(f"subType: {cw.subType}")
                 print(f"id: {cw.id_}")
 
                 print(f"s: {cw.s:.2f}")
                 print(f"t: {cw.t:.2f}")
                 print(f"zOffset: {cw.zOffset:.2f}")
+                print(f"hdg: {cw.hdg:.2f}")
                 print(f"orientation: {cw.orientation}")
 
-                print(f"length: {cw.length:.2f}")
-                print(f"width: {cw.width:.2f}")
-                print(f"hdg: {cw.hdg:.2f}")
+                # print(f"length: {cw.length:.2f}")
+                # print(f"width: {cw.width:.2f}")
                 print(f"pitch: {cw.pitch:.2f}")
                 print(f"roll: {cw.roll:.2f}")
 
-                print(f"outlines: {cw.outlines}")
-                print(f"markings: {len(cw.markings)}")
+                #print(f"markings: {len(cw.markings)}")
 
+                try:
+                    x,y,z = road.st_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset), float(cw.hdg))
+                    print(f"Converted (x, y, z): ({x:.2f}, {y:.2f}, {z:.2f})")
+
+                except Exception as e:
+                    import traceback
+                    print(f"Conversion failed for crosswalk {cw.id_}")
+                    traceback.print_exc()
+
+                print(f"outlines: {cw.outlines}")
                 print()
 
             total_crosswalks += len(road.crosswalks)
@@ -38,6 +49,6 @@ def main(path):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Invalid Usage: python parse_crosswalks_test.py path_to_file.xodr")
+        print("Invalid Usage: python convert_st_to_xyz_test.py path_to_file.xodr")
     else:
         main(sys.argv[1])
