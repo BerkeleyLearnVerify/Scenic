@@ -1,6 +1,8 @@
 """Simulator interface for MetaDrive."""
 
 try:
+    from metadrive.component.sensors.rgb_camera import RGBCamera
+    from metadrive.component.sensors.semantic_camera import SemanticCamera
     from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
 except ImportError as e:
@@ -19,6 +21,7 @@ from scenic.domains.driving.controllers import (
     PIDLongitudinalController,
 )
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
+from scenic.simulators.metadrive.sensors import MetaDriveRGBSensor, MetaDriveSSSensor
 import scenic.simulators.metadrive.utils as utils
 
 
@@ -100,6 +103,22 @@ class MetaDriveSimulation(DrivingSimulation):
         self.film_size = film_size
         super().__init__(scene, timestep=timestep, **kwargs)
 
+    def setup(self):
+        self.drive_env_config = {}
+
+        for obj in self.scene.objects:
+            if obj.sensors:
+                for name, sensor in obj.sensors.items():
+                    if isinstance(sensor, MetaDriveRGBSensor):
+                        self.drive_env_config[name] = [RGBCamera, 85, 85]
+                    elif isinstance(sensor, MetaDriveRGBSensor):
+                        self.drive_env_config[name] = [SemanticCamera, 85, 85]
+                    else:
+                        raise RuntimeError(f"Unknown sensor type: {type(sensor)}")
+        print("DRIVE ENV CONFIG!!! ", self.drive_env_config)
+
+        super().setup()
+
     def createObjectInSimulator(self, obj):
         """
         Create an object in the MetaDrive simulator.
@@ -130,15 +149,29 @@ class MetaDriveSimulation(DrivingSimulation):
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
+                    # for sensors
+                    image_observation=self.render3D,
+                    sensors=self.drive_env_config,
                 )
             )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
+            print("Available sensors are:", self.client.engine.sensors.keys())
 
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
             obj.metaDriveActor = list(metadrive_objects.values())[0]
             self.defined_ego = True
+
+            # attach sensor
+            if obj.sensors:
+                for name, sensor in obj.sensors.items():
+                    print("name: ", name)
+                    metadrive_sensor = self.client.engine.get_sensor(name)
+                    # def track(self, new_parent_node: NodePath, position, hpr):
+                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    sensor.metadrive_sensor = metadrive_sensor
+
             return
 
         # For additional cars
@@ -150,6 +183,12 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
+            # attatch sensor
+            if obj.sensors:
+                for name, sensor in obj.sensors.items():
+                    metadrive_sensor = self.client.engine.get_sensor(name)
+                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    sensor.metadrive_sensor = metadrive_sensor
             return
 
         # For pedestrians
@@ -160,6 +199,13 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading_theta=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
+
+            # attach sensor
+            if obj.sensors:
+                for name, sensor in obj.sensors.items():
+                    metadrive_sensor = self.client.engine.get_sensor(name)
+                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    sensor.metadrive_sensor = metadrive_sensor
             return
 
         # If the object type is unsupported, raise an error
@@ -214,6 +260,7 @@ class MetaDriveSimulation(DrivingSimulation):
     def destroy(self):
         if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
+            # WILL THIS DELETE SENSORS TOO? IF NOT, DEL LIKE CARLA WITH SENSOR.METADRIVE_SENSOR SET IN CREATEOBJ
             if object_ids:
                 self.client.engine.agent_manager.clear_objects(object_ids)
             self.client.close()
