@@ -7,13 +7,13 @@ from typing import Dict, List, Any, Optional
 
 try:        
     import robosuite as suite
-    from robosuite.robots import ROBOT_CLASS_MAPPING
 except ImportError as e:
     suite = None
     _import_error = e
 
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
+from scenic.core.dynamics import Action
 
 # Constants
 DEFAULT_PHYSICS_TIMESTEP = 0.002
@@ -37,6 +37,9 @@ CAMERA_VIEWS = {
     "robot0_robotview": 4,
     "robot0_eye_in_hand": 5
 }
+
+
+
 
 
 class RobosuiteSimulator(Simulator):
@@ -326,3 +329,51 @@ class RobosuiteSimulation(Simulation):
                 self.robosuite_env = None
         except Exception as e:
             print(f"Warning: Error closing RoboSuite environment: {e}")
+
+class SetJointPositions(Action):
+    """Set robot joint positions.
+    
+    Args:
+        positions: Target joint positions
+    """
+    def __init__(self, positions):
+        self.positions = positions
+    
+    def applyTo(self, agent, sim):
+        """Apply joint position control to the robot."""
+        if hasattr(sim, 'robots') and agent in sim.robots:
+            robot_idx = sim.robots.index(agent)
+            if robot_idx < len(sim.robosuite_env.robots):
+                action = np.array(self.positions)
+                sim.pending_robot_action = action
+
+class OSCPositionAction(Action):
+    """Operational Space Control for end-effector.
+    
+    Args:
+        position_delta: Cartesian position change [x, y, z]
+        orientation_delta: Orientation change [roll, pitch, yaw]
+        gripper: Gripper command (-1=open, 1=close)
+    """
+    def __init__(self, position_delta=None, orientation_delta=None, gripper=None):
+        self.position_delta = position_delta if position_delta else [0, 0, 0]
+        self.orientation_delta = orientation_delta if orientation_delta else [0, 0, 0]
+        self.gripper = gripper if gripper is not None else 0
+    
+    def applyTo(self, agent, sim):
+        """Apply OSC control to the robot."""
+        if hasattr(sim, 'robots') and agent in sim.robots:
+            robot_idx = sim.robots.index(agent)
+            if robot_idx < len(sim.robosuite_env.robots):
+                # Build action array based on controller type
+                if hasattr(sim, 'controller_type') and sim.controller_type == 'JOINT_POSITION':
+                    action = np.zeros(sim.action_dim)
+                    action[:3] = self.position_delta
+                else:
+                    # Default OSC action [position(3), orientation(3), gripper(1)]
+                    action = np.zeros(7)
+                    action[:3] = self.position_delta
+                    action[3:6] = self.orientation_delta
+                    action[6] = self.gripper
+                
+                sim.pending_robot_action = action

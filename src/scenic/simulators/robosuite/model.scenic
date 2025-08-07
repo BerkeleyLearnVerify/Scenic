@@ -1,8 +1,6 @@
 """Scenic world model for RoboSuite simulator."""
 
-from .simulator import RobosuiteSimulator
-import scenic.core.dynamics as dynamics
-import numpy as np
+from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
 
 # Global parameters with defaults
 param use_environment = None
@@ -70,20 +68,6 @@ class Cube(RoboSuiteObject):
     height: DEFAULTS['object_size']
     color: DEFAULTS['default_color']
 
-"""
-# currently only Cube works within preconfigured env, we can't change the type of object, WIP, will add support for them soon
-class Ball(RoboSuiteObject):
-    """Spherical object."""
-    width: DEFAULTS['object_size']
-    color: DEFAULTS['default_color']
-
-class Cylinder(RoboSuiteObject):
-    """Cylindrical object."""
-    width: DEFAULTS['object_size']
-    height: DEFAULTS['object_size'] * 2
-    color: DEFAULTS['default_color']
-"""
-
 # Environment-specific wrapper
 class EnvironmentObject(RoboSuiteObject):
     """Base class for objects in RoboSuite environments."""
@@ -129,64 +113,10 @@ class PandaRobot(Robot):
     robot_type: "Panda"
     gripper_type: "PandaGripper"
 
-class SawyerRobot(Robot):
-    """Rethink Sawyer robot."""
-    robot_type: "Sawyer"
-    gripper_type: "RethinkGripper"
-
 class UR5eRobot(Robot):
     """Universal Robots UR5e."""
     robot_type: "UR5e"
     gripper_type: "Robotiq85Gripper"
-
-# Actions
-class SetJointPositions(dynamics.Action):
-    """Set robot joint positions.
-    
-    Args:
-        positions: Target joint positions
-    """
-    def __init__(self, positions):
-        self.positions = positions
-    
-    def applyTo(self, agent, sim):
-        """Apply joint position control to the robot."""
-        if hasattr(sim, 'robots') and agent in sim.robots:
-            robot_idx = sim.robots.index(agent)
-            if robot_idx < len(sim.robosuite_env.robots):
-                action = np.array(self.positions)
-                sim.pending_robot_action = action
-
-class OSCPositionAction(dynamics.Action):
-    """Operational Space Control for end-effector.
-    
-    Args:
-        position_delta: Cartesian position change [x, y, z]
-        orientation_delta: Orientation change [roll, pitch, yaw]
-        gripper: Gripper command (-1=open, 1=close)
-    """
-    def __init__(self, position_delta=None, orientation_delta=None, gripper=None):
-        self.position_delta = position_delta if position_delta else [0, 0, 0]
-        self.orientation_delta = orientation_delta if orientation_delta else [0, 0, 0]
-        self.gripper = gripper if gripper is not None else 0
-    
-    def applyTo(self, agent, sim):
-        """Apply OSC control to the robot."""
-        if hasattr(sim, 'robots') and agent in sim.robots:
-            robot_idx = sim.robots.index(agent)
-            if robot_idx < len(sim.robosuite_env.robots):
-                # Build action array based on controller type
-                if hasattr(sim, 'controller_type') and sim.controller_type == 'JOINT_POSITION':
-                    action = np.zeros(sim.action_dim)
-                    action[:3] = self.position_delta
-                else:
-                    # Default OSC action [position(3), orientation(3), gripper(1)]
-                    action = np.zeros(7)
-                    action[:3] = self.position_delta
-                    action[3:6] = self.orientation_delta
-                    action[6] = self.gripper
-                
-                sim.pending_robot_action = action
 
 # Behavior Library - Reusable components
 behavior OpenGripper(steps=DEFAULTS['gripper_open_steps']):

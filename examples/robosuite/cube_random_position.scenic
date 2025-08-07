@@ -20,8 +20,10 @@ param camera_view = "birdview"
 # Randomize cube position
 cube = new LiftCube at (Range(-0.25, 0.25), Range(-0.25, 0.25), 0.82)
 
-# # Clean approach using object reference
+# Clean approach using object reference
 ego = new PandaRobot with behavior PickAndLift(cube, height=1.05)
+
+# other robot options: UR5eRobot
 
 # Alternative: Custom composition
 # behavior CustomLift():
