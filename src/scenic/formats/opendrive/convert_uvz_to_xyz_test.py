@@ -41,6 +41,21 @@ def main(path):
                     traceback.print_exc()
 
                 print(f"outlines: {cw.outlines}")
+
+                for outline in cw.outlines:
+                    for corner in outline:
+                        u = corner['u']
+                        v = corner['v']
+                        z_local = corner['z']
+
+                        try:
+                            x,y,z = road.uv_to_xyz(float(cw.s), float(cw.t), float(cw.hdg), float(cw.pitch), float(cw.roll), u, v, z_local, float(cw.zOffset))
+                            print(f"Corner (u={u:.2f}, v={v:.2f}, z={z_local:.2f}) -> (x={x:.2f}, y={y:.2f}, z={z:.2f})")
+                        except Exception as e:
+                            print(f"Failed to convert corner with u={u}, v={v}, z={z_local}")
+                            import traceback
+                            traceback.print_exc()
+
                 print()
 
             total_crosswalks += len(road.crosswalks)
