@@ -1,6 +1,8 @@
 """Scenic world model for RoboSuite simulator."""
 
 from .simulator import RobosuiteSimulator
+import scenic.core.dynamics as dynamics
+import numpy as np
 
 # Global parameters with defaults
 param use_environment = None
@@ -138,9 +140,6 @@ class UR5eRobot(Robot):
     gripper_type: "Robotiq85Gripper"
 
 # Actions
-import scenic.core.dynamics as dynamics
-import numpy as np
-
 class SetJointPositions(dynamics.Action):
     """Set robot joint positions.
     
