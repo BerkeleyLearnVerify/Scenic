@@ -2,66 +2,39 @@ from scenic.core.sensors import Sensor
 
 
 class MetaDriveRGBSensor(Sensor):
+    def __init__(self):
+        self.metadrive_sensor = None  # will be set by the simulator
+
     def getObservation(self):
-        # could pass in sensor attrs here in perceive() or in track() in createobjinsim
-        img = self.metadrive_sensor.perceive()
-        print(img)
-        return img
+        if self.metadrive_sensor is None:
+            raise RuntimeError(
+                "MetaDriveRGBSensor not attached; simulator hasn't set metadrive_sensor yet."
+            )
+
+        # two options for getting image: 1: get_image but need to pass in obj each time but returns correct image format OR
+        # 2: perceive(), dont need to pass in obj again, but will need to change format
+
+        # returns NumPy uint8 in [0..255] (shape (H, W, 3), BGR).
+        img_bgr = self.metadrive_sensor.perceive(to_float=False)
+        # BGR → RGB
+        img_rgb = img_bgr[..., ::-1]
+        print("IMAGE!!!!", img_rgb)
+        return img_rgb
 
 
 class MetaDriveSSSensor(Sensor):
+    def __init__(self):
+        self.metadrive_sensor = None  # will be set by the simulator
+
     def getObservation(self):
-        return "rgb image"
+        if self.metadrive_sensor is None:
+            raise RuntimeError(
+                "MetaDriveRGBSensor not attached; simulator hasn't set metadrive_sensor yet."
+            )
 
-
-# class MetaDriveRGBSensor(Sensor):
-#     def __init__(
-#             self,
-#             offset=(1.6, 0.0, 1.7),
-#             hpr=(0.0, 0.0, 0.0),
-#             to_float=False
-#         ):
-#             super().__init__()
-#             self.actor = None          # will be set in createObjectInSimulator
-#             self.client = None         # will be set in createObjectInSimulator
-#             self.offset = offset       # camera offset from actor
-#             self.hpr = hpr             # heading, pitch, roll relative to actor
-#             self.to_float = to_float   # output format of the image
-
-#     def getObservation(self):
-#         if self.actor is None or self.client is None:
-#             raise RuntimeError("MetaDriveRGBSensor is not fully initialized")
-
-#         cam = self.client.engine.get_sensor("rgb")
-#         return cam.perceive(
-#             new_parent_node=self.actor.origin,
-#             position=self.offset,
-#             hpr=self.hpr,
-#             to_float=self.to_float
-#         )
-
-# class MetaDriveSSSensor(Sensor):
-#     def __init__(
-#             self,
-#             offset=(1.6, 0.0, 1.7),
-#             hpr=(0.0, 0.0, 0.0),
-#             to_float=False
-#         ):
-#             super().__init__()
-#             self.actor = None          # will be set in createObjectInSimulator
-#             self.client = None         # will be set in createObjectInSimulator
-#             self.offset = offset       # camera offset from actor
-#             self.hpr = hpr             # heading, pitch, roll relative to actor
-#             self.to_float = to_float   # output format of the image
-
-#     def getObservation(self):
-#         if self.actor is None or self.client is None:
-#             raise RuntimeError("MetaDriveRGBSensor is not fully initialized")
-
-#         cam = self.client.engine.get_sensor("rgb")
-#         return cam.perceive(
-#             new_parent_node=self.actor.origin,
-#             position=self.offset,
-#             hpr=self.hpr,
-#             to_float=self.to_float
-#         )
+        # returns NumPy uint8 in [0..255] (shape (H, W, 3), BGR).
+        img_bgr = self.metadrive_sensor.perceive(to_float=False)
+        # BGR → RGB
+        img_rgb = img_bgr[..., ::-1]
+        print("IMAGE!!!!", img_rgb)
+        return img_rgb

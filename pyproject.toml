@@ -56,7 +56,7 @@ guideways = [
 	'pyproj ~= 3.3; python_version >= "3.10"',
 ]
 metadrive = [
-	"metadrive-simulator >= 0.4.3",
+	"metadrive-simulator@git+https://github.com/metadriverse/metadrive.git@85e5dadc6c7436d324348f6e3d8f8e680c06b4db",
 	"sumolib >= 1.21.0",
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)

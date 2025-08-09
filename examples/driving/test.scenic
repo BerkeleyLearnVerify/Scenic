@@ -9,14 +9,16 @@ spot = new OrientedPoint on lane.centerline
 
 ego = new Car at spot,
     with behavior FollowLaneBehavior(),
-    with sensors {"rgb": RGBSensor()}
+    with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), convert='CityScapesPalette', attributes=attrs),
+                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), attributes=attrs)
+                  }
 
 
 other = new Car offset by 0 @ Range(10, 30),
     with behavior FollowLaneBehavior()
 
-# param recordFolder = "out/{simulation}"
-# record ego.observations["front_ss"] every 0.5 seconds after 5 seconds to "frontss_{time}.jpg"
-# record ego.observations["front_rgb"] after 5 seconds to "frontrgb.mp4"
+param recordFolder = "out/{simulation}"
+record ego.observations["front_ss"] every 0.5 seconds after 5 seconds to "frontss_{time}.jpg"
+record ego.observations["front_rgb"] after 5 seconds to "frontrgb.mp4"
 
 terminate after 15 seconds

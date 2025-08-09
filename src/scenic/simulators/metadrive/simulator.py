@@ -111,7 +111,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 for name, sensor in obj.sensors.items():
                     if isinstance(sensor, MetaDriveRGBSensor):
                         self.drive_env_config[name] = [RGBCamera, 85, 85]
-                    elif isinstance(sensor, MetaDriveRGBSensor):
+                    elif isinstance(sensor, MetaDriveSSSensor):
                         self.drive_env_config[name] = [SemanticCamera, 85, 85]
                     else:
                         raise RuntimeError(f"Unknown sensor type: {type(sensor)}")
@@ -150,7 +150,7 @@ class MetaDriveSimulation(DrivingSimulation):
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
                     # for sensors
-                    image_observation=self.render3D,
+                    image_observation=True,
                     sensors=self.drive_env_config,
                 )
             )
@@ -169,7 +169,9 @@ class MetaDriveSimulation(DrivingSimulation):
                     print("name: ", name)
                     metadrive_sensor = self.client.engine.get_sensor(name)
                     # def track(self, new_parent_node: NodePath, position, hpr):
-                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    metadrive_sensor.track(
+                        obj.metaDriveActor.origin, (0.0, 0.8, 1.5), (0.0, -5.0, 0.0)
+                    )
                     sensor.metadrive_sensor = metadrive_sensor
 
             return
@@ -187,7 +189,9 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.sensors:
                 for name, sensor in obj.sensors.items():
                     metadrive_sensor = self.client.engine.get_sensor(name)
-                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    metadrive_sensor.track(
+                        obj.metaDriveActor.origin, (0.0, 0.8, 1.5), (0.0, -5.0, 0.0)
+                    )
                     sensor.metadrive_sensor = metadrive_sensor
             return
 
@@ -204,7 +208,9 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.sensors:
                 for name, sensor in obj.sensors.items():
                     metadrive_sensor = self.client.engine.get_sensor(name)
-                    metadrive_sensor.track(obj.metaDriveActor.origin)
+                    metadrive_sensor.track(
+                        obj.metaDriveActor.origin, (0.0, 0.8, 1.5), (0.0, -5.0, 0.0)
+                    )
                     sensor.metadrive_sensor = metadrive_sensor
             return
 
