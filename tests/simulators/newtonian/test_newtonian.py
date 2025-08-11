@@ -6,7 +6,6 @@ import pytest
 
 from scenic.domains.driving.roads import Network
 from scenic.simulators.newtonian import NewtonianSimulator
-from tests.conftest import getAssetPath
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
