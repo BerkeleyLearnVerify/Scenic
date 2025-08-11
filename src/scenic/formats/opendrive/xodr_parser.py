@@ -150,8 +150,8 @@ class Cubic(Curve):
         root_func = lambda x: self.arclength(x) - s
         u = float(brentq(root_func, 0, self.ubound))
 
-        dy_du = self.poly.grad_at(u) #Calculate the gradient (slope) of tangent line (black dotted line) at point u
-        local_heading = math.atan(dy_du) #Calculate the angle relative to the baseline; this is the local_heading
+        dv_du = self.poly.grad_at(u) #Calculate the gradient (slope) of tangent line (black dotted line) at point u
+        local_heading = math.atan(dv_du) #Calculate the angle relative to the baseline; this is the local_heading
         global_heading = local_heading + self.hdg #Obtain the global heading value using what we already know
 
         while global_heading > math.pi:
@@ -184,6 +184,23 @@ class ParamCubic(Curve):
         p = float(brentq(root_func, 0, self.p_range))
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
+    
+    def calculate_heading_at(self, s):
+        #Brent's method
+        root_func = lambda x: self.arclength(x) - s
+        p = float(brentq(root_func, 0, self.p_range))
+
+        du_dp = self.u_poly.grad_at(p)
+        dv_dp = self.v_poly.grad_at(p)
+        local_heading = math.atan2(dv_dp, du_dp) #atan2(y, x) --> We use atan2 here because of how the parameterization is
+        global_heading = local_heading + self.hdg
+
+        while global_heading > math.pi:
+            global_heading = global_heading - (2 * math.pi)
+        while global_heading < -math.pi:
+            global_heading = global_heading + (2 * math.pi)
+        
+        return global_heading
 
 
 class Clothoid(Curve):
