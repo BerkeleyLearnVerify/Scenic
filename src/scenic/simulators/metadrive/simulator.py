@@ -258,8 +258,12 @@ class MetaDriveSimulation(DrivingSimulation):
                 filename += ".gif"
             path = os.path.join(self.screen_record_path, filename)
             os.makedirs(os.path.dirname(path), exist_ok=True)
+
+            # Convert timestep (seconds) → milliseconds for GIF duration
+            duration_ms = int(round(self.timestep * 1000))
+
             print(f"Saving screen recording to {path}")
-            self.client.top_down_renderer.generate_gif(path)
+            self.client.top_down_renderer.generate_gif(path, duration=duration_ms)
 
         if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
