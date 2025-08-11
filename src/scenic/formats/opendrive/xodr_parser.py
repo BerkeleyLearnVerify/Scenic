@@ -131,6 +131,35 @@ class Cubic(Curve):
         u = float(brentq(root_func, 0, self.ubound))
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
+    
+    def calculate_heading_at(self, s):
+        '''
+        -Working with a specific curve now, so that curve has its own local coordinate system (defined in terms of u)
+            -u is kind of like how far we've moved along the x-axis in the curve's own coordinate system
+        -Need to find the value of u that gets us to the point exactly s meters along the curve. This is already done in the point_at() function above.
+            -self.arclength(x) calculates the curve length from u=0 to u=x, i.e., the distance traveled along the local curve
+            -Define f(u) = self.arclength(u) - s and solve for f(u) = 0
+                -Brent's method evaluates root_func at points between 0 and self.ubound until it finds the value of u that makes self.arclength(u) = s
+                -Important to note that self.arclength(u) is different from s because s is measures from the start of the ROAD's reference line not 
+                just the start of the curve segment
+        -Then, find the local heading using the slope of the tangent line
+        -Add this local heading to self.hdg attribute to get the global_heading
+        '''
+
+        #Brent's method
+        root_func = lambda x: self.arclength(x) - s
+        u = float(brentq(root_func, 0, self.ubound))
+
+        dy_du = self.poly.grad_at(u) #Calculate the gradient (slope) of tangent line (black dotted line) at point u
+        local_heading = math.atan(dy_du) #Calculate the angle relative to the baseline; this is the local_heading
+        global_heading = local_heading + self.hdg #Obtain the global heading value using what we already know
+
+        while global_heading > math.pi:
+            global_heading = global_heading - (2 * math.pi)
+        while global_heading < -math.pi:
+            global_heading = global_heading + (2 * math.pi)
+        
+        return global_heading
 
 
 class ParamCubic(Curve):
