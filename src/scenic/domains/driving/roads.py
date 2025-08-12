@@ -269,8 +269,14 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
         assert self.uid is not None or self.id is not None
         if self.uid is None:
             self.uid = self.id
-        # self.__init__()
-        # super().__init__(orientation=self.orientation, name=self.name)
+        if isinstance(self.region, MeshSurfaceRegion):
+            self.region.__init__( # This needs to be fixed, orientation doesn't seem right
+                mesh=self.polygon, orientation=self.orientation, name=self.name
+            )
+        else:
+            self.region.__init__(
+                polygon=self.polygon, orientation=self.orientation, name=self.name
+            )
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
@@ -974,22 +980,14 @@ class Network:
             if self.roadRegion is None:
                 meshes = [sh.polygon for sh in self.roads]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.roads:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(self.roads, tolerance=self.tolerance)
                 self.roadRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.laneRegion is None:
                 meshes = [sh.polygon for sh in self.lanes]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.lanes:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(self.lanes, tolerance=self.tolerance)
                 self.laneRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
@@ -1056,26 +1054,17 @@ class Network:
                 combined = trimesh.util.concatenate(
                     (
                         self.laneRegion.mesh,
-                        self.roadRegion.mesh,  # can contain points slightly outside laneRegion
+                        self.roadRegion.mesh,
                         self.intersectionRegion.mesh,
                     )
                 )
-                regs = []
-                for reg in self.lanes:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                for reg in self.roads:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                for reg in self.intersections:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
+                regs = [self.laneRegion, self.roadRegion, self.intersectionRegion]
                 orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.drivableRegion = MeshSurfaceRegion(
                     combined,
                     centerMesh=False,
                     position=None,
-                    orientation=None # Note: Orientation for drivable region seems to produce incorrect orientation for cars (need to investigate)
+                    orientation=orientation # Note: Orientation for drivable region seems to produce incorrect orientation for cars (need to investigate)
                 )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
@@ -1103,13 +1092,7 @@ class Network:
                         self.crossingRegion.mesh,
                     )
                 )
-                regs = []
-                for reg in self.sidewalks:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                for reg in self.crossings:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
+                regs = [self.sidewalkRegion, self.crossingRegion]
                 orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
                 self.walkableRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation
@@ -1165,7 +1148,7 @@ class Network:
             )
 
     def _defaultRoadDirection(self, point):
-        """Default value for the `roadDirection` vector fie     ld.
+        """Default value for the `roadDirection` vector field.
 
         :meta private:
         """
@@ -1404,13 +1387,13 @@ class Network:
             candidates = {self._uidForIndex[index] for index in indices}
             if candidates:
                 closest = None
-                MeshSurfaceRegionClosest = None
                 for elem in elems:
                     if elem.uid in candidates:
                         if closest == None:
                             closest = elem
                         elif elem.distanceTo(p) < closest.distanceTo(p):
                             closest = elem
+                print(closest)
                 return closest
             return None
 

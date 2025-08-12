@@ -134,13 +134,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             target_speed = original_target_speed
             _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
-        nearest_line_points = current_centerline.nearestSegmentTo(self.position)
-        nearest_line_segment = None
-        if len(nearest_line_points[0]) == 3 :
-            nearest_line_segment = PathRegion(points=nearest_line_points)
-        else:
-            nearest_line_segment = PolylineRegion(nearest_line_points)
-        cte = nearest_line_segment.signedDistanceTo(self.position)
+        cte = current_centerline.signedDistanceTo(self.position)
         if is_oppositeTraffic:
             cte = -cte
 

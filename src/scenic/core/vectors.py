@@ -817,6 +817,7 @@ class PiecewiseVectorField(VectorField):
                     return region.orientation[point]
         if self.defaultHeading is not None:
             return self.defaultHeading
+        print(point)
         raise RejectionException(f"evaluated PiecewiseVectorField at undefined point")
 
 

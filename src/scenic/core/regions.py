@@ -2715,7 +2715,7 @@ class PathRegion(Region):
         return dist if tangent.angleWith(rp) >= 0 else -dist
 
     def __getitem__(self, i) -> Vector:
-        """Get the ith point along this polyline.
+        """Get the ith point along this path.
 
         If the region consists of multiple polylines, this order is linear
         along each polyline but arbitrary across different polylines.
