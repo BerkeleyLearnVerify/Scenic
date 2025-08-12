@@ -243,7 +243,29 @@ class Clothoid(Curve):
             sol = solve_ivp(clothoid_ode, (0, s), self.ode_init)
             x, y, hdg = sol.y[:, -1]
             return (x, y, s)
+    
+    def calculate_heading_at(self, s):
+        '''
+        -The formal definition for curvature: k = ||dT/ds|| --> Magnitude of the rate of change of the unit tangent vector w.r.t. change in arc length
+            -Simplifies to: k(s) = dθ/ds
+        -So we can say k(s) (curvature) is the rate at which heading changes with respect to a change in s (movement along the curve)
+        -A Clothoid's curvature increases linearly with the arc length
+            -Modeled by: k(s) = k_0 + k_rate * s
+        -
+        '''
 
+        k_0 = self.curv0
+        k_rate = self.curve_rate
+
+        theta = (k_0 * s) + (0.5 * k_rate * s * s) + self.hdg
+
+        
+        while theta > math.pi:
+            theta = theta - (2 * math.pi)
+        while theta < -math.pi:
+            theta = theta + (2 * math.pi)
+        
+        return theta
 
 class Line(Curve):
     """A line segment between (x0, y0) and (x1, y1)."""
