@@ -1,31 +1,18 @@
 from scenic.core.sensors import Sensor
 
+# NOTE: MetaDrive/Panda3D coords:
+#   position (x, y, z) m relative to the parent object's orgin: +X right, +Y forward, +Z up (Z-up, RH).
+#   rotation (Heading, Pitch, Roll) degrees: H=yaw about Z (+left), P=pitch about X (+up), R=roll about Y (+left).
+
 
 class MetaDriveVisionSensor(Sensor):
-    """
-    MetaDrive camera mount parameters.
-
-    position: (x, y, z) in meters, relative to the parent object's origin (parent node).
-      - +X = right, +Y = forward, +Z = up  (Panda3D / MetaDrive, Z-up, right-handed)
-
-    hpr: (heading, pitch, roll) in degrees.
-      - H (yaw) about Z: + turns left, - turns right
-      - P (pitch) about X: + tilts up, - tilts down
-      - R (roll) about Y: + roll left, - rolls right
-
-    Defaults match MetaDrive:
-      position=(0.0, 0.8, 1.5), hpr=(0.0, -5.0, 0.0), size=84×84
-    """
-
-    DEFAULT_POS = (0.0, 0.8, 1.5)
-    DEFAULT_HPR = (0.0, -5.0, 0.0)
-    DEFAULT_SIZE = (84, 84)
-
-    def __init__(self, offset=None, rotation=None, width=None, height=None):
-        self.offset = self.DEFAULT_POS if offset is None else offset
-        self.rotation = self.DEFAULT_HPR if rotation is None else rotation
-        self.width = self.DEFAULT_SIZE[0] if width is None else width
-        self.height = self.DEFAULT_SIZE[1] if height is None else height
+    def __init__(self, offset=None, rotation=(0, 0, 0), width=None, height=None):
+        if width is None or height is None:
+            raise ValueError("width and height are required for sensors")
+        self.offset = offset
+        self.rotation = rotation
+        self.width = width
+        self.height = height
         self.metadrive_sensor = None  # set by the simulator
 
     def getObservation(self):

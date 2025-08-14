@@ -175,8 +175,13 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.sensors:
                 for name, sensor in obj.sensors.items():
                     metadrive_sensor = self.client.engine.get_sensor(name)
+                    offset = (
+                        sensor.offset
+                        if sensor.offset is not None
+                        else obj.visionSensorOffset
+                    )
                     metadrive_sensor.track(
-                        obj.metaDriveActor.origin, sensor.offset, sensor.rotation
+                        obj.metaDriveActor.origin, offset, sensor.rotation
                     )
                     sensor.metadrive_sensor = metadrive_sensor
             return
@@ -195,8 +200,13 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.sensors:
                 for name, sensor in obj.sensors.items():
                     metadrive_sensor = self.client.engine.get_sensor(name)
+                    offset = (
+                        sensor.offset
+                        if sensor.offset is not None
+                        else obj.visionSensorOffset
+                    )
                     metadrive_sensor.track(
-                        obj.metaDriveActor.origin, sensor.offset, sensor.rotation
+                        obj.metaDriveActor.origin, offset, sensor.rotation
                     )
                     sensor.metadrive_sensor = metadrive_sensor
             return
@@ -214,8 +224,13 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj.sensors:
                 for name, sensor in obj.sensors.items():
                     metadrive_sensor = self.client.engine.get_sensor(name)
+                    offset = (
+                        sensor.offset
+                        if sensor.offset is not None
+                        else obj.visionSensorOffset
+                    )
                     metadrive_sensor.track(
-                        obj.metaDriveActor.origin, sensor.offset, sensor.rotation
+                        obj.metaDriveActor.origin, offset, sensor.rotation
                     )
                     sensor.metadrive_sensor = metadrive_sensor
             return
