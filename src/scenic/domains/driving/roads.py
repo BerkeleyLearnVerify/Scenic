@@ -270,8 +270,8 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
         if self.uid is None:
             self.uid = self.id
         if isinstance(self.region, MeshSurfaceRegion):
-            self.region.__init__( # This needs to be fixed, orientation doesn't seem right
-                mesh=self.polygon, orientation=self.orientation, name=self.name
+            self.region.__init__(
+                mesh=self.polygon, orientation=self.orientation, centerMesh=False, name=self.name, position=None
             )
         else:
             self.region.__init__(
@@ -1393,7 +1393,6 @@ class Network:
                             closest = elem
                         elif elem.distanceTo(p) < closest.distanceTo(p):
                             closest = elem
-                print(closest)
                 return closest
             return None
 

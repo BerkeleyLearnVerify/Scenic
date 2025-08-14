@@ -2314,7 +2314,9 @@ class RoadMap:
                 return tuple(elem for elem, pt in pairs)
 
             # Create intersection
-            # TODO: Implement intersections with 3D geometry
+            #breakpoint()
+            #print("Constructing Intersection")
+            region = MeshSurfaceRegion(junction.poly,centerMesh=False,position=None,orientation=roadDomain.Intersection._defaultHeadingAt) if not use2DMap else PolygonalRegion(polygon=junction.poly)
             intersection = roadDomain.Intersection(
                 polygon=junction.poly,
                 name=junction.name,
@@ -2326,17 +2328,9 @@ class RoadMap:
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
                 crossings=(),  # TODO add these
-                region=(
-                    MeshSurfaceRegion(
-                        junction.poly,
-                        centerMesh=False,
-                        position=None,
-                        orientation=roadDomain.Intersection._defaultHeadingAt,
-                    )
-                    if not use2DMap
-                    else PolygonalRegion(polygon=junction.poly)
-                ),
+                region=region,
             )
+            #breakpoint()
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:

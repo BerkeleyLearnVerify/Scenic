@@ -839,9 +839,8 @@ class MeshRegion(Region):
             )
 
         # Center mesh unless disabled
-        if centerMesh:
+        if self.centerMesh: # CHanged
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
-
         # Apply scaling, rotation, and translation, if any
         if self.dimensions is not None:
             scale = numpy.array(self.dimensions) / self.mesh.extents
@@ -1955,6 +1954,7 @@ class MeshSurfaceRegion(MeshRegion):
         raise NotImplementedError
 
     def uniformPointInner(self):
+        print(Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0]))
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
     @distributionFunction
