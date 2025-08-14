@@ -7,8 +7,7 @@ lane = Uniform(*network.lanes)
 
 spot = new OrientedPoint on lane.centerline
 
-attrs = {"image_size_x": 1056,
-         "image_size_y": 704}
+attrs = {"convert": "CityScapesPalette"}
 
 car_model = "vehicle.tesla.model3"
 
@@ -18,8 +17,8 @@ car_model = "vehicle.tesla.model3"
 ego = new Car at spot,
     with blueprint car_model,
     with behavior AutopilotBehavior(),
-    with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), convert='CityScapesPalette', attributes=attrs),
-                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), attributes=attrs)
+    with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs),
+                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs)
                   }
 
 

@@ -32,9 +32,9 @@ class CarlaVisionSensor(CallbackSensor):
             self.attributes = {}
 
         if width is not None:
-            attributes["image_size_x"] = int(width)
+            self.attributes["image_size_x"] = int(width)
         if height is not None:
-            attributes["image_size_y"] = int(height)
+            self.attributes["image_size_y"] = int(height)
 
         self.convert = None
         convert = self.attributes.get("convert")
