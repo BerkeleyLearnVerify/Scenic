@@ -1,5 +1,6 @@
-param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
-model scenic.simulators.metadrive.model
+param map = localPath('../../assets/maps/CARLA/Town05.xodr')
+param carla_map = 'Town05'
+model scenic.domains.driving.model
 
 # Sample a lane at random
 lane = Uniform(*network.lanes)
