@@ -1,29 +1,25 @@
-param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
+param map = localPath('../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
-model scenic.simulators.carla.model
+model scenic.domains.driving.model
 
 # Sample a lane at random
 lane = Uniform(*network.lanes)
 
 spot = new OrientedPoint on lane.centerline
 
-attrs = {"convert": "CityScapesPalette"}
+attrs = {"convert": "CityScapesPalette"}  # Used by CARLA
 
-car_model = "vehicle.tesla.model3"
-
-# Spawn car on that spot with logging autopilot behavior and
-# - an RGB Camera pointing forward with specific attributes
+# Spawn car on that spot with follow lane behavior and
+# - an RGB Camera pointing forward
 # - a semantic segmentation sensor
 ego = new Car at spot,
-    with blueprint car_model,
-    with behavior AutopilotBehavior(),
+    with behavior FollowLaneBehavior(),
     with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs),
                   "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs)
                   }
 
-
 other = new Car offset by 0 @ Range(10, 30),
-    with behavior AutopilotBehavior()
+    with behavior FollowLaneBehavior()
 
 param recordFolder = "out/{simulation}"
 record ego.observations["front_ss"] every 0.5 seconds after 5 seconds to "frontss_{time}.jpg"

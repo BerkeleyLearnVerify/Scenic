@@ -13,8 +13,9 @@ class CarlaVisionSensor(CallbackSensor):
         self,
         offset=(0, 0, 0),
         rotation=(0, 0, 0),
+        width=None,
+        height=None,
         attributes=None,
-        convert=None,
     ):
         super().__init__()
         self.transform = carla.Transform(
@@ -30,7 +31,13 @@ class CarlaVisionSensor(CallbackSensor):
         else:
             self.attributes = {}
 
+        if width is not None:
+            self.attributes["image_size_x"] = int(width)
+        if height is not None:
+            self.attributes["image_size_y"] = int(height)
+
         self.convert = None
+        convert = self.attributes.get("convert")
         if convert is not None:
             if isinstance(convert, int):
                 self.convert = convert
