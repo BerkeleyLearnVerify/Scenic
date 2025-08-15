@@ -105,20 +105,44 @@ class MetaDriveSimulation(DrivingSimulation):
         self.film_size = film_size
         super().__init__(scene, timestep=timestep, **kwargs)
 
+    # --- sensor helpers ---
+    def _metadrive_sensor_name(self, obj, base_name: str) -> str:
+        """Return a unique MetaDrive sensor name by appending the object's index."""
+        idx = self.scene.objects.index(obj)
+        return f"{base_name}__obj{idx}"
+
+    def _attach_sensors(self, obj):
+        """Attach/track all sensors for this object in MetaDrive."""
+        if not obj.sensors:
+            return
+        for base_name, sensor in obj.sensors.items():
+            md_name = self._metadrive_sensor_name(obj, base_name)
+            md_sensor = self.client.engine.get_sensor(md_name)
+            if md_sensor is None:
+                raise RuntimeError(
+                    f"Metadrive sensor '{md_name}' not found; check setup naming."
+                )
+            offset = (
+                sensor.offset if sensor.offset is not None else obj.visionSensorOffset
+            )
+            md_sensor.track(obj.metaDriveActor.origin, offset, sensor.rotation)
+            sensor.metadrive_sensor = md_sensor
+
     def setup(self):
         self.drive_env_config = {}
 
         for obj in self.scene.objects:
             if obj.sensors:
-                for name, sensor in obj.sensors.items():
+                for base_name, sensor in obj.sensors.items():
+                    md_name = self._metadrive_sensor_name(obj, base_name)
                     if isinstance(sensor, MetaDriveRGBSensor):
-                        self.drive_env_config[name] = [
+                        self.drive_env_config[md_name] = [
                             RGBCamera,
                             sensor.width,
                             sensor.height,
                         ]
                     elif isinstance(sensor, MetaDriveSSSensor):
-                        self.drive_env_config[name] = [
+                        self.drive_env_config[md_name] = [
                             SemanticCamera,
                             sensor.width,
                             sensor.height,
@@ -171,19 +195,8 @@ class MetaDriveSimulation(DrivingSimulation):
             obj.metaDriveActor = list(metadrive_objects.values())[0]
             self.defined_ego = True
 
-            # Adding sensors if available
-            if obj.sensors:
-                for name, sensor in obj.sensors.items():
-                    metadrive_sensor = self.client.engine.get_sensor(name)
-                    offset = (
-                        sensor.offset
-                        if sensor.offset is not None
-                        else obj.visionSensorOffset
-                    )
-                    metadrive_sensor.track(
-                        obj.metaDriveActor.origin, offset, sensor.rotation
-                    )
-                    sensor.metadrive_sensor = metadrive_sensor
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
             return
 
         # For additional cars
@@ -196,19 +209,8 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             obj.metaDriveActor = metaDriveActor
 
-            # Adding sensors if available
-            if obj.sensors:
-                for name, sensor in obj.sensors.items():
-                    metadrive_sensor = self.client.engine.get_sensor(name)
-                    offset = (
-                        sensor.offset
-                        if sensor.offset is not None
-                        else obj.visionSensorOffset
-                    )
-                    metadrive_sensor.track(
-                        obj.metaDriveActor.origin, offset, sensor.rotation
-                    )
-                    sensor.metadrive_sensor = metadrive_sensor
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
             return
 
         # For pedestrians
@@ -220,19 +222,8 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             obj.metaDriveActor = metaDriveActor
 
-            # Adding sensors if available
-            if obj.sensors:
-                for name, sensor in obj.sensors.items():
-                    metadrive_sensor = self.client.engine.get_sensor(name)
-                    offset = (
-                        sensor.offset
-                        if sensor.offset is not None
-                        else obj.visionSensorOffset
-                    )
-                    metadrive_sensor.track(
-                        obj.metaDriveActor.origin, offset, sensor.rotation
-                    )
-                    sensor.metadrive_sensor = metadrive_sensor
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
             return
 
         # If the object type is unsupported, raise an error

@@ -6,13 +6,21 @@ from scenic.core.sensors import Sensor
 
 
 class MetaDriveVisionSensor(Sensor):
-    def __init__(self, offset=None, rotation=(0, 0, 0), width=None, height=None):
+    def __init__(
+        self,
+        offset=None,
+        rotation=(0, 0, 0),
+        width=None,
+        height=None,
+        attributes=None,
+    ):
         if width is None or height is None:
             raise ValueError("width and height are required for sensors")
         self.offset = offset
         self.rotation = rotation
         self.width = width
         self.height = height
+        self.attributes = attributes or {}
         self.metadrive_sensor = None  # set by the simulator
 
     def getObservation(self):
