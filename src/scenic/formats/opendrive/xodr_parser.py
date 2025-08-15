@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
+from scipy.spatial.transform import Rotation as R
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import snap, unary_union
 
@@ -90,6 +91,11 @@ class Curve:
     def point_at(self, s):
         """Get an (x, y, s) point along the curve at the given s coordinate."""
         return
+    
+    @abc.abstractmethod
+    def heading_at(self, s):
+        """Get the heading along the curve at the given s coordinate"""
+        return
 
     def rel_to_abs(self, point):
         """Convert from relative coordinates of curve to absolute coordinates.
@@ -132,7 +138,7 @@ class Cubic(Curve):
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
     
-    def calculate_heading_at(self, s):
+    def heading_at(self, s):
         '''
         -Working with a specific curve now, so that curve has its own local coordinate system (defined in terms of u)
             -u is kind of like how far we've moved along the x-axis in the curve's own coordinate system
@@ -151,7 +157,7 @@ class Cubic(Curve):
         u = float(brentq(root_func, 0, self.ubound))
 
         dv_du = self.poly.grad_at(u) #Calculate the gradient (slope) of tangent line (black dotted line) at point u
-        local_heading = math.atan(dv_du) #Calculate the angle relative to the baseline; this is the local_heading
+        local_heading = math.atan2(dv_du, 1) #Calculate the angle relative to the baseline; this is the local_heading
         global_heading = local_heading + self.hdg #Obtain the global heading value using what we already know
 
         while global_heading > math.pi:
@@ -185,7 +191,7 @@ class ParamCubic(Curve):
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
     
-    def calculate_heading_at(self, s):
+    def heading_at(self, s):
         #Brent's method
         root_func = lambda x: self.arclength(x) - s
         p = float(brentq(root_func, 0, self.p_range))
@@ -244,7 +250,7 @@ class Clothoid(Curve):
             x, y, hdg = sol.y[:, -1]
             return (x, y, s)
     
-    def calculate_heading_at(self, s):
+    def heading_at(self, s):
         '''
         -The formal definition for curvature: k = ||dT/ds|| --> Magnitude of the rate of change of the unit tangent vector w.r.t. change in arc length
             -Simplifies to: k(s) = dθ/ds
@@ -278,6 +284,16 @@ class Line(Curve):
 
     def point_at(self, s):
         return self.rel_to_abs((s, 0, s))
+    
+    def heading_at(self, s):
+        heading = self.hdg
+
+        while heading > math.pi:
+            heading = heading - (2 * math.pi)
+        while heading < -math.pi:
+            heading = heading + (2 * math.pi)
+        
+        return heading
 
 
 class Lane:
@@ -1195,35 +1211,21 @@ class Road:
             if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on; epsilon margin to allow for numerical error
                 local_s = s - cumalative_curve_length #Figure out the local s-coordinate on the curve (how many units into the curve are we?)
                 x,y,z = curve.point_at(local_s) #Get the x,y,z position
-
-                '''
-                -For a more general use-case we need to calculate heading as shown below. 
-                -Crosswalk object already has a heading attribute so we comment out calculating the heading
-                    -When left uncommented an IndexError: list index out of range was raised
-                '''
-                # heading = self.heading_at(Point(x,y)) #Orientation of the road center-line (which way its facing). This is for a more general use-case 
-                # return (x,y,z), heading
-
-                return (x,y,z)
+                heading = curve.heading_at(local_s)
+                return (x,y,z), heading
           
             cumalative_curve_length = cumalative_curve_length + curve.length #Update cumulative length of curves until we find the right curve
         
         #If we get to the end of the road reference line, we need to get the heading of the last curve
-        x,y,z = self.ref_line[-1].point_at(self.ref_line[-1].length)
+        last_curve = self.ref_line[-1]
+        x,y,z = last_curve.point_at(last_curve.length)
+        heading = last_curve.heading_at(last_curve.length)
 
-        '''
-        -For a more general use-case we need to calculate heading as shown below. 
-        -Crosswalk object already has a heading attribute so we comment out calculating the heading
-            -When left uncommented an IndexError: list index out of range was raised
-        '''
-        # heading = self.heading_at(Point(x, y))
-        # return (x, y, z), heading
-
-        return (x,y,z)
+        return (x,y,z), heading
 
 
-    def st_to_xyz(self, s, t, h, heading):
-        (x_ref, y_ref, z_ref) = self.xyz_heading_at_s(s) #Only use centerline position.
+    def st_to_xyz(self, s, t, h):
+        (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s) #Only use centerline position.
 
         #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain the final global coordinates
         x = x_ref - t * math.sin(heading)
@@ -1246,46 +1248,50 @@ class Road:
                 -Call st_to_xyz
             -Figure out the rotation of the crosswalk using hdg, pitch, roll. 
                 -This will allow us to figure out what "forward", "left", "right", etc. are, i.e., how the object is oriented in 3D space
+                    -We need to do this because "forward" in local space might not match "forward" in world space
                 -We need to construct a rotation matrix here; otherwise local system of (u,v,z) won't be aligned with (x,y,z)
             -Rotate the local point (u,v,z) into a global position
         '''
 
-        (x0, y0, z0) = self.st_to_xyz(s, t, z_offset, hdg) #Object origin position
+        (x0, y0, z0) = self.st_to_xyz(s, t, z_offset) #Object origin position
+        (_,_,_), road_heading = self.xyz_heading_at_s(s)
+        yaw = hdg + road_heading
 
         #Construct rotation matrix
-        Rx = np.array([
-            [1, 0, 0],
-            [0, math.cos(roll), -math.sin(roll)],
-            [0, math.sin(roll), math.cos(roll)]
-        ])
+        # Rx = np.array([
+        #     [1, 0, 0],
+        #     [0, math.cos(roll), -math.sin(roll)],
+        #     [0, math.sin(roll), math.cos(roll)]
+        # ])
 
-        Ry = np.array([
-            [math.cos(pitch), 0, math.sin(pitch)],
-            [0,1,0],
-            [-math.sin(pitch), 0, math.cos(pitch)]
-        ])
+        # Ry = np.array([
+        #     [math.cos(pitch), 0, math.sin(pitch)],
+        #     [0,1,0],
+        #     [-math.sin(pitch), 0, math.cos(pitch)]
+        # ])
 
-        Rz = np.array([
-            [math.cos(hdg), -math.sin(hdg), 0],
-            [math.sin(hdg), math.cos(hdg), 0],
-            [0,0,1]
-        ])
+        # Rz = np.array([
+        #     [math.cos(yaw), -math.sin(yaw), 0],
+        #     [math.sin(yaw), math.cos(yaw), 0],
+        #     [0,0,1]
+        # ])
 
-        R = Rz @ Ry @ Rx #Numpy matrix multiplication
+        # R = Rz @ Ry @ Rx #Numpy matrix multiplication
 
-        #We have constructed the rotation matrix so now we can use it to rotate the actual (u,v,z) point so that we know its direction, i.e,
-        #where is the point relative to the origin
-        local_vector = np.array([u,v,z_local])
-        rotated_vector = R @ local_vector
+        # #We have constructed the rotation matrix so now we can use it to rotate the actual (u,v,z) point so that we know its direction, i.e,
+        # #where is the point relative to the origin
+        # local_vector = np.array([u,v,z_local])
+        # rotated_vector = R @ local_vector
 
+        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Create rotation object r that stores the 3x3 matrix
+        local_vector = np.array([u,v,z_local]) #Point in the object's local coordinate system
+        rotated_vector = r.apply(local_vector) #Rotate the vector in into a global frame using the matrix (r)
 
         x = x0 + rotated_vector[0]
         y = y0 + rotated_vector[1]
         z = z0 + rotated_vector[2]
 
         return (x,y,z)
-
-
 
 
 class Crosswalk:

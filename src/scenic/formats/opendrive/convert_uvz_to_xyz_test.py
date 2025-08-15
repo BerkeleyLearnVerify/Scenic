@@ -32,7 +32,7 @@ def main(path):
                 #print(f"markings: {len(cw.markings)}")
 
                 try:
-                    x,y,z = road.st_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset), float(cw.hdg))
+                    x,y,z = road.st_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset))
                     print(f"Converted (s,t, zOffset) to (x, y, z): ({x:.2f}, {y:.2f}, {z:.2f})")
 
                 except Exception as e:
