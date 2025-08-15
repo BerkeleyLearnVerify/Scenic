@@ -978,60 +978,50 @@ class Network:
 
         if self.use2DMap == 0:
             if self.roadRegion is None:
-                meshes = [sh.polygon for sh in self.roads]
+                meshes = [m.polygon for m in self.roads]
+                regions = [r.region for r in self.roads]
                 combined = trimesh.util.concatenate(meshes)
-                orientation = VectorField.forUnionOf(self.roads, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.roadRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.laneRegion is None:
-                meshes = [sh.polygon for sh in self.lanes]
+                meshes = [m.polygon for m in self.lanes]
+                regions = [r.region for r in self.lanes]
                 combined = trimesh.util.concatenate(meshes)
-                orientation = VectorField.forUnionOf(self.lanes, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.laneRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.intersectionRegion is None:
-                meshes = [sh.polygon for sh in self.intersections]
+                meshes = [m.polygon for m in self.intersections]
+                regions = [r.region for r in self.intersections]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.intersections:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.intersectionRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.crossingRegion is None:
-                meshes = [sh.polygon for sh in self.crossings]
+                meshes = [m.polygon for m in self.crossings]
+                regions = [r.region for r in self.crossings]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.crossings:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.crossingRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.sidewalkRegion is None:
-                meshes = [sh.polygon for sh in self.sidewalks]
+                meshes = [m.polygon for m in self.sidewalks]
+                regions = [r.region for r in self.sidewalks]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.sidewalks:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.sidewalkRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )
             if self.shoulderRegion is None:
-                meshes = [sh.polygon for sh in self.shoulders]
+                meshes = [m.polygon for m in self.shoulders]
+                regions = [r.region for r in self.shoulders]
                 combined = trimesh.util.concatenate(meshes)
-                regs = []
-                for reg in self.shoulders:
-                    if reg != EmptyRegion("Empty"):
-                        regs.append(reg)
-                orientation = VectorField.forUnionOf(regs, tolerance=self.tolerance)
+                orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.shoulderRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation 
                 )

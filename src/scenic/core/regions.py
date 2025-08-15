@@ -1954,7 +1954,6 @@ class MeshSurfaceRegion(MeshRegion):
         raise NotImplementedError
 
     def uniformPointInner(self):
-        print(Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0]))
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
     @distributionFunction

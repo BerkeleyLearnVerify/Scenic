@@ -1,6 +1,7 @@
 param map = localPath('../../assets/maps/CARLA/Town04.xodr')
 model scenic.domains.driving.model
 
+
 ego = new Car on road
 
 def foo():

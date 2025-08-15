@@ -5,7 +5,7 @@ select_road = Uniform(*network.roads)
 select_lane = Uniform(*select_road.lanes)
 select_intersection = Uniform(*network.intersections)
 
-current_object = select_lane
+current_object = select_intersection
 
 ego = new Car on current_object
 #breakpoint()

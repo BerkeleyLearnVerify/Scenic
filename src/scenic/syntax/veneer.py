@@ -1467,7 +1467,6 @@ def On(thing):
         props["parentOrientation"] = 2
 
     def helper(context):
-        breakpoint()
         # Pick position based on whether we are specifying or modifying
         if hasattr(context, "position"):
             if isA(target, Vector):

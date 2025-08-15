@@ -2388,7 +2388,8 @@ class RoadMap:
 
         def combine(regions):
             if not use2DMap:
-                meshes = [r.polygon for r in regions]
+                meshes = [m.polygon for m in regions]
+                regions = [r.region for r in regions]
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 return MeshSurfaceRegion(
