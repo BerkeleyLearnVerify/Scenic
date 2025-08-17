@@ -258,8 +258,27 @@ class CarlaSimulation(DrivingSimulation):
                     if sensor_bp.has_attribute(key):
                         sensor_bp.set_attribute(key, str(val))
 
+                if isinstance(sensor.convert, str):
+                    try:
+                        sensor.convert = carla.ColorConverter.names[sensor.convert]
+                    except KeyError:
+                        raise ValueError(
+                            f"Unknown CARLA ColorConverter '{sensor.convert}'"
+                        )
+
+                transform = carla.Transform(
+                    carla.Location(
+                        x=sensor.offset[0], y=sensor.offset[1], z=sensor.offset[2]
+                    ),
+                    carla.Rotation(
+                        pitch=sensor.rotation[0],
+                        yaw=sensor.rotation[1],
+                        roll=sensor.rotation[2],
+                    ),
+                )
+
                 carla_sensor = self.world.spawn_actor(
-                    sensor_bp, sensor.transform, attach_to=obj.carlaActor
+                    sensor_bp, transform, attach_to=obj.carlaActor
                 )
                 carla_sensor.listen(sensor.onData)
                 sensor.carla_sensor = carla_sensor

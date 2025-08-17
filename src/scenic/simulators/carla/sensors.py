@@ -1,8 +1,3 @@
-import os
-from time import sleep
-
-import carla
-import cv2
 import numpy as np
 
 from scenic.core.sensors import CallbackSensor
@@ -18,10 +13,9 @@ class CarlaVisionSensor(CallbackSensor):
         attributes=None,
     ):
         super().__init__()
-        self.transform = carla.Transform(
-            carla.Location(x=offset[0], y=offset[1], z=offset[2]),
-            carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]),
-        )
+        self.offset = offset
+        self.rotation = rotation
+
         if isinstance(attributes, str):
             raise NotImplementedError(
                 "String parsing for attributes is not yet implemented. Feel free to do so."
@@ -38,13 +32,11 @@ class CarlaVisionSensor(CallbackSensor):
 
         self.convert = None
         convert = self.attributes.get("convert")
-        if convert is not None:
-            if isinstance(convert, int):
-                self.convert = convert
-            elif isinstance(convert, str):
-                self.convert = carla.ColorConverter.names[convert]
-            else:
-                raise TypeError("'convert' has to be int or string.")
+        if convert is not None and not (
+            isinstance(convert, str) or isinstance(convert, int)
+        ):
+            raise TypeError("'convert' has to be int or string.")
+        self.convert = convert
 
         self.frame = 0
 
