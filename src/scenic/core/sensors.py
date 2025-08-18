@@ -14,16 +14,46 @@ import numpy as np
 
 
 class Sensor(abc.ABC):
+    def __init__(
+        self,
+        *,
+        offset=None,
+        rotation=(0.0, 0.0, 0.0),
+        width=None,
+        height=None,
+        attributes=None,
+    ):
+        self.offset = tuple(offset)
+        self.rotation = tuple(rotation)
+        if width is None or height is None:
+            raise ValueError("width and height are required for sensors")
+        self.width = int(width) if width is not None else None
+        self.height = int(height) if height is not None else None
+        self.attributes = {} if attributes is None else dict(attributes)
+
     @abc.abstractmethod
     def getObservation(self):
         raise NotImplementedError
+
+
+class RGBSensor(Sensor, abc.ABC):
+    """Abstract RGB camera sensor"""
+
+    pass
+
+
+class SSSensor(Sensor, abc.ABC):
+    """Abstract semantic segmentation camera sensor"""
+
+    pass
 
 
 NO_OBSERVATION = object()
 
 
 class CallbackSensor(Sensor):
-    def __init__(self, defaultValue=NO_OBSERVATION):
+    def __init__(self, *, defaultValue=NO_OBSERVATION, **sensor_kwargs):
+        super().__init__(**sensor_kwargs)
         self._lastObservation = defaultValue
 
     def getObservation(self):
@@ -43,7 +73,8 @@ class CallbackSensor(Sensor):
 
 
 class GroundTruthSensor(Sensor):
-    def __init__(self, value):
+    def __init__(self, value, **sensor_kwargs):
+        super().__init__(**sensor_kwargs)
         self._value = value
 
     def getObservation(self):
