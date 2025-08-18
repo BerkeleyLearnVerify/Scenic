@@ -32,9 +32,7 @@ class CarlaVisionSensor(CallbackSensor):
 
         self.convert = None
         convert = self.attributes.get("convert")
-        if convert is not None and not (
-            isinstance(convert, str) or isinstance(convert, int)
-        ):
+        if convert is not None and not isinstance(convert, (str, int)):
             raise TypeError("'convert' has to be int or string.")
         self.convert = convert
 

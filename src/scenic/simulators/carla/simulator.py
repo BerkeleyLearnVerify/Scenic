@@ -268,11 +268,13 @@ class CarlaSimulation(DrivingSimulation):
 
                 transform = carla.Transform(
                     carla.Location(
-                        x=sensor.offset[0], y=sensor.offset[1], z=sensor.offset[2]
+                        x=sensor.offset[1],  # forward (Scenic +Y) -> CARLA +X
+                        y=sensor.offset[0],  # right   (Scenic +X) -> CARLA +Y
+                        z=sensor.offset[2],  # up      (same)
                     ),
                     carla.Rotation(
-                        pitch=sensor.rotation[0],
-                        yaw=sensor.rotation[1],
+                        pitch=sensor.rotation[1],
+                        yaw=-sensor.rotation[0],  # CARLA yaw is clockwise
                         roll=sensor.rotation[2],
                     ),
                 )
