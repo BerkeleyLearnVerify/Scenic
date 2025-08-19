@@ -1,115 +1,58 @@
 ..  _sensors:
 
-***********************************
+******************
 Sensors Reference
-***********************************
+******************
 
-This page covers the `scenic.core.regions.Region` class and its subclasses; for an introduction to the concept of regions in Scenic and the basic operations available for them, see :ref:`region`.
+Scenic sensors provide observations from the selected simulator during a simulation.
+Use these abstract classes in ``with sensors { ... }`` blocks; the selected simulator
+(CARLA, MetaDrive, etc.) supplies the concrete implementation.
 
 .. contents:: :local:
 
-Abstract Regions
+Built-in Sensors
 ----------------
 
-.. autoclass:: scenic.core.regions.Region
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-    :members: intersect, intersects, union
-
-Point Sets and Lines
---------------------
-
-.. autoclass:: scenic.core.regions.PointSetRegion
+.. autoclass:: scenic.core.sensors.RGBSensor
     :noindex:
     :no-show-inheritance:
     :no-members:
 
-.. autoclass:: scenic.core.regions.PolylineRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-    :members: start, end, signedDistanceTo, pointAlongBy, __getitem__, __len__
-
-
-.. autoclass:: scenic.core.regions.PathRegion
+.. autoclass:: scenic.core.sensors.SSSensor
     :noindex:
     :no-show-inheritance:
     :no-members:
 
-.. _2D Regions:
+Usage
+-----
 
-2D Regions
-----------
+.. code-block:: scenic
 
-2D regions represent a 2D shape parallel to the XY plane, at a certain elevation in space. All 2D regions inherit from `PolygonalRegion`.
+   param map = localPath('../../assets/maps/CARLA/Town05.xodr')
+    param carla_map = 'Town05'
+    model scenic.domains.driving.model
 
-Unlike the more `PolygonalRegion`, the simple geometric shapes are allowed to depend on random values: for example, the :term:`visible region` of an `Object` is a `SectorRegion` based at the object's :prop:`position`, which might not be fixed.
+    # Sample a lane at random
+    lane = Uniform(*network.lanes)
 
-Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenience.
-Footprints are always a `PolygonalFootprintRegion`, which represents a 2D polygon extruded infinitely in the positive and negative vertical direction.
-When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
+    spot = new OrientedPoint on lane.centerline
 
-.. autoclass:: scenic.core.regions.PolygonalRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-    :members: boundary, footprint
+    attrs = {"convert": "CityScapesPalette"}  # Used by CARLA
 
-.. autoclass:: scenic.core.regions.CircularRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
+    # Spawn car on that spot with follow lane behavior and
+    # - an RGB Camera pointing forward
+    # - a semantic segmentation sensor
+    ego = new Car at spot,
+        with behavior FollowLaneBehavior(),
+        with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs),
+                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), width=1056, height=704, attributes=attrs)
+                    }
 
-.. autoclass:: scenic.core.regions.SectorRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
+    other = new Car offset by 0 @ Range(10, 30),
+        with behavior FollowLaneBehavior()
 
-.. autoclass:: scenic.core.regions.RectangularRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
+    param recordFolder = "out/{simulation}"
+    record ego.observations["front_ss"] every 0.5 seconds after 5 seconds to "frontss_{time}.jpg"
+    record ego.observations["front_rgb"] after 5 seconds to "frontrgb.mp4"
 
-3D Regions
-----------
-
-3D regions represent points in 3D space.
-
-Most 3D regions inherit from either `MeshVolumeRegion` or `MeshSurfaceRegion`, which represent the volume (of a watertight mesh) and the surface of a mesh respectively. Various region classes are also provided to create primitive shapes. `MeshVolumeRegion` can be converted to `MeshSurfaceRegion` (and vice versa) using the the ``getSurfaceRegion`` and ``getVolumeRegion`` methods.
-
-PolygonalFootprintRegions represent the :term:`footprint` of a 2D region. See `2D Regions` for more details.
-
-.. autoclass:: scenic.core.regions.MeshVolumeRegion
-    :noindex:
-    :no-members:
-    :members: getSurfaceRegion, fromFile
-
-.. autoclass:: scenic.core.regions.MeshSurfaceRegion
-    :noindex:
-    :no-members:
-    :members: getVolumeRegion, fromFile
-
-.. autoclass:: scenic.core.regions.BoxRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-
-.. autoclass:: scenic.core.regions.SpheroidRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-
-.. autoclass:: scenic.core.regions.PolygonalFootprintRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
-
-.. versionadded::3.0
-
-Niche Regions
--------------
-
-.. autoclass:: scenic.core.regions.GridRegion
-    :noindex:
-    :no-members:
+    terminate after 15 seconds

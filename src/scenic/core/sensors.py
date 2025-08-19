@@ -6,7 +6,7 @@ import math
 import os.path
 import pickle
 import sys
-from typing import Any, Literal, Optional, Tuple
+from typing import Literal, Tuple
 
 import PIL.Image
 import cv2
@@ -14,44 +14,37 @@ import numpy as np
 
 
 class Sensor(abc.ABC):
-    """Base class for all Scenic sensors.
-
-    Parameters
-    ----------
-    width, height : int
-    offset : (float, float, float)
-    rotation : (float, float, float)
-    attributes : dict  # simulator-specific attributes
-    """
-
-    def __init__(
-        self,
-        *,
-        width: int,
-        height: int,
-        offset: tuple[float, float, float],
-        rotation: tuple[float, float, float],
-        attributes: dict[str, Any],
-    ):
-        self.width = int(width)
-        self.height = int(height)
-        self.offset = tuple(offset)
-        self.rotation = tuple(rotation)
-        self.attributes = dict(attributes)
-
     @abc.abstractmethod
     def getObservation(self):
         raise NotImplementedError
 
 
 class RGBSensor(Sensor, abc.ABC):
-    """Abstract RGB camera sensor"""
+    """Abstract RGB camera sensor.
+
+    Args:
+        offset: Sensor position offset relative to the attached object (x, y, z).
+        rotation: Sensor rotation relative to the attached object (yaw, pitch, roll).
+        width: Output image width.
+        height: Output image height.
+        attributes: Simulator-specific options (dict).
+
+    """
 
     pass
 
 
 class SSSensor(Sensor, abc.ABC):
-    """Abstract semantic segmentation camera sensor"""
+    """Abstract semantic segmentation camera sensor.
+
+    Args:
+        offset: Sensor position offset relative to the attached object (x, y, z).
+        rotation: Sensor rotation relative to the attached object (yaw, pitch, roll).
+        width: Output image width.
+        height: Output image height.
+        attributes: Simulator-specific options (dict).
+
+    """
 
     pass
 
@@ -60,8 +53,7 @@ NO_OBSERVATION = object()
 
 
 class CallbackSensor(Sensor):
-    def __init__(self, *, defaultValue=NO_OBSERVATION, **sensor_kwargs):
-        super().__init__(**sensor_kwargs)
+    def __init__(self, defaultValue=NO_OBSERVATION):
         self._lastObservation = defaultValue
 
     def getObservation(self):
@@ -81,8 +73,7 @@ class CallbackSensor(Sensor):
 
 
 class GroundTruthSensor(Sensor):
-    def __init__(self, value, **sensor_kwargs):
-        super().__init__(**sensor_kwargs)
+    def __init__(self, value):
         self._value = value
 
     def getObservation(self):

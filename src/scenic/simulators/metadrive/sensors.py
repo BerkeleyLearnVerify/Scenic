@@ -1,4 +1,4 @@
-from scenic.core.sensors import RGBSensor, Sensor, SSSensor
+from scenic.core.sensors import Sensor
 
 # NOTE: MetaDrive/Panda3D coords:
 #   position (x, y, z) m relative to the parent object's orgin: +X right, +Y forward, +Z up (Z-up, RH).

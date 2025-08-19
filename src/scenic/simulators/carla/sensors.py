@@ -1,6 +1,6 @@
 import numpy as np
 
-from scenic.core.sensors import CallbackSensor, RGBSensor, SSSensor
+from scenic.core.sensors import CallbackSensor
 
 
 class CarlaVisionSensor(CallbackSensor):

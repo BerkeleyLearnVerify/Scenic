@@ -181,7 +181,6 @@ Properties added by `Object`:
  behavior                `None`                   :term:`dynamic behavior`, if any
  lastActions             `None`                   tuple of actions taken in last timestamp
  sensors                 {}                       list of :keyword:`sensors` the object has
- observations            {}                       latest observation per sensor
 ======================== ======================= ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
