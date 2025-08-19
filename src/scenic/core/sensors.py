@@ -6,7 +6,7 @@ import math
 import os.path
 import pickle
 import sys
-from typing import Literal, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import PIL.Image
 import cv2
@@ -14,22 +14,30 @@ import numpy as np
 
 
 class Sensor(abc.ABC):
+    """Base class for all Scenic sensors.
+
+    Parameters
+    ----------
+    width, height : int
+    offset : (float, float, float)
+    rotation : (float, float, float)
+    attributes : dict  # simulator-specific attributes
+    """
+
     def __init__(
         self,
         *,
-        offset=None,
-        rotation=(0.0, 0.0, 0.0),
-        width=None,
-        height=None,
-        attributes=None,
+        width: int,
+        height: int,
+        offset: tuple[float, float, float],
+        rotation: tuple[float, float, float],
+        attributes: dict[str, Any],
     ):
+        self.width = int(width)
+        self.height = int(height)
         self.offset = tuple(offset)
         self.rotation = tuple(rotation)
-        if width is None or height is None:
-            raise ValueError("width and height are required for sensors")
-        self.width = int(width) if width is not None else None
-        self.height = int(height) if height is not None else None
-        self.attributes = {} if attributes is None else dict(attributes)
+        self.attributes = dict(attributes)
 
     @abc.abstractmethod
     def getObservation(self):
