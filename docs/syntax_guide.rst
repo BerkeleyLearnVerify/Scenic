@@ -180,7 +180,7 @@ Properties added by `Object`:
  angularSpeed [1]_       0                        angular speed (change in :prop:`heading`/time)
  behavior                `None`                   :term:`dynamic behavior`, if any
  lastActions             `None`                   tuple of actions taken in last timestamp
- sensors                 {}                       list of :keyword:`sensors` the object has
+ sensors                 {}                       dict of :ref:`sensors <sensors>` the object has
 ======================== ======================= ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during

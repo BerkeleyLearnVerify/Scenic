@@ -5,8 +5,14 @@ Sensors Reference
 ******************
 
 Scenic sensors provide observations from the selected simulator during a simulation.
-Use these abstract classes in ``with sensors { ... }`` blocks; the selected simulator
+Use these abstract classes in :specifier:`with sensors { ... }` blocks; the selected simulator
 (CARLA, MetaDrive, etc.) supplies the concrete implementation.
+
+.. note::
+
+    The sensors API is a prototype and may undergo changes.
+
+.. versionadded:: 3.1
 
 .. contents:: :local:
 
@@ -28,7 +34,7 @@ Usage
 
 .. code-block:: scenic
 
-   param map = localPath('../../assets/maps/CARLA/Town05.xodr')
+    param map = localPath('../../assets/maps/CARLA/Town05.xodr')
     param carla_map = 'Town05'
     model scenic.domains.driving.model
 

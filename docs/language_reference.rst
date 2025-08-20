@@ -16,11 +16,11 @@ For details on the syntax for functions, loops, etc. inherited from Python, see 
 
     reference/general
     reference/data
-    reference/sensors
     reference/region_types
     reference/distributions
     reference/statements
     reference/classes
+    reference/sensors
     reference/specifiers
     reference/operators
     reference/functions
