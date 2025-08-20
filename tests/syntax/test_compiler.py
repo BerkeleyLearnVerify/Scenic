@@ -1483,8 +1483,8 @@ class TestCompiler:
                     ],
                     [
                         keyword("recorder", Name("file")),
-                        keyword("period", Tuple(Constant(0.2), Constant("seconds"))),
-                        keyword("delay", Tuple(Constant(10), Constant("steps"))),
+                        keyword("period", Tuple([Constant(0.2), Constant("seconds")])),
+                        keyword("delay", Tuple([Constant(10), Constant("steps")])),
                     ],
                 )
             ):

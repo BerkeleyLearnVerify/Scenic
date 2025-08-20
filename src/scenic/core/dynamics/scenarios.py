@@ -370,7 +370,7 @@ class DynamicScenario(Invocable):
         for rec in getattr(self, place):
             value = rec.evaluate()
             values[rec.name] = value
-            if recorder := rec.recConfig.recorder:
+            if (recConfig := rec.recConfig) and (recorder := recConfig.recorder):
                 recorder._record(value, step)
         for sub in self._subScenarios:
             subvals = sub._evaluateRecordedExprsAt(place, step)
