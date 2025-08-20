@@ -165,6 +165,14 @@ class MetaDriveSimulation(DrivingSimulation):
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
+        vehicle_config = {}
+        if obj.isVehicle:
+            vehicle_config["spawn_position_heading"] = [
+                converted_position,
+                converted_heading,
+            ]
+            vehicle_config["spawn_velocity"] = [obj.velocity.x, obj.velocity.y]
+
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
@@ -175,13 +183,9 @@ class MetaDriveSimulation(DrivingSimulation):
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
-                    vehicle_config={
-                        "spawn_position_heading": [
-                            converted_position,
-                            converted_heading,
-                        ],
-                    },
-                    use_mesh_terrain=self.render3D,
+                    vehicle_config=vehicle_config,
+                    use_mesh_terrain=False,
+                    height_scale=0.0001,
                     log_level=logging.CRITICAL,
                     image_observation=self.using_sensors,
                     sensors=self.drive_env_config,
@@ -203,9 +207,7 @@ class MetaDriveSimulation(DrivingSimulation):
         if obj.isVehicle:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
-                vehicle_config=dict(),
-                position=converted_position,
-                heading=converted_heading,
+                vehicle_config=vehicle_config,
             )
             obj.metaDriveActor = metaDriveActor
 
@@ -224,6 +226,10 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # Attach sensors (if any)
             self._attach_sensors(obj)
+
+            # Manually initialize pedestrian velocity to Scenic’s starting speed
+            direction = [math.cos(converted_heading), math.sin(converted_heading)]
+            metaDriveActor.set_velocity(direction, obj.speed)
             return
 
         # If the object type is unsupported, raise an error

@@ -1408,7 +1408,7 @@ pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
 wildcard_pattern["ast.MatchAs"]:
-    | "_" { ast.MatchAs(pattern=None, target=None, LOCATIONS) }
+    | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
 
 value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }

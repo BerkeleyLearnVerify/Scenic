@@ -10,8 +10,8 @@ import math
 import time
 
 import numpy
+import shapely.errors
 import shapely.geometry
-import shapely.geos
 from trimesh.transformations import translation_matrix
 
 from scenic.core.distributions import (
@@ -372,7 +372,7 @@ def pruneRelativeHeading(scenario, verbosity):
                     continue
                 try:
                     pruned = newBasePoly & feasible
-                except shapely.geos.TopologicalError:  # TODO how can we prevent these??
+                except shapely.errors.TopologicalError:  # TODO how can we prevent these??
                     pruned = newBasePoly & feasible.buffer(0.1, cap_style=2)
                 if verbosity >= 1:
                     percent = 100 * (1.0 - (pruned.area / newBasePoly.area))
