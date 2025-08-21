@@ -605,7 +605,9 @@ import scenic
 orig_object_description = sphinx.util.inspect.object_description
 
 
-def object_description(obj):
+def object_description(obj, **kwargs):
+    # Accept **kwargs to support Sphinx ≥7.2, which passes the `_seen` argument
+    # to object_description. This ensures compatibility across Sphinx versions.
     if obj is scenic.core.regions.nowhere or obj is scenic.core.regions.everywhere:
         return str(obj)
     elif isinstance(
@@ -622,7 +624,7 @@ def object_description(obj):
     elif obj is sys.stderr:
         return "sys.stderr"
     else:
-        return orig_object_description(obj)
+        return orig_object_description(obj, **kwargs)
 
 
 sphinx.util.inspect.object_description = object_description

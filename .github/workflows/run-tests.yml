@@ -36,11 +36,11 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
         include:
           # Only run slow tests on the latest version of Python
-          - python-version: "3.13"
+          - python-version: "3.14"
             slow: true
     runs-on: ${{ matrix.os }}
 
@@ -63,6 +63,7 @@ jobs:
       uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: true
         cache: 'pip'
 
     - name: Update pip
