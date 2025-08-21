@@ -1032,6 +1032,9 @@ class Object(OrientedPoint):
           Default value :scenic:`((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5))`.
         cameraOffset (`Vector`): Position of the camera for the :keyword:`can see`
           operator, relative to the object's :prop:`position`. Default :scenic:`(0, 0, 0)`.
+        visionSensorOffset (`Vector`): Offset of the default vision sensor mount point,
+          relative to the object's :prop:`position`. Defaults to the front-center of the
+          bounding box, :scenic:`(0, self.length/2, 0)`.
         requireVisible (bool): Whether the object is required to be visible
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
@@ -1052,6 +1055,9 @@ class Object(OrientedPoint):
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
           (an empty tuple if the object is not an agent or this is the first time step).
+        sensors: Dict of ("name": sensor) that populate the observations field every time step
+        observations: Dict of ("name": observation) storing the latest observation of the sensor
+          with the same name
     """
 
     _scenic_properties = {
@@ -1067,6 +1073,9 @@ class Object(OrientedPoint):
         "contactTolerance": 1e-4,
         "sideComponentThresholds": ((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5)),
         "cameraOffset": Vector(0, 0, 0),
+        "visionSensorOffset": PropertyDefault(
+            ("length",), {}, lambda self: Vector(0, self.length / 2, 0)
+        ),
         "requireVisible": False,
         "occluding": True,
         "showVisibleRegion": False,
@@ -1080,6 +1089,9 @@ class Object(OrientedPoint):
         "lastActions": tuple(),
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
+        # Sensor properties
+        "sensors": PropertyDefault((), {}, lambda self: {}),
+        "observations": PropertyDefault((), {"final"}, lambda self: {}),
     }
 
     def __new__(cls, *args, **kwargs):

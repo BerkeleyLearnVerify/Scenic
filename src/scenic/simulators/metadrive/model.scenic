@@ -37,6 +37,11 @@ from scenic.domains.driving.behaviors import *
 
 from scenic.core.errors import InvalidScenarioError
 
+# Sensor imports
+from scenic.simulators.metadrive.sensors import MetaDriveRGBSensor as RGBSensor
+from scenic.simulators.metadrive.sensors import MetaDriveSSSensor as SSSensor
+
+
 try:
     from scenic.simulators.metadrive.simulator import MetaDriveSimulator
     from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
