@@ -19,7 +19,7 @@ Global Parameters:
         interrupts CARLA to run behaviors, check requirements, etc.), in seconds. Default
         is 0.1 seconds.
     snapToGroundDefault (bool): Default value for :prop:`snapToGround` on `CarlaActor` objects.
-        Default is True if :ref:`2D compatibility mode` is enabled and False otherwise. 
+        Default is True if :ref:`2D compatibility mode` is enabled and False otherwise.
 
     weather (str or dict): Weather to use for the simulation. Can be either a
         string identifying one of the CARLA weather presets (e.g. 'ClearSunset') or a
@@ -30,7 +30,7 @@ Global Parameters:
         (127.0.0.1).
     port (int): Port on which to connect to CARLA. Default is 2000.
     timeout (float): Maximum time to wait when attempting to connect to CARLA, in
-        seconds. Default is 10.
+        seconds. Default is 60.
 
     render (int): Whether or not to have CARLA create a window showing the
         simulations from the point of view of the ego object: 1 for yes, 0
@@ -80,7 +80,7 @@ map_town = pathlib.Path(globalParameters.map).stem
 param carla_map = map_town
 param address = '127.0.0.1'
 param port = 2000
-param timeout = 10
+param timeout = 60
 param render = 1
 if globalParameters.render not in [0, 1]:
     raise ValueError('render param must be either 0 or 1')
@@ -191,16 +191,30 @@ class Car(Vehicle):
 class NPCCar(Car):  # no distinction between these in CARLA
     pass
 
-class Bicycle(Vehicle):
-    width: 1
-    length: 2
-    blueprint: Uniform(*blueprints.bicycleModels)
+if blueprints.bicycleModels:
+    class Bicycle(Vehicle):
+        width: 1
+        length: 2
+        blueprint: Uniform(*blueprints.bicycleModels)
+else:
+    class Bicycle(Vehicle):
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                f"'Bicycle' object cannot be used: no bicycle blueprints available in CARLA {blueprints.carla_pkg_version}."
+            )
 
 
-class Motorcycle(Vehicle):
-    width: 1
-    length:2
-    blueprint: Uniform(*blueprints.motorcycleModels)
+if blueprints.motorcycleModels:
+    class Motorcycle(Vehicle):
+        width: 1
+        length:2
+        blueprint: Uniform(*blueprints.motorcycleModels)
+else:
+    class Motorcycle(Vehicle):
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                f"'Motorcycle' object cannot be used: no motorcycle blueprints available in CARLA {blueprints.carla_pkg_version}."
+            )
 
 
 class Truck(Vehicle):
@@ -306,8 +320,15 @@ class Case(Prop):
     blueprint: Uniform(*blueprints.caseModels)
 
 
-class Box(Prop):
-    blueprint: Uniform(*blueprints.boxModels)
+if blueprints.boxModels:
+    class Box(Prop):
+        blueprint: Uniform(*blueprints.boxModels)
+else:
+    class Box(Prop):
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                f"'Box' object cannot be used: no box blueprints available in CARLA {blueprints.carla_pkg_version}."
+            )
 
 
 class Bench(Prop):
@@ -326,8 +347,15 @@ class Kiosk(Prop):
     blueprint: Uniform(*blueprints.kioskModels)
 
 
-class IronPlate(Prop):
-    blueprint: Uniform(*blueprints.ironplateModels)
+if blueprints.ironplateModels:
+    class IronPlate(Prop):
+        blueprint: Uniform(*blueprints.ironplateModels)
+else:
+    class IronPlate(Prop):
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                f"'Iron plate' object cannot be used: no iron plate blueprints available in CARLA {blueprints.carla_pkg_version}."
+            )
 
 
 class TrafficWarning(Prop):
@@ -415,7 +443,7 @@ def setClosestTrafficLightStatus(vehicle, color, distance=100):
     color = _utils.scenicToCarlaTrafficLightStatus(color)
     if color is None:
         raise RuntimeError('Color must be red/yellow/green/off/unknown.')
-    
+
     traffic_light = _getClosestTrafficLight(vehicle, distance)
     if traffic_light is not None:
         traffic_light.set_state(color)

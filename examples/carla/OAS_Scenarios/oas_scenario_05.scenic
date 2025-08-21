@@ -3,11 +3,11 @@ Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:Pa>E:03
 The lead car suddenly stops and then resumes moving forward
 
 To run this file using the Carla simulator:
-    scenic examples/carla/NHTSA_Scenarios/OAS_Scenarios/oas_scenario_05.scenic --2d --model scenic.simulators.carla.model --simulate
+    scenic examples/carla/OAS_Scenarios/oas_scenario_05.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
-param map = localPath('../../../assets/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD_Opt'
 model scenic.domains.driving.model
 
 MAX_BREAK_THRESHOLD = 1
@@ -28,7 +28,7 @@ behavior CollisionAvoidance():
 
 behavior FollowLeadCarBehavior():
 
-    try: 
+    try:
         do FollowLaneBehavior()
 
     interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):

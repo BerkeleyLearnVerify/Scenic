@@ -1,15 +1,15 @@
 """ Scenario Description
 Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:Pa>E:03
 The car ahead of ego that is badly parked over the sidewalk cuts into ego vehicle's lane.
-This scenario may fail if there exists any obstacle (e.g. fences) on the sidewalk 
+This scenario may fail if there exists any obstacle (e.g. fences) on the sidewalk
 
 To run this file using the Carla simulator:
-    scenic examples/carla/NHTSA_Scenarios/OAS_Scenarios/oas_scenario_06.scenic --2d --model scenic.simulators.carla.model --simulate
+    scenic examples/carla/OAS_Scenarios/oas_scenario_06.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 
-param map = localPath('../../../assets/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD_Opt'
 model scenic.domains.driving.model
 
 MAX_BREAK_THRESHOLD = 1
@@ -31,7 +31,7 @@ behavior CollisionAvoidance():
 
 
 behavior EgoBehavior(target_speed):
-    try: 
+    try:
         do FollowLaneBehavior(target_speed=target_speed)
 
     interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
@@ -44,7 +44,7 @@ ego_lane = select_road.lanes[0]
 
 ego = new Car on ego_lane.centerline,
         with behavior EgoBehavior(target_speed=EGO_SPEED)
-        
+
 spot = new OrientedPoint on visible curb
 parkedHeadingAngle = Uniform(-1,1)*Range(10,20) deg
 
