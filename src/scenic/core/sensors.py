@@ -93,6 +93,11 @@ class RecordingConfiguration:
 
 
 class Recorder:
+    """A method of saving a :ref:`record <record>` to a file.
+
+    Detailed documentation forthcoming.
+    """
+
     def __init__(self):
         self._recording = False
 

@@ -84,8 +84,8 @@ Simple Statements
      - Set the scenario to terminate after a given amount of time.
    * - :sampref:`mutate {identifier}, {...} [by {number}]`
      - Enable mutation of the given list of objects.
-   * - :sampref:`record [initial | final] {value} as {name}`
-     - Save a value at every time step or only at the start/end of the simulation.
+   * - :sampref:`record [initial | final] {value} {...}`
+     - Save initial, final, or time series data from simulations.
 
 Dynamic Statements
 ++++++++++++++++++
