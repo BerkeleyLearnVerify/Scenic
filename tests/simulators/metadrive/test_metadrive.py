@@ -192,6 +192,7 @@ def test_static_pedestrian(getMetadriveSimulator):
     )
 
 
+@pytest.mark.graphical  # TODO temporary until MetaDrive issue fixed in new release
 def test_duplicate_sensor_names(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
