@@ -21,17 +21,13 @@ MetaDrive
 
 Scenic supports integration with the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as an optional dependency,
 enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios.
-If your system supports it, you can install it with:
+You can install it with:
 
 .. code-block:: console
 
     python -m pip install scenic[metadrive]
 
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
-2D rendering is available on all systems, providing a top-down view.
-However, 3D rendering may not work properly on macOS devices with M-series chips.
-Additionally, there is an issue where cars do not fully brake in certain scenarios.
-These issues are expected to be addressed in the next version of MetaDrive.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
 Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html>`_ tool.
@@ -40,15 +36,6 @@ Otherwise, you can specify it explicitly using the ``sumo_map`` global parameter
 
 The simulator is compatible with scenarios written using Scenic's :ref:`driving_domain`.
 For more information, refer to the documentation of the `scenic.simulators.metadrive` module.
-
-.. note::
-
-	The current version of MetaDrive on PyPI may not support the latest versions of Python or Apple Silicon hardware.
-	If the above command gives an error or you get a "could not open window" error when running MetaDrive, you can try installing a newer version from the MetaDrive repo as follows:
-
-	.. code-block:: console
-
-		python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
 
 
 Built-in Newtonian Simulator

@@ -63,9 +63,6 @@ def test_throttle(getMetadriveSimulator):
     assert speeds[len(speeds) // 2][1] < speeds[-1][1]
 
 
-@pytest.mark.xfail(
-    reason="Expected failure until MetaDrive uploads the next version on PyPI to fix the issue where cars aren't fully stopping."
-)
 def test_brake(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
