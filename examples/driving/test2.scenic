@@ -4,7 +4,7 @@ model scenic.domains.driving.model
 select_road = Uniform(*network.roads)
 select_lane = Uniform(*select_road.lanes)
 
-ego = new Car on road, at (10, -12, 100),with regionContainedIn everywhere
+ego = new Car on road , at (200, -32, 100),with regionContainedIn everywhere
 #ego.parentOrientation = ego.road.orientation[ego.position]
 def foo():
     print(f"EGO POSITION: {ego.position}")

@@ -11,3 +11,11 @@ spot = new OrientedPoint on visible rightCurb
 badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
 parkedCar = new Car left of spot by 0.5,
                 facing badAngle relative to roadDirection
+
+def foo():
+    print(f"EGO POSITION: {ego.position}")
+    print(f"EGO ORIENTATION: {ego.parentOrientation}")
+    print(f"ROAD DIRECTION: {roadDirection at ego.position}")
+    print(f"ROAD ORIENTATION: {ego.road.orientation[ego.position]}")
+    return True
+require foo()
