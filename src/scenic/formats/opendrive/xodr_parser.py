@@ -744,6 +744,7 @@ class Road:
             ### Need to work on these ###
             # Need to find another trimesh function to replace overlaps and difference
             # Difference and slightly erode all overlapping meshgons
+            
             for sec in self.lane_secs:
                 for lane in sec.lanes.values():
                     parentIndex = lane.parent_lane_mesh
@@ -1056,14 +1057,14 @@ class Road:
             if not use2DMap:
                 allShape = (
                     sec.mesh
-                    for id_ in laneIDs # Builds all elements' meshes, not ignoring overlaps
+                    for id_ in laneIDs # Quick fix to include all meshes
                     for sec in sections[id_]
                 )
                 union = trimesh.util.concatenate(allShape)
             else:
                 allShape = (
                     sec.poly
-                    for id_ in laneIDs
+                    for id_ in range(rightmost, leftmost + 1)
                     for sec in sections[id_]
                 )
                 union = buffer_union(allShape, tolerance=tolerance)
