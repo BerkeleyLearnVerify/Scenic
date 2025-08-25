@@ -1003,7 +1003,7 @@ class Road:
 
         def combineSections(laneIDs, sections, name):
             leftmost, rightmost = max(laneIDs), min(laneIDs)
-            if len(laneIDs) != leftmost - rightmost + 1:
+            if len(laneIDs) != leftmost - rightmost + 1 and use2DMap:
                 warn(f"ignoring {name} in the middle of road {self.id_}")
             leftPoints, rightPoints = [], []
             if leftmost < 0:
@@ -1056,14 +1056,14 @@ class Road:
             if not use2DMap:
                 allShape = (
                     sec.mesh
-                    for id_ in range(rightmost, leftmost + 1)
+                    for id_ in laneIDs # Builds all elements' meshes, not ignoring overlaps
                     for sec in sections[id_]
                 )
                 union = trimesh.util.concatenate(allShape)
             else:
                 allShape = (
                     sec.poly
-                    for id_ in range(rightmost, leftmost + 1)
+                    for id_ in laneIDs
                     for sec in sections[id_]
                 )
                 union = buffer_union(allShape, tolerance=tolerance)
