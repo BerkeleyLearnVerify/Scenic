@@ -291,6 +291,7 @@ class Vehicle(DrivingObject):
     viewAngle: 90 deg
     width: 2
     length: 4.5
+    height: 2.5 # default height;
     color: Color.defaultCarColor()
 
     @property

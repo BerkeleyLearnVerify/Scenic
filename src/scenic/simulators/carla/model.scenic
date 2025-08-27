@@ -98,7 +98,7 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
-param snapToGroundDefault = is2DMode()
+param snapToGroundDefault = True #is2DMode()
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,

@@ -219,18 +219,19 @@ class CarlaSimulation(DrivingSimulation):
             c_str = f"{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}"
             blueprint.set_attribute("color", c_str)
 
-        transform.location.z += 0.1
+        #transform.location.z += 0.1
         # Create Carla actor
         carlaActor = self.world.try_spawn_actor(blueprint, transform)
 
-        if carlaActor is None:
+        # Commented out block for 3D mode
+        """if carlaActor is None:
             # If spawning fails, try to spawn at a nearby waypoint
             if obj.snapToGround:
                 waypoint = self.map.get_waypoint(loc, project_to_road=True)
                 if waypoint:
                     transform.location = waypoint.transform.location
                     transform.location.z += 0.1  # lift off ground
-                    carlaActor = self.world.try_spawn_actor(blueprint, transform)
+                    carlaActor = self.world.try_spawn_actor(blueprint, transform)"""
 
         if carlaActor is None:
             raise SimulationCreationError(f"Unable to spawn object {obj}")
