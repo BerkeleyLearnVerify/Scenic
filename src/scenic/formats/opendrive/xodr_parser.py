@@ -1205,13 +1205,15 @@ class Road:
                 -Lateral offset i.e, left/right depend on which way the road object is facing
         '''
         
-        cumalative_curve_length = 0.0 #Accumulate length of the curves
+        cumalative_curve_length = 0.0
 
         for curve in self.ref_line: #Iterate through each curve in the road reference line (self.ref_line --> list of curves)
             if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on; epsilon margin to allow for numerical error
                 local_s = s - cumalative_curve_length #Figure out the local s-coordinate on the curve (how many units into the curve are we?)
+                
                 x,y,z = curve.point_at(local_s) #Get the x,y,z position
                 heading = curve.heading_at(local_s)
+
                 return (x,y,z), heading
           
             cumalative_curve_length = cumalative_curve_length + curve.length #Update cumulative length of curves until we find the right curve
@@ -1224,68 +1226,42 @@ class Road:
         return (x,y,z), heading
 
 
-    def st_to_xyz(self, s, t, h):
-        (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s) #Only use centerline position.
+    def st_to_xyz(self, s, t, zOffset):
+        (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s)
 
         #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain the final global coordinates
         x = x_ref - t * math.sin(heading)
         y = y_ref + t * math.cos(heading)
-        z = z_ref + h #Height offset
+        z = z_ref + zOffset #Height offset
 
-        return (x,y,z)
+        return (x,y,0) 
 
-    def uv_to_xyz(self, s, t, hdg, pitch, roll, u, v, z_local, z_offset):
+    def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll,): #cornerLocal has u,v,z
         '''
         -We are now working directly with the <cornerLocal> element within <outline> for the crosswalk object
         -Each crosswalk is defined by a reference point (origin) and a list of corners (<cornerLocal>)
             -We obtain the origin through calling the st_to_xyz function. At this point u,v,z_local should all EQUAL 0
             -<cornerLocal> refers to the "corners" or points on the crosswalk described relative to the origin
                 -5 "corners" or sets of points (u,v,z). 5th point is a duplicate of the 1st (closes the polygon)
-        -Potentially verify that u,v, and z_local are all 0 at the newly converted x,y,z coordinates to prove the x,y,z conversion is accurate
+        -Can verify that u,v, and z_local are all 0 at the origin to prove the s,t to x,y,z conversion is accurate
 
         -3 steps:
-            -Get the cartesian position of the crosswalk's origin
+            -Get the global position of the crosswalk's origin
                 -Call st_to_xyz
-            -Figure out the rotation of the crosswalk using hdg, pitch, roll. 
+            -Figure out the rotation of the crosswalk using yaw, pitch, roll. 
                 -This will allow us to figure out what "forward", "left", "right", etc. are, i.e., how the object is oriented in 3D space
                     -We need to do this because "forward" in local space might not match "forward" in world space
                 -We need to construct a rotation matrix here; otherwise local system of (u,v,z) won't be aligned with (x,y,z)
             -Rotate the local point (u,v,z) into a global position
         '''
 
-        (x0, y0, z0) = self.st_to_xyz(s, t, z_offset) #Object origin position
+        (x0, y0, z0) = self.st_to_xyz(s, t, zOffset)
         (_,_,_), road_heading = self.xyz_heading_at_s(s)
         yaw = hdg + road_heading
 
-        #Construct rotation matrix
-        # Rx = np.array([
-        #     [1, 0, 0],
-        #     [0, math.cos(roll), -math.sin(roll)],
-        #     [0, math.sin(roll), math.cos(roll)]
-        # ])
-
-        # Ry = np.array([
-        #     [math.cos(pitch), 0, math.sin(pitch)],
-        #     [0,1,0],
-        #     [-math.sin(pitch), 0, math.cos(pitch)]
-        # ])
-
-        # Rz = np.array([
-        #     [math.cos(yaw), -math.sin(yaw), 0],
-        #     [math.sin(yaw), math.cos(yaw), 0],
-        #     [0,0,1]
-        # ])
-
-        # R = Rz @ Ry @ Rx #Numpy matrix multiplication
-
-        # #We have constructed the rotation matrix so now we can use it to rotate the actual (u,v,z) point so that we know its direction, i.e,
-        # #where is the point relative to the origin
-        # local_vector = np.array([u,v,z_local])
-        # rotated_vector = R @ local_vector
-
-        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Create rotation object r that stores the 3x3 matrix
+        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Create rotation object r that stores the 3x3 matrix. Extrinsic so lowercase
         local_vector = np.array([u,v,z_local]) #Point in the object's local coordinate system
-        rotated_vector = r.apply(local_vector) #Rotate the vector in into a global frame using the matrix (r)
+        rotated_vector = r.apply(local_vector) #Rotate the vector into a global frame using the matrix (r)
 
         x = x0 + rotated_vector[0]
         y = y0 + rotated_vector[1]
@@ -1558,7 +1534,7 @@ class RoadMap:
 
         cw = Crosswalk(
             type_ = crosswalk_elem.get("type"),
-            subType = crosswalk_elem.get("subType"),
+            subType = crosswalk_elem.get("subtype"),
             id_ = crosswalk_elem.get("id"),
             s = float(crosswalk_elem.get("s", 0.0)), #0.0 is default
             t = float(crosswalk_elem.get("t", 0.0)),

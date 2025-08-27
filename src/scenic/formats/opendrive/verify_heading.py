@@ -5,12 +5,8 @@ import sys
 
 store_differences = []
 
-def test_heading(curve, label, epsilon=2):
-    length = curve.length
-    if length <= 0:
-        print("Bad Curve")
-    
-    s = length/2 #Just using the midpoint
+def test_heading(curve, label, epsilon=1e-3):
+    s = curve.length/2 #Just using the midpoint
     s0 = max(0, s - epsilon)
     s1 = min(curve.length, s + epsilon)
 
@@ -24,17 +20,18 @@ def test_heading(curve, label, epsilon=2):
     dy = y1 - y0
 
     aprox_heading = math.atan2(dy, dx) #What we just calculated using the two very close points to s 
-    heading = curve.heading_at(s) #Formal function for calculating heading for each curve
+    heading = curve.heading_at(s) #Per Curve function for calculating heading
+
     difference = abs(aprox_heading - heading)
     store_differences.append(difference)
 
-    print("Curve Length = ", length)
+    print("Curve Length = ", curve.length)
     print("s = ", s)
     print(f"Curve Attributes: {curve.__dict__}")
     print(f"Label: {label}, Aprox Heading: {aprox_heading:.6f}, Heading: {heading:.6f}, Difference: {difference:.6f}")
     print()
 
-def main(path, sample_size=1000):
+def main(path):
     road_map = xodr_parser.RoadMap()
     road_map.parse(path)
     road_count = 0 
@@ -47,9 +44,6 @@ def main(path, sample_size=1000):
                     continue
                 test_heading(curve, label)
             
-            road_count = road_count + 1
-            if road_count > sample_size:
-                break
     if store_differences:
         print("Smallest Difference: ", min(store_differences))
         print("Largest Difference: ", max(store_differences))
