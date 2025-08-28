@@ -1054,7 +1054,7 @@ class Road:
             if not use2DMap:
                 allShape = (
                     sec.mesh
-                    for id_ in laneIDs  # Quick fix to include all meshes
+                    for id_ in range(rightmost, leftmost + 1)  # Quick fix to include all meshes
                     for sec in sections[id_]
                 )
                 union = trimesh.util.concatenate(allShape)
