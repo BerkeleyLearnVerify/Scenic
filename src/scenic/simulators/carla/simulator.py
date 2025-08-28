@@ -219,7 +219,7 @@ class CarlaSimulation(DrivingSimulation):
             c_str = f"{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}"
             blueprint.set_attribute("color", c_str)
 
-        #transform.location.z += 0.1
+        # transform.location.z += 0.1
         # Create Carla actor
         carlaActor = self.world.try_spawn_actor(blueprint, transform)
 

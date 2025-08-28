@@ -24,9 +24,9 @@ import struct
 import time
 from typing import FrozenSet, List, Optional, Sequence, Tuple, Union
 import weakref
-import numpy as np
 
 import attr
+import numpy as np
 import shapely
 from shapely.geometry import MultiPolygon, Polygon
 import trimesh
@@ -39,13 +39,13 @@ from scenic.core.distributions import (
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import (
-    Region,
-    PolygonalRegion,
-    PolylineRegion,
-    PathRegion,
+    EmptyRegion,
     MeshRegion,
     MeshSurfaceRegion,
-    EmptyRegion
+    PathRegion,
+    PolygonalRegion,
+    PolylineRegion,
+    Region,
 )
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
@@ -271,7 +271,11 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
             self.uid = self.id
         if isinstance(self.region, MeshSurfaceRegion):
             self.region.__init__(
-                mesh=self.polygon, orientation=self.orientation, centerMesh=False, name=self.name, position=None
+                mesh=self.polygon,
+                orientation=self.orientation,
+                centerMesh=False,
+                name=self.name,
+                position=None,
             )
         else:
             self.region.__init__(
@@ -337,7 +341,7 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def uniformPointInner(self):
         return self.region.uniformPointInner()
-    
+
     def show(self, plt, style="r-", **kwargs):
         return self.region.show(plt, style="r-", **kwargs)
 
@@ -983,7 +987,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.roadRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
             if self.laneRegion is None:
                 meshes = [m.polygon for m in self.lanes]
@@ -991,7 +995,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.laneRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
             if self.intersectionRegion is None:
                 meshes = [m.polygon for m in self.intersections]
@@ -999,7 +1003,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.intersectionRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
             if self.crossingRegion is None:
                 meshes = [m.polygon for m in self.crossings]
@@ -1007,7 +1011,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.crossingRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
             if self.sidewalkRegion is None:
                 meshes = [m.polygon for m in self.sidewalks]
@@ -1015,7 +1019,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.sidewalkRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
             if self.shoulderRegion is None:
                 meshes = [m.polygon for m in self.shoulders]
@@ -1023,7 +1027,7 @@ class Network:
                 combined = trimesh.util.concatenate(meshes)
                 orientation = VectorField.forUnionOf(regions, tolerance=self.tolerance)
                 self.shoulderRegion = MeshSurfaceRegion(
-                    combined, centerMesh=False, position=None, orientation=orientation 
+                    combined, centerMesh=False, position=None, orientation=orientation
                 )
         else:
             if self.roadRegion is None:
@@ -1040,7 +1044,7 @@ class Network:
                 self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
-            if self.use2DMap==0:
+            if self.use2DMap == 0:
                 combined = trimesh.util.concatenate(
                     (
                         self.laneRegion.mesh,
@@ -1054,7 +1058,7 @@ class Network:
                     combined,
                     centerMesh=False,
                     position=None,
-                    orientation=orientation # Note: Orientation for drivable region seems to produce incorrect orientation for cars (need to investigate)
+                    orientation=orientation,  # Note: Orientation for drivable region seems to produce incorrect orientation for cars (need to investigate)
                 )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
@@ -1075,7 +1079,7 @@ class Network:
             self.intersectionRegion, tolerance=self.tolerance
         )"""
         if self.walkableRegion is None:
-            if self.use2DMap==0:
+            if self.use2DMap == 0:
                 combined = trimesh.util.concatenate(
                     (
                         self.sidewalkRegion.mesh,
@@ -1089,7 +1093,7 @@ class Network:
                 )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-            #self.walkableRegion = self.sidewalkRegion
+            # self.walkableRegion = self.sidewalkRegion
         """
         assert self.walkableRegion.containsRegion(
             self.sidewalkRegion, tolerance=self.tolerance
@@ -1105,7 +1109,7 @@ class Network:
                     edges.append(road.forwardLanes.curb)
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
-            if self.use2DMap==0:
+            if self.use2DMap == 0:
                 vertex_lists = [edge.vertices for edge in edges]
                 self.curbRegion = PathRegion(polylines=vertex_lists)
             else:
@@ -1117,7 +1121,7 @@ class Network:
 
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
-        if self.use2DMap==0:
+        if self.use2DMap == 0:
             meshregions = []
             for elem in self.elements.values():
                 mesh = elem.polygon
@@ -1271,6 +1275,7 @@ class Network:
                 eliding roads with length less than **tolerance**.
         """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
+
         road_map = xodr_parser.RoadMap(
             tolerance=tolerance,
             fill_intersections=fill_intersections,
@@ -1524,9 +1529,7 @@ class Network:
                     units="dots",
                     color="#A0A0A0",
                 )
-        for (
-            lane
-        ) in self.lanes:  # draw centerlines of all lanes (including connecting)
+        for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=":", color="#A0A0A0")
         self.intersectionRegion.show(plt, style="g")
         if labelIncomingLanes:

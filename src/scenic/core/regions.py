@@ -2813,7 +2813,7 @@ class PathRegion(Region):
             tuple(numpy.amin(self.vertices, axis=0)),
             tuple(numpy.amax(self.vertices, axis=0)),
         )
-    
+
     @distributionMethod
     def signedDistanceTo(self, point) -> float:
         """Compute the signed distance of the PathRegion to a point.

@@ -8,14 +8,13 @@ import math
 import warnings
 import xml.etree.ElementTree as ET
 
-import trimesh
-
 import numpy as np
-
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
+from scipy.spatial import Delaunay
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import snap, unary_union
+import trimesh
 
 from scenic.core.geometry import (
     averageVectors,
@@ -26,16 +25,14 @@ from scenic.core.geometry import (
     removeHoles,
 )
 from scenic.core.regions import (
+    EmptyRegion,
+    MeshSurfaceRegion,
+    PathRegion,
     PolygonalRegion,
     PolylineRegion,
-    PathRegion,
-    MeshSurfaceRegion,
-    EmptyRegion,
 )
 from scenic.core.vectors import Vector, VectorField
 from scenic.domains.driving import roads as roadDomain
-
-from scipy.spatial import Delaunay
 
 
 class OpenDriveWarning(UserWarning):
@@ -744,7 +741,7 @@ class Road:
             ### Need to work on these ###
             # Need to find another trimesh function to replace overlaps and difference
             # Difference and slightly erode all overlapping meshgons
-            
+
             for sec in self.lane_secs:
                 for lane in sec.lanes.values():
                     parentIndex = lane.parent_lane_mesh
@@ -1057,7 +1054,7 @@ class Road:
             if not use2DMap:
                 allShape = (
                     sec.mesh
-                    for id_ in laneIDs # Quick fix to include all meshes
+                    for id_ in laneIDs  # Quick fix to include all meshes
                     for sec in sections[id_]
                 )
                 union = trimesh.util.concatenate(allShape)
@@ -1708,9 +1705,7 @@ class RoadMap:
                 union = trimesh.util.concatenate(junc_meshes)
                 junc.poly = union
                 intersect_meshes.append(union)
-            self.intersection_region = trimesh.util.concatenate(
-                intersect_meshes
-            )
+            self.intersection_region = trimesh.util.concatenate(intersect_meshes)
         else:
             intersect_polys = []
             for junc in self.junctions.values():
@@ -2315,9 +2310,18 @@ class RoadMap:
                 return tuple(elem for elem, pt in pairs)
 
             # Create intersection
-            #breakpoint()
-            #print("Constructing Intersection")
-            region = MeshSurfaceRegion(junction.poly,centerMesh=False,position=None,orientation=roadDomain.Intersection._defaultHeadingAt) if not use2DMap else PolygonalRegion(polygon=junction.poly)
+            # breakpoint()
+            # print("Constructing Intersection")
+            region = (
+                MeshSurfaceRegion(
+                    junction.poly,
+                    centerMesh=False,
+                    position=None,
+                    orientation=roadDomain.Intersection._defaultHeadingAt,
+                )
+                if not use2DMap
+                else PolygonalRegion(polygon=junction.poly)
+            )
             intersection = roadDomain.Intersection(
                 polygon=junction.poly,
                 name=junction.name,
@@ -2331,7 +2335,7 @@ class RoadMap:
                 crossings=(),  # TODO add these
                 region=region,
             )
-            #breakpoint()
+            # breakpoint()
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
