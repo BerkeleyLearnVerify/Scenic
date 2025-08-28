@@ -344,6 +344,9 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def show(self, plt, style="r-", **kwargs):
         return self.region.show(plt, style="r-", **kwargs)
+    
+    def buffer(self, amount):
+        return self.region.buffer(amount)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
