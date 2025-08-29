@@ -12,6 +12,23 @@ except ModuleNotFoundError:
 
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
+WINDOW_ERR = "Could not open window"
+
+
+# Helper to run a simulation but skip cleanly on CI.
+# MetaDrive (Panda3D) tries to open a window on GitHub runners
+# and fails with "Could not open window", while Newtonian (pygame) works fine.
+# We still attempt the run (in case it succeeds or gets fixed), but if we hit
+# that specific error we skip instead of failing the whole CI job.
+def simulate_or_skip(simulator, scene):
+    try:
+        return simulator.simulate(scene)
+    except Exception as e:
+        if WINDOW_ERR in str(e):
+            pytest.skip("MetaDrive (Panda3D) cannot open a window on this platform/CI")
+        else:
+            raise
+
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
@@ -173,14 +190,8 @@ def test_static_pedestrian(getMetadriveSimulator):
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
+    simulation = simulate_or_skip(simulator, scene)
 
-    try:
-        simulation = simulator.simulate(scene)
-    except Exception as e:
-        if "Could not open window" in str(e):
-            pytest.skip("render3D unsupported on this platform")
-        else:
-            raise
     initialPos = simulation.result.records["InitialPos"]
     finalPos = simulation.result.records["FinalPos"]
     assert initialPos == finalPos, (
@@ -215,7 +226,7 @@ def test_duplicate_sensor_names(getMetadriveSimulator):
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
-    simulation = simulator.simulate(scene)
+    simulation = simulate_or_skip(simulator, scene)
 
     ego_series = simulation.result.records["EgoRGB"]
     other_series = simulation.result.records["OtherRGB"]
