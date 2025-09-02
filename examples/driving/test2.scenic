@@ -5,6 +5,7 @@ To run this file using the MetaDrive simulator:
 To run this file using the Carla simulator:
     scenic examples/driving/badlyParkedCarPullingIn.scenic --2d --model scenic.simulators.carla.model --simulate
 '''
+# run with -s 6
 
 param map = localPath('../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
@@ -24,8 +25,7 @@ spot = new OrientedPoint on visible rightCurb
 # badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
 badAngle = 0 deg
 parkedCar = new Car left of spot by 0.5,
-                facing badAngle relative to spot.heading,
-                # facing badAngle relative to roadDirection,
+                facing badAngle relative to roadDirection,
                 with behavior PullIntoRoad
 
 require (distance to parkedCar) > 20

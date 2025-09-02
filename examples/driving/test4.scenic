@@ -25,7 +25,6 @@ spot = new OrientedPoint on visible rightCurb
 badAngle = 0 deg
 parkedCar = new Car left of spot by 0.5,
                 facing badAngle relative to spot.heading,
-                # facing badAngle relative to roadDirection,
                 with behavior PullIntoRoad
 
 require (distance to parkedCar) > 20
