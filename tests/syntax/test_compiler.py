@@ -1150,6 +1150,110 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_wait_for_seconds(self):
+        node, _ = compileScenicAST(WaitFor(Seconds(Constant(1))), inBehavior=True)
+        match node:
+            case [
+                Expr(
+                    value=YieldFrom(
+                        value=Call(
+                            func=Attribute(
+                                value=Name(id="_Scenic_current_behavior", ctx=Load()),
+                                attr="_invokeSubBehavior",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                Name(id="self", ctx=Load()),
+                                Tuple(elts=[], ctx=Load()),  # empty actions tuple
+                                ast.Call(
+                                    func=ast.Name("Modifier"),
+                                    args=[
+                                        ast.Constant("for"),
+                                        Constant(1),
+                                        ast.Constant("seconds"),
+                                    ],
+                                    keywords=[],
+                                ),
+                            ],
+                            keywords=[],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
+    def test_wait_for_steps(self):
+        node, _ = compileScenicAST(WaitFor(Steps(Constant(3))), inBehavior=True)
+        match node:
+            case [
+                Expr(
+                    value=YieldFrom(
+                        value=Call(
+                            func=Attribute(
+                                value=Name(id="_Scenic_current_behavior", ctx=Load()),
+                                attr="_invokeSubBehavior",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                Name(id="self", ctx=Load()),
+                                Tuple(elts=[], ctx=Load()),
+                                ast.Call(
+                                    func=ast.Name("Modifier"),
+                                    args=[
+                                        ast.Constant("for"),
+                                        Constant(3),
+                                        ast.Constant("steps"),
+                                    ],
+                                    keywords=[],
+                                ),
+                            ],
+                            keywords=[],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
+    def test_wait_until(self):
+        node, _ = compileScenicAST(WaitUntil(Name("condition")), inBehavior=True)
+        match node:
+            case [
+                Expr(
+                    value=YieldFrom(
+                        value=Call(
+                            func=Attribute(
+                                value=Name(id="_Scenic_current_behavior", ctx=Load()),
+                                attr="_invokeSubBehavior",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                Name(id="self", ctx=Load()),
+                                Tuple(elts=[], ctx=Load()),
+                                ast.Call(
+                                    func=ast.Name("Modifier"),
+                                    args=[
+                                        ast.Constant("until"),
+                                        Lambda(body=Name("condition")),
+                                    ],
+                                    keywords=[],
+                                ),
+                            ],
+                            keywords=[],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
     def test_terminate(self):
         node, _ = compileScenicAST(Terminate(lineno=1), inBehavior=True)
         match node:
