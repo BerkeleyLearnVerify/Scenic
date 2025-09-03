@@ -920,6 +920,27 @@ class Road:
         forwardShoulder = makeShoulder(forwardShoulders)
         backwardShoulder = makeShoulder(backwardShoulders)
 
+        def makeCrosswalk():
+            crosswalks = []
+            for cw in self.crosswalks:
+                if getattr(cw, "polygon", None) and getattr(cw, "centerline", None) and getattr(cw, "leftEdge", None) and getattr(cw, "rightEdge", None):
+                    crossing = roadDomain.PedestrianCrossing(
+                        id=f"road{self.id_}_crosswalk{cw.id_}",
+                        polygon=cw.polygon,
+                        centerline=cw.centerline,
+                        leftEdge=cw.leftEdge,
+                        rightEdge=cw.rightEdge,
+                        parent=None,
+                        startSidewalk=None,
+                        endSidewalk=None,
+                    )
+                    crosswalks.append(crossing)
+                    allElements.append(crossing)
+
+            return tuple(crosswalks)
+        
+        crosswalks = makeCrosswalk()
+
         # Connect sections to their successors
         next_section = None
         for sec, section in reversed(list(zip(self.lane_secs, roadSections))):
@@ -1148,9 +1169,12 @@ class Road:
             backwardLanes=backwardGroup,
             sections=roadSections,
             signals=tuple(roadSignals),
-            crossings=(),  # TODO add these!
+            crossings=(crosswalks),  # TODO add these! Added crosswalks - need to test this
         )
         allElements.append(road)
+
+        for cr in crosswalks:
+            cr.parent = road
 
         # Set up parent references
         if forwardGroup:
@@ -1185,7 +1209,7 @@ class Road:
                 del sec._original_lane
 
         return road, allElements
-    
+
 
     def xyz_heading_at_s(self, s):
         '''
@@ -1225,7 +1249,7 @@ class Road:
 
         return (x,y,z), heading
 
-
+    
     def st_to_xyz(self, s, t, zOffset):
         (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s)
 
@@ -1236,7 +1260,7 @@ class Road:
 
         return (x,y,0) 
 
-    def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll,): #cornerLocal has u,v,z
+    def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll): #cornerLocal has u,v,z
         '''
         -We are now working directly with the <cornerLocal> element within <outline> for the crosswalk object
         -Each crosswalk is defined by a reference point (origin) and a list of corners (<cornerLocal>)
@@ -1267,13 +1291,65 @@ class Road:
         y = y0 + rotated_vector[1]
         z = z0 + rotated_vector[2]
 
-        return (x,y,z)
+        return (x,y,z)   
+
+    def construct_crosswalk_polys(self, cw, tolerance):
+        points = []
+        for outline in cw.outlines:
+            for corner_local in outline:
+                u = corner_local['u']
+                v = corner_local['v']
+                z_local = corner_local['z']
+
+                x, y, z = self.uv_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset), u, v, z_local, float(cw.hdg), float(cw.pitch), float(cw.roll))
+                points.append((x,y))
+        
+        poly = cleanPolygon(Polygon(points), tolerance)
+
+        rect = list(poly.minimum_rotated_rectangle.exterior.coords)[:-1]
+        edges = []
+        lengths = []
+        
+        for i in range(4):
+            a = rect[i]
+            b = rect[(i + 1) % 4]
+
+            edge = (a,b)
+            edges.append(edge)
+        
+        for (a,b) in edges:
+            dx = b[0] - a[0]
+            dy = b[1] - a[1]
+
+            distance = math.hypot(dx, dy)
+            lengths.append(distance)
+        
+        longest_indices = np.argsort(lengths)[-2:]
+        long_edge = edges[longest_indices[0]]
+        opposite_edge = edges[longest_indices[1]]
+
+        left_edge_xy = [long_edge[0], long_edge[1]]
+        right_edge_xy = [opposite_edge[0], opposite_edge[1]]
+
+        def mid(A, B):
+            return ((A[0] + B[0]) / 2, (A[1] + B[1]) / 2)
+        
+        A = mid(left_edge_xy[0], right_edge_xy[0])
+        B = mid(left_edge_xy[1], right_edge_xy[1])
+        center_line = [A, B]
+
+        centerLine = PolylineRegion(cleanChain(center_line))
+        leftEdge = PolylineRegion(cleanChain(left_edge_xy))
+        rightEdge = PolylineRegion(cleanChain(right_edge_xy))
+
+        return poly, centerLine, leftEdge, rightEdge   
+        
 
 
 class Crosswalk:
-    def __init__(self, type_, subType, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines, markings): 
-        self.type_ = type_ #Unsure whether I should include type
-        self.subType = subType #Unsure whether I should include subType
+    def __init__(self, type_, subtype, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines, markings): 
+        self.type_ = type_
+        self.subtype = subtype
         self.id_ = id_
         
         self.s = s
@@ -1283,12 +1359,17 @@ class Crosswalk:
 
         self.length = length
         self.width = width
+
         self.hdg = hdg
         self.pitch = pitch
         self.roll = roll
 
         self.outlines = outlines
-        self.markings = markings
+
+        self.polygon = None
+        self.centerline = None
+        self.leftEdge = None
+        self.rightEdge = None
 
     def is_valid(self):
         return self.length > 0 and self.width > 0
@@ -1437,6 +1518,12 @@ class RoadMap:
         self.sidewalk_region = buffer_union(sidewalk_polys, tolerance=self.tolerance)
         self.shoulder_region = buffer_union(shoulder_polys, tolerance=self.tolerance)
 
+        crosswalk_polys = []
+        for road in self.roads.values():
+            for cw in road.crosswalks:
+                crosswalk_polys.append(cw.polygon) #At this point, the crosswalk polygon has already been created in construct_crosswalk_polys
+        self.crossing_region = buffer_union(crosswalk_polys, tolerance=self.tolerance) #Union of all the crosswalk polygons
+
         if calc_intersect:
             self.calculate_intersections()
 
@@ -1534,9 +1621,9 @@ class RoadMap:
 
         cw = Crosswalk(
             type_ = crosswalk_elem.get("type"),
-            subType = crosswalk_elem.get("subtype"),
+            subtype = crosswalk_elem.get("subtype"),
             id_ = crosswalk_elem.get("id"),
-            s = float(crosswalk_elem.get("s", 0.0)), #0.0 is default
+            s = float(crosswalk_elem.get("s", 0.0)),
             t = float(crosswalk_elem.get("t", 0.0)),
             zOffset = float(crosswalk_elem.get("zOffset", 0.0)),
             orientation = crosswalk_elem.get("orientation"),
@@ -1545,8 +1632,7 @@ class RoadMap:
             hdg = float(crosswalk_elem.get("hdg", 0.0)),
             pitch = float(crosswalk_elem.get("pitch", 0.0)),
             roll = float(crosswalk_elem.get("roll", 0.0)),
-            outlines = [],
-            markings = [],
+            outlines = []
         )
 
         #Parse outlines (fixed)
@@ -1572,26 +1658,6 @@ class RoadMap:
 
             cw.outlines.append(corners)
         
-        #Parse markings (fixed)
-        for marking_elem in crosswalk_elem.iter("marking"):
-            marking = {
-                "color": marking_elem.get("color", "white"),
-                "lineLength": float(marking_elem.get("lineLength", 0.0)),
-                "side": marking_elem.get("side", "none"),
-                "spaceLength": float(marking_elem.get("spaceLength", 0.0)),
-                "startOffset": float(marking_elem.get("startOffset", 0.0)),
-                "stopOffset": float(marking_elem.get("stopOffset", 0.0)),
-                "weight": float(marking_elem.get("weight", 0.0)),
-                "width": float(marking_elem.get("width", 0.0)),
-                "zOffset": float(marking_elem.get("zOffset", 0.0)),
-            }
-
-            marking["cornerRefs"] = []
-            for corner_ref in marking_elem.iter("cornerReference"): #Loop through all the cornerReference elements inside marking and get IDs
-                marking["cornerRefs"].append(int(corner_ref.get("id", 0)))
-
-            cw.markings.append(marking)
-
         return cw
 
 
@@ -1788,6 +1854,26 @@ class RoadMap:
                     if obj.get("type") == "crosswalk":
                         cw = self.__parse_crosswalk(obj)
                         road.crosswalks.append(cw)
+
+                        try:
+                            crosswalk_poly, centerLine, leftEdge, rightEdge = road.construct_crosswalk_polys(cw, tolerance=self.tolerance)
+
+                            if crosswalk_poly and not crosswalk_poly.is_empty:
+                                cw.polygon = crosswalk_poly
+                                cw.centerline = centerLine
+                                cw.leftEdge = leftEdge
+                                cw.rightEdge = rightEdge
+                            else:
+                                cw.polygon = None
+                                cw.centerline = None
+                                cw.leftEdge = None
+                                cw.rightEdge = None
+                        except Exception:
+                            cw.polygon = None
+                            cw.centerline = None
+                            cw.leftEdge = None
+                            cw.rightEdge = None
+                        
 
             # Parse lanes:
             lanes = r.find("lanes")
