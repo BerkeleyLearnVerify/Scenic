@@ -11,7 +11,7 @@ def verify_crosswalks(road_id, road):
 
         for cw in road.crosswalks:
             print(f"type: {cw.type_}")
-            print(f"subType: {cw.subType}")
+            print(f"subType: {cw.subtype}")
             print(f"id: {cw.id_}")
 
             #print(f"s: {cw.s:.2f}")
