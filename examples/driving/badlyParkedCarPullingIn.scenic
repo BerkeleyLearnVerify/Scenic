@@ -21,11 +21,9 @@ ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 
 rightCurb = ego.laneGroup.curb
 spot = new OrientedPoint on visible rightCurb
-# badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
-badAngle = 0 deg
+badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
 parkedCar = new Car left of spot by 0.5,
-                facing badAngle relative to spot.heading,
-                # facing badAngle relative to roadDirection,
+                facing badAngle relative to roadDirection,
                 with behavior PullIntoRoad
 
 require (distance to parkedCar) > 20

@@ -182,8 +182,6 @@ class MetaDriveSimulation(DrivingSimulation):
         super().setup()
 
     def createObjectInSimulator(self, obj):
-        # print("egos parentOrientation: ", obj.parentOrientation)
-        # print("car heading: ", obj.heading)
         """
         Create an object in the MetaDrive simulator.
 
@@ -243,7 +241,6 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # Attach sensors (if any)
             self._attach_sensors(obj)
-
             return
 
         # For pedestrians
@@ -269,7 +266,6 @@ class MetaDriveSimulation(DrivingSimulation):
         )
 
     def executeActions(self, allActions):
-        # breakpoint()
         """Execute actions for all vehicles in the simulation."""
         super().executeActions(allActions)
 
@@ -316,7 +312,6 @@ class MetaDriveSimulation(DrivingSimulation):
             elapsed_time = end_time - start_time
             if elapsed_time < self.timestep:
                 time.sleep(self.timestep - elapsed_time)
-        # breakpoint()
 
     def destroy(self):
         if self.screen_record:

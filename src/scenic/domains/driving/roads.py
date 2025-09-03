@@ -26,7 +26,6 @@ from typing import FrozenSet, List, Optional, Sequence, Tuple, Union
 import weakref
 
 import attr
-from matplotlib.pylab import normal
 import shapely
 from shapely.geometry import MultiPolygon, Polygon
 
@@ -964,8 +963,16 @@ class Network:
         :meta private:
         """
         point = _toVector(point)
+
         road = self.roadAt(point)
-        return 0 if road is None else road.orientation[point]
+        if road is not None:
+            return road.orientation[point]
+
+        shoulder = self.shoulderAt(point)
+        if shoulder is not None:
+            return shoulder.orientation[point]
+
+        return 0
 
     #: File extension for cached versions of processed networks.
     pickledExt = ".snet"
@@ -1280,6 +1287,11 @@ class Network:
     ) -> Union[Intersection, None]:
         """Get the `Intersection` at a given point."""
         return self.findPointIn(point, self.intersections, reject)
+
+    @distributionMethod
+    def shoulderAt(self, point: Vectorlike, reject=False) -> Union[Shoulder, None]:
+        """Get the `Shoulder` at a given point."""
+        return self.findPointIn(point, self.shoulders, reject)
 
     @distributionMethod
     def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[Orientation]:
