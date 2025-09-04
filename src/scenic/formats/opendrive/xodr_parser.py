@@ -25,7 +25,6 @@ from scenic.core.geometry import (
     removeHoles,
 )
 from scenic.core.regions import (
-    EmptyRegion,
     MeshSurfaceRegion,
     PathRegion,
     PolygonalRegion,
@@ -362,8 +361,8 @@ class Road:
         self.end_bounds_left = {}
         self.end_bounds_right = {}
         # Modified:
-        self.elevation_poly = []  # List of polygons for elevation data
-        self.lateral_poly = []  # List to polygons for lateral data
+        self.elevation_poly = []  # List of polys for elevation data
+        self.lateral_poly = []  # List to polys for lateral data
 
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
@@ -626,6 +625,8 @@ class Road:
                         # the next section as well; otherwise remove it
                         ref_points[0].pop(0)
                     elif len(ref_points[0]) == 1 and len(ref_points) > 1:
+                        # also get rid of point if this is the last point of the current geometry and
+                        # there is another geometry following
                         ref_points[0].pop(0)
                     for id_ in offsets:
                         lane = cur_sec.get_lane(id_)
