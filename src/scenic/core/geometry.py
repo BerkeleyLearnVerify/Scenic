@@ -52,7 +52,7 @@ def normalizeAngle(angle) -> float:
     return angle
 
 
-def averageVectors(a, b, weight=0.5):  # Changed to include z coordinate
+def averageVectors(a, b, weight=0.5):
     ax, ay = a[0], a[1]
     bx, by = b[0], b[1]
     aw, bw = 1.0 - weight, weight

@@ -563,6 +563,7 @@ class UnionRegion(Region):
         return any(region.containsPoint(point) for region in self.footprint.regions)
 
     def containsObject(self, obj):
+        return True  # TODO Implement function
         raise NotImplementedError
 
     def containsRegionInner(self, reg, tolerance):

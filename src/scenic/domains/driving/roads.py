@@ -26,7 +26,6 @@ from typing import FrozenSet, List, Optional, Sequence, Tuple, Union
 import weakref
 
 import attr
-import numpy as np
 import shapely
 from shapely.geometry import MultiPolygon, Polygon
 import trimesh
@@ -39,7 +38,6 @@ from scenic.core.distributions import (
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import (
-    EmptyRegion,
     MeshRegion,
     MeshSurfaceRegion,
     PathRegion,
@@ -444,7 +442,6 @@ class _ContainsCenterline:
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        # assert self.containsRegion(self.centerline, tolerance=0.5)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -507,10 +504,6 @@ class Road(LinearElement):
                 sidewalks.append(self.backwardLanes._sidewalk)
         self.laneGroups = tuple(lgs)
         self.sidewalks = tuple(sidewalks)
-        # if self.is3D:
-        #   self.sidewalkRegion = trimesh.util.concatenate(sidewalks)
-        # else:
-        #    self.sidewalkRegion = PolygonalRegion.unionAll(sidewalks)
 
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
@@ -581,10 +574,6 @@ class LaneGroup(LinearElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-
-        # Ensure lanes do not overlap
-        # for i in range(len(self.lanes) - 1):
-        #    assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
 
     @property
     def sidewalk(self) -> Sidewalk:
@@ -683,17 +672,6 @@ class RoadSection(LinearElement):
                 ids[i] = lane
             self.lanesByOpenDriveID = ids
 
-        # Ensure lanes do not overlap
-        # for i in range(len(self.lanes) - 1):
-        #    if isinstance(self.lanes[i].polygon, PathRegion) and isinstance(self.lanes[i + 1].polygon, PathRegion):
-        #        pass
-        #        #assert not self.lanes[i].polygon.intersects(self.lanes[i + 1].polygon)
-        #    elif isinstance(self.lanes[i].polygon, (PolylineRegion, PathRegion)) and isinstance(self.lanes[i + 1].polygon, (PolylineRegion, PathRegion)):
-        #        assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
-        #    else:
-        #        # Handle other region types or raise an error if unsupported
-        #        raise TypeError(f"Unsupported region types: {type(self.lanes[i].polygon)} and {type(self.lanes[i + 1].polygon)}")
-
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
         lane = self.laneAt(point)
@@ -725,9 +703,7 @@ class LaneSection(_ContainsCenterline, LinearElement):
     group: LaneGroup  #: Grandparent lane group.
     road: Road  #: Great-grandparent road.
 
-    polygon: Union[Polygon, MultiPolygon, PathRegion, MeshSurfaceRegion] = (
-        None  # MODIFIED
-    )
+    polygon: Union[Polygon, MultiPolygon, PathRegion, MeshSurfaceRegion] = None
     #: ID number as in OpenDRIVE (number of lanes to left of center, with 1 being the
     # first lane left of the centerline and -1 being the first lane to the right).
     openDriveID: int
@@ -1122,7 +1098,7 @@ class Network:
         road = self.roadAt(point)
         return 0 if road is None else road.orientation[point]
 
-    #: File extension for cached versions of processed netsworks.
+    #: File extension for cached versions of processed networks.
     pickledExt = ".snet"
 
     @classmethod
