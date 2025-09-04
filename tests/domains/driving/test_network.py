@@ -226,3 +226,19 @@ def test_linkage(network):
                     assert rev is not maneuver
                     assert rev.startLane.road is maneuver.endLane.road
                     assert rev.endLane.road is maneuver.startLane.road
+
+
+def test_shoulder_at_and_direction(network):
+    if not network.shoulders:
+        pytest.skip("map has no shoulders")
+
+    sh = network.shoulders[0]
+
+    for _ in range(5):
+        pt = sh.uniformPointInner()
+
+        assert network.shoulderAt(pt) is sh
+
+        rd = network.roadDirection[pt]
+        so = sh.orientation[pt]
+        assert rd == pytest.approx(so)

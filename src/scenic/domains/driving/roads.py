@@ -963,8 +963,16 @@ class Network:
         :meta private:
         """
         point = _toVector(point)
+
         road = self.roadAt(point)
-        return 0 if road is None else road.orientation[point]
+        if road is not None:
+            return road.orientation[point]
+
+        shoulder = self.shoulderAt(point)
+        if shoulder is not None:
+            return shoulder.orientation[point]
+
+        return 0
 
     #: File extension for cached versions of processed networks.
     pickledExt = ".snet"
@@ -1281,6 +1289,11 @@ class Network:
         return self.findPointIn(point, self.intersections, reject)
 
     @distributionMethod
+    def shoulderAt(self, point: Vectorlike, reject=False) -> Union[Shoulder, None]:
+        """Get the `Shoulder` at a given point."""
+        return self.findPointIn(point, self.shoulders, reject)
+
+    @distributionMethod
     def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[Orientation]:
         """Get the nominal traffic direction(s) at a given point, if any.
 
@@ -1335,6 +1348,29 @@ class Network:
                     units="dots",
                     color="#A0A0A0",
                 )
+
+            for lg in road.laneGroups:
+                curb = lg.curb
+                if curb.length >= 40:
+                    cpts = curb.pointsSeparatedBy(20)
+                else:
+                    cpts = [curb.pointAlongBy(0.5, normalized=True)]
+                chs = [curb.orientation[pt].yaw for pt in cpts]
+                cx, cy, _ = zip(*cpts)
+                cu = [math.cos(h + (math.pi / 2)) for h in chs]
+                cv = [math.sin(h + (math.pi / 2)) for h in chs]
+                plt.quiver(
+                    cx,
+                    cy,
+                    cu,
+                    cv,
+                    pivot="middle",
+                    headlength=4.5,
+                    scale=0.06,
+                    units="dots",
+                    color="#FF4444",
+                )
+
         for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=":", color="#A0A0A0")
         self.intersectionRegion.show(plt, style="g")
