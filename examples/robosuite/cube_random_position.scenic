@@ -1,11 +1,10 @@
+# examples/robosuite/cube_random_position.scenic
 """Randomized cube position using behavior library."""
 
 model scenic.simulators.robosuite.model
 
 param use_environment = "Lift"
-param render = True
-param real_time = False
-param camera_view = "birdview"
+# param camera_view = "sideview"
 # press escape in simulater inrterface to reset to robosuite default frontview,for seeing the cube actually being lifted. 
 # press ']' or '[' to cycle between different fixed camera_views. (pre defined/set in robosuits's task enviroments)
 # other options for camera_view:
