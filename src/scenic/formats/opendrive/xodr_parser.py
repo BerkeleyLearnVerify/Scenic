@@ -381,40 +381,30 @@ class Road:
         """Evaluate the elevation at a given s using the elevation profile."""
         if not self.elevation_poly:
             return 0
-        # Find the appropriate elevation segment for the given s
         for i in range(len(self.elevation_poly) - 1):
             s_start = self.elevation_poly[i][1]
             s_end = self.elevation_poly[i + 1][1]
             if s_start <= s < s_end:
                 break
         else:
-            # Use the last segment if s is beyond the last defined range
             i = len(self.elevation_poly) - 1
-
-        # Get the polynomial coefficients for the segment
         s_start = self.elevation_poly[i][1]
         ds = s - s_start
-        # Evaluate the cubic polynomial: z = a + b*ds + c*ds^2 + d*ds^3
         return self.elevation_poly[i][0].eval_at(ds)
 
     def get_super_elevation_at(self, s):
         """Evaluate the super-elevation at a given s using the lateral profile."""
         if not self.lateral_poly:
             return 0
-        # Find the appropriate super-elevation segment for the given s
         for i in range(len(self.lateral_poly) - 1):
             s_start, _, _, _, _ = self.lateral_poly[i]
             s_end, _, _, _, _ = self.lateral_poly[i + 1]
             if s_start <= s < s_end:
                 break
         else:
-            # Use the last segment if s is beyond the last defined range
             i = len(self.lateral_poly) - 1
-
-        # Get the polynomial coefficients for the segment
         s_start, a, b, c, d = self.lateral_poly[i]
         ds = s - s_start
-        # Evaluate the cubic polynomial: super_elevation = a + b*ds + c*ds^2 + d*ds^3
         super_elevation = a + b * ds + c * ds**2 + d * ds**3
         return super_elevation
 
@@ -436,7 +426,6 @@ class Road:
                     (p[0], p[1], self.get_elevation_at(p[2] + last_s), p[2] + last_s)
                     for p in piece_points
                 ]
-                # Need to change this so that the index of 3 is not out of range
             else:
                 elevated_points = [
                     (p[0], p[1], self.get_elevation_at(p[2]), p[2]) for p in piece_points
@@ -492,20 +481,15 @@ class Road:
         road_polygons = []
         ref_points = self.get_ref_points(num)
         self.ref_line_points = list(itertools.chain.from_iterable(ref_points))
-        # return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
         cur_lane_polys = {}
-        cur_lane_meshes = {}  # Added for 3D support
+        cur_lane_meshes = {}
         sec_points = []  # Same across both 2D and 3D
-        # Lists to return for 2D
         sec_polys = []
         sec_lane_polys = []
         lane_polys = []
-
-        # Lists to return for 3D
         sec_meshes = []
         sec_lane_meshes = []
         lane_meshes = []
-
         last_lefts = None
         last_rights = None
         cur_p = None
@@ -528,9 +512,7 @@ class Road:
             while ref_points and not end_of_sec:
                 if not ref_points[0]:
                     ref_points.pop(0)
-                if not ref_points or (
-                    cur_p and cur_p[3] >= s_stop
-                ):  # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
+                if not ref_points or (cur_p and cur_p[3] >= s_stop):
                     # Case 1: We have processed the entire reference line.
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
@@ -602,7 +584,7 @@ class Road:
                         last_rights = cur_last_rights
                 else:
                     cur_p = ref_points[0][0]
-                    cur_sec_points.append(cur_p)  # Two options for either 2d or 3d
+                    cur_sec_points.append(cur_p)
                     s = min(max(cur_p[3], cur_sec.s0), s_stop - 1e-6)
                     offsets = cur_sec.get_offsets(s)
                     offsets[0] = 0
@@ -615,7 +597,7 @@ class Road:
                             next_p[1] - cur_p[1],
                             next_p[2] - cur_p[2],
                         )
-                    else:  # Might need to modify this
+                    else:
                         if len(cur_sec_points) >= 2:
                             prev_p = cur_sec_points[-2]
                         else:
@@ -630,7 +612,7 @@ class Road:
                             cur_p[0] - prev_p[0],
                             cur_p[1] - prev_p[1],
                             cur_p[2] - prev_p[2],
-                        )  # Need to change tan_vec to 3D
+                        )
                     tan_vec = np.array([tan_vec[0], tan_vec[1], tan_vec[2]])
                     ref_vec = (
                         np.array([0, 0, 1])
@@ -727,8 +709,6 @@ class Road:
                     self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
                     lane_polys.append(poly)
                 cur_lane_polys = next_lane_polys
-
-        # Implementing Three Dimensional Support
         if not use2DMap:
             for id_ in cur_lane_meshes:
                 mesh = trimesh.util.concatenate(cur_lane_meshes[id_])
@@ -738,10 +718,6 @@ class Road:
             if last_lefts and last_rights:
                 self.end_bounds_left.update(last_lefts)
                 self.end_bounds_right.update(last_rights)
-            ### Need to work on these ###
-            # Need to find another trimesh function to replace overlaps and difference
-            # Difference and slightly erode all overlapping meshgons
-
             for sec in self.lane_secs:
                 for lane in sec.lanes.values():
                     parentIndex = lane.parent_lane_mesh
@@ -1054,9 +1030,7 @@ class Road:
             if not use2DMap:
                 allShape = (
                     sec.mesh
-                    for id_ in range(
-                        rightmost, leftmost + 1
-                    )  # Quick fix to include all meshes
+                    for id_ in range(rightmost, leftmost + 1)
                     for sec in sections[id_]
                 )
                 union = trimesh.util.concatenate(allShape)
@@ -1549,8 +1523,8 @@ class RoadMap:
         self.junctions = {}
         self.sec_lane_polys = []
         self.lane_polys = []
-        self.sec_lane_meshes = []  # Added for 3D support
-        self.lane_meshes = []  # Added for 3D support
+        self.sec_lane_meshes = []
+        self.lane_meshes = []
         self.intersection_region = None
         self.fill_intersections = fill_intersections
         self.drivable_lane_types = drivable_lane_types
@@ -1650,8 +1624,6 @@ class RoadMap:
                         # Create a quad mesh
                         faces = [[0, 1, 2], [0, 2, 3]]
                         gap_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-                        # if not gap_mesh.is_watertight:
-                        #    continue
                         if not gap_mesh.is_empty:
                             if lane.type_ in self.drivable_lane_types:
                                 drivable_meshes.append(gap_mesh)
@@ -2312,8 +2284,6 @@ class RoadMap:
                 return tuple(elem for elem, pt in pairs)
 
             # Create intersection
-            # breakpoint()
-            # print("Constructing Intersection")
             region = (
                 MeshSurfaceRegion(
                     junction.poly,
@@ -2337,7 +2307,6 @@ class RoadMap:
                 crossings=(),  # TODO add these
                 region=region,
             )
-            # breakpoint()
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:

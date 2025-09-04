@@ -244,7 +244,6 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
     def __init__(self, kwargs):
         super().__init__(kwargs)
 
-    # from PolygonalRegion
     polygon: Union[Polygon, MultiPolygon, trimesh.Trimesh]
     orientation: Optional[VectorField] = None
     region: Union[PolygonalRegion, MeshRegion] = None  #: The region of the element.
@@ -1061,7 +1060,7 @@ class Network:
                     combined,
                     centerMesh=False,
                     position=None,
-                    orientation=orientation,  # Note: Orientation for drivable region seems to produce incorrect orientation for cars (need to investigate)
+                    orientation=orientation,
                 )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
@@ -1071,16 +1070,6 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-        """
-        assert self.drivableRegion.containsRegion(
-            self.laneRegion, tolerance=self.tolerance
-        )
-        assert self.drivableRegion.containsRegion(
-            self.roadRegion, tolerance=self.tolerance
-        )
-        assert self.drivableRegion.containsRegion(
-            self.intersectionRegion, tolerance=self.tolerance
-        )"""
         if self.walkableRegion is None:
             if self.use2DMap == 0:
                 combined = trimesh.util.concatenate(
@@ -1096,15 +1085,6 @@ class Network:
                 )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-            # self.walkableRegion = self.sidewalkRegion
-        """
-        assert self.walkableRegion.containsRegion(
-            self.sidewalkRegion, tolerance=self.tolerance
-        )
-        assert self.walkableRegion.containsRegion(
-            self.crossingRegion, tolerance=self.tolerance
-        )"""
-
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads
@@ -1125,19 +1105,8 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         if self.use2DMap == 0:
-            meshregions = []
-            for elem in self.elements.values():
-                mesh = elem.polygon
-                if (
-                    isinstance(mesh, trimesh.Trimesh)
-                    and len(mesh.vertices) > 0
-                    and len(mesh.faces) > 0
-                ):
-                    meshregions.append(
-                        MeshSurfaceRegion(mesh, centerMesh=False, position=None)
-                    )
             self._rtree = shapely.STRtree(
-                [meshes._boundingPolygon for meshes in meshregions]
+                [elem.region._boundingPolygon for elem in self.elements.values()]
             )
         else:
             self._rtree = shapely.STRtree(

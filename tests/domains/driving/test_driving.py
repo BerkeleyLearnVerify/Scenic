@@ -56,9 +56,7 @@ def test_driving_2D_map(cached_maps):
 
 
 def test_driving_3D(cached_maps):
-    compileDrivingScenario(
-       cached_maps, code=basicScenario, useCache=False, mode2D=False
-    )
+    compileDrivingScenario(cached_maps, code=basicScenario, useCache=False, mode2D=False)
 
 
 @pytest.mark.slow
