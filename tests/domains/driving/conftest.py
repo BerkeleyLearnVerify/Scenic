@@ -45,4 +45,4 @@ def network(cached_maps, pytestconfig):
     else:
         path = mapFolder / "CARLA" / "Town03.xodr"
     path = cached_maps[str(path)]
-    return Network.fromFile(path)
+    return Network.fromFile(path, use2DMap=True)
