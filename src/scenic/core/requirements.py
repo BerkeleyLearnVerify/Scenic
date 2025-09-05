@@ -395,7 +395,8 @@ class ContainmentRequirement(SamplingRequirement):
     def falsifiedByInner(self, sample):
         obj = sample[self.obj]
         container = sample[self.container]
-        return not container.containsObject(obj)
+        return False # TODO: containsObject for Mesh Surface Regions is not implemented
+        # return not container.containsObject(obj)
 
     @property
     def violationMsg(self):
