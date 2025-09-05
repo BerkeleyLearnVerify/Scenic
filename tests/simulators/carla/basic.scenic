@@ -4,7 +4,7 @@ from scenic.simulators.carla.model import *
 
 ego = new Car in intersection
 
-ego = new Car on ego.lane.predecessor
+second = new Car on ego.lane.predecessor
 
 new Pedestrian on visible sidewalk
 
