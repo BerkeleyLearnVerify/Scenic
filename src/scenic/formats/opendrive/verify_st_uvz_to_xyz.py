@@ -25,7 +25,6 @@ def verify_crosswalks(road_id, road):
             print(f"pitch: {cw.pitch:.8f}")
             print(f"roll: {cw.roll:.8f}")
 
-            #print(f"markings: {len(cw.markings)}")
             print(f"outlines: {cw.outlines}")
 
             print()
@@ -59,18 +58,12 @@ def verify_crosswalks(road_id, road):
             print()
 
 
-# def verify_lane_section(road_id, road):
-#     if road.lane_secs:
-#         print(f"Road {road_id} has {len(road.lane_secs)} lane section(s)\n")
-
-
 def main(path):
     road_map = xodr_parser.RoadMap()
     road_map.parse(path)
 
     for road_id, road in road_map.roads.items():
         verify_crosswalks(road_id, road)
-        #verify_lane_section(road_id, road)
 
         
 

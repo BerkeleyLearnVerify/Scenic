@@ -1,7 +1,7 @@
-from scenic.formats.opendrive import xodr_parser
-
 import math
 import sys
+
+from scenic.formats.opendrive import xodr_parser
 
 store_differences = []
 

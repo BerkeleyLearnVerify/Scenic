@@ -11,7 +11,7 @@ import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
 from scipy.spatial.transform import Rotation as R
-from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
+from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon, LineString
 from shapely.ops import snap, unary_union
 
 from scenic.core.geometry import (
@@ -939,7 +939,7 @@ class Road:
 
             return tuple(crosswalks)
         
-        crosswalks = makeCrosswalk()
+        crosswalks = makeCrosswalk() #ADD THIS TO roadDomain.Road line 1172. ALSO NEED TO FIGURE OUT GETTING CROSSWALKS IN ROADMAP
 
         # Connect sections to their successors
         next_section = None
@@ -1169,12 +1169,12 @@ class Road:
             backwardLanes=backwardGroup,
             sections=roadSections,
             signals=tuple(roadSignals),
-            crossings=(crosswalks),  # TODO add these! Added crosswalks - need to test this
+            crossings=(crosswalks),  # TODO add these! ADDED CROSSWALKS - CURRENTLY TESTING
         )
         allElements.append(road)
 
         for cr in crosswalks:
-            cr.parent = road
+            cr.parent = road #Parent is just road for now
 
         # Set up parent references
         if forwardGroup:
@@ -1306,48 +1306,58 @@ class Road:
         
         poly = cleanPolygon(Polygon(points), tolerance)
 
-        rect = list(poly.minimum_rotated_rectangle.exterior.coords)[:-1]
+        rect = list(poly.minimum_rotated_rectangle.exterior.coords)[:-1] #Drop last point - same as the first point
         edges = []
         lengths = []
         
         for i in range(4):
             a = rect[i]
-            b = rect[(i + 1) % 4]
+            b = rect[(i + 1) % 4] #Wrap around to the first point
 
-            edge = (a,b)
+            edge = (a,b) #Form the edge between the two points: a and b
             edges.append(edge)
         
         for (a,b) in edges:
-            dx = b[0] - a[0]
-            dy = b[1] - a[1]
+            dx = b[0] - a[0] #Difference in x-coordinates
+            dy = b[1] - a[1] #Difference in y-coordinates
 
-            distance = math.hypot(dx, dy)
+            distance = math.hypot(dx, dy) #Calculate the distance between the two points
             lengths.append(distance)
         
-        longest_indices = np.argsort(lengths)[-2:]
-        long_edge = edges[longest_indices[0]]
-        opposite_edge = edges[longest_indices[1]]
+        get_rect_shortest_indices = np.argsort(lengths)[:2] #Get the fist two indices - they correspond to the shortest edges
+        shortest_edge = edges[get_rect_shortest_indices[0]]
+        shortest_opp_edge = edges[get_rect_shortest_indices[1]]
+         
 
-        left_edge_xy = [long_edge[0], long_edge[1]]
-        right_edge_xy = [opposite_edge[0], opposite_edge[1]]
-
-        def mid(A, B):
-            return ((A[0] + B[0]) / 2, (A[1] + B[1]) / 2)
+        def get_edge_midpoint(vertex1, vertex2):
+            return ((vertex1[0] + vertex2[0]) / 2, (vertex1[1] + vertex2[1]) / 2)
         
-        A = mid(left_edge_xy[0], right_edge_xy[0])
-        B = mid(left_edge_xy[1], right_edge_xy[1])
-        center_line = [A, B]
+        c1 = get_edge_midpoint(shortest_edge[0], shortest_edge[1])
+        c2 = get_edge_midpoint(shortest_opp_edge[0], shortest_opp_edge[1])
 
-        centerLine = PolylineRegion(cleanChain(center_line))
-        leftEdge = PolylineRegion(cleanChain(left_edge_xy))
-        rightEdge = PolylineRegion(cleanChain(right_edge_xy))
-
-        return poly, centerLine, leftEdge, rightEdge   
+        rectangle_center_line = LineString([c1, c2]) #LineString so we can use shapely.intersection()
+        intersection_vertices = rectangle_center_line.intersection(poly.exterior) #Get the vertices of the intersection using poly.exterior 
         
+        if isinstance(intersection_vertices, MultiPoint):
+            intersection_vertices = list(intersection_vertices.geoms)
+
+        #print(f"Intersection vertices: {intersection_vertices}") #Print statement here for testing purposes - REMOVE LATER
+        boundary = LineString(poly.exterior.coords)
+        pieces = split(boundary, intersection_vertices)
+
+        arc1 = pieces[0]
+        arc2 = pieces[1]
+        center = [c1, c2]
+
+        leftEdge = PolylineRegion(cleanChain(list(arc1.coords)))
+        rightEdge = PolylineRegion(cleanChain(list(arc2.coords)))
+        centerLine = PolyLineRegion(cleanChain(center)) #Using the rectangle for now, will change it to follow sidewalk logic
+
+        return poly, centerLine, leftEdge, rightEdge
 
 
 class Crosswalk:
-    def __init__(self, type_, subtype, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines, markings): 
+    def __init__(self, type_, subtype, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines): 
         self.type_ = type_
         self.subtype = subtype
         self.id_ = id_
@@ -1521,7 +1531,9 @@ class RoadMap:
         crosswalk_polys = []
         for road in self.roads.values():
             for cw in road.crosswalks:
-                crosswalk_polys.append(cw.polygon) #At this point, the crosswalk polygon has already been created in construct_crosswalk_polys
+                poly = getattr(cw, "polygon", None)
+                if poly is not None and not poly.is_empty:
+                    crosswalk_polys.append(cw.polygon) #At this point, the crosswalk polygon has already been created in construct_crosswalk_polys
         self.crossing_region = buffer_union(crosswalk_polys, tolerance=self.tolerance) #Union of all the crosswalk polygons
 
         if calc_intersect:
@@ -1615,8 +1627,6 @@ class RoadMap:
                     -<object> --> <outlines> --> <outline>
                     -<cornerRoad> and <cornerLocal> elements (mutually exlcusive) are mandatory elements within the <outline> element.
                         -Corner points of an object that use s- and t-coordinates are represented by the <cornerRoad> element
-                -Marking describes the road marks of any objects like crosswalks
-                    -<markings> --> <marking>
             '''
 
         cw = Crosswalk(
@@ -2237,7 +2247,8 @@ class RoadMap:
                 groups.append(road.backwardLanes)
         lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
-        crossings = ()  # TODO add these
+        crossings = [cr for road in allRoads for cr in road.crossings]
+        crossings = tuple(crossings)  # TODO add these - NOTHING HERE. CURRENTLY TESTING
         sidewalks, shoulders = [], []
         for group in groups:
             sidewalk = group._sidewalk
