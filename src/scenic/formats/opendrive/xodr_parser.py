@@ -12,7 +12,7 @@ from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
 from scipy.spatial.transform import Rotation as R
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon, LineString
-from shapely.ops import snap, unary_union
+from shapely.ops import snap, unary_union, split
 
 from scenic.core.geometry import (
     averageVectors,
@@ -26,6 +26,7 @@ from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
 
+print("TESTING TESTING TESTING")
 
 class OpenDriveWarning(UserWarning):
     pass
@@ -857,19 +858,7 @@ class Road:
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
 
-            # Heuristically create some kind of reasonable centerline
-            if len(leftPoints) == len(rightPoints):
-                centerPoints = list(
-                    averageVectors(l, r) for l, r in zip(leftPoints, rightPoints)
-                )
-            else:
-                num = max(len(leftPoints), len(rightPoints))
-                centerPoints = []
-                for d in np.linspace(0, 1, num):
-                    l = leftEdge.lineString.interpolate(d, normalized=True)
-                    r = rightEdge.lineString.interpolate(d, normalized=True)
-                    centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
-            centerline = PolylineRegion(cleanChain(centerPoints))
+            centerline = self.create_center_line(leftEdge, rightEdge) #Moved heuristic centerline creation to create_center_line function
             allPolys = (
                 sec.poly
                 for id_ in range(rightmost, leftmost + 1)
@@ -1210,28 +1199,10 @@ class Road:
 
         return road, allElements
 
-
     def xyz_heading_at_s(self, s):
-        '''
-        -s-axis follows the tangent of the road reference line
-        -Each individual curve has a local s-axis coordinate system
-            -0 at the start of the curve
-            -length of the curve at the end of the curve
-
-        -This function converts a global s-coordinate to x,y,z and returns the heading as well
-            -x,y,z
-                -Need to find the curve that the s-coordinate is on
-                    -Iterate through each curve and check if the s-coordinate is within the curve
-                    -Accumulate length of the curves
-                    -Stop once cumulative length + curve length is greater than or equal to s
-            -heading
-                -Orientation of the road center-line (which way its facing)
-                -Lateral offset i.e, left/right depend on which way the road object is facing
-        '''
-        
         cumalative_curve_length = 0.0
 
-        for curve in self.ref_line: #Iterate through each curve in the road reference line (self.ref_line --> list of curves)
+        for curve in self.ref_line:
             if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on; epsilon margin to allow for numerical error
                 local_s = s - cumalative_curve_length #Figure out the local s-coordinate on the curve (how many units into the curve are we?)
                 
@@ -1249,36 +1220,17 @@ class Road:
 
         return (x,y,z), heading
 
-    
     def st_to_xyz(self, s, t, zOffset):
         (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s)
 
         #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain the final global coordinates
         x = x_ref - t * math.sin(heading)
         y = y_ref + t * math.cos(heading)
-        z = z_ref + zOffset #Height offset
+        z = z_ref + zOffset
 
         return (x,y,0) 
 
     def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll): #cornerLocal has u,v,z
-        '''
-        -We are now working directly with the <cornerLocal> element within <outline> for the crosswalk object
-        -Each crosswalk is defined by a reference point (origin) and a list of corners (<cornerLocal>)
-            -We obtain the origin through calling the st_to_xyz function. At this point u,v,z_local should all EQUAL 0
-            -<cornerLocal> refers to the "corners" or points on the crosswalk described relative to the origin
-                -5 "corners" or sets of points (u,v,z). 5th point is a duplicate of the 1st (closes the polygon)
-        -Can verify that u,v, and z_local are all 0 at the origin to prove the s,t to x,y,z conversion is accurate
-
-        -3 steps:
-            -Get the global position of the crosswalk's origin
-                -Call st_to_xyz
-            -Figure out the rotation of the crosswalk using yaw, pitch, roll. 
-                -This will allow us to figure out what "forward", "left", "right", etc. are, i.e., how the object is oriented in 3D space
-                    -We need to do this because "forward" in local space might not match "forward" in world space
-                -We need to construct a rotation matrix here; otherwise local system of (u,v,z) won't be aligned with (x,y,z)
-            -Rotate the local point (u,v,z) into a global position
-        '''
-
         (x0, y0, z0) = self.st_to_xyz(s, t, zOffset)
         (_,_,_), road_heading = self.xyz_heading_at_s(s)
         yaw = hdg + road_heading
@@ -1292,6 +1244,35 @@ class Road:
         z = z0 + rotated_vector[2]
 
         return (x,y,z)   
+
+    def create_center_line(self, leftEdge, rightEdge):
+        # Heuristically create some kind of reasonable centerline
+        leftPoints = list(leftEdge.lineString.coords)
+        rightPoints = list(rightEdge.lineString.coords)
+
+        if len(leftPoints) == len(rightPoints):
+            centerPoints = list(
+                averageVectors(l, r) for l, r in zip(leftPoints, rightPoints)
+            )
+        else:
+            num = max(len(leftPoints), len(rightPoints))
+            centerPoints = []
+            for d in np.linspace(0, 1, num):
+                l = leftEdge.lineString.interpolate(d, normalized=True)
+                r = rightEdge.lineString.interpolate(d, normalized=True)
+                centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
+        centerline = PolylineRegion(cleanChain(centerPoints))
+
+        return centerline
+    
+
+    def split_polygon_boundary(self, polygon_boundary, cut_pts):
+        pass
+        
+
+        
+        
+
 
     def construct_crosswalk_polys(self, cw, tolerance):
         points = []
@@ -1336,22 +1317,48 @@ class Road:
         c2 = get_edge_midpoint(shortest_opp_edge[0], shortest_opp_edge[1])
 
         rectangle_center_line = LineString([c1, c2]) #LineString so we can use shapely.intersection()
-        intersection_vertices = rectangle_center_line.intersection(poly.exterior) #Get the vertices of the intersection using poly.exterior 
+        intersection_vertices = rectangle_center_line.intersection(poly.exterior) #Vertices of the intersection between rectangle and crosswalk polygon. Should be a MultiPoint
+    
+        #SHOULD ALWAYS GET TWO INTERSECTION POINTS - CHECK JUST IN CASE
+        if intersection_vertices.is_empty:
+            print("Intersection vertices are empty")
+            return poly, None, None, None
         
-        if isinstance(intersection_vertices, MultiPoint):
-            intersection_vertices = list(intersection_vertices.geoms)
+        if isinstance(intersection_vertices, Point):
+            print("Only one intersection vertex")
+            return poly, None, None, None
+        
+        if len(intersection_vertices.geoms) != 2:
+            print("Need 2 intersection vertices")
+            return poly, None, None, None
+
+        coords = list(poly.exterior.coords)
+        if coords[0] == coords[-1]:
+            coords = coords[:-1] #Remove duplicate last point
+            
+        polygon_boundary = LineString(coords) #Without duplicate last point
+        snapped_intersection_vertices = snap(intersection_vertices, polygon_boundary, tolerance*5) #Snap the intersection vertices to the polygon boundary
 
         #print(f"Intersection vertices: {intersection_vertices}") #Print statement here for testing purposes - REMOVE LATER
-        boundary = LineString(poly.exterior.coords)
-        pieces = split(boundary, intersection_vertices)
+        #print(f"Snapped intersection vertices: {snapped_intersection_vertices}") #Print statement here for testing purposes - REMOVE LATER
 
-        arc1 = pieces[0]
-        arc2 = pieces[1]
-        center = [c1, c2]
+        try:
+            get_arcs = list(split(polygon_boundary, snapped_intersection_vertices).geoms)
+            print("Split produced", len(get_arcs), "arcs")
+
+            if len(get_arcs) == 2:
+                arc1, arc2 = get_arcs
+            else:
+                print("Expected 2 arcs, split produced: ", len(get_arcs))
+                arc1, arc2 = self.split_polygon_boundary(poly, snapped_intersection_vertices, tolerance)
+        
+        except Exception as e:
+            print(f"Error splitting polygon boundary: {e}")
+            arc1, arc2 = self.split_polygon_boundary(poly, snapped_intersection_vertices, tolerance)
 
         leftEdge = PolylineRegion(cleanChain(list(arc1.coords)))
         rightEdge = PolylineRegion(cleanChain(list(arc2.coords)))
-        centerLine = PolyLineRegion(cleanChain(center)) #Using the rectangle for now, will change it to follow sidewalk logic
+        centerLine = self.create_center_line(leftEdge, rightEdge)
 
         return poly, centerLine, leftEdge, rightEdge
 
