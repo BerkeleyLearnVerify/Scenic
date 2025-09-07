@@ -1,16 +1,18 @@
+# src/scenic/simulators/robosuite/model.scenic
+
 """Scenic world model for RoboSuite."""
 
 from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
 
-# Global parameters with defaults matching Robosuite's defaults
+# Global parameters
 param use_environment = None
 param env_config = {}
 param controller_config = None
 param camera_view = None
 param render = True
-param real_time = True  # Robosuite default
+param real_time = True  
 param speed = 1.0
-param lite_physics = None  # None = use Robosuite default (True)
+param lite_physics = None
 
 # Simulator
 simulator RobosuiteSimulator(
@@ -66,123 +68,104 @@ class RoboSuiteObject(Object):
     shape: BoxShape()
     allowCollisions: True
 
-# Table class for custom environments
+# Table for arena setup
 class Table(RoboSuiteObject):
-    """Table in custom environment."""
+    """Table in environment."""
     isTable: True
     width: DEFAULTS['table_width']
     length: DEFAULTS['table_length']
     height: DEFAULTS['table_thickness']
     position: (0, 0, DEFAULTS['table_height'])
 
-# Base class for custom environment objects
-class CustomObject(RoboSuiteObject):
-    """Base class for custom environment objects."""
-    envObjectName: None
-    randomPlacement: False
-    tableIndex: 0
-    xRange: (-0.1, 0.1)
-    yRange: (-0.1, 0.1)
+# Base class for manipulable objects
+class ManipulationObject(RoboSuiteObject):
+    """Base class for objects that can be manipulated."""
     color: DEFAULTS['default_color']
 
-# Primitive objects for custom environments
-class CustomBox(CustomObject):
-    """Box object for custom environments."""
+# Primitive shape objects (matching RoboSuite's naming)
+class Box(ManipulationObject):
+    """Box object."""
     objectType: "Box"
     width: DEFAULTS['object_size']
     length: DEFAULTS['object_size']
     height: DEFAULTS['object_size']
 
-class CustomBall(CustomObject):
-    """Ball object for custom environments."""
+class Ball(ManipulationObject):
+    """Ball/sphere object."""
     objectType: "Ball"
     radius: DEFAULTS['object_size']
     width: DEFAULTS['object_size'] * 2  # For compatibility
     length: DEFAULTS['object_size'] * 2
     height: DEFAULTS['object_size'] * 2
 
-class CustomCylinder(CustomObject):
-    """Cylinder object for custom environments."""
+class Cylinder(ManipulationObject):
+    """Cylinder object."""
     objectType: "Cylinder"
     width: DEFAULTS['object_size'] * 2  # Diameter
     length: DEFAULTS['object_size'] * 2
     height: DEFAULTS['object_size'] * 4  # Height
 
-class CustomCapsule(CustomObject):
-    """Capsule object for custom environments."""
+class Capsule(ManipulationObject):
+    """Capsule object."""
     objectType: "Capsule"
     width: DEFAULTS['object_size'] * 1.5
     length: DEFAULTS['object_size'] * 1.5
     height: DEFAULTS['object_size'] * 3
 
-# Complex objects for custom environments
-class CustomMilk(CustomObject):
-    """Milk carton for custom environments."""
+# Complex objects (matching RoboSuite's naming)
+class Milk(ManipulationObject):
+    """Milk carton object."""
     objectType: "Milk"
 
-class CustomCereal(CustomObject):
-    """Cereal box for custom environments."""
+class Cereal(ManipulationObject):
+    """Cereal box object."""
     objectType: "Cereal"
 
-class CustomCan(CustomObject):
-    """Can object for custom environments."""
+class Can(ManipulationObject):
+    """Can object."""
     objectType: "Can"
 
-class CustomBread(CustomObject):
-    """Bread object for custom environments."""
+class Bread(ManipulationObject):
+    """Bread object."""
     objectType: "Bread"
 
-class CustomBottle(CustomObject):
-    """Bottle object for custom environments."""
+class Bottle(ManipulationObject):
+    """Bottle object."""
     objectType: "Bottle"
 
-class CustomHammer(CustomObject):
-    """Hammer object for custom environments."""
+class Hammer(ManipulationObject):
+    """Hammer object."""
     objectType: "Hammer"
 
-class CustomSquareNut(CustomObject):
-    """Square nut for custom environments."""
+class SquareNut(ManipulationObject):
+    """Square nut object."""
     objectType: "SquareNut"
 
-class CustomRoundNut(CustomObject):
-    """Round nut for custom environments."""
+class RoundNut(ManipulationObject):
+    """Round nut object."""
     objectType: "RoundNut"
 
-# Standard environment objects
-class Cube(RoboSuiteObject):
-    """Cubic object with uniform dimensions."""
-    width: DEFAULTS['object_size']
-    length: DEFAULTS['object_size']
-    height: DEFAULTS['object_size']
-    color: DEFAULTS['default_color']
-
-class EnvironmentObject(RoboSuiteObject):
-    """Base class for standard environment objects."""
-    envObjectName: None
-    allowCollisions: True
-
-class LiftCube(EnvironmentObject):
-    """Cube in Lift environment."""
-    envObjectName: "cube"
+# Standard environment-specific objects
+# These maintain their specific names as they're tied to particular environments
+class LiftCube(RoboSuiteObject):
+    """Cube specific to Lift environment."""
     width: DEFAULTS['object_size']
     length: DEFAULTS['object_size']
     height: DEFAULTS['object_size']
 
-class StackCubeA(EnvironmentObject):
+class StackCubeA(RoboSuiteObject):
     """First cube in Stack environment."""
-    envObjectName: "cubeA"
     width: DEFAULTS['object_size']
     length: DEFAULTS['object_size']
     height: DEFAULTS['object_size']
 
-class StackCubeB(EnvironmentObject):
+class StackCubeB(RoboSuiteObject):
     """Second cube in Stack environment."""
-    envObjectName: "cubeB"
     width: DEFAULTS['object_size']
     length: DEFAULTS['object_size']
     height: DEFAULTS['object_size']
 
-# Robots
+# Robots (matching RoboSuite's naming)
 class Robot(RoboSuiteObject):
     """Base robot class."""
     robot_type: "Panda"
@@ -199,30 +182,31 @@ class Robot(RoboSuiteObject):
     eef_pos[dynamic]: [0, 0, 0]
     gripper_state[dynamic]: [0, 0]
 
-class PandaRobot(Robot):
+class Panda(Robot):
     """Franka Emika Panda robot."""
     robot_type: "Panda"
     gripper_type: "PandaGripper"
 
-class UR5eRobot(Robot):
+class UR5e(Robot):
     """Universal Robots UR5e."""
     robot_type: "UR5e"
     gripper_type: "Robotiq85Gripper"
 
-class SawyerRobot(Robot):
+class Sawyer(Robot):
     """Rethink Robotics Sawyer."""
     robot_type: "Sawyer"
     gripper_type: "RethinkGripper"
 
-class JacoRobot(Robot):
+class Jaco(Robot):
     """Kinova Jaco robot."""
     robot_type: "Jaco"
     gripper_type: "JacoThreeFingerGripper"
 
-class IIWARobot(Robot):
+class IIWA(Robot):
     """KUKA IIWA robot."""
     robot_type: "IIWA"
     gripper_type: "Robotiq140Gripper"
+
 
 # Behavior Library
 behavior OpenGripper(steps=DEFAULTS['gripper_open_steps']):
@@ -293,4 +277,3 @@ behavior PickAndLift(target_object, height=1.05):
     
     if simulation().checkSuccess():
         terminate simulation
-

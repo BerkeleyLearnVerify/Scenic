@@ -13,50 +13,38 @@ front_table = new Table at (TABLE_DISTANCE, 0, 0.8)
 right_table = new Table at (0, TABLE_DISTANCE, 0.8)
 left_table = new Table at (0, -TABLE_DISTANCE, 0.8)
 
-# TABLE 1 (Back): Primitive objects
-ball = new CustomBall at (-1.0, 0, 0.82),
-    with envObjectName "ball", with color (1, 0.5, 0, 1),
-    with randomPlacement True, with tableIndex 0
+# TABLE 1 (Back): Primitive objects with random positions using Range
+ball = new Ball at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
+    with color (1, 0.5, 0, 1)
 
-box = new CustomBox at (-1.0, 0, 0.82),
-    with envObjectName "box", with color (0, 0, 1, 1),
-    with randomPlacement True, with tableIndex 0
+box = new Box at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
+    with color (0, 0, 1, 1)
 
-capsule = new CustomCapsule at (-1.0, 0, 0.82),
-    with envObjectName "capsule", with color (0.5, 0.5, 0.5, 1),
-    with randomPlacement True, with tableIndex 0
+capsule = new Capsule at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
+    with color (0.5, 0.5, 0.5, 1)
 
-cylinder = new CustomCylinder at (-1.0, 0, 0.82),
-    with envObjectName "cylinder", with color (0, 1, 1, 1),
-    with randomPlacement True, with tableIndex 0
+cylinder = new Cylinder at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
+    with color (0, 1, 1, 1)
 
-# TABLE 2 (Front): cutsom objects 2
-square_nut = new CustomSquareNut at (1.0, 0, 0.85),
-    with envObjectName "square_nut", with randomPlacement True, with tableIndex 1
+# TABLE 2 (Front): Nuts and food items with random positions
+square_nut = new SquareNut at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
-round_nut = new CustomRoundNut at (1.0, 0, 0.85),
-    with envObjectName "round_nut", with randomPlacement True, with tableIndex 1
+round_nut = new RoundNut at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
-milk = new CustomMilk at (1.0, 0, 0.85),
-    with envObjectName "milk", with randomPlacement True, with tableIndex 1
+milk = new Milk at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
-cereal = new CustomCereal at (1.0, 0, 0.85),
-    with envObjectName "cereal", with randomPlacement True, with tableIndex 1
+cereal = new Cereal at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
-# TABLE 3 (Right): custom objects 1
-can = new CustomCan at (0, 1.0, 0.85),
-    with envObjectName "can", with randomPlacement True, with tableIndex 2
+# TABLE 3 (Right): Various objects with random positions
+can = new Can at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
 
-bread = new CustomBread at (0, 1.0, 0.85),
-    with envObjectName "bread", with randomPlacement True, with tableIndex 2
+bread = new Bread at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
 
-bottle = new CustomBottle at (0, 1.0, 0.85),
-    with envObjectName "bottle", with randomPlacement True, with tableIndex 2
+bottle = new Bottle at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
 
-hammer = new CustomHammer at (0, 1.0, 0.85),
-    with envObjectName "hammer", with randomPlacement True, with tableIndex 2
+hammer = new Hammer at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
 
-# TABLE 4 (Left): Empty is left empty
+# TABLE 4 (Left): Intentionally left empty
 
 # ROBOT
-ego = new PandaRobot at (0, 0, 0)
+ego = new Panda at (0, 0, 0)

@@ -17,10 +17,10 @@ param use_environment = "Lift"
 
 
 # Randomize cube position
-cube = new LiftCube at (Range(-0.25, 0.25), Range(-0.25, 0.25), 0.82)
+# cube = new LiftCube at (Range(-0.25, 0.25), Range(-0.25, 0.25), 0.82)
 
 # Clean approach using object reference
-ego = new PandaRobot with behavior PickAndLift(cube, height=1.05)
+ego = new Panda with behavior PickAndLift(cube, height=1.05)
 
 # other robot options: UR5eRobot
 

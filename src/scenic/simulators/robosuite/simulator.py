@@ -1,3 +1,5 @@
+# src/scenic/simulators/robosuite/simulator.py
+
 """RoboSuite Simulator interface for Scenic."""
 
 from typing import Dict, List, Any, Optional, Union
@@ -100,7 +102,7 @@ class CustomManipulationEnv(ManipulationEnv):
         mujoco_arena = self._create_arena()
         mujoco_arena.set_origin([0, 0, 0])
         
-        self.mujoco_objects, self.placement_samplers = self._create_objects()
+        self.mujoco_objects = self._create_objects()
         
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
@@ -130,10 +132,9 @@ class CustomManipulationEnv(ManipulationEnv):
             has_legs=[True] * len(self.scenic_tables)
         )
     
-    def _create_objects(self) -> tuple:
+    def _create_objects(self) -> List:
         """Create Robosuite objects from Scenic configuration."""
         mujoco_objects = []
-        placement_samplers = []
         
         for obj_config in self.scenic_objects:
             obj_type = obj_config['type']
@@ -142,31 +143,8 @@ class CustomManipulationEnv(ManipulationEnv):
             factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
             mj_obj = factory(obj_config)
             mujoco_objects.append(mj_obj)
-            
-            # Create placement sampler if needed
-            if obj_config.get('random_placement', False):
-                sampler = self._create_placement_sampler(obj_config, mj_obj)
-                placement_samplers.append(sampler)
         
-        return mujoco_objects, placement_samplers
-    
-    def _create_placement_sampler(self, obj_config: Dict, mj_obj) -> UniformRandomSampler:
-        """Create placement sampler for randomized object placement."""
-        table_idx = obj_config.get('table_index', 0)
-        ref_pos = (self.scenic_tables[table_idx]['position'] 
-                   if table_idx < len(self.scenic_tables) 
-                   else [0, 0, 0.8])
-        
-        return UniformRandomSampler(
-            name=f"{obj_config['name']}_sampler",
-            mujoco_objects=mj_obj,
-            x_range=obj_config.get('x_range', [-0.1, 0.1]),
-            y_range=obj_config.get('y_range', [-0.1, 0.1]),
-            ensure_object_boundary_in_range=False,
-            ensure_valid_placement=True,
-            reference_pos=ref_pos,
-            z_offset=0.01
-        )
+        return mujoco_objects
     
     def _setup_references(self):
         """Setup references to simulation objects."""
@@ -198,18 +176,9 @@ class CustomManipulationEnv(ManipulationEnv):
         """Reset environment internals."""
         super()._reset_internal()
         
-        # Apply placement samplers
-        for sampler in self.placement_samplers:
-            placement = sampler.sample()
-            for obj_pos, obj_quat, obj in placement.values():
-                self.sim.data.set_joint_qpos(
-                    obj.joints[0],
-                    np.concatenate([np.array(obj_pos), np.array(obj_quat)])
-                )
-        
-        # Set fixed positions
+        # Set positions for all objects
         for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
-            if not obj_config.get('random_placement', False) and 'position' in obj_config:
+            if 'position' in obj_config:
                 pos = obj_config['position']
                 quat = obj_config.get('quaternion', [1, 0, 0, 0])
                 self.sim.data.set_joint_qpos(
@@ -277,9 +246,9 @@ class RobosuiteSimulation(Simulation):
         self.model = None
         self.data = None
         
-        # Object tracking
+        # Object tracking - maps Scenic object to its name
         self.body_id_map = {}
-        self.object_names = {}
+        self.object_name_map = {}  # Maps Scenic object to its name in the sim
         self.robots = []
         self.prev_positions = {}
         self._current_obs = None
@@ -386,25 +355,24 @@ class RobosuiteSimulation(Simulation):
     
     def _add_object_config(self, objects: List, obj):
         """Add object configuration."""
+        # Use the Scenic object's name attribute directly
+        obj_name = getattr(obj, 'name', f"obj_{id(obj)}")
+        
         config = {
             'type': obj.objectType,
-            'name': getattr(obj, 'envObjectName', f"obj_{id(obj)}"),
+            'name': obj_name,  # Use Scenic's name directly
             'position': [obj.position.x, obj.position.y, obj.position.z],
-            'color': getattr(obj, 'color', [1, 0, 0, 1]),
-            'random_placement': getattr(obj, 'randomPlacement', False),
-            'table_index': getattr(obj, 'tableIndex', 0)
+            'color': getattr(obj, 'color', [1, 0, 0, 1])
         }
+        
+        # Store mapping
+        self.object_name_map[obj] = obj_name
         
         # Add size/radius info
         if hasattr(obj, 'radius'):
             config['radius'] = obj.radius
         elif hasattr(obj, 'width'):
             config['size'] = [obj.width, obj.length, obj.height]
-        
-        # Add placement ranges
-        if config['random_placement']:
-            config['x_range'] = getattr(obj, 'xRange', [-0.1, 0.1])
-            config['y_range'] = getattr(obj, 'yRange', [-0.1, 0.1])
         
         objects.append(config)
     
@@ -434,7 +402,14 @@ class RobosuiteSimulation(Simulation):
         # Store robot references
         for i, robot in enumerate(robots[:len(self.robosuite_env.robots)]):
             self.robots.append(robot)
-            self.object_names[robot] = f"robot{i}"
+            robot_name = f"robot{i}"
+            self.object_name_map[robot] = robot_name
+        
+        # Map standard environment objects using their Scenic name
+        for obj in self.objects:
+            if hasattr(obj, 'name') and not hasattr(obj, 'robot_type'):
+                # For standard environments, use the object's Scenic name
+                self.object_name_map[obj] = obj.name
         
         self._apply_initial_positions()
         self._detect_controller_type([{'type': r.robot_type} for r in robots])
@@ -451,20 +426,24 @@ class RobosuiteSimulation(Simulation):
     def _setup_body_mapping(self):
         """Map environment objects to MuJoCo body IDs."""
         for obj in self.objects:
-            if hasattr(obj, 'envObjectName'):
+            if obj in self.object_name_map:
                 self._map_object_body(obj)
     
     def _map_object_body(self, obj):
         """Map single object to body ID."""
+        obj_name = self.object_name_map.get(obj)
+        if not obj_name:
+            return
+            
         for suffix in BODY_SUFFIXES:
-            body_name = f"{obj.envObjectName}{suffix}"
+            body_name = f"{obj_name}{suffix}"
             try:
                 body_id = mujoco.mj_name2id(
                     self.model, mujoco.mjtObj.mjOBJ_BODY, body_name
                 )
                 if body_id != -1:
-                    self.body_id_map[obj.envObjectName] = body_id
-                    self.prev_positions[obj.envObjectName] = self.data.xpos[body_id].copy()
+                    self.body_id_map[obj_name] = body_id
+                    self.prev_positions[obj_name] = self.data.xpos[body_id].copy()
                     break
             except:
                 continue
@@ -472,8 +451,9 @@ class RobosuiteSimulation(Simulation):
     def _apply_initial_positions(self):
         """Apply initial positions for environment objects."""
         for obj in self.objects:
-            if hasattr(obj, 'envObjectName') and hasattr(obj, 'position'):
-                self._set_object_position(obj)
+            obj_name = self.object_name_map.get(obj)
+            if obj_name and hasattr(obj, 'position'):
+                self._set_object_position(obj, obj_name)
         
         self.robosuite_env.sim.forward()
         
@@ -483,9 +463,9 @@ class RobosuiteSimulation(Simulation):
         
         self._current_obs = self.robosuite_env._get_observations()
     
-    def _set_object_position(self, obj):
+    def _set_object_position(self, obj, obj_name):
         """Set position for single object."""
-        joint_name = f"{obj.envObjectName}{JOINT_SUFFIX}"
+        joint_name = f"{obj_name}{JOINT_SUFFIX}"
         try:
             qpos = np.concatenate([
                 [obj.position.x, obj.position.y, obj.position.z],
@@ -558,13 +538,14 @@ class RobosuiteSimulation(Simulation):
     
     def _get_object_position(self, obj) -> Vector:
         """Get object position."""
-        if hasattr(obj, 'envObjectName') and self._current_obs:
-            obs_key = f"{obj.envObjectName}_pos"
+        obj_name = self.object_name_map.get(obj)
+        if obj_name and self._current_obs:
+            obs_key = f"{obj_name}_pos"
             if obs_key in self._current_obs:
                 pos = self._current_obs[obs_key]
                 return Vector(pos[0], pos[1], pos[2])
-            elif obj.envObjectName in self.body_id_map:
-                body_id = self.body_id_map[obj.envObjectName]
+            elif obj_name in self.body_id_map:
+                body_id = self.body_id_map[obj_name]
                 pos = self.data.xpos[body_id]
                 return Vector(pos[0], pos[1], pos[2])
         return obj.position
