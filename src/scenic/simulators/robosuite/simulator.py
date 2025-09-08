@@ -1,6 +1,6 @@
 # src/scenic/simulators/robosuite/simulator.py
 
-"""RoboSuite Simulator interface for Scenic."""
+"""RoboSuite Simulator interface for Scenic - Custom Environment Only."""
 
 from typing import Dict, List, Any, Optional, Union
 import numpy as np
@@ -9,14 +9,13 @@ import mujoco
 try:
     import robosuite as suite
     from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
-    from robosuite.models.arenas import TableArena, MultiTableArena
+    from robosuite.models.arenas import EmptyArena, MultiTableArena
     from robosuite.models.tasks import ManipulationTask
     from robosuite.models.objects import (
         BallObject, BoxObject, CylinderObject, CapsuleObject,
         MilkObject, CerealObject, CanObject, BreadObject,
         HammerObject, SquareNutObject, RoundNutObject, BottleObject
     )
-    from robosuite.utils.placement_samplers import UniformRandomSampler
     from robosuite.utils.observables import Observable, sensor
 except ImportError as e:
     suite = None
@@ -48,9 +47,10 @@ CAMERA_VIEWS = {
 
 # Object type mapping
 OBJECT_FACTORIES = {
+    # Primitive objects with customizable size
     'Ball': lambda cfg: BallObject(
         name=cfg['name'],
-        size=[cfg.get('radius', cfg.get('size', [0.02])[0])],
+        size=[cfg.get('radius', 0.02)],
         rgba=cfg.get('color', [1, 0, 0, 1])
     ),
     'Box': lambda cfg: BoxObject(
@@ -60,12 +60,15 @@ OBJECT_FACTORIES = {
     ),
     'Cylinder': lambda cfg: CylinderObject(
         name=cfg['name'],
-        size=_extract_cylinder_size(cfg)
+        size=_extract_cylinder_size(cfg),
+        rgba=cfg.get('color', [1, 0, 0, 1])
     ),
     'Capsule': lambda cfg: CapsuleObject(
         name=cfg['name'],
-        size=_extract_cylinder_size(cfg)
+        size=_extract_cylinder_size(cfg),
+        rgba=cfg.get('color', [1, 0, 0, 1])
     ),
+    # Complex objects with fixed sizes - no size parameter
     'Milk': lambda cfg: MilkObject(name=cfg['name']),
     'Cereal': lambda cfg: CerealObject(name=cfg['name']),
     'Can': lambda cfg: CanObject(name=cfg['name']),
@@ -79,14 +82,20 @@ OBJECT_FACTORIES = {
 
 def _extract_cylinder_size(config: Dict) -> List[float]:
     """Extract [radius, height] for cylinder-like objects."""
-    size = config.get('size', [0.02, 0.04])
+    if 'radius' in config and 'height' in config:
+        return [config['radius'], config['height']]
+    
+    size = config.get('size', [0.02, 0.02, 0.04])
     if len(size) == 3:  # Convert from [width, length, height]
-        return [size[0] / 2, size[2]]
-    return size
+        radius = (size[0] + size[1]) / 4  
+        return [radius, size[2]]
+    elif len(size) == 2:
+        return size
+    return [0.02, 0.04]  # Default
 
 
-class CustomManipulationEnv(ManipulationEnv):
-    """Custom manipulation environment for Scenic-defined scenarios."""
+class ScenicManipulationEnv(ManipulationEnv):
+    """Scenic-driven manipulation environment."""
     
     def __init__(self, scenic_config: Dict, **kwargs):
         self.scenic_config = scenic_config
@@ -121,11 +130,9 @@ class CustomManipulationEnv(ManipulationEnv):
         """Create arena based on table configuration."""
         if not self.scenic_tables:
             # No tables - use empty arena (just floor)
-            from robosuite.models.arenas import EmptyArena
             return EmptyArena()
         
-        # Use MultiTableArena for any number of tables (1+)
-        from robosuite.models.arenas import MultiTableArena
+        # Use MultiTableArena for any number of tables
         return MultiTableArena(
             table_offsets=[t.get('position', [0, 0, 0.8]) for t in self.scenic_tables],
             table_full_sizes=[t.get('size', (0.8, 0.8, 0.05)) for t in self.scenic_tables],
@@ -138,8 +145,6 @@ class CustomManipulationEnv(ManipulationEnv):
         
         for obj_config in self.scenic_objects:
             obj_type = obj_config['type']
-            
-            # Create object using factory or default to box
             factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
             mj_obj = factory(obj_config)
             mujoco_objects.append(mj_obj)
@@ -196,12 +201,11 @@ class CustomManipulationEnv(ManipulationEnv):
 
 
 class RobosuiteSimulator(Simulator):
-    """Simulator for RoboSuite environments."""
+    """Simulator for RoboSuite custom environments."""
     
     def __init__(self, render: bool = True, real_time: bool = True, speed: float = 1.0,
-                 use_environment: Optional[str] = None, env_config: Optional[Dict] = None,
-                 controller_config: Optional[Dict] = None, camera_view: Optional[str] = None,
-                 lite_physics: Optional[bool] = None):
+                 env_config: Optional[Dict] = None, controller_config: Optional[Dict] = None,
+                 camera_view: Optional[str] = None, lite_physics: Optional[bool] = None):
         super().__init__()
         if suite is None:
             raise RuntimeError(f"Unable to import RoboSuite: {_import_error}")
@@ -209,7 +213,6 @@ class RobosuiteSimulator(Simulator):
         self.render = render
         self.real_time = real_time
         self.speed = speed
-        self.use_environment = use_environment
         self.env_config = env_config or {}
         self.controller_config = controller_config
         self.camera_view = camera_view
@@ -219,23 +222,20 @@ class RobosuiteSimulator(Simulator):
         """Create a simulation instance."""
         return RobosuiteSimulation(
             scene, self.render, self.real_time, self.speed,
-            self.use_environment, self.env_config,
-            self.controller_config, self.camera_view,
-            self.lite_physics, **kwargs
+            self.env_config, self.controller_config,
+            self.camera_view, self.lite_physics, **kwargs
         )
 
 
 class RobosuiteSimulation(Simulation):
-    """Simulation for RoboSuite environments."""
+    """Simulation for RoboSuite custom environments."""
     
     def __init__(self, scene, render: bool, real_time: bool, speed: float,
-                 use_environment: Optional[str], env_config: Optional[Dict],
-                 controller_config: Optional[Dict], camera_view: Optional[str],
-                 lite_physics: Optional[bool], **kwargs):
+                 env_config: Optional[Dict], controller_config: Optional[Dict],
+                 camera_view: Optional[str], lite_physics: Optional[bool], **kwargs):
         self.render = render
         self.real_time = real_time
         self.speed = speed
-        self.use_environment = use_environment
         self.env_config = env_config or {}
         self.controller_config = controller_config
         self.camera_view = camera_view
@@ -246,9 +246,9 @@ class RobosuiteSimulation(Simulation):
         self.model = None
         self.data = None
         
-        # Object tracking - maps Scenic object to its name
+        # Object tracking
         self.body_id_map = {}
-        self.object_name_map = {}  # Maps Scenic object to its name in the sim
+        self.object_name_map = {}
         self.robots = []
         self.prev_positions = {}
         self._current_obs = None
@@ -270,14 +270,34 @@ class RobosuiteSimulation(Simulation):
         """Initialize the RoboSuite environment."""
         super().setup()
         
-        if not self.use_environment:
-            raise ValueError("Environment name must be specified via 'use_environment' parameter")
+        # Extract configuration from Scenic scene
+        scenic_config = self._extract_scenic_config()
         
-        if self.use_environment.lower() == "custom":
-            self._setup_custom_environment()
-        else:
-            self._setup_standard_environment()
+        # Check for robots - at least one required
+        if not scenic_config['robots']:
+            raise ValueError("At least one robot is required in the scene")
         
+        # Setup environment
+        robot_arg = self._get_robot_arg(scenic_config['robots'])
+        
+        env_kwargs = {
+            'scenic_config': scenic_config,
+            'robots': robot_arg,
+            'has_renderer': self.render,
+            'render_camera': self.camera_view,
+            'camera_names': ["frontview", "robot0_eye_in_hand"],
+            'controller_configs': self.controller_config,
+            **self.env_config
+        }
+        
+        if self.lite_physics is not None:
+            env_kwargs['lite_physics'] = self.lite_physics
+        
+        self.robosuite_env = ScenicManipulationEnv(**env_kwargs)
+        self._current_obs = self.robosuite_env.reset()
+        self._detect_controller_type(scenic_config['robots'])
+        
+        # Finalize setup
         self._finalize_setup()
     
     def _finalize_setup(self):
@@ -301,28 +321,6 @@ class RobosuiteSimulation(Simulation):
                     else self.camera_view)
         if self.robosuite_env.viewer:
             self.robosuite_env.viewer.set_camera(camera_id=camera_id)
-    
-    def _setup_custom_environment(self):
-        """Setup custom manipulation environment."""
-        scenic_config = self._extract_scenic_config()
-        robot_arg = self._get_robot_arg(scenic_config['robots'])
-        
-        env_kwargs = {
-            'scenic_config': scenic_config,
-            'robots': robot_arg,
-            'has_renderer': self.render,
-            'render_camera': self.camera_view,
-            'camera_names': ["frontview", "robot0_eye_in_hand"],
-            'controller_configs': self.controller_config,
-            **self.env_config
-        }
-        
-        if self.lite_physics is not None:
-            env_kwargs['lite_physics'] = self.lite_physics
-        
-        self.robosuite_env = CustomManipulationEnv(**env_kwargs)
-        self._current_obs = self.robosuite_env.reset()
-        self._detect_controller_type(scenic_config['robots'])
     
     def _extract_scenic_config(self) -> Dict:
         """Extract configuration from Scenic scene."""
@@ -360,7 +358,7 @@ class RobosuiteSimulation(Simulation):
         
         config = {
             'type': obj.objectType,
-            'name': obj_name,  # Use Scenic's name directly
+            'name': obj_name,
             'position': [obj.position.x, obj.position.y, obj.position.z],
             'color': getattr(obj, 'color', [1, 0, 0, 1])
         }
@@ -368,10 +366,9 @@ class RobosuiteSimulation(Simulation):
         # Store mapping
         self.object_name_map[obj] = obj_name
         
-        # Add size/radius info
-        if hasattr(obj, 'radius'):
+        if obj.objectType == 'Ball' and hasattr(obj, 'radius'):
             config['radius'] = obj.radius
-        elif hasattr(obj, 'width'):
+        elif obj.objectType in ['Box', 'Cylinder', 'Capsule'] and hasattr(obj, 'width'):
             config['size'] = [obj.width, obj.length, obj.height]
         
         objects.append(config)
@@ -379,40 +376,9 @@ class RobosuiteSimulation(Simulation):
     def _get_robot_arg(self, robots: List) -> Union[str, List[str]]:
         """Get robot argument for environment creation."""
         if not robots:
-            return "Panda"
+            raise ValueError("At least one robot is required")
         return ([r['type'] for r in robots] if len(robots) > 1 
                 else robots[0]['type'])
-    
-    def _setup_standard_environment(self):
-        """Setup standard RoboSuite environment."""
-        robots = [obj for obj in self.objects if hasattr(obj, 'robot_type')]
-        robot_arg = self._get_robot_arg([{'type': r.robot_type} for r in robots])
-        
-        config = {
-            **self.env_config,
-            'has_renderer': self.render,
-            'render_camera': self.camera_view,
-            'camera_names': ["frontview", "robot0_eye_in_hand"],
-            'controller_configs': self.controller_config
-        }
-        
-        self.robosuite_env = suite.make(self.use_environment, robots=robot_arg, **config)
-        self._current_obs = self.robosuite_env.reset()
-        
-        # Store robot references
-        for i, robot in enumerate(robots[:len(self.robosuite_env.robots)]):
-            self.robots.append(robot)
-            robot_name = f"robot{i}"
-            self.object_name_map[robot] = robot_name
-        
-        # Map standard environment objects using their Scenic name
-        for obj in self.objects:
-            if hasattr(obj, 'name') and not hasattr(obj, 'robot_type'):
-                # For standard environments, use the object's Scenic name
-                self.object_name_map[obj] = obj.name
-        
-        self._apply_initial_positions()
-        self._detect_controller_type([{'type': r.robot_type} for r in robots])
     
     def _detect_controller_type(self, robot_configs: List):
         """Detect controller type from first robot."""
@@ -448,36 +414,9 @@ class RobosuiteSimulation(Simulation):
             except:
                 continue
     
-    def _apply_initial_positions(self):
-        """Apply initial positions for environment objects."""
-        for obj in self.objects:
-            obj_name = self.object_name_map.get(obj)
-            if obj_name and hasattr(obj, 'position'):
-                self._set_object_position(obj, obj_name)
-        
-        self.robosuite_env.sim.forward()
-        
-        # Let physics settle
-        for _ in range(PHYSICS_SETTLE_STEPS):
-            self.robosuite_env.step(np.zeros(self.action_dim))
-        
-        self._current_obs = self.robosuite_env._get_observations()
-    
-    def _set_object_position(self, obj, obj_name):
-        """Set position for single object."""
-        joint_name = f"{obj_name}{JOINT_SUFFIX}"
-        try:
-            qpos = np.concatenate([
-                [obj.position.x, obj.position.y, obj.position.z],
-                [1, 0, 0, 0]
-            ])
-            self.robosuite_env.sim.data.set_joint_qpos(joint_name, qpos)
-        except:
-            pass
-    
     def createObjectInSimulator(self, obj):
         """Required by Scenic's Simulator interface."""
-        """See _setup_custom_environment() and _setup_standard_environment() for object creation."""
+        # Objects are created during setup in ScenicManipulationEnv
         pass
     
     def executeActions(self, allActions: Dict[Any, List]) -> None:

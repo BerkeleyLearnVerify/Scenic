@@ -1,25 +1,23 @@
 # src/scenic/simulators/robosuite/model.scenic
 
-"""Scenic world model for RoboSuite."""
+"""Scenic world model for RoboSuite - Custom Environments Only."""
 
 from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
 
-# Global parameters
-param use_environment = None
+# Global parameters with defaults matching Robosuite's defaults
 param env_config = {}
 param controller_config = None
 param camera_view = None
 param render = True
-param real_time = True  
+param real_time = True
 param speed = 1.0
-param lite_physics = None
+param lite_physics = None  # None = use Robosuite default (True)
 
-# Simulator
+# Simulator - no more use_environment parameter
 simulator RobosuiteSimulator(
     render=globalParameters.render,
     real_time=globalParameters.real_time,
     speed=globalParameters.speed,
-    use_environment=globalParameters.use_environment,
     env_config=globalParameters.env_config,
     controller_config=globalParameters.controller_config,
     camera_view=globalParameters.camera_view,
@@ -29,7 +27,7 @@ simulator RobosuiteSimulator(
 # Default values dictionary
 DEFAULTS = {
     # Object properties
-    'object_size': 0.05,
+    'object_size': 0.03,
     'density': 1000,
     'friction': (1.0, 0.005, 0.0001),
     'solref': (0.02, 1.0),
@@ -94,16 +92,16 @@ class Ball(ManipulationObject):
     """Ball/sphere object."""
     objectType: "Ball"
     radius: DEFAULTS['object_size']
-    width: DEFAULTS['object_size'] * 2  # For compatibility
+    width: DEFAULTS['object_size'] * 2
     length: DEFAULTS['object_size'] * 2
     height: DEFAULTS['object_size'] * 2
 
 class Cylinder(ManipulationObject):
     """Cylinder object."""
     objectType: "Cylinder"
-    width: DEFAULTS['object_size'] * 2  # Diameter
+    width: DEFAULTS['object_size'] * 2
     length: DEFAULTS['object_size'] * 2
-    height: DEFAULTS['object_size'] * 4  # Height
+    height: DEFAULTS['object_size'] * 4
 
 class Capsule(ManipulationObject):
     """Capsule object."""
@@ -144,26 +142,6 @@ class SquareNut(ManipulationObject):
 class RoundNut(ManipulationObject):
     """Round nut object."""
     objectType: "RoundNut"
-
-# Standard environment-specific objects
-# These maintain their specific names as they're tied to particular environments
-class LiftCube(RoboSuiteObject):
-    """Cube specific to Lift environment."""
-    width: DEFAULTS['object_size']
-    length: DEFAULTS['object_size']
-    height: DEFAULTS['object_size']
-
-class StackCubeA(RoboSuiteObject):
-    """First cube in Stack environment."""
-    width: DEFAULTS['object_size']
-    length: DEFAULTS['object_size']
-    height: DEFAULTS['object_size']
-
-class StackCubeB(RoboSuiteObject):
-    """Second cube in Stack environment."""
-    width: DEFAULTS['object_size']
-    length: DEFAULTS['object_size']
-    height: DEFAULTS['object_size']
 
 # Robots (matching RoboSuite's naming)
 class Robot(RoboSuiteObject):
@@ -206,7 +184,6 @@ class IIWA(Robot):
     """KUKA IIWA robot."""
     robot_type: "IIWA"
     gripper_type: "Robotiq140Gripper"
-
 
 # Behavior Library
 behavior OpenGripper(steps=DEFAULTS['gripper_open_steps']):
@@ -274,6 +251,3 @@ behavior PickAndLift(target_object, height=1.05):
     """Complete pick and lift for specific object."""
     do PickObject(target_object)
     do LiftToHeight(height)
-    
-    if simulation().checkSuccess():
-        terminate simulation

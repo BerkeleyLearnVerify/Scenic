@@ -1,9 +1,8 @@
 # examples/robosuite/four_table_workspace.scenic
 model scenic.simulators.robosuite.model
 
-# SCENARIO CONFIGURATION
-param use_environment = "Custom"
-param camera_view = "sideview"
+# CAMERA CONFIGURATION
+# param camera_view = "sideview"
 
 TABLE_DISTANCE = 1.0
 
@@ -13,7 +12,7 @@ front_table = new Table at (TABLE_DISTANCE, 0, 0.8)
 right_table = new Table at (0, TABLE_DISTANCE, 0.8)
 left_table = new Table at (0, -TABLE_DISTANCE, 0.8)
 
-# TABLE 1 (Back): Primitive objects with random positions using Range
+# TABLE 1 (Back): Primitive objects with random positions
 ball = new Ball at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
     with color (1, 0.5, 0, 1)
 
@@ -26,7 +25,7 @@ capsule = new Capsule at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
 cylinder = new Cylinder at (Range(-1.1, -0.9), Range(-0.1, 0.1), 0.83),
     with color (0, 1, 1, 1)
 
-# TABLE 2 (Front): Nuts and food items with random positions
+# TABLE 2 (Front): Nuts and food items
 square_nut = new SquareNut at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
 round_nut = new RoundNut at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
@@ -35,7 +34,7 @@ milk = new Milk at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
 cereal = new Cereal at (Range(0.9, 1.1), Range(-0.1, 0.1), 0.85)
 
-# TABLE 3 (Right): Various objects with random positions
+# TABLE 3 (Right): Various objects
 can = new Can at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
 
 bread = new Bread at (Range(-0.1, 0.1), Range(0.9, 1.1), 0.85)
