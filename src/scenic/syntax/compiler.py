@@ -1218,8 +1218,7 @@ class ScenicToPythonTransformer(Transformer):
             ],
             keywords=[],
         )
-        idle = ast.Call(ast.Name("Idle", loadCtx), [], [])
-        return self.makeDoLike(node, [idle], modifier=modifier)
+        return self.makeDoLike(node, [], modifier=modifier)
 
     @context(Context.DYNAMIC)
     def visit_WaitUntil(self, node: s.WaitUntil):
@@ -1228,8 +1227,7 @@ class ScenicToPythonTransformer(Transformer):
             args=[ast.Constant("until"), ast.Lambda(noArgs, self.visit(node.cond))],
             keywords=[],
         )
-        idle = ast.Call(ast.Name("Idle", loadCtx), [], [])
-        return self.makeDoLike(node, [idle], modifier=modifier)
+        return self.makeDoLike(node, [], modifier=modifier)
 
     @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):

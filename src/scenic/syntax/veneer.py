@@ -164,7 +164,6 @@ __all__ = (
     "_scenic_default",
     "Behavior",
     "Monitor",
-    "Idle",
     "_makeTerminationAction",
     "_makeSimulationTerminationAction",
     "BlockConclusion",
@@ -193,7 +192,7 @@ from scenic.core.distributions import (
     TruncatedNormal,
     Uniform,
 )
-from scenic.core.dynamics.behaviors import Behavior, Idle, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Monitor
 from scenic.core.dynamics.guards import (
     GuardViolation,
     InvariantViolation,

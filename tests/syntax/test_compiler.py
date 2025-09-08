@@ -1164,14 +1164,7 @@ class TestCompiler:
                             ),
                             args=[
                                 Name(id="self", ctx=Load()),
-                                Tuple(
-                                    elts=[
-                                        ast.Call(
-                                            func=ast.Name("Idle"), args=[], keywords=[]
-                                        )
-                                    ],
-                                    ctx=Load(),
-                                ),
+                                Tuple(elts=[], ctx=Load()),
                                 ast.Call(
                                     func=ast.Name("Modifier"),
                                     args=[
@@ -1206,14 +1199,7 @@ class TestCompiler:
                             ),
                             args=[
                                 Name(id="self", ctx=Load()),
-                                Tuple(
-                                    elts=[
-                                        ast.Call(
-                                            func=ast.Name("Idle"), args=[], keywords=[]
-                                        )
-                                    ],
-                                    ctx=Load(),
-                                ),
+                                Tuple(elts=[], ctx=Load()),
                                 ast.Call(
                                     func=ast.Name("Modifier"),
                                     args=[
@@ -1248,14 +1234,7 @@ class TestCompiler:
                             ),
                             args=[
                                 Name(id="self", ctx=Load()),
-                                Tuple(
-                                    elts=[
-                                        ast.Call(
-                                            func=ast.Name("Idle"), args=[], keywords=[]
-                                        )
-                                    ],
-                                    ctx=Load(),
-                                ),
+                                Tuple(elts=[], ctx=Load()),
                                 ast.Call(
                                     func=ast.Name("Modifier"),
                                     args=[

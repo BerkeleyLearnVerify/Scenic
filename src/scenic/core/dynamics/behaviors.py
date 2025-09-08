@@ -155,17 +155,3 @@ class Monitor(Behavior):
 
     def _start(self):
         return super()._start(None)
-
-
-class Idle(Behavior):
-    """A behavior that yields no actions (used for wait for/until)."""
-
-    def makeGenerator(self, agent, *args, **kwargs):
-        while True:
-            yield ()
-
-    def checkPreconditions(self, *_, **__):
-        pass
-
-    def checkInvariants(self, *_, **__):
-        pass
