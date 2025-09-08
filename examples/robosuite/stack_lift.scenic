@@ -1,4 +1,4 @@
-model scenic.simulators.robosuite.model
+    model scenic.simulators.robosuite.model
 
 work_table = new Table at (0.6, 0, 0.8),
     with width 0.6,

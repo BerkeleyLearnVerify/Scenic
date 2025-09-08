@@ -80,6 +80,13 @@ class ManipulationObject(RoboSuiteObject):
     """Base class for objects that can be manipulated."""
     color: DEFAULTS['default_color']
 
+# MJCF Custom Object
+class MJCFObject(ManipulationObject):
+    """Custom object defined by MJCF XML."""
+    objectType: "MJCF"
+    mjcf_xml: ""  # XML string or path to XML file
+    mjcf_name: "custom_object"  # Name for the object in the scene
+
 # Primitive shape objects (matching RoboSuite's naming)
 class Box(ManipulationObject):
     """Box object."""

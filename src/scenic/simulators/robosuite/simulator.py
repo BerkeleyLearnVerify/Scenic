@@ -5,6 +5,9 @@
 from typing import Dict, List, Any, Optional, Union
 import numpy as np
 import mujoco
+import os
+import tempfile
+import xml.etree.ElementTree as ET
 
 try:
     import robosuite as suite
@@ -14,9 +17,11 @@ try:
     from robosuite.models.objects import (
         BallObject, BoxObject, CylinderObject, CapsuleObject,
         MilkObject, CerealObject, CanObject, BreadObject,
-        HammerObject, SquareNutObject, RoundNutObject, BottleObject
+        HammerObject, SquareNutObject, RoundNutObject, BottleObject,
+        MujocoGeneratedObject
     )
     from robosuite.utils.observables import Observable, sensor
+    from robosuite.utils.mjcf_utils import array_to_string
 except ImportError as e:
     suite = None
     _import_error = e
@@ -44,6 +49,163 @@ CAMERA_VIEWS = {
     "robot0_robotview": 4,
     "robot0_eye_in_hand": 5
 }
+
+
+class CustomMJCFObject(MujocoGeneratedObject):
+    """Custom MJCF object from user-provided XML."""
+    
+    def __init__(self, name, geom_xml, rgba=None):
+        super().__init__()
+        self._name = name
+        self._joints = [f"{name}_joint0"]
+        self.geom_xml = geom_xml
+        self.rgba = rgba or [1, 0, 0, 1]
+        self._obj = self._get_object_subtree()
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def joints(self):
+        return self._joints
+    
+    @property
+    def root_body(self):
+        return self._name
+    
+    @property
+    def horizontal_radius(self):
+        return 0.03
+    
+    @property
+    def visual_geoms(self):
+        """Return visual geometry names."""
+        return [f"{self._name}_visual"]
+
+    @property
+    def contact_geoms(self):
+        """Return contact geometry names."""
+        return [f"{self._name}_collision"]
+    
+    @property
+    def sites(self):
+        """Return site names."""
+        return []  # MJCF objects typically don't have sites
+    
+    def _sanitize_element(self, elem):
+        for key in list(elem.attrib.keys()):
+            val = elem.attrib[key]
+            if val is None:
+                elem.attrib[key] = ""
+            elif not isinstance(val, str):
+                elem.attrib[key] = str(val)
+        for child in elem:
+            self._sanitize_element(child)
+    
+    def _get_object_subtree(self):
+        obj = ET.Element("body")
+        obj.set("name", self._name)
+    
+        joint = ET.SubElement(obj, "joint")
+        joint.set("name", self._joints[0])
+        joint.set("type", "free")
+    
+        try:
+            if self.geom_xml.strip().startswith('<geom'):
+                geom_str = self.geom_xml.strip()
+                if not geom_str.endswith('>'):
+                    geom_str += '/>'
+                elif not geom_str.endswith('/>') and not geom_str.endswith('</geom>'):
+                    geom_str = geom_str[:-1] + '/>'
+            
+                # Parse user's geom as template
+                template = ET.fromstring(geom_str)
+            
+                # Create collision geom
+                col_geom = ET.SubElement(obj, "geom")
+                col_geom.set("name", f"{self._name}_collision")
+                for key, value in template.attrib.items():
+                    if key not in ['name', 'rgba', 'contype', 'conaffinity', 'group']:
+                        col_geom.set(key, value)
+                col_geom.set("group", "0")
+            
+                # Create visual geom
+                vis_geom = ET.SubElement(obj, "geom")
+                vis_geom.set("name", f"{self._name}_visual")
+                for key, value in template.attrib.items():
+                    if key not in ['name', 'contype', 'conaffinity', 'group']:
+                        vis_geom.set(key, value)
+                if 'rgba' not in vis_geom.attrib:
+                    vis_geom.set('rgba', array_to_string(self.rgba))
+                vis_geom.set("contype", "0")
+                vis_geom.set("conaffinity", "0")
+                vis_geom.set("group", "1")
+            else:
+                raise ValueError("Invalid XML")
+        except:
+            # Fallback default
+            col_geom = ET.SubElement(obj, "geom")
+            col_geom.set("name", f"{self._name}_collision")
+            col_geom.set("type", "box")
+            col_geom.set("size", "0.02 0.02 0.02")
+            col_geom.set("group", "0")
+        
+            vis_geom = ET.SubElement(obj, "geom")
+            vis_geom.set("name", f"{self._name}_visual")
+            vis_geom.set("type", "box")
+            vis_geom.set("size", "0.02 0.02 0.02")
+            vis_geom.set("rgba", array_to_string(self.rgba))
+            vis_geom.set("contype", "0")
+            vis_geom.set("conaffinity", "0")
+            vis_geom.set("group", "1")
+    
+        inertial = ET.SubElement(obj, "inertial")
+        inertial.set("pos", "0 0 0")
+        inertial.set("mass", "0.01")
+        inertial.set("diaginertia", "0.001 0.001 0.001")
+    
+        self._sanitize_element(obj)
+        return obj
+
+
+def _extract_cylinder_size(config: Dict) -> List[float]:
+    """Extract [radius, height] for cylinder-like objects."""
+    if 'radius' in config and 'height' in config:
+        return [config['radius'], config['height']]
+    
+    size = config.get('size', [0.02, 0.02, 0.04])
+    if len(size) == 3:  # Convert from [width, length, height]
+        radius = (size[0] + size[1]) / 4  
+        return [radius, size[2]]
+    elif len(size) == 2:
+        return size
+    return [0.02, 0.04]  # Default
+
+
+def _create_mjcf_object(config: Dict):
+    """Create a custom MJCF object from XML."""
+    xml_content = config.get('mjcf_xml', '')
+    obj_name = config.get('name', 'custom_object')
+    rgba = config.get('color', [1, 0, 0, 1])
+    
+    if xml_content.endswith('.xml') and os.path.exists(xml_content):
+        # Load from file
+        with open(xml_content, 'r') as f:
+            content = f.read()
+            # Extract geom elements from full XML
+            try:
+                root = ET.fromstring(content)
+                geoms = root.findall('.//geom')
+                if geoms:
+                    xml_content = ''.join(ET.tostring(g, encoding='unicode') for g in geoms)
+                else:
+                    xml_content = content
+            except:
+                xml_content = content
+    
+    return CustomMJCFObject(name=obj_name, geom_xml=xml_content, rgba=rgba)
+
 
 # Object type mapping
 OBJECT_FACTORIES = {
@@ -76,22 +238,10 @@ OBJECT_FACTORIES = {
     'Hammer': lambda cfg: HammerObject(name=cfg['name']),
     'SquareNut': lambda cfg: SquareNutObject(name=cfg['name']),
     'RoundNut': lambda cfg: RoundNutObject(name=cfg['name']),
-    'Bottle': lambda cfg: BottleObject(name=cfg['name'])
+    'Bottle': lambda cfg: BottleObject(name=cfg['name']),
+    # Custom MJCF objects
+    'MJCF': lambda cfg: _create_mjcf_object(cfg)
 }
-
-
-def _extract_cylinder_size(config: Dict) -> List[float]:
-    """Extract [radius, height] for cylinder-like objects."""
-    if 'radius' in config and 'height' in config:
-        return [config['radius'], config['height']]
-    
-    size = config.get('size', [0.02, 0.02, 0.04])
-    if len(size) == 3:  # Convert from [width, length, height]
-        radius = (size[0] + size[1]) / 4  
-        return [radius, size[2]]
-    elif len(size) == 2:
-        return size
-    return [0.02, 0.04]  # Default
 
 
 class ScenicManipulationEnv(ManipulationEnv):
@@ -142,13 +292,23 @@ class ScenicManipulationEnv(ManipulationEnv):
     def _create_objects(self) -> List:
         """Create Robosuite objects from Scenic configuration."""
         mujoco_objects = []
-        
-        for obj_config in self.scenic_objects:
+    
+        for i, obj_config in enumerate(self.scenic_objects):
             obj_type = obj_config['type']
+            obj_name = obj_config.get('name', f'unnamed_{i}')
+            print(f"DEBUG: Creating object {i}: type={obj_type}, name={obj_name}")
+        
             factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
             mj_obj = factory(obj_config)
-            mujoco_objects.append(mj_obj)
         
+            # Debug what was actually created
+            if hasattr(mj_obj, 'name'):
+                print(f"  -> RoboSuite object name: {mj_obj.name}")
+            if hasattr(mj_obj, 'joints'):
+                print(f"  -> Joints: {mj_obj.joints}")
+        
+            mujoco_objects.append(mj_obj)
+    
         return mujoco_objects
     
     def _setup_references(self):
@@ -180,16 +340,31 @@ class ScenicManipulationEnv(ManipulationEnv):
     def _reset_internal(self):
         """Reset environment internals."""
         super()._reset_internal()
-        
+    
         # Set positions for all objects
         for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
             if 'position' in obj_config:
                 pos = obj_config['position']
                 quat = obj_config.get('quaternion', [1, 0, 0, 0])
+                joint_name = mj_obj.joints[0] if hasattr(mj_obj, 'joints') else f"{mj_obj.name}_joint0"
+            
+                print(f"DEBUG: Setting position for {mj_obj.name}: {pos}")
+            
+                # Set joint position
                 self.sim.data.set_joint_qpos(
-                    mj_obj.joints[0],
+                    joint_name,
                     np.concatenate([np.array(pos), np.array(quat)])
                 )
+    
+        # Step simulation to apply changes
+        self.sim.forward()
+        self.sim.step()
+    
+        # Verify positions
+        for mj_obj in self.mujoco_objects:
+            body_id = self.sim.model.body_name2id(mj_obj.root_body)
+            actual_pos = self.sim.data.body_xpos[body_id]
+            print(f"DEBUG: {mj_obj.name} actual position: {actual_pos}")
     
     def reward(self, action=None) -> float:
         """Compute reward."""
@@ -353,24 +528,42 @@ class RobosuiteSimulation(Simulation):
     
     def _add_object_config(self, objects: List, obj):
         """Add object configuration."""
-        # Use the Scenic object's name attribute directly
-        obj_name = getattr(obj, 'name', f"obj_{id(obj)}")
-        
+        # Debug logging
+        if obj.objectType == 'MJCF':
+            print(f"DEBUG: mjcf_name = {repr(getattr(obj, 'mjcf_name', 'NOT_SET'))}")
+    
+        # Generate unique name - handle all edge cases
+        if obj.objectType == 'MJCF':
+            mjcf_name = str(getattr(obj, 'mjcf_name', 'custom_object'))
+            # Handle various forms of invalid names
+            if mjcf_name in ['None', 'none', ''] or mjcf_name.startswith('None'):
+                mjcf_name = "custom_object"
+            obj_name = f"{mjcf_name}_{len(objects)}"
+        else:
+            base_name = str(getattr(obj, 'name', obj.objectType))
+            if base_name in ['None', 'none', ''] or base_name.startswith('None'):
+                base_name = obj.objectType
+            obj_name = f"{base_name}_{len(objects)}"
+    
+        print(f"DEBUG: Creating object with name: {obj_name}")
+    
         config = {
             'type': obj.objectType,
             'name': obj_name,
             'position': [obj.position.x, obj.position.y, obj.position.z],
             'color': getattr(obj, 'color', [1, 0, 0, 1])
         }
-        
-        # Store mapping
+    
         self.object_name_map[obj] = obj_name
-        
-        if obj.objectType == 'Ball' and hasattr(obj, 'radius'):
+    
+        # Handle MJCF objects
+        if obj.objectType == 'MJCF':
+            config['mjcf_xml'] = getattr(obj, 'mjcf_xml', '')
+        elif obj.objectType == 'Ball' and hasattr(obj, 'radius'):
             config['radius'] = obj.radius
         elif obj.objectType in ['Box', 'Cylinder', 'Capsule'] and hasattr(obj, 'width'):
             config['size'] = [obj.width, obj.length, obj.height]
-        
+    
         objects.append(config)
     
     def _get_robot_arg(self, robots: List) -> Union[str, List[str]]:
