@@ -164,10 +164,9 @@ __all__ = (
     "_scenic_default",
     "Behavior",
     "Monitor",
+    "Idle",
     "_makeTerminationAction",
     "_makeSimulationTerminationAction",
-    # "_makeWaitForAction",
-    # "_makeWaitUntilAction",
     "BlockConclusion",
     "runTryInterrupt",
     "wrapStarredValue",
@@ -194,7 +193,7 @@ from scenic.core.distributions import (
     TruncatedNormal,
     Uniform,
 )
-from scenic.core.dynamics.behaviors import Behavior, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Idle, Monitor
 from scenic.core.dynamics.guards import (
     GuardViolation,
     InvariantViolation,
@@ -652,57 +651,6 @@ def _makeTerminationAction(agent, line):
 def _makeSimulationTerminationAction(line):
     assert activity == 0
     return _EndSimulationAction(line)
-
-
-# def _makeWaitForAction(agent, line, amount, unit):
-#     """Yield () for a fixed number of steps."""
-#     assert activity == 0
-#     import math
-
-#     if not isinstance(amount, (int, float)):
-#         raise TypeError('"wait for N" with N not a number')
-#     if amount < 0:
-#         raise ValueError('"wait for N" with N negative')
-#     if unit not in ("seconds", "steps"):
-#         raise ValueError(f'unknown time unit "{unit}" in "wait for"')
-
-#     # Convert to steps
-#     if unit == "steps":
-#         if not isinstance(amount, int):
-#             raise TypeError('"wait for N steps" with N not an integer')
-#         steps = amount
-#     else:
-#         ts = currentSimulation.timestep
-#         if ts <= 0:
-#             raise RuntimeError("simulation timestep must be positive")
-#         steps = int(math.ceil(amount / ts))  # never under-wait
-
-#     def _gen():
-#         for _ in range(steps):
-#             yield ()   # IMPORTANT: yield an empty tuple of actions
-
-#     return _gen()
-
-
-# def _makeWaitUntilAction(line, cond):
-#     """Yield () until cond() becomes True."""
-#     assert activity == 0
-#     if not callable(cond):
-#         raise TypeError('"wait until C" with C not callable')
-
-#     import scenic.syntax.veneer as veneer
-#     from scenic.core.lazy_eval import DelayedArgument
-
-#     def _gen():
-#         while True:
-#             with veneer.executeInGuard():
-#                 result = cond()
-#                 ready = False if isinstance(result, DelayedArgument) else bool(result)
-#             if ready:
-#                 return
-#             yield ()  # IMPORTANT: empty tuple each tick
-
-#     return _gen()
 
 
 ### Parsing support

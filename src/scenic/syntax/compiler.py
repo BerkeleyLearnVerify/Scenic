@@ -1207,119 +1207,29 @@ class ScenicToPythonTransformer(Transformer):
     def visit_Wait(self, node: s.Wait):
         return self.generateInvocation(node, ast.Constant(()))
 
-    # @context(Context.DYNAMIC)
-    # def visit_WaitFor(self, node: s.WaitFor):
-    #     return self.makeDoLike(
-    #         node,
-    #         [],
-    #         modifier=ast.Call(
-    #             func=ast.Name("Modifier", loadCtx),
-    #             args=[
-    #                 ast.Constant("for"),
-    #                 self.visit(node.duration.value),
-    #                 ast.Constant(node.duration.unitStr),
-    #             ],
-    #             keywords=[],
-    #         ),
-    #     )
-
-    # @context(Context.DYNAMIC)
-    # def visit_WaitUntil(self, node: s.WaitUntil):
-    #     return self.makeDoLike(
-    #         node,
-    #         [],
-    #         modifier=ast.Call(
-    #             func=ast.Name("Modifier", loadCtx),
-    #             args=[
-    #                 ast.Constant("until"),
-    #                 ast.Lambda(noArgs, self.visit(node.cond)),
-    #             ],
-    #             keywords=[],
-    #         ),
-    #     )
-
-    # -------------------------------------
-
-    # @context(Context.DYNAMIC)
-    # def visit_WaitFor(self, node: s.WaitFor):
-    #     action = ast.Call(
-    #         ast.Name("_makeWaitForAction", loadCtx),
-    #         [
-    #             ast.Name("self", loadCtx),
-    #             ast.Constant(node.lineno),
-    #             self.visit(node.duration.value),
-    #             ast.Constant(node.duration.unitStr),
-    #         ],
-    #         [],
-    #     )
-    #     return self.generateInvocation(node, action, invoker=ast.YieldFrom)
-
-    # @context(Context.DYNAMIC)
-    # def visit_WaitUntil(self, node: s.WaitUntil):
-    #     action = ast.Call(
-    #         ast.Name("_makeWaitUntilAction", loadCtx),
-    #         [
-    #             ast.Constant(node.lineno),
-    #             ast.Lambda(noArgs, self.visit(node.cond)),
-    #         ],
-    #         [],
-    #     )
-    #     return self.generateInvocation(node, action, invoker=ast.YieldFrom)
-
-    # can i make this better? hows dofor do secs vs steps and is this for fixed timestep?
     @context(Context.DYNAMIC)
     def visit_WaitFor(self, node: s.WaitFor):
-        body = self.generateInvocation(
-            node, ast.Constant(())
-        )  # yield () then check invariants
-
-        if node.duration.unitStr == "steps":
-            count = ast.Call(
-                ast.Name("int", ast.Load()), [self.visit(node.duration.value)], []
-            )
-            loop = ast.For(
-                target=ast.Name("_sc_wait_i", ast.Store()),
-                iter=ast.Call(ast.Name("range", ast.Load()), [count], []),
-                body=body,
-                orelse=[],
-            )
-            return ast.copy_location(loop, node)
-
-        # seconds: while (simulation().currentTime - t0) < duration: yield ()
-        set_t0 = ast.Assign(
-            targets=[ast.Name("_sc_wait_t0", ast.Store())],
-            value=ast.Attribute(
-                ast.Call(ast.Name("simulation", ast.Load()), [], []),
-                "currentTime",
-                ast.Load(),
-            ),
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[
+                ast.Constant("for"),
+                self.visit(node.duration.value),
+                ast.Constant(node.duration.unitStr),
+            ],
+            keywords=[],
         )
-        cond = ast.Compare(
-            left=ast.BinOp(
-                left=ast.Attribute(
-                    ast.Call(ast.Name("simulation", ast.Load()), [], []),
-                    "currentTime",
-                    ast.Load(),
-                ),
-                op=ast.Sub(),
-                right=ast.Name("_sc_wait_t0", ast.Load()),
-            ),
-            ops=[ast.Lt()],
-            comparators=[self.visit(node.duration.value)],
-            # comparators=[ast.Call(ast.Name("float", ast.Load()), [self.visit(node.duration.value)], [])]
-        )
-        loop = ast.While(test=cond, body=body, orelse=[])
-        return [ast.copy_location(set_t0, node), ast.copy_location(loop, node)]
+        idle = ast.Call(ast.Name("Idle", loadCtx), [], [])
+        return self.makeDoLike(node, [idle], modifier=modifier)
 
     @context(Context.DYNAMIC)
     def visit_WaitUntil(self, node: s.WaitUntil):
-        body = self.generateInvocation(node, ast.Constant(()))
-        loop = ast.While(
-            test=ast.UnaryOp(ast.Not(), self.visit(node.cond)),
-            body=body,
-            orelse=[],
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[ast.Constant("until"), ast.Lambda(noArgs, self.visit(node.cond))],
+            keywords=[],
         )
-        return ast.copy_location(loop, node)
+        idle = ast.Call(ast.Name("Idle", loadCtx), [], [])
+        return self.makeDoLike(node, [idle], modifier=modifier)
 
     @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):
