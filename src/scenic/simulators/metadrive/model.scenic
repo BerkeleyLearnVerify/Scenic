@@ -117,6 +117,10 @@ class MetaDriveActor(DrivingObject):
     """
     metaDriveActor: None
 
+    def setVelocity(self, vel):
+        self.metaDriveActor.set_velocity(vel)
+
+
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
