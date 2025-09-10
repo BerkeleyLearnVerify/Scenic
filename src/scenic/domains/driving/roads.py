@@ -350,7 +350,7 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def buffer(self, amount):
         return self.region.buffer(amount)
-    
+
     def uniformPointInner(self):
         return self.region.uniformPointInner()
 
@@ -951,7 +951,9 @@ class Network:
     intersectionRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
     crossingRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
     sidewalkRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
-    curbRegion: Union[PolylineRegion, PathRegion, PolygonalRegion, MeshSurfaceRegion] = None
+    curbRegion: Union[PolylineRegion, PathRegion, PolygonalRegion, MeshSurfaceRegion] = (
+        None
+    )
     shoulderRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
 
     #: Traffic flow vector field aggregated over all roads (0 elsewhere).
