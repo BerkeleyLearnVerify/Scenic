@@ -30,54 +30,54 @@ class Floor(Object):
     length: 5
     height: 0.01
     position: (0,0,-0.005)
-    #color: [200, 200, 200]
+    color: [200, 200, 200]
 
 class Wall(WebotsObject):
     webotsAdhoc: {'physics': False}
     width: 5
     length: 0.04
     height: 0.5
-    #color: [160, 160, 160]
+    color: [160, 160, 160]
 
 class DiningTable(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "dining_table.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_table.obj.bz2")
     width: Range(0.7, 1.5)
     length: Range(0.7, 1.5)
     height: 0.75
     density: 670 # Density of solid birch
-    #color: [103, 71, 54]
+    color: [103, 71, 54]
 
 class DiningChair(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "dining_chair.obj.bz2", initial_rotation=(180 deg, 0, 0))
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_chair.obj.bz2", initial_rotation=(180 deg, 0, 0))
     width: 0.4
     length: 0.4
     height: 1
     density: 670 # Density of solid birch
     positionStdDev: (0.05, 0.05 ,0)
     orientationStdDev: (10 deg, 0, 0)
-    #color: [103, 71, 54]
+    color: [103, 71, 54]
 
 class Couch(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "couch.obj.bz2", initial_rotation=(-90 deg, 0, 0))
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "couch.obj.bz2", initial_rotation=(-90 deg, 0, 0))
     width: 2
     length: 0.75
     height: 0.75
     positionStdDev: (0.05, 0.5 ,0)
     orientationStdDev: (5 deg, 0, 0)
-    #color: [51, 51, 255]
+    color: [51, 51, 255]
 
 class CoffeeTable(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "coffee_table.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "coffee_table.obj.bz2")
     width: 1.5
     length: 0.5
     height: 0.4
     positionStdDev: (0.05, 0.05 ,0)
     orientationStdDev: (5 deg, 0, 0)
-    #color: [103, 71, 54]
+    color: [103, 71, 54]
 
 class Toy(WebotsObject):
     webotsAdhoc: {'physics': True}
@@ -86,7 +86,7 @@ class Toy(WebotsObject):
     length: 0.1
     height: 0.1
     density: 100
-    #color: [255, 128, 0]
+    color: [255, 128, 0]
 
 class BlockToy(Toy):
     shape: BoxShape()

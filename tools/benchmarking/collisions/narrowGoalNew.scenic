@@ -12,7 +12,7 @@ workspace = Workspace(RectangularRegion(0 @ 0, 0, width, length))
 class MarsGround(Ground):
     width: width
     length: length
-    #color: (220, 114, 9)
+    color: (220, 114, 9)
     gridSize: 20
 
 class MarsHill(Hill):
@@ -28,7 +28,7 @@ class Goal(WebotsObject):
     width: 0.1
     length: 0.1
     webotsType: 'GOAL'
-    #color: (9 ,163, 220)
+    color: (9 ,163, 220)
 
 class Rover(WebotsObject):
     """Mars rover."""
@@ -45,14 +45,14 @@ class Debris(WebotsObject):
 
 class BigRock(Debris):
     """Large rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "webots_rock_large.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_large.obj.bz2")
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_BIG'
     positionOffset: Vector(0,0, -self.height/2)
 
 class Rock(Debris):
     """Small rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "assets" / "meshes" / "webots_rock_small.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_small.obj.bz2")
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_SMALL'
     positionOffset: Vector(0,0, -self.height/2)

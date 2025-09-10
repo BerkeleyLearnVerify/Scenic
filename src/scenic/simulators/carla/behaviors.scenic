@@ -7,9 +7,9 @@ try:
 except ModuleNotFoundError:
     pass    # ignore; error will be caught later if user attempts to run a simulation
 
-behavior AutopilotBehavior(enabled = True, **kwargs):
+behavior AutopilotBehavior():
     """Behavior causing a vehicle to use CARLA's built-in autopilot."""
-    take SetAutopilotAction(enabled=enabled, **kwargs)
+    take SetAutopilotAction(True)
 
 behavior WalkForwardBehavior(speed=0.5):
     take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)
