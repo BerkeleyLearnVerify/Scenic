@@ -1461,6 +1461,42 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_record_clauses(self):
+        node, requirements = compileScenicAST(
+            Record(
+                Name("C", lineno=2),
+                period=Seconds(Constant(0.2)),
+                delay=Steps(Constant(10)),
+                recorder=Name("file"),
+                lineno=2,
+            )
+        )
+        match node:
+            case Expr(
+                Call(
+                    Name("record"),
+                    [
+                        Constant(0),  # reqId
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                    [
+                        keyword("recorder", Name("file")),
+                        keyword("period", Tuple([Constant(0.2), Constant("seconds")])),
+                        keyword("delay", Tuple([Constant(10), Constant("steps")])),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
     def test_record_initial(self):
         node, requirements = compileScenicAST(
             RecordInitial(Name("C", lineno=2), lineno=2)

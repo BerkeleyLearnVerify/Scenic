@@ -41,6 +41,15 @@ Otherwise, you can specify it explicitly using the ``sumo_map`` global parameter
 The simulator is compatible with scenarios written using Scenic's :ref:`driving_domain`.
 For more information, refer to the documentation of the `scenic.simulators.metadrive` module.
 
+.. note::
+
+	The current version of MetaDrive on PyPI may not support the latest versions of Python or Apple Silicon hardware.
+	If the above command gives an error or you get a "could not open window" error when running MetaDrive, you can try installing a newer version from the MetaDrive repo as follows:
+
+	.. code-block:: console
+
+		python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
+
 
 Built-in Newtonian Simulator
 ----------------------------

@@ -21,6 +21,13 @@ Global Parameters:
         If False (default), it will render in 2D.
     real_time (bool): If True (default), the simulation will run in real time, ensuring each step takes at least
         as long as the specified timestep. If False, the simulation runs as fast as possible.
+    screen_record (bool): Whether to record a screen capture of the simulation (as a GIF).
+        Only supported in 2D rendering mode (requires ``render=True`` and ``render3D=False``).
+        Default is False.
+    screen_record_filename (str or None): Name of the GIF file to save. If not specified (default),
+        a timestamp will be used for each scenario recording.
+    screen_record_path (str): Directory where the GIFs will be saved. Defaults to "metadrive_gifs".
+        If not customized, recordings are grouped into this folder using timestamps for filenames.
 """
 import pathlib
 
@@ -29,6 +36,11 @@ from scenic.domains.driving.actions import *
 from scenic.domains.driving.behaviors import *
 
 from scenic.core.errors import InvalidScenarioError
+
+# Sensor imports
+from scenic.simulators.metadrive.sensors import MetaDriveRGBSensor as RGBSensor
+from scenic.simulators.metadrive.sensors import MetaDriveSSSensor as SSSensor
+
 
 try:
     from scenic.simulators.metadrive.simulator import MetaDriveSimulator
@@ -66,6 +78,19 @@ param timestep = 0.1
 param render = 1
 param render3D = 0
 param real_time = 1
+param screen_record = 0
+param screen_record_filename = None
+param screen_record_path = "metadrive_gifs"
+
+if bool(globalParameters.screen_record) and bool(globalParameters.render3D):
+    raise InvalidScenarioError(
+        "screen_record=True is only supported with 2D rendering. Set render3D=False."
+    )
+
+if bool(globalParameters.screen_record) and not bool(globalParameters.render):
+    raise InvalidScenarioError(
+        "screen_record=True requires render=True. Cannot record when rendering is disabled."
+    )
 
 simulator MetaDriveSimulator(
     sumo_map=globalParameters.sumo_map,
@@ -73,6 +98,9 @@ simulator MetaDriveSimulator(
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
     real_time=bool(globalParameters.real_time),
+    screen_record=bool(globalParameters.screen_record),
+    screen_record_filename=globalParameters.screen_record_filename,
+    screen_record_path=globalParameters.screen_record_path,
 )
 
 class MetaDriveActor(DrivingObject):

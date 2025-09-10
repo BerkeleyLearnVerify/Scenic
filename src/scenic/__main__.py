@@ -223,7 +223,7 @@ def generateScene(maxIterations=2000):
     return scene, iterations
 
 
-def runSimulation(scene):
+def runSimulation(scene, sceneCount):
     startTime = time.time()
     if args.verbosity >= 1:
         print(f"  Beginning simulation of {scene.dynamicScenario}...")
@@ -232,6 +232,7 @@ def runSimulation(scene):
             lambda: simulator.simulate(
                 scene,
                 maxSteps=args.time,
+                name=str(sceneCount),
                 verbosity=args.verbosity,
                 maxIterations=args.max_sims_per_scene,
             )
@@ -267,11 +268,13 @@ try:
                     "(try installing python3-tk)"
                 )
 
+        sceneCount = 0
         successCount = 0
         while True:
             scene, _ = generateScene()
+            sceneCount += 1
             if args.simulate:
-                success = runSimulation(scene)
+                success = runSimulation(scene, sceneCount)
                 if success:
                     successCount += 1
             else:

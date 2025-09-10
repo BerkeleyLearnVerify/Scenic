@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pytest
 
 try:
@@ -28,10 +29,12 @@ def test_pickle(loadLocalScenario):
 def getMetadriveSimulator(getAssetPath):
     base = getAssetPath("maps/CARLA")
 
-    def _getMetadriveSimulator(town):
+    def _getMetadriveSimulator(town, *, render=False, render3D=False):
         openDrivePath = os.path.join(base, f"{town}.xodr")
         sumoPath = os.path.join(base, f"{town}.net.xml")
-        simulator = MetaDriveSimulator(sumo_map=sumoPath, render=False)
+        simulator = MetaDriveSimulator(
+            sumo_map=sumoPath, render=render, render3D=render3D
+        )
         return simulator, openDrivePath, sumoPath
 
     yield _getMetadriveSimulator
@@ -118,13 +121,111 @@ def test_pedestrian_movement(getMetadriveSimulator):
         ego = new Car at (30, 2)
         pedestrian = new Pedestrian at (50, 6), with behavior WalkThenStop
 
-        record initial pedestrian.position as InitialPos
-        record final pedestrian.position as FinalPos
+        record pedestrian.position as Pos
         terminate after 4 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    series = simulation.result.records["Pos"]
+    initialPos = series[0][1]
+    finalPos = series[-1][1]
+    assert initialPos != finalPos
+
+
+def test_initial_velocity_movement(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        # Car should move 5 m/s west
+        ego = new Car at (30, 2), with velocity (-5, 0)
+        record initial ego.position as InitialPos
+        record final ego.position as FinalPos
+        terminate after 1 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     initialPos = simulation.result.records["InitialPos"]
     finalPos = simulation.result.records["FinalPos"]
-    assert initialPos != finalPos
+    dx = finalPos[0] - initialPos[0]
+    assert dx < -0.1, f"Expected car to move west (negative dx), but got dx = {dx}"
+
+
+@pytest.mark.slow
+@pytest.mark.graphical
+def test_static_pedestrian(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator(
+        "Town01", render=True, render3D=True
+    )
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        ego = new Car at (266.21, -59.57)
+        pedestrian = new Pedestrian at (275, -59.57), with regionContainedIn None
+        record initial pedestrian.position as InitialPos
+        record final pedestrian.position as FinalPos
+        terminate after 5 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+
+    try:
+        simulation = simulator.simulate(scene)
+    except Exception as e:
+        if "Could not open window" in str(e):
+            pytest.skip("render3D unsupported on this platform")
+        else:
+            raise
+    initialPos = simulation.result.records["InitialPos"]
+    finalPos = simulation.result.records["FinalPos"]
+    assert initialPos == finalPos, (
+        f"Expected pedestrian to remain stationary (default speed=0), "
+        f"but moved from {initialPos} to {finalPos}"
+    )
+
+
+@pytest.mark.graphical  # TODO temporary until MetaDrive issue fixed in new release
+def test_duplicate_sensor_names(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        ego = new Car at (369, -326),
+            with sensors {{
+                "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), width=64, height=64)
+            }}
+
+        # ensure a different view so frames shouldn't match
+        other = new Car at (385, -326),
+            with sensors {{
+                "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), rotation=(45, 0, 0), width=64, height=64)
+            }}
+
+        record ego.observations["front_rgb"] as EgoRGB
+        record other.observations["front_rgb"] as OtherRGB
+        terminate after 3 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+
+    ego_series = simulation.result.records["EgoRGB"]
+    other_series = simulation.result.records["OtherRGB"]
+    assert len(ego_series) > 0 and len(other_series) > 0
+
+    img0 = ego_series[-1][1]
+    img1 = other_series[-1][1]
+    assert img0.shape == (64, 64, 3)
+    assert img1.shape == (64, 64, 3)
+    assert not np.array_equal(img0, img1)
