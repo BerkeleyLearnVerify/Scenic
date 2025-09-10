@@ -339,6 +339,9 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
     def projectVector(self, point, onDirection):
         return self.region.projectVector(point, onDirection)
 
+    def uniformPointIn(self, region, tag=None):
+        return self.region.uniformPointIn(region, tag)
+
     def uniformPointInner(self):
         return self.region.uniformPointInner()
 
@@ -347,6 +350,9 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def buffer(self, amount):
         return self.region.buffer(amount)
+    
+    def uniformPointInner(self):
+        return self.region.uniformPointInner()
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -945,7 +951,7 @@ class Network:
     intersectionRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
     crossingRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
     sidewalkRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
-    curbRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
+    curbRegion: Union[PolylineRegion, PathRegion, PolygonalRegion, MeshSurfaceRegion] = None
     shoulderRegion: Union[PolygonalRegion, MeshSurfaceRegion] = None
 
     #: Traffic flow vector field aggregated over all roads (0 elsewhere).
@@ -1071,7 +1077,7 @@ class Network:
                     edges.append(road.forwardLanes.curb)
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
-            if self.use2DMap == 0:
+            if not self.use2DMap:
                 vertex_lists = [edge.vertices for edge in edges]
                 self.curbRegion = PathRegion(polylines=vertex_lists)
             else:
