@@ -563,8 +563,8 @@ class UnionRegion(Region):
     def containsPoint(self, point):
         return any(region.containsPoint(point) for region in self.footprint.regions)
 
+    # TODO: Need to implement this
     def containsObject(self, obj):
-        return True  # TODO: containsObject for Mesh Surface Regions is not implemented
         raise NotImplementedError
 
     def containsRegionInner(self, reg, tolerance):

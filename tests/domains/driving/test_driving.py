@@ -93,6 +93,7 @@ def test_elements_at(cached_maps):
             param crossing = network.crossingAt(spot)
             param intersection = network.intersectionAt(spot)
     """,
+        params={"use2DMap": True},
     )
     scene = sampleScene(scenario, maxIterations=1000)
     ego = scene.egoObject
@@ -122,6 +123,7 @@ def test_intersection(cached_maps):
         maneuver = Uniform(*lane.maneuvers)
         ego = new Car on maneuver.connectingLane.centerline
     """,
+        params={"use2DMap": True},
     )
     for i in range(20):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -151,6 +153,7 @@ def test_curb(cached_maps):
         spot = new OrientedPoint on visible curb
         new Car left of spot by 0.25
     """,
+        params={"use2DMap": True},
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
@@ -201,6 +204,7 @@ def test_pickle(cached_maps):
         ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
         new Pedestrian on visible sidewalk
     """,
+    
     )
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
