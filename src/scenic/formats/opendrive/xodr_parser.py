@@ -618,7 +618,7 @@ class Road:
                         if not np.allclose(tan_vec[:2], 0)
                         else np.array([1, 0, 0])
                     )
-                    normal_vec = np.cross(tan_vec, ref_vec)
+                    normal_vec = np.cross(ref_vec, tan_vec)
                     normal_vec /= np.linalg.norm(normal_vec)
                     if cur_p[3] < s_stop:
                         # if at end of section, keep current point to be included in
@@ -1305,54 +1305,16 @@ class Road:
             middleLane = startLanes[len(startLanes) // 2].lane  # rather arbitrary
             return leftEdge, middleLane.centerline, rightEdge
 
-        def orient_polyline_inward(edge, parent_shape):
-            """Return a polyline with direction such that 'left' points inside parent_shape.
-
-            We test a small left-offset from the first segment to determine if the
-            left-hand normal points into the parent polygon; if not, reverse the line.
-            """
-            import math
-            # Extract point list depending on 2D/3D
-            pts = list(edge.points) if use2DMap else list(edge.vertices)
-            if len(pts) < 2:
-                return edge
-            # First two points (use XY only for the test)
-            x0, y0 = pts[0][0], pts[0][1]
-            x1, y1 = pts[1][0], pts[1][1]
-            dx, dy = x1 - x0, y1 - y0
-            L = math.hypot(dx, dy)
-            if L == 0:
-                return edge
-            nx, ny = -dy / L, dx / L  # left-hand normal
-            tx, ty = x0 + nx * 0.25, y0 + ny * 0.25
-            try:
-                inside = parent_shape.contains(shapely.geometry.Point(tx, ty))
-            except Exception:
-                inside = False
-            if inside:
-                return edge
-            # Reverse to make left point inward
-            rev = list(reversed(pts))
-            if use2DMap:
-                return PolylineRegion(cleanChain(rev))
-            else:
-                return PathRegion(points=cleanChain(rev))
-
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
             shape = (
-                trimesh.util.concatenate(
-                    lane.polygon for lane in forwardLanes if lane.polygon
-                )
+                trimesh.util.concatenate(lane.polygon for lane in forwardLanes)
                 if not use2DMap
                 else buffer_union(
-                    (lane.polygon for lane in forwardLanes if lane.polygon),
+                    (lane.polygon for lane in forwardLanes),
                     tolerance=tolerance,
                 )
             )
-            # Ensure curb orientation: use shoulder edge if available, else right edge
-            raw_curb_edge = (forwardShoulder.rightEdge if forwardShoulder else rightEdge)
-            curb_edge = orient_polyline_inward(raw_curb_edge, shape)
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
                 polygon=(shape),
@@ -1361,7 +1323,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(forwardLanes),
-                curb=curb_edge,
+                curb=(forwardShoulder.rightEdge if forwardShoulder else rightEdge),
                 sidewalk=forwardSidewalk,
                 bikeLane=None,
                 shoulder=forwardShoulder,
@@ -1392,9 +1354,6 @@ class Road:
                     tolerance=tolerance,
                 )
             )
-            # Ensure curb orientation for backward group as well
-            raw_curb_edge = (backwardShoulder.rightEdge if backwardShoulder else rightEdge)
-            curb_edge = orient_polyline_inward(raw_curb_edge, shape)
             backwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_backward",
                 polygon=(shape),
@@ -1403,7 +1362,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(backwardLanes),
-                curb=curb_edge,
+                curb=(backwardShoulder.rightEdge if backwardShoulder else rightEdge),
                 sidewalk=backwardSidewalk,
                 bikeLane=None,
                 shoulder=backwardShoulder,

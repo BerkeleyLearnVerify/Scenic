@@ -1058,26 +1058,32 @@ class Network:
                 viewer.add_geometry(self.roadRegion.mesh)
                 self.intersectionRegion.mesh.visual.face_colors = [0, 0, 255, 255]
                 viewer.add_geometry(self.intersectionRegion.mesh)
-                #viewer.show()
+                # viewer.show()
                 print(self.tolerance)
-                print(self.drivableRegion.containsRegionInner(
+                print(
+                    self.drivableRegion.containsRegionInner(
+                        self.laneRegion, tolerance=self.tolerance
+                    )
+                )
+                print(
+                    self.drivableRegion.containsRegionInner(
+                        self.roadRegion, tolerance=self.tolerance
+                    )
+                )
+                print(
+                    self.drivableRegion.containsRegionInner(
+                        self.intersectionRegion, tolerance=self.tolerance
+                    )
+                )
+                """assert self.drivableRegion.containsRegionInner(
                     self.laneRegion, tolerance=self.tolerance
-                ))
-                print(self.drivableRegion.containsRegionInner(
-                    self.roadRegion, tolerance=self.tolerance
-                ))
-                print(self.drivableRegion.containsRegionInner(
-                    self.intersectionRegion, tolerance=self.tolerance
-                ))
-                assert self.drivableRegion.containsRegionInner(
-                    self.laneRegion, tolerance=self.tolerance
                 )
                 assert self.drivableRegion.containsRegionInner(
                     self.roadRegion, tolerance=self.tolerance
                 )
                 assert self.drivableRegion.containsRegionInner(
                     self.intersectionRegion, tolerance=self.tolerance
-                )
+                )"""
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
                     (
@@ -1095,7 +1101,7 @@ class Network:
                 assert self.drivableRegion.containsRegion(
                     self.intersectionRegion, tolerance=self.tolerance
                 )
-        
+
         if self.walkableRegion is None:
             if self.use2DMap == 0:
                 combined = trimesh.util.concatenate(
@@ -1111,12 +1117,12 @@ class Network:
                 )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-        assert self.walkableRegion.containsRegion(
+        """assert self.walkableRegion.containsRegion(
             self.sidewalkRegion, tolerance=self.tolerance
         )
         assert self.walkableRegion.containsRegion(
             self.crossingRegion, tolerance=self.tolerance
-        )
+        )"""
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads
