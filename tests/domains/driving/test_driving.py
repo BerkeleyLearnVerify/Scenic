@@ -151,7 +151,6 @@ def test_curb(cached_maps):
         spot = new OrientedPoint on visible curb
         new Car left of spot by 0.25
     """,
-        path=mapFolder / "CARLA" / "Town01.xodr",
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)

@@ -820,7 +820,8 @@ class Intersection(NetworkElement):
         super().__attrs_post_init__()
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
-            # assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
+            if not type(self.region) is MeshSurfaceRegion:
+                assert self.region.containsRegionInner(maneuver.connectingLane.region, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -1115,8 +1116,20 @@ class Network:
                 self.walkableRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation
                 )
+                """assert self.walkableRegion.containsRegionInner(
+                    self.sidewalkRegion, tolerance=self.tolerance
+                )
+                assert self.walkableRegion.containsRegionInner(
+                    self.crossingRegion, tolerance=self.tolerance
+                )"""
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+                assert self.walkableRegion.containsRegion(
+                    self.sidewalkRegion, tolerance=self.tolerance
+                )
+                assert self.walkableRegion.containsRegion(
+                    self.crossingRegion, tolerance=self.tolerance
+                )
         """assert self.walkableRegion.containsRegion(
             self.sidewalkRegion, tolerance=self.tolerance
         )

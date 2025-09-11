@@ -536,15 +536,15 @@ class Road:
                             for i in range(len(left) - 1):
                                 faces.append(
                                     [
-                                        i,
                                         i + 1,
+                                        i,
                                         len(left) + i,
                                     ]
                                 )
                                 faces.append(
                                     [
-                                        len(left) + i,
                                         i + 1,
+                                        len(left) + i,
                                         len(left) + i + 1,
                                     ]
                                 )
