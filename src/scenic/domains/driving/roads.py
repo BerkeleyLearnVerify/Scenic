@@ -821,7 +821,9 @@ class Intersection(NetworkElement):
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
             if not type(self.region) is MeshSurfaceRegion:
-                assert self.region.containsRegionInner(maneuver.connectingLane.region, tolerance=0.5)
+                assert self.region.containsRegionInner(
+                    maneuver.connectingLane.region, tolerance=0.5
+                )
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
