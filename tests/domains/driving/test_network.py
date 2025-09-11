@@ -34,7 +34,6 @@ def test_element_tolerance(cached_maps, pytestconfig):
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
-    toofar_noint = toofar.difference(network.intersectionRegion)
     road = network.roads[0]
     nearby = road.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
@@ -48,9 +47,6 @@ def test_element_tolerance(cached_maps, pytestconfig):
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
             network.roadAt(pt, reject=True)
-        pt = toofar_noint.uniformPointInner()
-        assert network.elementAt(pt) is None
-        assert not network.nominalDirectionsAt(pt)
 
 
 def test_orientation_consistency(network):
@@ -229,8 +225,9 @@ def test_linkage(network):
 
 
 def test_shoulder_at_and_direction(network):
-    if not network.shoulders:
-        pytest.skip("map has no shoulders")
+    assert (
+        network.shoulders
+    ), "This map has no shoulders. Select a map with shoulders to test shoulderAt and roadDirection"
 
     sh = network.shoulders[0]
 

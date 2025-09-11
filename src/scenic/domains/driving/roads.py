@@ -1239,14 +1239,26 @@ class Network:
         """Get the highest-level `NetworkElement` at a given point, if any.
 
         If the point lies in an `Intersection`, we return that; otherwise if the point
-        lies in a `Road`, we return that; otherwise we return :obj:`None`, or reject the
-        simulation if **reject** is true (default false).
+        lies in a `Road`, we return that; otherwise if the point lies in a `Sidewalk`,
+        we return that; otherwise if the point lies in a `Shoulder`, we return that;
+        otherwise we return :obj:`None`, or reject the simulation if **reject** is
+        true (default false).
         """
         point = _toVector(point)
+
         intersection = self.intersectionAt(point)
         if intersection is not None:
             return intersection
-        return self.roadAt(point, reject=reject)
+
+        road = self.roadAt(point)
+        if road is not None:
+            return road
+
+        sidewalk = self.sidewalkAt(point)
+        if sidewalk is not None:
+            return sidewalk
+
+        return self.shoulderAt(point, reject=reject)
 
     @distributionMethod
     def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
@@ -1289,6 +1301,11 @@ class Network:
         return self.findPointIn(point, self.intersections, reject)
 
     @distributionMethod
+    def sidewalkAt(self, point: Vectorlike, reject=False) -> Union[Sidewalk, None]:
+        """Get the `Sidewalk` at a given point."""
+        return self.findPointIn(point, self.sidewalks, reject)
+
+    @distributionMethod
     def shoulderAt(self, point: Vectorlike, reject=False) -> Union[Shoulder, None]:
         """Get the `Shoulder` at a given point."""
         return self.findPointIn(point, self.shoulders, reject)
@@ -1303,12 +1320,15 @@ class Network:
         inter = self.intersectionAt(point)
         if inter is not None:
             return inter.nominalDirectionsAt(point)
-        road = self.roadAt(point, reject=reject)
+        road = self.roadAt(point)
         if road is not None:
             return road.nominalDirectionsAt(point)
+        shoulder = self.shoulderAt(point, reject=reject)
+        if shoulder is not None:
+            return shoulder.nominalDirectionsAt(point)
         return ()
 
-    def show(self, labelIncomingLanes=False):
+    def show(self, labelIncomingLanes=False, showCurbArrows=False):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
@@ -1317,6 +1337,7 @@ class Network:
         Args:
             labelIncomingLanes (bool): Whether to label the incoming lanes of
                 intersections with their indices in ``incomingLanes``.
+            showCurbArrows (bool): Whether to draw arrows along the curb to show orientation
         """
         import matplotlib.pyplot as plt
 
@@ -1349,27 +1370,28 @@ class Network:
                     color="#A0A0A0",
                 )
 
-            for lg in road.laneGroups:
-                curb = lg.curb
-                if curb.length >= 40:
-                    cpts = curb.pointsSeparatedBy(20)
-                else:
-                    cpts = [curb.pointAlongBy(0.5, normalized=True)]
-                chs = [curb.orientation[pt].yaw for pt in cpts]
-                cx, cy, _ = zip(*cpts)
-                cu = [math.cos(h + (math.pi / 2)) for h in chs]
-                cv = [math.sin(h + (math.pi / 2)) for h in chs]
-                plt.quiver(
-                    cx,
-                    cy,
-                    cu,
-                    cv,
-                    pivot="middle",
-                    headlength=4.5,
-                    scale=0.06,
-                    units="dots",
-                    color="#FF4444",
-                )
+            if showCurbArrows:
+                for lg in road.laneGroups:
+                    curb = lg.curb
+                    if curb.length >= 40:
+                        cpts = curb.pointsSeparatedBy(20)
+                    else:
+                        cpts = [curb.pointAlongBy(0.5, normalized=True)]
+                    chs = [curb.orientation[pt].yaw for pt in cpts]
+                    cx, cy, _ = zip(*cpts)
+                    cu = [math.cos(h + (math.pi / 2)) for h in chs]
+                    cv = [math.sin(h + (math.pi / 2)) for h in chs]
+                    plt.quiver(
+                        cx,
+                        cy,
+                        cu,
+                        cv,
+                        pivot="middle",
+                        headlength=4.5,
+                        scale=0.06,
+                        units="dots",
+                        color="#606060",
+                    )
 
         for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=":", color="#A0A0A0")
