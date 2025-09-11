@@ -204,7 +204,6 @@ def test_pickle(cached_maps):
         ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
         new Pedestrian on visible sidewalk
     """,
-    
     )
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
