@@ -224,18 +224,34 @@ def test_linkage(network):
                     assert rev.endLane.road is maneuver.startLane.road
 
 
-def test_shoulder_at_and_direction(network):
-    assert (
-        network.shoulders
-    ), "This map has no shoulders. Select a map with shoulders to test shoulderAt and roadDirection"
-
+def test_shoulder(network):
     sh = network.shoulders[0]
-
     for _ in range(5):
         pt = sh.uniformPointInner()
-
         assert network.shoulderAt(pt) is sh
-
-        rd = network.roadDirection[pt]
+        assert network.elementAt(pt) is sh
         so = sh.orientation[pt]
-        assert rd == pytest.approx(so)
+        assert network.roadDirection[pt] == pytest.approx(so)
+        dirs = network.nominalDirectionsAt(pt)
+        assert dirs[0] == pytest.approx(so)
+
+
+def test_sidewalk(network):
+    sw = network.sidewalks[0]
+    for _ in range(5):
+        pt = sw.uniformPointInner()
+        assert network.sidewalkAt(pt) is sw
+        assert network.elementAt(pt) is sw
+
+
+def test_reject_outside(network):
+    whole = (
+        network.roadRegion.union(network.intersectionRegion)
+        .union(network.sidewalkRegion)
+        .union(network.shoulderRegion)
+    )
+    outside = whole.buffer(5.0).difference(whole.buffer(4.0))
+    pt = outside.uniformPointInner()
+    assert network.elementAt(pt) is None
+    with pytest.raises(RejectionException):
+        network.elementAt(pt, reject=True)
