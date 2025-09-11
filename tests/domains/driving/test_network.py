@@ -226,14 +226,20 @@ def test_linkage(network):
 
 def test_shoulder(network):
     sh = network.shoulders[0]
-    for _ in range(5):
+    found = 0
+    for _ in range(200):
         pt = sh.uniformPointInner()
+        if network.roadAt(pt) is not None:
+            continue  # ensure point is on shoulder only, not overlapping a road
         assert network.shoulderAt(pt) is sh
         assert network.elementAt(pt) is sh
         so = sh.orientation[pt]
         assert network.roadDirection[pt] == pytest.approx(so)
         dirs = network.nominalDirectionsAt(pt)
         assert dirs[0] == pytest.approx(so)
+        found += 1
+        if found == 5:
+            break
 
 
 def test_sidewalk(network):
