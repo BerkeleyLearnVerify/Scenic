@@ -2155,9 +2155,9 @@ scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 
 scenic_take_stmt: "take" elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
 
-scenic_wait_for_stmt: "wait" "for" u=scenic_dynamic_duration { s.WaitFor(duration=u, LOCATIONS) }
+scenic_wait_for_stmt: "wait" 'for' u=scenic_dynamic_duration { s.WaitFor(duration=u, LOCATIONS) }
 
-scenic_wait_until_stmt: "wait" "until" cond=expression { s.WaitUntil(cond=cond, LOCATIONS) }
+scenic_wait_until_stmt: "wait" 'until' cond=expression { s.WaitUntil(cond=cond, LOCATIONS) }
 
 scenic_wait_stmt: "wait" { s.Wait(LOCATIONS) }
 
