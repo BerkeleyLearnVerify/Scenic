@@ -244,6 +244,8 @@ def test_shoulder(network):
         if found == 5:
             break
 
+    assert found > 0, "Could not find a shoulder-only point (not road/sidewalk)."
+
 
 def test_sidewalk(network):
     sw = network.sidewalks[0]
