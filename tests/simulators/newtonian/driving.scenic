@@ -5,7 +5,7 @@ model scenic.simulators.newtonian.driving_model
 
 ego = new Car in intersection, with behavior FollowLaneBehavior
 
-second = new Car on ego.lane.predecessor, with behavior FollowLaneBehavior
+ego = new Car on ego.lane.predecessor, with behavior FollowLaneBehavior
 
 behavior Walk():
     take SetWalkingDirectionAction(45 deg), SetWalkingSpeedAction(0.5)

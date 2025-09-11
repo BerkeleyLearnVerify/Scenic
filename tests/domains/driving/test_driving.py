@@ -38,7 +38,7 @@ def compileDrivingScenario(
     cached_maps, code="", useCache=True, path=None, mode2D=True, params={}
 ):
     if not path:
-        path = mapFolder / "CARLA" / "Town05.xodr"
+        path = mapFolder / "CARLA" / "Town01.xodr"
     path = cached_maps[str(path)]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + "\n" + inspect.cleandoc(code)
@@ -124,7 +124,7 @@ def test_intersection(cached_maps):
     """,
     )
     for i in range(20):
-        ego = sampleEgo(scenario, maxIterations=2000)
+        ego = sampleEgo(scenario, maxIterations=1000)
         intersection = ego.intersection
         assert intersection is not None
         assert intersection.is3Way == (len(intersection.roads) == 3)
@@ -151,8 +151,9 @@ def test_curb(cached_maps):
         spot = new OrientedPoint on visible curb
         new Car left of spot by 0.25
     """,
+        path=mapFolder / "CARLA" / "Town01.xodr",
     )
-    ego = sampleEgo(scenario, maxIterations=2000)
+    ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
     assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
 
@@ -196,7 +197,7 @@ def test_caching(tmpdir):
 @pytest.mark.slow
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(
-        mapFolder / "CARLA" / "Town05.xodr",
+        cached_maps,
         """
         ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
         new Pedestrian on visible sidewalk

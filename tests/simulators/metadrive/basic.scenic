@@ -5,7 +5,7 @@ model scenic.simulators.metadrive.model
 
 ego = new Car in intersection
 
-second = new Car on ego.lane.predecessor
+ego = new Car on ego.lane.predecessor
 
 new Pedestrian on visible sidewalk
 
