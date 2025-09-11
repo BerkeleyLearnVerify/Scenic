@@ -23,7 +23,8 @@ def test_network_invalid():
 def test_show2D(network):
     import matplotlib.pyplot as plt
 
-    network.show(labelIncomingLanes=True)
+    network.show(labelIncomingLanes=True, showCurbArrows=True)
+
     plt.show(block=False)
     plt.close()
 
@@ -230,7 +231,9 @@ def test_shoulder(network):
     for _ in range(200):
         pt = sh.uniformPointInner()
         if network.roadAt(pt) is not None:
-            continue  # ensure point is on shoulder only, not overlapping a road
+            continue  # avoid road overlap
+        if network.sidewalkAt(pt) is not None:
+            continue  # avoid sidewalk overlap
         assert network.shoulderAt(pt) is sh
         assert network.elementAt(pt) is sh
         so = sh.orientation[pt]
