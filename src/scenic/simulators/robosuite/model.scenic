@@ -1,5 +1,3 @@
-# src/scenic/simulators/robosuite/model.scenic
-
 """Scenic world model for RoboSuite - Custom Environments Only."""
 
 from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
@@ -13,7 +11,7 @@ param real_time = True
 param speed = 1.0
 param lite_physics = None  # None = use Robosuite default (True)
 
-# Simulator - no more use_environment parameter
+# Simulator
 simulator RobosuiteSimulator(
     render=globalParameters.render,
     real_time=globalParameters.real_time,
@@ -80,12 +78,11 @@ class ManipulationObject(RoboSuiteObject):
     """Base class for objects that can be manipulated."""
     color: DEFAULTS['default_color']
 
-# MJCF Custom Object
+# MJCF Custom Object - no mjcf_name needed!
 class MJCFObject(ManipulationObject):
     """Custom object defined by MJCF XML."""
     objectType: "MJCF"
     mjcf_xml: ""  # XML string or path to XML file
-    mjcf_name: "custom_object"  # Name for the object in the scene
 
 # Primitive shape objects (matching RoboSuite's naming)
 class Box(ManipulationObject):
@@ -162,7 +159,7 @@ class Robot(RoboSuiteObject):
     length: DEFAULTS['robot_length']
     height: DEFAULTS['robot_height']
     
-    # Dynamic properties
+    # Dynamic properties - using proper Scenic 3 syntax
     joint_positions[dynamic]: []
     eef_pos[dynamic]: [0, 0, 0]
     gripper_state[dynamic]: [0, 0]

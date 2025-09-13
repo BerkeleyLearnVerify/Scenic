@@ -1,5 +1,3 @@
-# src/scenic/simulators/robosuite/simulator.py
-
 """RoboSuite Simulator interface for Scenic - Custom Environment Only."""
 
 from typing import Dict, List, Any, Optional, Union
@@ -60,6 +58,8 @@ class CustomMJCFObject(MujocoGeneratedObject):
         self._joints = [f"{name}_joint0"]
         self.geom_xml = geom_xml
         self.rgba = rgba or [1, 0, 0, 1]
+        self._visual_geom_names = []  # Track visual geoms
+        self._contact_geom_names = []  # Track contact geoms
         self._obj = self._get_object_subtree()
     
     @property
@@ -81,17 +81,17 @@ class CustomMJCFObject(MujocoGeneratedObject):
     @property
     def visual_geoms(self):
         """Return visual geometry names."""
-        return [f"{self._name}_visual"]
+        return self._visual_geom_names if self._visual_geom_names else [f"{self._name}_visual"]
 
     @property
     def contact_geoms(self):
         """Return contact geometry names."""
-        return [f"{self._name}_collision"]
+        return self._contact_geom_names if self._contact_geom_names else [f"{self._name}_collision"]
     
     @property
     def sites(self):
         """Return site names."""
-        return []  # MJCF objects typically don't have sites
+        return []
     
     def _sanitize_element(self, elem):
         for key in list(elem.attrib.keys()):
@@ -106,33 +106,111 @@ class CustomMJCFObject(MujocoGeneratedObject):
     def _get_object_subtree(self):
         obj = ET.Element("body")
         obj.set("name", self._name)
-    
+        
         joint = ET.SubElement(obj, "joint")
         joint.set("name", self._joints[0])
         joint.set("type", "free")
-    
+        
+        # Clear tracking lists
+        self._visual_geom_names = []
+        self._contact_geom_names = []
+        
         try:
-            if self.geom_xml.strip().startswith('<geom'):
-                geom_str = self.geom_xml.strip()
+            xml_content = self.geom_xml.strip()
+            
+            # Handle full body definition
+            if xml_content.startswith('<body'):
+                body_elem = ET.fromstring(xml_content)
+                # Copy all children from the body element
+                for child in body_elem:
+                    if child.tag == 'geom':
+                        # Create collision and visual versions
+                        col_geom = ET.SubElement(obj, "geom")
+                        vis_geom = ET.SubElement(obj, "geom")
+                        
+                        # Copy attributes
+                        for key, value in child.attrib.items():
+                            if key not in ['group', 'contype', 'conaffinity']:
+                                col_geom.set(key, value)
+                                vis_geom.set(key, value)
+                        
+                        # Set collision properties
+                        col_name = child.get('name', 'geom')
+                        col_geom_name = f"{self._name}_{col_name}_collision"
+                        col_geom.set("name", col_geom_name)
+                        col_geom.set("group", "0")
+                        self._contact_geom_names.append(col_geom_name)
+                        
+                        # Set visual properties
+                        vis_geom_name = f"{self._name}_{col_name}_visual"
+                        vis_geom.set("name", vis_geom_name)
+                        vis_geom.set("contype", "0")
+                        vis_geom.set("conaffinity", "0")
+                        vis_geom.set("group", "1")
+                        if 'rgba' not in vis_geom.attrib:
+                            vis_geom.set('rgba', array_to_string(self.rgba))
+                        self._visual_geom_names.append(vis_geom_name)
+                    else:
+                        # Copy other elements as-is
+                        obj.append(child)
+            
+            # Handle multiple geom elements (without body wrapper)
+            elif '<geom' in xml_content and xml_content.count('<geom') > 1:
+                # Wrap in temporary root for parsing
+                wrapped = f"<root>{xml_content}</root>"
+                root = ET.fromstring(wrapped)
+                
+                for geom in root.findall('geom'):
+                    # Create collision version
+                    col_geom = ET.SubElement(obj, "geom")
+                    for key, value in geom.attrib.items():
+                        if key not in ['name', 'rgba', 'contype', 'conaffinity', 'group']:
+                            col_geom.set(key, value)
+                    geom_name = geom.get('name', 'geom')
+                    col_geom_name = f"{self._name}_{geom_name}_collision"
+                    col_geom.set("name", col_geom_name)
+                    col_geom.set("group", "0")
+                    self._contact_geom_names.append(col_geom_name)
+                    
+                    # Create visual version
+                    vis_geom = ET.SubElement(obj, "geom")
+                    for key, value in geom.attrib.items():
+                        if key not in ['name', 'contype', 'conaffinity', 'group']:
+                            vis_geom.set(key, value)
+                    vis_geom_name = f"{self._name}_{geom_name}_visual"
+                    vis_geom.set("name", vis_geom_name)
+                    vis_geom.set("contype", "0")
+                    vis_geom.set("conaffinity", "0")
+                    vis_geom.set("group", "1")
+                    if 'rgba' not in vis_geom.attrib:
+                        vis_geom.set('rgba', array_to_string(self.rgba))
+                    self._visual_geom_names.append(vis_geom_name)
+            
+            # Handle single geom element
+            elif xml_content.startswith('<geom'):
+                geom_str = xml_content
                 if not geom_str.endswith('>'):
                     geom_str += '/>'
                 elif not geom_str.endswith('/>') and not geom_str.endswith('</geom>'):
                     geom_str = geom_str[:-1] + '/>'
-            
+                
                 # Parse user's geom as template
                 template = ET.fromstring(geom_str)
-            
+                
                 # Create collision geom
                 col_geom = ET.SubElement(obj, "geom")
-                col_geom.set("name", f"{self._name}_collision")
+                col_geom_name = f"{self._name}_collision"
+                col_geom.set("name", col_geom_name)
                 for key, value in template.attrib.items():
                     if key not in ['name', 'rgba', 'contype', 'conaffinity', 'group']:
                         col_geom.set(key, value)
                 col_geom.set("group", "0")
-            
+                self._contact_geom_names.append(col_geom_name)
+                
                 # Create visual geom
                 vis_geom = ET.SubElement(obj, "geom")
-                vis_geom.set("name", f"{self._name}_visual")
+                vis_geom_name = f"{self._name}_visual"
+                vis_geom.set("name", vis_geom_name)
                 for key, value in template.attrib.items():
                     if key not in ['name', 'contype', 'conaffinity', 'group']:
                         vis_geom.set(key, value)
@@ -141,30 +219,38 @@ class CustomMJCFObject(MujocoGeneratedObject):
                 vis_geom.set("contype", "0")
                 vis_geom.set("conaffinity", "0")
                 vis_geom.set("group", "1")
+                self._visual_geom_names.append(vis_geom_name)
             else:
-                raise ValueError("Invalid XML")
-        except:
-            # Fallback default
+                raise ValueError("Invalid XML format")
+                
+        except Exception as e:
+            print(f"Error parsing MJCF XML: {e}")
+            # Fallback to default box
             col_geom = ET.SubElement(obj, "geom")
-            col_geom.set("name", f"{self._name}_collision")
+            col_geom_name = f"{self._name}_collision"
+            col_geom.set("name", col_geom_name)
             col_geom.set("type", "box")
             col_geom.set("size", "0.02 0.02 0.02")
             col_geom.set("group", "0")
-        
+            self._contact_geom_names.append(col_geom_name)
+            
             vis_geom = ET.SubElement(obj, "geom")
-            vis_geom.set("name", f"{self._name}_visual")
+            vis_geom_name = f"{self._name}_visual"
+            vis_geom.set("name", vis_geom_name)
             vis_geom.set("type", "box")
             vis_geom.set("size", "0.02 0.02 0.02")
             vis_geom.set("rgba", array_to_string(self.rgba))
             vis_geom.set("contype", "0")
             vis_geom.set("conaffinity", "0")
             vis_geom.set("group", "1")
-    
+            self._visual_geom_names.append(vis_geom_name)
+        
+        # Add inertial properties
         inertial = ET.SubElement(obj, "inertial")
         inertial.set("pos", "0 0 0")
-        inertial.set("mass", "0.01")
-        inertial.set("diaginertia", "0.001 0.001 0.001")
-    
+        inertial.set("mass", "0.1")
+        inertial.set("diaginertia", "0.1 0.1 0.1")
+        
         self._sanitize_element(obj)
         return obj
 
@@ -206,6 +292,7 @@ def _create_mjcf_object(config: Dict):
     
     return CustomMJCFObject(name=obj_name, geom_xml=xml_content, rgba=rgba)
 
+# Part 2 continues from _create_mjcf_object...
 
 # Object type mapping
 OBJECT_FACTORIES = {
@@ -528,42 +615,39 @@ class RobosuiteSimulation(Simulation):
     
     def _add_object_config(self, objects: List, obj):
         """Add object configuration."""
-        # Debug logging
+        # Try to get the object's variable name from Scenic
+        # This is set by Scenic when creating objects
+        scenic_name = getattr(obj, 'name', None)
+        
+        # For MJCF objects, generate a unique name based on Scenic's variable name
         if obj.objectType == 'MJCF':
-            print(f"DEBUG: mjcf_name = {repr(getattr(obj, 'mjcf_name', 'NOT_SET'))}")
-    
-        # Generate unique name - handle all edge cases
-        if obj.objectType == 'MJCF':
-            mjcf_name = str(getattr(obj, 'mjcf_name', 'custom_object'))
-            # Handle various forms of invalid names
-            if mjcf_name in ['None', 'none', ''] or mjcf_name.startswith('None'):
-                mjcf_name = "custom_object"
-            obj_name = f"{mjcf_name}_{len(objects)}"
-        else:
-            base_name = str(getattr(obj, 'name', obj.objectType))
-            if base_name in ['None', 'none', ''] or base_name.startswith('None'):
-                base_name = obj.objectType
+            # Use Scenic's name if available, otherwise use a default
+            base_name = scenic_name if scenic_name else f"mjcf_object"
             obj_name = f"{base_name}_{len(objects)}"
-    
-        print(f"DEBUG: Creating object with name: {obj_name}")
-    
+        else:
+            # For other objects, use their type and counter
+            base_name = scenic_name if scenic_name else obj.objectType
+            obj_name = f"{base_name}_{len(objects)}"
+        
+        print(f"DEBUG: Creating object with name: {obj_name} (scenic name: {scenic_name})")
+        
         config = {
             'type': obj.objectType,
             'name': obj_name,
             'position': [obj.position.x, obj.position.y, obj.position.z],
             'color': getattr(obj, 'color', [1, 0, 0, 1])
         }
-    
+        
         self.object_name_map[obj] = obj_name
-    
-        # Handle MJCF objects
+        
+        # Handle MJCF objects - just use the XML content
         if obj.objectType == 'MJCF':
             config['mjcf_xml'] = getattr(obj, 'mjcf_xml', '')
         elif obj.objectType == 'Ball' and hasattr(obj, 'radius'):
             config['radius'] = obj.radius
         elif obj.objectType in ['Box', 'Cylinder', 'Capsule'] and hasattr(obj, 'width'):
             config['size'] = [obj.width, obj.length, obj.height]
-    
+        
         objects.append(config)
     
     def _get_robot_arg(self, robots: List) -> Union[str, List[str]]:
