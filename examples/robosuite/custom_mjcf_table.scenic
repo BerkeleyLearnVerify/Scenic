@@ -1,34 +1,87 @@
-# examples/robosuite/custom_mjcf_table.scenic
+# examples/robosuite/two_tables_cubes.scenic
+"""Test with two XML tables and XML cubes on top, positioned in front of robot."""
 model scenic.simulators.robosuite.model
 
-# Define a complex table structure with multiple geometries
+# Get the directory of this scenic file for relative paths
+param scenic_file_dir = localPath(".")
+
+# Table 1 XML - a manipulable table object
 table_xml = """
-<geom name="tabletop" type="box" size="0.4 0.3 0.02" pos="0 0 0" rgba="0.5 0.3 0.1 1"/>
-<geom name="leg1" type="cylinder" size="0.02 0.3" pos="-0.35 -0.25 -0.3" rgba="0.4 0.2 0.05 1"/>
-<geom name="leg2" type="cylinder" size="0.02 0.3" pos="0.35 -0.25 -0.3" rgba="0.4 0.2 0.05 1"/>
-<geom name="leg3" type="cylinder" size="0.02 0.3" pos="-0.35 0.25 -0.3" rgba="0.4 0.2 0.05 1"/>
-<geom name="leg4" type="cylinder" size="0.02 0.3" pos="0.35 0.25 -0.3" rgba="0.4 0.2 0.05 1"/>
+<mujoco model="table">
+  <worldbody>
+    <body>
+      <body name="object">
+        <!-- Table top -->
+        <geom name="table_top_visual" 
+              type="box" 
+              size="0.4 0.3 0.025" 
+              pos="0 0 0"
+              rgba="0.6 0.3 0.1 1" 
+              group="1"/>
+        
+        <!-- Table legs -->
+        <geom name="leg1_visual" type="cylinder" pos="0.35 0.25 -0.4" size="0.02 0.4" rgba="0.5 0.25 0.05 1" group="1"/>
+        <geom name="leg2_visual" type="cylinder" pos="-0.35 0.25 -0.4" size="0.02 0.4" rgba="0.5 0.25 0.05 1" group="1"/>
+        <geom name="leg3_visual" type="cylinder" pos="0.35 -0.25 -0.4" size="0.02 0.4" rgba="0.5 0.25 0.05 1" group="1"/>
+        <geom name="leg4_visual" type="cylinder" pos="-0.35 -0.25 -0.4" size="0.02 0.4" rgba="0.5 0.25 0.05 1" group="1"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
 """
 
-# Define a sphere/ball using MJCF XML
-ball_xml = """
-<geom name="sphere" type="sphere" size="0.03" rgba="0 0 1 1"/>
+# Red cube XML
+red_cube_xml = """
+<mujoco model="red_cube">
+  <worldbody>
+    <body>
+      <body name="object">
+        <geom name="cube_visual" 
+              type="box" 
+              size="0.03 0.03 0.03" 
+              pos="0 0 0"
+              rgba="0.9 0.1 0.1 1" 
+              group="1"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
 """
 
-# Custom MJCF table placed on the floor
-custom_table = new MJCFObject at (1.6, 0, 0.8),
-    with mjcf_xml table_xml,
-custom_table2 = new MJCFObject at (0.6, 0, 0.8),
-    with mjcf_xml table_xml, 
+# Green cube XML
+green_cube_xml = """
+<mujoco model="green_cube">
+  <worldbody>
+    <body>
+      <body name="object">
+        <geom name="cube_visual" 
+              type="box" 
+              size="0.03 0.03 0.03" 
+              pos="0 0 0"
+              rgba="0.1 0.9 0.1 1" 
+              group="1"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
+"""
 
-# Red cube on the table
-red_cube = new Box at (0.6, 0, 0.9),
-    with color (1, 0, 0, 1),
-    with width 0.04, with length 0.04, with height 0.04
 
-# Blue ball made with MJCF XML on the floor
-blue_ball = new MJCFObject at (0.6, 0, 0.94),
-    with mjcf_xml ball_xml,
+# Create the first table (brown) - closer to robot
+table1 = new CustomObject at (0.7, 0, 0.825),
+    with mjcf_xml table_xml
 
-# Robot - positioned away from the table
+# Create the second table (blue) - farther from robot
+table2 = new CustomObject at (1.9, 0, 0.825),
+    with mjcf_xml table_xml
+
+
+red_cube = new CustomObject at (0.5, 0, 0.88),
+    with mjcf_xml red_cube_xml
+
+# Place green cube on second table
+green_cube = new CustomObject at (1.9, 0, 0.88),
+    with mjcf_xml green_cube_xml
+
+# Robot at origin
 ego = new Panda at (0, 0, 0)

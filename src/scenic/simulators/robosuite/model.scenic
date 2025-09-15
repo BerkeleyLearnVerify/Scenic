@@ -1,4 +1,5 @@
-"""Scenic world model for RoboSuite - Custom Environments Only."""
+# src/scenic/simulators/robosuite/model.scenic
+"""Scenic world model for RoboSuite - Clean Architecture."""
 
 from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
 
@@ -64,9 +65,19 @@ class RoboSuiteObject(Object):
     shape: BoxShape()
     allowCollisions: True
 
+# Custom Arena class
+class CustomArena(RoboSuiteObject):
+    """Custom arena defined by complete MJCF XML.
+    
+    Properties:
+        arena_xml: Complete MJCF XML string or path to XML file
+    """
+    isCustomArena: True
+    arena_xml: ""  # XML string or path to XML file
+
 # Table for arena setup
 class Table(RoboSuiteObject):
-    """Table in environment."""
+    """Table in environment - creates MultiTableArena."""
     isTable: True
     width: DEFAULTS['table_width']
     length: DEFAULTS['table_length']
@@ -78,11 +89,25 @@ class ManipulationObject(RoboSuiteObject):
     """Base class for objects that can be manipulated."""
     color: DEFAULTS['default_color']
 
-# MJCF Custom Object - no mjcf_name needed!
-class MJCFObject(ManipulationObject):
-    """Custom object defined by MJCF XML."""
+# Custom Object - Full XML support
+class CustomObject(ManipulationObject):
+    """Custom object defined by complete MJCF XML.
+    
+    Properties:
+        mjcf_xml: Complete MJCF XML string or path to XML file
+        mesh_file: Optional path to mesh file (STL, OBJ, etc.)
+        texture_file: Optional path to texture file (PNG, JPG)
+        auto_add_joint: Whether to automatically add free joint if missing
+    """
     objectType: "MJCF"
     mjcf_xml: ""  # XML string or path to XML file
+    mesh_file: None  # Optional mesh file path
+    texture_file: None  # Optional texture file path
+
+# Keep old name for backward compatibility
+class MJCFObject(CustomObject):
+    """Alias for CustomObject - for backward compatibility."""
+    pass
 
 # Primitive shape objects (matching RoboSuite's naming)
 class Box(ManipulationObject):
