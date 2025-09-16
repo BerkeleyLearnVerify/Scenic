@@ -2042,6 +2042,33 @@ class MeshSurfaceRegion(MeshRegion):
 
         return super().intersects(other, triedReversed)
 
+    def union(self, other, triedReversed=False):
+        """Get a `Region` representing the union of this region with another.
+
+        This function handles union computation for `MeshSurfaceRegion` with:
+            - `MeshSurfaceRegion`
+        """
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
+            return super().union(other, triedReversed)
+
+        # If other region is represented by a mesh, we can extract the mesh to
+        # perform boolean operations on it
+        if isinstance(other, MeshSurfaceRegion):
+            other_mesh = other.mesh
+
+            # Compute union using Trimesh
+            new_mesh = trimesh.util.concatenate(self.mesh, other_mesh)
+
+            return MeshSurfaceRegion(
+                new_mesh,
+                tolerance=min(self.tolerance, other.tolerance),
+                centerMesh=False,
+            )
+
+        # Don't know how to compute this union, fall back to default behavior.
+        return super().union(other, triedReversed)
+
     @distributionFunction
     def containsPoint(self, point):
         """Check if this region's surface contains a point."""

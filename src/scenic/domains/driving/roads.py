@@ -821,9 +821,19 @@ class Intersection(NetworkElement):
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
             if not type(self.region) is MeshSurfaceRegion:
-                assert self.region.containsRegionInner(
+                assert self.region.containsRegion(
                     maneuver.connectingLane.region, tolerance=0.5
                 )
+            else:
+                assert PolygonalRegion(
+                    polygon=self.region._boundingPolygon
+                ).containsRegionInner(
+                    PolygonalRegion(
+                        polygon=maneuver.connectingLane.region._boundingPolygon
+                    ),
+                    tolerance=0.5,
+                )
+
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -1052,41 +1062,24 @@ class Network:
                     position=None,
                     orientation=orientation,
                 )
-                viewer = trimesh.Scene()
-                self.drivableRegion.mesh.visual.face_colors = [200, 200, 200, 255]
-                viewer.add_geometry(self.drivableRegion.mesh)
-                self.laneRegion.mesh.visual.face_colors = [255, 0, 0, 255]
-                viewer.add_geometry(self.laneRegion.mesh)
-                self.roadRegion.mesh.visual.face_colors = [0, 255, 0, 255]
-                viewer.add_geometry(self.roadRegion.mesh)
-                self.intersectionRegion.mesh.visual.face_colors = [0, 0, 255, 255]
-                viewer.add_geometry(self.intersectionRegion.mesh)
-                # viewer.show()
-                print(self.tolerance)
-                print(
-                    self.drivableRegion.containsRegionInner(
-                        self.laneRegion, tolerance=self.tolerance
-                    )
+                assert PolygonalRegion(
+                    polygon=self.drivableRegion._boundingPolygon
+                ).containsRegionInner(
+                    PolygonalRegion(polygon=self.laneRegion._boundingPolygon),
+                    tolerance=self.tolerance,
                 )
-                print(
-                    self.drivableRegion.containsRegionInner(
-                        self.roadRegion, tolerance=self.tolerance
-                    )
+                assert PolygonalRegion(
+                    polygon=self.drivableRegion._boundingPolygon
+                ).containsRegionInner(
+                    PolygonalRegion(polygon=self.roadRegion._boundingPolygon),
+                    tolerance=self.tolerance,
                 )
-                print(
-                    self.drivableRegion.containsRegionInner(
-                        self.intersectionRegion, tolerance=self.tolerance
-                    )
+                assert PolygonalRegion(
+                    polygon=self.drivableRegion._boundingPolygon
+                ).containsRegionInner(
+                    PolygonalRegion(polygon=self.intersectionRegion._boundingPolygon),
+                    tolerance=self.tolerance,
                 )
-                """assert self.drivableRegion.containsRegionInner(
-                    self.laneRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegionInner(
-                    self.roadRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegionInner(
-                    self.intersectionRegion, tolerance=self.tolerance
-                )"""
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
                     (
@@ -1157,7 +1150,7 @@ class Network:
 
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
-        if self.use2DMap == 0:
+        if not self.use2DMap:
             self._rtree = shapely.STRtree(
                 [elem.region._boundingPolygon for elem in self.elements.values()]
             )
