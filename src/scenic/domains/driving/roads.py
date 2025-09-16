@@ -462,6 +462,13 @@ class _ContainsCenterline:
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
+        if type(self.region) is PolygonalRegion:
+            assert self.containsRegionInner(self.centerline, tolerance=0.5)
+        else:
+            assert PolygonalRegion(polygon=self.region._boundingPolygon).containsRegion(
+                PolylineRegion(points=([v.x, v.y] for v in self.centerline.vertices)),
+                tolerance=0.5,
+            )
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -594,6 +601,25 @@ class LaneGroup(LinearElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
+
+        # Ensure lanes do not overlap
+        for i in range(len(self.lanes) - 1):
+            if self.region is PolygonalRegion:
+                assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+            # TODO this is not working reliably; need better way to check for overlapping meshes
+            else:
+                pass
+                """value = self.lanes[i].region._boundingPolygon.overlaps(
+                    self.lanes[i + 1].region._boundingPolygon
+                )
+                if value:
+                    viewer = trimesh.Scene()
+                    viewer.add_geometry(self.lanes[i].polygon)
+                    self.lanes[i].polygon.visual.face_colors = [255, 0, 0, 100]
+                    viewer.add_geometry(self.lanes[i + 1].polygon)
+                    self.lanes[i + 1].polygon.visual.face_colors = [0, 0, 255, 100]
+                    viewer.show()
+                assert not value"""
 
     @property
     def sidewalk(self) -> Sidewalk:
@@ -1122,12 +1148,20 @@ class Network:
                 self.walkableRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation
                 )
-                """assert self.walkableRegion.containsRegionInner(
-                    self.sidewalkRegion, tolerance=self.tolerance
-                )
-                assert self.walkableRegion.containsRegionInner(
-                    self.crossingRegion, tolerance=self.tolerance
-                )"""
+                if not self.sidewalkRegion.mesh.is_empty:
+                    assert PolygonalRegion(
+                        polygon=self.walkableRegion._boundingPolygon
+                    ).containsRegion(
+                        PolygonalRegion(polygon=self.sidewalkRegion._boundingPolygon),
+                        tolerance=self.tolerance,
+                    )
+                if not self.crossingRegion.mesh.is_empty:
+                    assert PolygonalRegion(
+                        polygon=self.walkableRegion._boundingPolygon
+                    ).containsRegion(
+                        PolygonalRegion(polygon=self.crossingRegion._boundingPolygon),
+                        tolerance=self.tolerance,
+                    )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
                 assert self.walkableRegion.containsRegion(
@@ -1136,12 +1170,6 @@ class Network:
                 assert self.walkableRegion.containsRegion(
                     self.crossingRegion, tolerance=self.tolerance
                 )
-        """assert self.walkableRegion.containsRegion(
-            self.sidewalkRegion, tolerance=self.tolerance
-        )
-        assert self.walkableRegion.containsRegion(
-            self.crossingRegion, tolerance=self.tolerance
-        )"""
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads
