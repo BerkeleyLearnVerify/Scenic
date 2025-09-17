@@ -463,7 +463,7 @@ class _ContainsCenterline:
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
         if type(self.region) is PolygonalRegion:
-            assert self.containsRegionInner(self.centerline, tolerance=0.5)
+            assert self.containsRegion(self.centerline, tolerance=0.5)
         else:
             assert PolygonalRegion(polygon=self.region._boundingPolygon).containsRegion(
                 PolylineRegion(points=([v.x, v.y] for v in self.centerline.vertices)),
@@ -603,23 +603,10 @@ class LaneGroup(LinearElement):
         super().__attrs_post_init__()
 
         # Ensure lanes do not overlap
-        for i in range(len(self.lanes) - 1):
-            if self.region is PolygonalRegion:
+        if type(self.region) is PolygonalRegion:
+            for i in range(len(self.lanes) - 1):
                 assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
-            # TODO this is not working reliably; need better way to check for overlapping meshes
-            else:
-                pass
-                """value = self.lanes[i].region._boundingPolygon.overlaps(
-                    self.lanes[i + 1].region._boundingPolygon
-                )
-                if value:
-                    viewer = trimesh.Scene()
-                    viewer.add_geometry(self.lanes[i].polygon)
-                    self.lanes[i].polygon.visual.face_colors = [255, 0, 0, 100]
-                    viewer.add_geometry(self.lanes[i + 1].polygon)
-                    self.lanes[i + 1].polygon.visual.face_colors = [0, 0, 255, 100]
-                    viewer.show()
-                assert not value"""
+            # TODO need a way to check for overlapping meshes in 3D
 
     @property
     def sidewalk(self) -> Sidewalk:
