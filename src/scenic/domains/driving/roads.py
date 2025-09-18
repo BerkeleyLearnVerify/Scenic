@@ -956,6 +956,10 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+        self._topLevelElements = (
+            self.intersections + self.roads + self.shoulders + self.sidewalks
+        )
+        # NOTE: Order matters here; elementAt resolves in this sequence.
 
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
@@ -1238,27 +1242,18 @@ class Network:
     def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
         """Get the highest-level `NetworkElement` at a given point, if any.
 
-        If the point lies in an `Intersection`, we return that; otherwise if the point
-        lies in a `Road`, we return that; otherwise if the point lies in a `Sidewalk`,
-        we return that; otherwise if the point lies in a `Shoulder`, we return that;
-        otherwise we return :obj:`None`, or reject the simulation if **reject** is
-        true (default false).
+        The elements are considered in the following order:
+        1. Intersection
+        2. Road
+        3. Shoulder
+        4. Sidewalk
+
+        If the point lies in one of these, that element is returned. Otherwise
+        we return :obj:`None`, or reject the simulation if **reject** is true
+        (default false).
         """
         point = _toVector(point)
-
-        intersection = self.intersectionAt(point)
-        if intersection is not None:
-            return intersection
-
-        road = self.roadAt(point)
-        if road is not None:
-            return road
-
-        sidewalk = self.sidewalkAt(point)
-        if sidewalk is not None:
-            return sidewalk
-
-        return self.shoulderAt(point, reject=reject)
+        return self.findPointIn(point, self._topLevelElements, reject)
 
     @distributionMethod
     def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
