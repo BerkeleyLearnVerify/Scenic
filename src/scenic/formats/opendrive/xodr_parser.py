@@ -978,7 +978,7 @@ class Road:
 
         def combineSections(laneIDs, sections, name):
             leftmost, rightmost = max(laneIDs), min(laneIDs)
-            if len(laneIDs) != leftmost - rightmost + 1 and use2DMap:
+            if len(laneIDs) != leftmost - rightmost + 1:
                 warn(f"ignoring {name} in the middle of road {self.id_}")
             leftPoints, rightPoints = [], []
             if leftmost < 0:

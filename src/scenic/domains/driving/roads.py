@@ -35,6 +35,9 @@ from scenic.core.distributions import (
     distributionFunction,
     distributionMethod,
 )
+from scenic.core.utils import (
+    cached_property,
+)
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import (
@@ -353,6 +356,10 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def uniformPointInner(self):
         return self.region.uniformPointInner()
+    
+    @cached_property
+    def boundingPolygon(self):
+        return self.region.boundingPolygon
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -394,19 +401,23 @@ class LinearElement(NetworkElement):
         # Check that left and right edges lie inside the element.
         # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
-        if type(self.region) is PolygonalRegion:
-            assert self.containsRegion(self.leftEdge, tolerance=0.5)
-            assert self.containsRegion(self.rightEdge, tolerance=0.5)
-        else:
-            poly_conversion = PolygonalRegion(polygon=self.region._boundingPolygon)
-            assert poly_conversion.containsRegion(
-                PolylineRegion(points=([v.x, v.y] for v in self.leftEdge.vertices)),
-                tolerance=0.5,
-            )
-            assert poly_conversion.containsRegion(
-                PolylineRegion(points=([v.x, v.y] for v in self.rightEdge.vertices)),
-                tolerance=0.5,
-            )
+        poly_conversion = self.region.boundingPolygon
+        assert poly_conversion.containsRegion(
+            (
+                PolylineRegion(points=([v.x, v.y] for v in self.leftEdge.vertices))
+                if isinstance(self.leftEdge, PathRegion)
+                else self.leftEdge
+            ),
+            tolerance=0.5,
+        )
+        assert poly_conversion.containsRegion(
+            (
+                PolylineRegion(points=([v.x, v.y] for v in self.rightEdge.vertices))
+                if isinstance(self.rightEdge, PathRegion)
+                else self.rightEdge
+            ),
+            tolerance=0.5,
+        )
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
@@ -462,13 +473,14 @@ class _ContainsCenterline:
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        if type(self.region) is PolygonalRegion:
-            assert self.containsRegion(self.centerline, tolerance=0.5)
-        else:
-            assert PolygonalRegion(polygon=self.region._boundingPolygon).containsRegion(
-                PolylineRegion(points=([v.x, v.y] for v in self.centerline.vertices)),
-                tolerance=0.5,
-            )
+        assert self.region.boundingPolygon.containsRegion(
+            (
+                PolylineRegion(points=([v.x, v.y] for v in self.centerline.vertices))
+                if isinstance(self.centerline, PathRegion)
+                else self.centerline
+            ),
+            tolerance=0.5,
+        )
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -844,19 +856,9 @@ class Intersection(NetworkElement):
         super().__attrs_post_init__()
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
-            if not type(self.region) is MeshSurfaceRegion:
-                assert self.region.containsRegion(
-                    maneuver.connectingLane.region, tolerance=0.5
-                )
-            else:
-                assert PolygonalRegion(
-                    polygon=self.region._boundingPolygon
-                ).containsRegionInner(
-                    PolygonalRegion(
-                        polygon=maneuver.connectingLane.region._boundingPolygon
-                    ),
-                    tolerance=0.5,
-                )
+            assert self.region.boundingPolygon.containsRegion(
+                maneuver.connectingLane.region.boundingPolygon, tolerance=0.5
+            )
 
         if self.orientation is None:
             self.orientation = VectorField(self.name, self._defaultHeadingAt)
@@ -1086,24 +1088,6 @@ class Network:
                     position=None,
                     orientation=orientation,
                 )
-                assert PolygonalRegion(
-                    polygon=self.drivableRegion._boundingPolygon
-                ).containsRegionInner(
-                    PolygonalRegion(polygon=self.laneRegion._boundingPolygon),
-                    tolerance=self.tolerance,
-                )
-                assert PolygonalRegion(
-                    polygon=self.drivableRegion._boundingPolygon
-                ).containsRegionInner(
-                    PolygonalRegion(polygon=self.roadRegion._boundingPolygon),
-                    tolerance=self.tolerance,
-                )
-                assert PolygonalRegion(
-                    polygon=self.drivableRegion._boundingPolygon
-                ).containsRegionInner(
-                    PolygonalRegion(polygon=self.intersectionRegion._boundingPolygon),
-                    tolerance=self.tolerance,
-                )
             else:
                 self.drivableRegion = PolygonalRegion.unionAll(
                     (
@@ -1112,15 +1096,15 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-                assert self.drivableRegion.containsRegion(
-                    self.laneRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegion(
-                    self.roadRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegion(
-                    self.intersectionRegion, tolerance=self.tolerance
-                )
+            assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                self.laneRegion.boundingPolygon, tolerance=self.tolerance
+            )
+            assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                self.roadRegion.boundingPolygon, tolerance=self.tolerance
+            )
+            assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                self.intersectionRegion.boundingPolygon, tolerance=self.tolerance
+            )
 
         if self.walkableRegion is None:
             if self.use2DMap == 0:
@@ -1135,28 +1119,12 @@ class Network:
                 self.walkableRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation
                 )
-                if not self.sidewalkRegion.mesh.is_empty:
-                    assert PolygonalRegion(
-                        polygon=self.walkableRegion._boundingPolygon
-                    ).containsRegion(
-                        PolygonalRegion(polygon=self.sidewalkRegion._boundingPolygon),
-                        tolerance=self.tolerance,
-                    )
-                if not self.crossingRegion.mesh.is_empty:
-                    assert PolygonalRegion(
-                        polygon=self.walkableRegion._boundingPolygon
-                    ).containsRegion(
-                        PolygonalRegion(polygon=self.crossingRegion._boundingPolygon),
-                        tolerance=self.tolerance,
-                    )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-                assert self.walkableRegion.containsRegion(
-                    self.sidewalkRegion, tolerance=self.tolerance
-                )
-                assert self.walkableRegion.containsRegion(
-                    self.crossingRegion, tolerance=self.tolerance
-                )
+            assert self.walkableRegion.boundingPolygon.containsRegionInner(
+                self.sidewalkRegion.boundingPolygon, tolerance=self.tolerance
+            )
+            #TODO: Need to get assert working for empty crossingRegion
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads

@@ -31,11 +31,11 @@ def test_show2D(network):
 def test_element_tolerance(cached_maps, pytestconfig):
     path = cached_maps[str(mapFolder / "CARLA" / "Town01.xodr")]
     tol = 0.05
-    network = Network.fromFile(path, tolerance=tol, use2DMap=True)
-    drivable = network.drivableRegion
+    network = Network.fromFile(path, tolerance=tol)
+    drivable = network.drivableRegion.boundingPolygon
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
-    toofar_noint = toofar.difference(network.intersectionRegion)
-    road = network.roads[0]
+    toofar_noint = toofar.difference(network.intersectionRegion.boundingPolygon)
+    road = network.roads[0].boundingPolygon
     nearby = road.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
     for i in range(rounds):

@@ -3127,6 +3127,16 @@ class PolygonalRegion(Region):
         z = 0 if z is None else z
         return PolygonalRegion(polygon=union, orientation=orientation, z=z)
 
+    @cached_property
+    def _boundingPolygon(self):
+        return self._polygon
+
+    @cached_property
+    @distributionFunction
+    def boundingPolygon(self):
+        """A PolygonalRegion returning self"""
+        return self
+
     @property
     @distributionFunction
     def points(self):
