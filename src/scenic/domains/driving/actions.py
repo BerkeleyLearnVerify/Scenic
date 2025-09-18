@@ -122,6 +122,8 @@ class SteeringAction(Action):
 class SetThrottleAction(SteeringAction):
     """Set the throttle.
 
+    The throttle setting will remain constant until this action is taken again.
+
     Arguments:
         throttle: Throttle value between 0 and 1.
     """
@@ -137,6 +139,8 @@ class SetThrottleAction(SteeringAction):
 
 class SetSteerAction(SteeringAction):
     """Set the steering 'angle'.
+
+    The steering setting will remain constant until this action is taken again.
 
     Arguments:
         steer: Steering 'angle' between -1 and 1.
@@ -154,6 +158,8 @@ class SetSteerAction(SteeringAction):
 class SetBrakeAction(SteeringAction):
     """Set the amount of brake.
 
+    The brake setting will remain constant until this action is taken again.
+
     Arguments:
         brake: Amount of braking between 0 and 1.
     """
@@ -170,6 +176,8 @@ class SetBrakeAction(SteeringAction):
 class SetHandBrakeAction(SteeringAction):
     """Set or release the hand brake.
 
+    The handbrake setting will remain constant until this action is taken again.
+
     Arguments:
         handBrake: Whether or not the hand brake is set.
     """
@@ -185,6 +193,8 @@ class SetHandBrakeAction(SteeringAction):
 
 class SetReverseAction(SteeringAction):
     """Engage or release reverse gear.
+
+    The reverse setting will remain constant until this action is taken again.
 
     Arguments:
         reverse: Whether or not the car is in reverse.

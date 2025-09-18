@@ -119,10 +119,9 @@ class MetaDriveActor(DrivingObject):
 
     def setPosition(self, pos, elevation):
         position = scenicToMetaDrivePosition(pos, simulation().scenic_offset)
-        self.metaDriveActor.set_position(position, elevation)
+        self.metaDriveActor.set_position(position)
 
     def setVelocity(self, vel):
-        print("in veloooo")
         self.metaDriveActor.set_velocity(vel)
 
 
