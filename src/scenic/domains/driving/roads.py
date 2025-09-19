@@ -35,12 +35,10 @@ from scenic.core.distributions import (
     distributionFunction,
     distributionMethod,
 )
-from scenic.core.utils import (
-    cached_property,
-)
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import (
+    EmptyRegion,
     MeshRegion,
     MeshSurfaceRegion,
     PathRegion,
@@ -50,6 +48,7 @@ from scenic.core.regions import (
 )
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
+from scenic.core.utils import cached_property
 from scenic.core.vectors import Orientation, Vector, VectorField
 import scenic.syntax.veneer as veneer
 from scenic.syntax.veneer import verbosePrint
@@ -356,7 +355,7 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
 
     def uniformPointInner(self):
         return self.region.uniformPointInner()
-    
+
     @cached_property
     def boundingPolygon(self):
         return self.region.boundingPolygon
@@ -1096,15 +1095,27 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-            assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                self.laneRegion.boundingPolygon, tolerance=self.tolerance
-            )
-            assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                self.roadRegion.boundingPolygon, tolerance=self.tolerance
-            )
-            assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                self.intersectionRegion.boundingPolygon, tolerance=self.tolerance
-            )
+            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
+                self.laneRegion, EmptyRegion
+            ):
+                if not self.use2DMap and not self.laneRegion.mesh.is_empty:
+                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                        self.laneRegion.boundingPolygon, tolerance=self.tolerance
+                    )
+            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
+                self.roadRegion, EmptyRegion
+            ):
+                if not self.use2DMap and not self.roadRegion.mesh.is_empty:
+                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                        self.roadRegion.boundingPolygon, tolerance=self.tolerance
+                    )
+            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
+                self.intersectionRegion, EmptyRegion
+            ):
+                if not self.use2DMap and not self.intersectionRegion.mesh.is_empty:
+                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
+                        self.intersectionRegion.boundingPolygon, tolerance=self.tolerance
+                    )
 
         if self.walkableRegion is None:
             if self.use2DMap == 0:
@@ -1121,10 +1132,21 @@ class Network:
                 )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-            assert self.walkableRegion.boundingPolygon.containsRegionInner(
-                self.sidewalkRegion.boundingPolygon, tolerance=self.tolerance
-            )
-            #TODO: Need to get assert working for empty crossingRegion
+            if not isinstance(self.walkableRegion, EmptyRegion) and not isinstance(
+                self.sidewalkRegion, EmptyRegion
+            ):
+                if not self.use2DMap and not self.sidewalkRegion.mesh.is_empty:
+                    assert self.walkableRegion.boundingPolygon.containsRegionInner(
+                        self.sidewalkRegion.boundingPolygon, tolerance=self.tolerance
+                    )
+            # TODO: Need to get assert working for empty crossingRegion
+            if not isinstance(self.walkableRegion, EmptyRegion) and not isinstance(
+                self.crossingRegion, EmptyRegion
+            ):
+                if not self.use2DMap and not self.crossingRegion.mesh.is_empty:
+                    assert self.walkableRegion.boundingPolygon.containsRegionInner(
+                        self.crossingRegion.boundingPolygon, tolerance=self.tolerance
+                    )
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads

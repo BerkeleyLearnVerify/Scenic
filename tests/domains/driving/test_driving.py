@@ -83,7 +83,7 @@ def test_opendrive(path, cached_maps):
         pytest.skip("need better triangulation library to run this test")
 
 
-#@pytest.mark.parametrize("use2DMap", [True, False])
+# @pytest.mark.parametrize("use2DMap", [True, False])
 def test_elements_at(cached_maps):
     scenario = compileDrivingScenario(
         cached_maps,
@@ -172,7 +172,7 @@ def test_curb(cached_maps):
 
 
 @pytest.mark.slow
-#@pytest.mark.parametrize("use2DMap", [True, False])
+# @pytest.mark.parametrize("use2DMap", [True, False])
 def test_caching(tmpdir):
     """Test caching of road networks.
 
@@ -210,7 +210,7 @@ def test_caching(tmpdir):
 
 @pickle_test
 @pytest.mark.slow
-#@pytest.mark.parametrize("use2DMap", [True, False])
+# @pytest.mark.parametrize("use2DMap", [True, False])
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(
         cached_maps,
@@ -226,7 +226,7 @@ def test_pickle(cached_maps):
     tryPickling(scene)
 
 
-#@pytest.mark.parametrize("use2DMap", [True, False])
+# @pytest.mark.parametrize("use2DMap", [True, False])
 def test_invalid_road_scenario(cached_maps):
     with pytest.raises(InvalidScenarioError):
         scenario = compileDrivingScenario(
