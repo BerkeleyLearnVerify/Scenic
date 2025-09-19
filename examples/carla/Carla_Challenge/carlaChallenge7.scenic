@@ -1,14 +1,14 @@
 """ Scenario Description
 Based on 2019 Carla Challenge Traffic Scenario 07.
-Ego-vehicle is going straight at an intersection but a crossing vehicle 
+Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
-Note: The traffic light control is not implemented yet, but it will soon be. 
+Note: The traffic light control is not implemented yet, but it will soon be.
 
 To run this file using the Carla simulator:
     scenic examples/carla/Carla_Challenge/carlaChallenge7.scenic --2d --model scenic.simulators.carla.model --simulate
 """
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')
-param carla_map = 'Town05'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
@@ -26,7 +26,7 @@ behavior CrossingCarBehavior(trajectory):
         do FollowTrajectoryBehavior(trajectory = trajectory)
 
 behavior EgoBehavior(trajectory):
-    
+
     try:
         do FollowTrajectoryBehavior(trajectory=trajectory)
     interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):

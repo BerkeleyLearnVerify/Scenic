@@ -146,10 +146,19 @@ jobs:
             ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -i private_key ${USER_NAME}@${HOSTNAME} '
               cd /home/ubuntu/actions/Scenic &&
               source venv/bin/activate &&
-              carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
+              # run carla0.9.15 first
+              carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*' | sort -V)) &&
               for version in "${carla_versions[@]}"; do
                 echo "============================= CARLA $version ============================="
                 export CARLA_ROOT="$version"
+
+                # install local wheel for carla0.10.0
+                if [[ "$version" == "/software/carla0.10.0" ]]; then
+                  WHL=$(ls "$version"/PythonAPI/carla/dist/carla-0.10.0-cp310-cp310-linux_x86_64.whl)
+                  echo "Installing local wheel: $WHL"
+                  python3 -m pip install --force-reinstall "$WHL"
+                fi
+                
                 pytest tests/simulators/carla
               done
             '

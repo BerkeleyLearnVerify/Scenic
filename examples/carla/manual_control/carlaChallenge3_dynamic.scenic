@@ -9,13 +9,13 @@ To run this file using the Carla simulator:
 """
 
 # SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town05'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD_Opt'
 param render = 0
 model scenic.simulators.carla.model
 
 # CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz_2017"
+EGO_MODEL = "vehicle.nissan.patrol"
 EGO_SPEED = 10
 
 PEDESTRIAN_MIN_SPEED = 0.5
@@ -29,7 +29,7 @@ behavior PedestrianBehavior(min_speed=1, threshold=10):
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
-# 'network' is the 'class Network' object in roads.py 
+# 'network' is the 'class Network' object in roads.py
 
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
 lane = Uniform(*network.lanes)
