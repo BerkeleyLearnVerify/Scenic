@@ -2793,6 +2793,18 @@ class PathRegion(Region):
             numpy.linalg.norm(b - a, axis=1), (len(a), 1)
         )
 
+    def intersects(self, other, triedReversed=False):
+        print(type(self), type(other))
+        if isinstance(other, PathRegion):
+            self_polyline = PolylineRegion(points=[(v.x, v.y) for v in self.vertices])
+            other_polyline = PolylineRegion(points=[(v.x, v.y) for v in other.vertices])
+            poly = toPolygon(other_polyline)
+            if poly is not None:
+                return self_polyline.lineString.intersects(poly)
+            return self_polyline.intersects(other, triedReversed)
+        else:
+            return super().intersects(other, triedReversed)
+
     def containsPoint(self, point):
         return self.distanceTo(point) < self.tolerance
 

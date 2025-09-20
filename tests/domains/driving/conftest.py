@@ -26,7 +26,7 @@ for path in maps:
     map_params.append(param)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def cached_maps(tmpdir_factory):
     folder = tmpdir_factory.mktemp("maps")
     paths = {}
@@ -38,7 +38,7 @@ def cached_maps(tmpdir_factory):
     return paths
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def network(cached_maps, pytestconfig):
     if pytestconfig.getoption("--fast", False):
         path = mapFolder / "CARLA" / "Town01.xodr"
