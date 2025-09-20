@@ -102,7 +102,7 @@ def test_pedestrian_velocity_vector(getAssetPath):
     record final ped.position as FinalPos
     terminate after 8 steps
     """
-    scenario = compileScenic(code, mode2D=True)
+    scenario = compileScenic(code, mode2D=True, params={"use2DMap": True})
     scene, _ = scenario.generate(maxIterations=1)
     simulator = NewtonianSimulator()
     simulation = simulator.simulate(scene, maxSteps=8)
