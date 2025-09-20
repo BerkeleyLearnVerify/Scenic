@@ -20,9 +20,14 @@ def test_network_invalid():
 
 
 @pytest.mark.graphical
-def test_show2D(network):
+def test_show2D(network, pytestconfig):
+    if pytestconfig.getoption("--fast", False):
+        path = mapFolder / "CARLA" / "Town01.xodr"
+    else:
+        path = mapFolder / "CARLA" / "Town03.xodr"
     import matplotlib.pyplot as plt
 
+    network = Network.fromFile(path, use2DMap=True)
     network.show(labelIncomingLanes=True)
     plt.show(block=False)
     plt.close()

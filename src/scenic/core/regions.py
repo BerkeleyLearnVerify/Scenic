@@ -2794,7 +2794,6 @@ class PathRegion(Region):
         )
 
     def intersects(self, other, triedReversed=False):
-        print(type(self), type(other))
         if isinstance(other, PathRegion):
             self_polyline = PolylineRegion(points=[(v.x, v.y) for v in self.vertices])
             other_polyline = PolylineRegion(points=[(v.x, v.y) for v in other.vertices])
