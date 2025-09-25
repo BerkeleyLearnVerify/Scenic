@@ -471,6 +471,21 @@ def test_behavior_lazy_nested():
     assert tuple(actions) == (pytest.approx((1.5, -0.25)), pytest.approx((-0.5, -0.25)))
 
 
+def test_obj_equals_self_inside_behavior():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for obj in simulation().objects:
+                take (obj == self)
+
+        ego = new Object with behavior Foo
+        other = new Object at 10@10
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert actions == [True, False]
+
+
 # Termination
 
 
