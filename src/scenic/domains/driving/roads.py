@@ -1095,27 +1095,16 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
-                self.laneRegion, EmptyRegion
-            ):
-                if not self.use2DMap and not self.laneRegion.mesh.is_empty:
-                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                        self.laneRegion.boundingPolygon, tolerance=self.tolerance
-                    )
-            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
-                self.roadRegion, EmptyRegion
-            ):
-                if not self.use2DMap and not self.roadRegion.mesh.is_empty:
-                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                        self.roadRegion.boundingPolygon, tolerance=self.tolerance
-                    )
-            if not isinstance(self.drivableRegion, EmptyRegion) and not isinstance(
-                self.intersectionRegion, EmptyRegion
-            ):
-                if not self.use2DMap and not self.intersectionRegion.mesh.is_empty:
-                    assert self.drivableRegion.boundingPolygon.containsRegionInner(
-                        self.intersectionRegion.boundingPolygon, tolerance=self.tolerance
-                    )
+                #TODO: Create assertions for drivableRegion, these don't work properly with 3D meshes
+                assert self.drivableRegion.containsRegion(
+                    self.laneRegion, tolerance=self.tolerance
+                )
+                assert self.drivableRegion.containsRegion(
+                    self.roadRegion, tolerance=self.tolerance
+                )
+                assert self.drivableRegion.containsRegion(
+                    self.intersectionRegion, tolerance=self.tolerance
+                )
 
         if self.walkableRegion is None:
             if self.use2DMap == 0:
@@ -1132,21 +1121,13 @@ class Network:
                 )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-            if not isinstance(self.walkableRegion, EmptyRegion) and not isinstance(
-                self.sidewalkRegion, EmptyRegion
-            ):
-                if not self.use2DMap and not self.sidewalkRegion.mesh.is_empty:
-                    assert self.walkableRegion.boundingPolygon.containsRegionInner(
-                        self.sidewalkRegion.boundingPolygon, tolerance=self.tolerance
-                    )
-            # TODO: Need to get assert working for empty crossingRegion
-            if not isinstance(self.walkableRegion, EmptyRegion) and not isinstance(
-                self.crossingRegion, EmptyRegion
-            ):
-                if not self.use2DMap and not self.crossingRegion.mesh.is_empty:
-                    assert self.walkableRegion.boundingPolygon.containsRegionInner(
-                        self.crossingRegion.boundingPolygon, tolerance=self.tolerance
-                    )
+
+                assert self.walkableRegion.containsRegion(
+                    self.sidewalkRegion, tolerance=self.tolerance
+                )
+                assert self.walkableRegion.containsRegion(
+                    self.crossingRegion, tolerance=self.tolerance
+            )
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads

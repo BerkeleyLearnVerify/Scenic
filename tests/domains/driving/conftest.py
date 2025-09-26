@@ -37,6 +37,17 @@ def cached_maps(tmpdir_factory):
         paths[localMap] = newPath
     return paths
 
+@pytest.fixture(scope="module")
+def cached_maps3D(tmpdir_factory):
+    folder = tmpdir_factory.mktemp("maps3D")
+    paths = {}
+    for localMap in maps:
+        newPath = folder.join(localMap)
+        os.makedirs(newPath.dirname, exist_ok=True)
+        shutil.copyfile(localMap, newPath)
+        paths[localMap] = newPath
+    return paths
+
 
 @pytest.fixture(scope="module")
 def network(cached_maps, pytestconfig):

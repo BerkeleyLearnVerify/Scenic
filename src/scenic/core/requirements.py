@@ -15,7 +15,6 @@ from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.propositions import Atomic, PropositionNode
-from scenic.core.regions import MeshSurfaceRegion, PolygonalRegion
 import scenic.syntax.relations as relations
 
 
@@ -398,10 +397,6 @@ class ContainmentRequirement(SamplingRequirement):
     def falsifiedByInner(self, sample):
         obj = sample[self.obj]
         container = sample[self.container]
-        if type(container) is MeshSurfaceRegion:
-            return not PolygonalRegion(polygon=container._boundingPolygon).containsObject(
-                obj
-            )
         return not container.containsObject(obj)
 
     @property

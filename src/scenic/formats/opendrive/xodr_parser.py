@@ -533,19 +533,19 @@ class Road:
                         if not use2DMap:
                             faces = []
                             # Create a 3D mesh from the bounds
-                            for i in range(len(left) - 1):
+                            for j in range(len(left) - 1):
                                 faces.append(
                                     [
-                                        i + 1,
-                                        i,
-                                        len(left) + i,
+                                        j + 1,
+                                        j,
+                                        len(left) + j,
                                     ]
                                 )
                                 faces.append(
                                     [
-                                        i + 1,
-                                        len(left) + i,
-                                        len(left) + i + 1,
+                                        j + 1,
+                                        len(left) + j,
+                                        len(left) + j + 1,
                                     ]
                                 )
                             mesh = trimesh.Trimesh(
@@ -707,7 +707,9 @@ class Road:
                         next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
                 for id_ in cur_lane_polys:
                     poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
-                    self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
+                    self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(
+                        lane_polys
+                    )
                     lane_polys.append(poly)
                 cur_lane_polys = next_lane_polys
         if not use2DMap:
@@ -1018,9 +1020,14 @@ class Road:
                 num = max(len(leftPoints), len(rightPoints))
                 centerPoints = []
                 for d in np.linspace(0, 1, num):
-                    l = leftEdge.lineString.interpolate(d, normalized=True)
-                    r = rightEdge.lineString.interpolate(d, normalized=True)
-                    centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
+                    if use2DMap:
+                        l = leftEdge.lineString.interpolate(d, normalized=True)
+                        r = rightEdge.lineString.interpolate(d, normalized=True)
+                        centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
+                    else:
+                        l = PolylineRegion(points=leftEdge.vertices).lineString.interpolate(d, normalized=True)
+                        r = PolylineRegion(points=rightEdge.vertices).lineString.interpolate(d, normalized=True)
+                        centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
             centerline = (
                 PathRegion(points=cleanChain(centerPoints))
                 if not use2DMap

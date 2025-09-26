@@ -20,16 +20,16 @@ def test_network_invalid():
 
 
 @pytest.mark.graphical
-def test_show2D(network, pytestconfig):
+def test_show2D(network):
     import matplotlib.pyplot as plt
 
     network.show(labelIncomingLanes=True)
     plt.show(block=False)
     plt.close()
 
-
-def test_element_tolerance(cached_maps, pytestconfig):
-    path = cached_maps[str(mapFolder / "CARLA" / "Town01.xodr")]
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_element_tolerance(cached_maps, cached_maps3D, pytestconfig, use2DMap):
+    path = cached_maps[str(mapFolder / "CARLA" / "Town01.xodr")] if use2DMap else cached_maps3D[str(mapFolder / "CARLA" / "Town01.xodr")]
     tol = 0.05
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion.boundingPolygon
