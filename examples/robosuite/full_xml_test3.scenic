@@ -1,4 +1,5 @@
 # examples/robosuite/full_xml.scenic
+"""Currently No support for custom_arena_xml. fix: WIP"""
 """Test custom arena and custom objects with complete MJCF XML."""
 model scenic.simulators.robosuite.model
 

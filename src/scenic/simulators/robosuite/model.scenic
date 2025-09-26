@@ -1,16 +1,31 @@
-# src/scenic/simulators/robosuite/model.scenic
-"""Scenic world model for RoboSuite - Clean Architecture."""
+"""Scenic world model for RoboSuite with MJCF mesh extraction."""
 
 from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
+from scenic.core.utils import repairMesh
+import trimesh
+import json
+import tempfile
+import os
+from pathlib import Path
+import numpy as np
 
-# Global parameters with defaults matching Robosuite's defaults
+# Global parameters
 param env_config = {}
 param controller_config = None
 param camera_view = None
 param render = True
 param real_time = True
 param speed = 1.0
-param lite_physics = None  # None = use Robosuite default (True)
+param lite_physics = None
+param scenic_file_dir = localPath(".")
+
+# Load arena configuration
+_arena_config_path = localPath("utils/arena_meshes/arena_config.json")
+with open(_arena_config_path) as f:
+    _arena_config = json.load(f)
+
+_floor_surface_z = _arena_config['floor']['position'][2] + _arena_config['floor']['dimensions'][2] / 2
+param floor_surface_z = _floor_surface_z
 
 # Simulator
 simulator RobosuiteSimulator(
@@ -23,9 +38,18 @@ simulator RobosuiteSimulator(
     lite_physics=globalParameters.lite_physics
 )
 
-# Default values dictionary
+# Load robot dimensions
+_robot_dims_path = localPath("utils/robot_meshes/dimensions.txt")
+_robot_dimensions = {}
+with open(_robot_dims_path) as f:
+    for line in f:
+        if ':' in line:
+            robot, dims_str = line.strip().split(':')
+            dims = eval(dims_str.strip())
+            _robot_dimensions[robot] = dims
+
+# Default values
 DEFAULTS = {
-    # Object properties
     'object_size': 0.03,
     'density': 1000,
     'friction': (1.0, 0.005, 0.0001),
@@ -33,18 +57,11 @@ DEFAULTS = {
     'solimp': (0.9, 0.95, 0.001, 0.5, 2.0),
     'default_color': (0.5, 0.5, 0.5, 1.0),
     
-    # Arena properties
     'table_height': 0.8,
     'table_width': 0.8,
     'table_length': 0.8,
     'table_thickness': 0.05,
     
-    # Robot properties
-    'robot_width': 0.2,
-    'robot_length': 0.2,
-    'robot_height': 0.5,
-    
-    # Control parameters
     'control_gain': 3.0,
     'control_limit': 0.3,
     'position_tolerance': 0.02,
@@ -55,6 +72,136 @@ DEFAULTS = {
     'max_lift_steps': 200
 }
 
+
+def _mjcf_to_shape(mjcf_xml: str, scenic_file_path: str = None) -> Shape:
+    """Convert MJCF XML to MeshShape via temp GLB file."""
+    if not mjcf_xml:
+        return BoxShape()
+    
+    import xml.etree.ElementTree as ET
+    import uuid
+    import shutil
+    
+    base_dir = scenic_file_path if scenic_file_path else os.getcwd()
+    
+    # Handle file path vs XML string
+    xml_content = mjcf_xml
+    if not mjcf_xml.strip().startswith('<'):
+        if not os.path.isabs(mjcf_xml):
+            xml_path = os.path.join(base_dir, mjcf_xml)
+        else:
+            xml_path = mjcf_xml
+        
+        if os.path.exists(xml_path):
+            with open(xml_path, 'r') as f:
+                xml_content = f.read()
+            base_dir = os.path.dirname(xml_path)
+        else:
+            print(f"Warning: MJCF file not found: {xml_path}")
+            return BoxShape()
+    
+    # Create temp directory
+    temp_id = str(uuid.uuid4())[:8]
+    temp_dir = Path(tempfile.gettempdir()) / f"scenic_mjcf_{temp_id}"
+    temp_dir.mkdir(exist_ok=True)
+    temp_glb = temp_dir / "converted.glb"
+    
+    try:
+        root = ET.fromstring(xml_content)
+        mesh_geom = root.find('.//geom[@mesh]')
+        
+        if mesh_geom is not None:
+            # Handle mesh file
+            mesh_name = mesh_geom.get('mesh')
+            mesh_elem = root.find(f'.//asset/mesh[@name="{mesh_name}"]')
+            mesh_file = mesh_elem.get('file')
+            scale = np.array([float(s) for s in mesh_elem.get('scale', '1 1 1').split()])
+            
+            if not os.path.isabs(mesh_file):
+                mesh_path = os.path.join(base_dir, mesh_file)
+            else:
+                mesh_path = mesh_file
+            
+            mesh = trimesh.load(mesh_path)
+            if isinstance(mesh, trimesh.Scene):
+                mesh = trimesh.util.concatenate(list(mesh.geometry.values()))
+            
+            mesh.apply_scale(scale)
+            
+        else:
+            # Handle primitives
+            geoms = root.findall('.//geom[@type]')
+            if not geoms:
+                print("Warning: No mesh or primitive geom found")
+                return BoxShape()
+            
+            meshes = []
+            for geom in geoms:
+                geom_type = geom.get('type')
+                size = np.array([float(s) for s in geom.get('size', '0.1 0.1 0.1').split()])
+                
+                if geom_type == 'box':
+                    geom_mesh = trimesh.creation.box(extents=size * 2)
+                elif geom_type == 'sphere':
+                    geom_mesh = trimesh.creation.icosphere(radius=size[0], subdivisions=2)
+                elif geom_type == 'cylinder':
+                    geom_mesh = trimesh.creation.cylinder(radius=size[0], height=size[1] * 2)
+                elif geom_type == 'capsule':
+                    geom_mesh = trimesh.creation.capsule(radius=size[0], height=size[1] * 2)
+                else:
+                    continue
+                
+                pos = np.array([float(p) for p in geom.get('pos', '0 0 0').split()])
+                if np.any(pos != 0):
+                    geom_mesh.apply_translation(pos)
+                
+                meshes.append(geom_mesh)
+            
+            if meshes:
+                mesh = trimesh.util.concatenate(meshes)
+            else:
+                print("Warning: No valid primitives found")
+                return BoxShape()
+        
+        # Export, load, repair sequence
+        mesh.export(str(temp_glb))
+        
+        loaded_mesh = trimesh.load(str(temp_glb))
+        if isinstance(loaded_mesh, trimesh.Scene):
+            loaded_mesh = trimesh.util.concatenate(list(loaded_mesh.geometry.values()))
+        
+        repaired_mesh = repairMesh(loaded_mesh, pitch=0.02, verbose=False)
+        
+        repaired_glb = temp_dir / "repaired.glb"
+        repaired_mesh.export(str(repaired_glb))
+        
+        shape = MeshShape.fromFile(str(repaired_glb))
+        
+        # Schedule cleanup
+        def cleanup():
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        import atexit
+        atexit.register(cleanup)
+        
+        return shape
+        
+    except Exception as e:
+        print(f"Error in _mjcf_to_shape: {e}")
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        return BoxShape()
+
+
+def _load_robot_mesh_shape(path):
+    """Load mesh and create MeshShape with repair."""
+    mesh = trimesh.load(path, force='mesh')
+    if isinstance(mesh, trimesh.Scene):
+        mesh = mesh.dump(concatenate=True)
+    repaired_mesh = repairMesh(mesh, pitch=0.02, verbose=False)
+    return MeshShape(repaired_mesh)
+
 # Base classes
 class RoboSuiteObject(Object):
     """Base class for all RoboSuite objects."""
@@ -63,53 +210,60 @@ class RoboSuiteObject(Object):
     solref: DEFAULTS['solref']
     solimp: DEFAULTS['solimp']
     shape: BoxShape()
-    allowCollisions: True
+    allowCollisions: False
+    requireVisible: False
+    regionContainedIn: None
 
-# Custom Arena class
+class ArenaFloor(RoboSuiteObject):
+    """Floor component for Scenic's collision system."""
+    shape: MeshShape.fromFile(localPath("utils/arena_meshes/floor.glb"))
+    position: (0.0, 0.0, 0.0)
+    width: _arena_config['floor']['dimensions'][0]
+    length: _arena_config['floor']['dimensions'][1] 
+    height: _arena_config['floor']['dimensions'][2]
+    allowCollisions: True  
+    requireVisible: False
+    _isArenaComponent: True
+
+class ArenaWalls(RoboSuiteObject):
+    """Walls component for Scenic's collision system."""
+    shape: MeshShape.fromFile(localPath("utils/arena_meshes/walls.glb"))
+    width: _arena_config['walls']['dimensions'][0]
+    length: _arena_config['walls']['dimensions'][1]
+    height: _arena_config['walls']['dimensions'][2]
+    allowCollisions: False
+    requireVisible: False
+    _isArenaComponent: True
+
+# Create default arena components
+arena_floor = new ArenaFloor
+arena_walls = new ArenaWalls on (0.5, 0.0, 0.0)
+
 class CustomArena(RoboSuiteObject):
-    """Custom arena defined by complete MJCF XML.
-    
-    Properties:
-        arena_xml: Complete MJCF XML string or path to XML file
-    """
+    """Custom arena defined by complete MJCF XML."""
     isCustomArena: True
-    arena_xml: ""  # XML string or path to XML file
+    arena_xml: ""
 
-# Table for arena setup
 class Table(RoboSuiteObject):
-    """Table in environment - creates MultiTableArena."""
+    """Table in environment."""
     isTable: True
+    shape: MeshShape.fromFile(localPath("utils/table_meshes/standard_table.glb"))
     width: DEFAULTS['table_width']
-    length: DEFAULTS['table_length']
-    height: DEFAULTS['table_thickness']
-    position: (0, 0, DEFAULTS['table_height'])
+    length: DEFAULTS['table_length'] 
+    height: 0.85
+    position: (0, 0, 0.425)
 
-# Base class for manipulable objects
 class ManipulationObject(RoboSuiteObject):
-    """Base class for objects that can be manipulated."""
+    """Base class for manipulable objects."""
     color: DEFAULTS['default_color']
 
-# Custom Object - Full XML support
 class CustomObject(ManipulationObject):
-    """Custom object defined by complete MJCF XML.
-    
-    Properties:
-        mjcf_xml: Complete MJCF XML string or path to XML file
-        mesh_file: Optional path to mesh file (STL, OBJ, etc.)
-        texture_file: Optional path to texture file (PNG, JPG)
-        auto_add_joint: Whether to automatically add free joint if missing
-    """
+    """Custom object with automatic dimension extraction."""
     objectType: "MJCF"
-    mjcf_xml: ""  # XML string or path to XML file
-    mesh_file: None  # Optional mesh file path
-    texture_file: None  # Optional texture file path
+    mjcf_xml: ""  
+    shape: _mjcf_to_shape(self.mjcf_xml, globalParameters.scenic_file_dir) if self.mjcf_xml else BoxShape()
 
-# Keep old name for backward compatibility
-class MJCFObject(CustomObject):
-    """Alias for CustomObject - for backward compatibility."""
-    pass
-
-# Primitive shape objects (matching RoboSuite's naming)
+# Primitive objects
 class Box(ManipulationObject):
     """Box object."""
     objectType: "Box"
@@ -139,82 +293,82 @@ class Capsule(ManipulationObject):
     length: DEFAULTS['object_size'] * 1.5
     height: DEFAULTS['object_size'] * 3
 
-# Complex objects (matching RoboSuite's naming)
+# Complex objects
 class Milk(ManipulationObject):
-    """Milk carton object."""
     objectType: "Milk"
 
 class Cereal(ManipulationObject):
-    """Cereal box object."""
     objectType: "Cereal"
 
 class Can(ManipulationObject):
-    """Can object."""
     objectType: "Can"
 
 class Bread(ManipulationObject):
-    """Bread object."""
     objectType: "Bread"
 
 class Bottle(ManipulationObject):
-    """Bottle object."""
     objectType: "Bottle"
 
 class Hammer(ManipulationObject):
-    """Hammer object."""
     objectType: "Hammer"
 
 class SquareNut(ManipulationObject):
-    """Square nut object."""
     objectType: "SquareNut"
 
 class RoundNut(ManipulationObject):
-    """Round nut object."""
     objectType: "RoundNut"
 
-# Robots (matching RoboSuite's naming)
+# Robots
 class Robot(RoboSuiteObject):
     """Base robot class."""
     robot_type: "Panda"
+    shape: BoxShape()
     gripper_type: "default"
     controller_config: None
     initial_qpos: None
     base_type: "default"
-    width: DEFAULTS['robot_width']
-    length: DEFAULTS['robot_length']
-    height: DEFAULTS['robot_height']
+    width: 0.4
+    length: 0.4
+    height: 1.0
+    position: (0, 0, 0)
     
-    # Dynamic properties - using proper Scenic 3 syntax
     joint_positions[dynamic]: []
     eef_pos[dynamic]: [0, 0, 0]
     gripper_state[dynamic]: [0, 0]
 
 class Panda(Robot):
-    """Franka Emika Panda robot."""
     robot_type: "Panda"
+    shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/Panda.glb"))
+    width: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[0]
+    length: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[1]
+    height: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[2]
     gripper_type: "PandaGripper"
 
 class UR5e(Robot):
-    """Universal Robots UR5e."""
     robot_type: "UR5e"
+    shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/UR5e.glb"))
+    width: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[0]
+    length: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[1]
+    height: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[2]
     gripper_type: "Robotiq85Gripper"
 
-class Sawyer(Robot):
-    """Rethink Robotics Sawyer."""
-    robot_type: "Sawyer"
-    gripper_type: "RethinkGripper"
-
 class Jaco(Robot):
-    """Kinova Jaco robot."""
     robot_type: "Jaco"
+    shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/Jaco.glb"))
+    width: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[0]
+    length: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[1]
+    height: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[2]
     gripper_type: "JacoThreeFingerGripper"
 
 class IIWA(Robot):
-    """KUKA IIWA robot."""
     robot_type: "IIWA"
+    shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/IIWA.glb"))
+    width: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[0]
+    length: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[1]
+    height: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[2]
     gripper_type: "Robotiq140Gripper"
 
-# Behavior Library
+# Behaviors
 behavior OpenGripper(steps=DEFAULTS['gripper_open_steps']):
     """Open gripper over multiple steps."""
     for _ in range(steps):
