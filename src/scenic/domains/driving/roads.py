@@ -1242,15 +1242,10 @@ class Network:
     def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
         """Get the highest-level `NetworkElement` at a given point, if any.
 
-        The elements are considered in the following order:
-        1. Intersection
-        2. Road
-        3. Shoulder
-        4. Sidewalk
-
-        If the point lies in one of these, that element is returned. Otherwise
-        we return :obj:`None`, or reject the simulation if **reject** is true
-        (default false).
+        If the point lies in an element, return it.
+        Otherwise, if the point lies within `self.tolerance` of an element, return the first
+        match using this priority order: Intersection → Road → Shoulder → Sidewalk.
+        If nothing matches, return `None` (or reject if `reject=True`).
         """
         point = _toVector(point)
         return self.findPointIn(point, self._topLevelElements, reject)

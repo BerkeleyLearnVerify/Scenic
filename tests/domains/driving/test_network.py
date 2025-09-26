@@ -227,19 +227,20 @@ def test_linkage(network):
 
 def test_shoulder(network):
     sh = network.shoulders[0]
-    for _ in range(5):
+    for _ in range(30):
         pt = sh.uniformPointInner()
         assert network.shoulderAt(pt) is sh
         assert network.elementAt(pt) is sh
         so = sh.orientation[pt]
         assert network.roadDirection[pt] == pytest.approx(so)
         dirs = network.nominalDirectionsAt(pt)
+        assert len(dirs) == 1
         assert dirs[0] == pytest.approx(so)
 
 
 def test_sidewalk(network):
     sw = network.sidewalks[0]
-    for _ in range(5):
+    for _ in range(30):
         pt = sw.uniformPointInner()
         assert network.sidewalkAt(pt) is sw
         assert network.elementAt(pt) is sw
