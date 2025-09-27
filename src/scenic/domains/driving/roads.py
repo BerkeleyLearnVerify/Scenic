@@ -1095,7 +1095,7 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-                #TODO: Create assertions for drivableRegion, these don't work properly with 3D meshes
+                # TODO: Create assertions for drivableRegion, these don't work properly with 3D meshes
                 assert self.drivableRegion.containsRegion(
                     self.laneRegion, tolerance=self.tolerance
                 )
@@ -1127,7 +1127,7 @@ class Network:
                 )
                 assert self.walkableRegion.containsRegion(
                     self.crossingRegion, tolerance=self.tolerance
-            )
+                )
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads

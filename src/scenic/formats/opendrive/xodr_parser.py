@@ -707,9 +707,7 @@ class Road:
                         next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
                 for id_ in cur_lane_polys:
                     poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
-                    self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(
-                        lane_polys
-                    )
+                    self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
                     lane_polys.append(poly)
                 cur_lane_polys = next_lane_polys
         if not use2DMap:
@@ -1025,8 +1023,12 @@ class Road:
                         r = rightEdge.lineString.interpolate(d, normalized=True)
                         centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
                     else:
-                        l = PolylineRegion(points=leftEdge.vertices).lineString.interpolate(d, normalized=True)
-                        r = PolylineRegion(points=rightEdge.vertices).lineString.interpolate(d, normalized=True)
+                        l = PolylineRegion(
+                            points=leftEdge.vertices
+                        ).lineString.interpolate(d, normalized=True)
+                        r = PolylineRegion(
+                            points=rightEdge.vertices
+                        ).lineString.interpolate(d, normalized=True)
                         centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
             centerline = (
                 PathRegion(points=cleanChain(centerPoints))

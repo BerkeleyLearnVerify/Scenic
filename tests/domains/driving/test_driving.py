@@ -56,7 +56,9 @@ def test_driving_2D_map(cached_maps):
 
 
 def test_driving_3D(cached_maps3D):
-    compileDrivingScenario(cached_maps3D, code=basicScenario, useCache=False, mode2D=False)
+    compileDrivingScenario(
+        cached_maps3D, code=basicScenario, useCache=False, mode2D=False
+    )
 
 
 @pytest.mark.slow
@@ -125,6 +127,7 @@ def test_elements_at(cached_maps, cached_maps3D, use2DMap):
                 getattr(ego, param)
         else:
             assert val is getattr(ego, param), param
+
 
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_intersection(cached_maps, cached_maps3D, use2DMap):

@@ -37,6 +37,7 @@ def cached_maps(tmpdir_factory):
         paths[localMap] = newPath
     return paths
 
+
 @pytest.fixture(scope="module")
 def cached_maps3D(tmpdir_factory):
     folder = tmpdir_factory.mktemp("maps3D")
