@@ -1,5 +1,4 @@
-# src/scenic/simulators/robosuite/simulator.py
-"""RoboSuite Simulator interface for Scenic - Clean Architecture."""
+"""RoboSuite Simulator interface for Scenic."""
 
 from typing import Dict, List, Any, Optional, Union
 import numpy as np
@@ -51,12 +50,10 @@ class CustomXMLArena(Arena):
     """Arena created from custom XML string or file."""
     
     def __init__(self, xml_string, scenic_file_path=None):
-        # Initialize with empty arena base
         super().__init__(xml_path_completion("arenas/empty_arena.xml"))
         
-        # Check if xml_string is a file path
+        # Handle file path vs XML string
         if not xml_string.strip().startswith('<'):
-            # It's a file path - resolve it
             base_dir = os.path.dirname(scenic_file_path) if scenic_file_path else os.getcwd()
             if not os.path.isabs(xml_string):
                 xml_path = os.path.join(base_dir, xml_string)
@@ -72,16 +69,14 @@ class CustomXMLArena(Arena):
         # Parse custom XML
         custom_tree = ET.fromstring(xml_string)
         
-        # Get worldbody elements from custom XML
         custom_worldbody = custom_tree.find(".//worldbody")
         if custom_worldbody is None:
             raise ValueError("Custom XML must have a worldbody element")
         
-        # Clear existing worldbody content but keep the worldbody element
+        # Replace worldbody content
         for child in list(self.worldbody):
             self.worldbody.remove(child)
         
-        # Add all elements from custom worldbody directly
         for element in custom_worldbody:
             self.worldbody.append(element)
         
@@ -105,27 +100,18 @@ class CustomXMLArena(Arena):
 
 
 class CustomMeshObject(MujocoXMLObject):
-    """
-    Custom manipulable object from XML string.
-    Automatically ensures free joint and collision geometry.
-    Automatically resolves mesh/texture file paths relative to the Scenic file location.
-    """
+    """Custom manipulable object from XML string with automatic joint and collision handling."""
     
-    # Class variable to track all free joint names to avoid conflicts
     _existing_joint_names = set()
     
     def __init__(self, name, xml_string, scenic_file_path=None):
         self.object_name = name
-        
-        # Create a temporary directory for this object
         self.temp_dir = tempfile.mkdtemp()
         
-        # Get base directory for relative paths
         base_dir = scenic_file_path if scenic_file_path else os.getcwd()
         
-        # Check if xml_string is a file path
+        # Handle file path vs XML string
         if not xml_string.strip().startswith('<'):
-            # It's a file path - resolve it
             if not os.path.isabs(xml_string):
                 xml_path = os.path.join(base_dir, xml_string)
             else:
@@ -134,24 +120,17 @@ class CustomMeshObject(MujocoXMLObject):
             if os.path.exists(xml_path):
                 with open(xml_path, 'r') as f:
                     xml_string = f.read()
-                # Update base_dir to the XML file's directory for relative asset paths
                 base_dir = os.path.dirname(xml_path)
             else:
                 raise FileNotFoundError(f"Object XML file not found: {xml_path}")
         
-        # Parse XML
         tree = ET.fromstring(xml_string)
         
-        # Find and copy all mesh and texture files referenced in XML
         self._process_asset_files(tree, base_dir)
-        
-        # Process the XML to ensure joint and collision
         tree = self._process_xml_tree(tree, name)
         
-        # Convert back to string
         fixed_xml = ET.tostring(tree, encoding='unicode')
         
-        # Write XML to temp file
         temp_xml_path = os.path.join(self.temp_dir, f"{name}.xml")
         with open(temp_xml_path, 'w') as f:
             f.write(fixed_xml)
@@ -160,7 +139,7 @@ class CustomMeshObject(MujocoXMLObject):
             super().__init__(
                 temp_xml_path,
                 name=name,
-                joints=None,  # Joint is in the XML
+                joints=None,
                 obj_type="all",
                 duplicate_collision_geoms=False
             )
@@ -168,25 +147,20 @@ class CustomMeshObject(MujocoXMLObject):
             pass  # Keep temp_dir for MuJoCo to access files
     
     def _process_asset_files(self, tree, base_dir):
-        """Find and copy all asset files referenced in the XML."""
-        
+        """Copy mesh and texture files to temp directory."""
         # Process mesh files
         for mesh in tree.findall(".//mesh"):
             file_attr = mesh.get("file")
             if file_attr:
-                # Resolve the path relative to base_dir
                 if not os.path.isabs(file_attr):
                     full_path = os.path.join(base_dir, file_attr)
                 else:
                     full_path = file_attr
                 
                 if os.path.exists(full_path):
-                    # Copy to temp directory
                     filename = os.path.basename(full_path)
                     temp_path = os.path.join(self.temp_dir, filename)
                     shutil.copy2(full_path, temp_path)
-                    
-                    # Update XML to use just the filename
                     mesh.set("file", filename)
                     
                     # Auto-copy MTL file for OBJ meshes
@@ -196,14 +170,11 @@ class CustomMeshObject(MujocoXMLObject):
                             mtl_filename = os.path.basename(mtl_path)
                             temp_mtl_path = os.path.join(self.temp_dir, mtl_filename)
                             shutil.copy2(mtl_path, temp_mtl_path)
-                else:
-                    print(f"Warning: Mesh file not found: {full_path}")
         
         # Process texture files
         for texture in tree.findall(".//texture"):
             file_attr = texture.get("file")
-            if file_attr and not texture.get("builtin"):  # Skip builtin textures
-                # Resolve the path relative to base_dir
+            if file_attr and not texture.get("builtin"):
                 if not os.path.isabs(file_attr):
                     full_path = os.path.join(base_dir, file_attr)
                 else:
@@ -227,18 +198,13 @@ class CustomMeshObject(MujocoXMLObject):
                         temp_path = os.path.join(self.temp_dir, filename)
                         shutil.copy2(full_path, temp_path)
                     
-                    # Update XML to use just the filename
                     texture.set("file", filename)
-                else:
-                    print(f"Warning: Texture file not found: {full_path}")
     
     def _process_xml_tree(self, tree, name):
-        """Process XML tree to ensure joint and collision geometry."""
-        
-        # Find the object body (usually named "object")
+        """Ensure joint and collision geometry."""
+        # Find object body
         object_body = tree.find(".//body[@name='object']")
         if object_body is None:
-            # Try to find any body that's a child of worldbody
             worldbody = tree.find(".//worldbody")
             if worldbody is not None:
                 for body in worldbody.findall("body"):
@@ -248,13 +214,9 @@ class CustomMeshObject(MujocoXMLObject):
                         break
         
         if object_body is None:
-            print(f"Warning: Could not find object body for {name}")
             return tree
         
-        # ALWAYS ensure free joint for manipulable objects
         self._ensure_free_joint(object_body, name)
-        
-        # ALWAYS ensure collision geometry exists
         self._ensure_collision_geometry(object_body, name)
         
         return tree
@@ -282,69 +244,57 @@ class CustomMeshObject(MujocoXMLObject):
                     break
                 joint_counter += 1
             
-            # Create and add joint element
             joint = ET.Element("joint")
             joint.set("name", joint_name)
             joint.set("type", "free")
             joint.set("damping", "0.0005")
             
-            # Insert joint as first child of body
             object_body.insert(0, joint)
             self._existing_joint_names.add(joint_name)
             self.joint_name = joint_name
     
     def _ensure_collision_geometry(self, object_body, name):
-        """Always ensure proper collision geometry exists."""
+        """Ensure proper collision geometry exists."""
         has_proper_collision = False
         mesh_collision_geom = None
         visual_geom = None
         
-        # Check what's already there
         for geom in object_body.findall("geom"):
             geom_group = geom.get("group", "0")
             geom_type = geom.get("type", "box")
             
             if geom_group == "0":
-                # Found collision geometry
                 if geom_type == "mesh":
-                    # Mesh collision is problematic - needs to be fixed
                     mesh_collision_geom = geom
-                    print(f"Found mesh collision geometry for {name} - will convert to box")
+                    # print(f"Found mesh collision geometry for {name} - will convert to box")
                 else:
-                    # Proper primitive collision geometry
                     has_proper_collision = True
                     break
             elif geom_group == "1":
                 visual_geom = geom
         
-        # Handle mesh collision geometry - convert to visual + box collision
+        # Convert mesh collision to visual + box collision
         if mesh_collision_geom is not None and not has_proper_collision:
-            # First, convert the mesh geom to visual (group 1)
             mesh_collision_geom.set("group", "1")
             mesh_collision_geom.set("contype", "0")
             mesh_collision_geom.set("conaffinity", "0")
             
-            # Create a box collision geom
             collision_geom = ET.Element("geom")
             collision_geom.set("name", "collision_auto")
             collision_geom.set("type", "box")
             collision_geom.set("size", "0.04 0.04 0.04")
             
-            # Copy position from mesh if available
             pos = mesh_collision_geom.get("pos", "0 0 0")
             collision_geom.set("pos", pos)
             
-            # Set collision properties
             collision_geom.set("group", "0")
-            collision_geom.set("rgba", "0 0 0 0")  # Invisible
+            collision_geom.set("rgba", "0 0 0 0")
             
-            # Copy collision properties from original mesh if they exist
             for prop in ["solimp", "solref", "density", "friction"]:
                 value = mesh_collision_geom.get(prop)
                 if value:
                     collision_geom.set(prop, value)
             
-            # If no collision properties were set, use defaults
             if not collision_geom.get("solimp"):
                 collision_geom.set("solimp", "0.998 0.998 0.001")
             if not collision_geom.get("solref"):
@@ -354,30 +304,24 @@ class CustomMeshObject(MujocoXMLObject):
             if not collision_geom.get("friction"):
                 collision_geom.set("friction", "0.95 0.3 0.1")
             
-            # Add collision geom after the converted visual geom
             index = list(object_body).index(mesh_collision_geom) + 1
             object_body.insert(index, collision_geom)
-            
-            print(f"Converted mesh collision to visual + box collision for {name}")
+            # print(f"Converted mesh collision to visual + box collision for {name}")
             return
         
-        # If no collision geometry at all, create it
+        # Create collision if none exists
         if not has_proper_collision:
             if visual_geom is not None:
-                # Create collision based on visual
                 collision_geom = ET.Element("geom")
                 collision_geom.set("name", "collision_auto")
                 
-                # Get type and position from visual
                 geom_type = visual_geom.get("type", "box")
                 pos = visual_geom.get("pos", "0 0 0")
                 
-                # For mesh, use box approximation
                 if geom_type == "mesh":
                     collision_geom.set("type", "box")
                     collision_geom.set("size", "0.04 0.04 0.04")
                 else:
-                    # For primitives, copy the shape
                     collision_geom.set("type", geom_type)
                     size = visual_geom.get("size")
                     if size:
@@ -386,36 +330,32 @@ class CustomMeshObject(MujocoXMLObject):
                 collision_geom.set("pos", pos)
                 
             else:
-                # No visual geom either - create default box collision
                 collision_geom = ET.Element("geom")
                 collision_geom.set("name", "collision_default")
                 collision_geom.set("type", "box")
                 collision_geom.set("size", "0.04 0.04 0.04")
                 collision_geom.set("pos", "0 0 0")
             
-            # Set collision properties
             collision_geom.set("group", "0")
-            collision_geom.set("rgba", "0 0 0 0")  # Invisible
+            collision_geom.set("rgba", "0 0 0 0")
             collision_geom.set("solimp", "0.998 0.998 0.001")
             collision_geom.set("solref", "0.001 1")
             collision_geom.set("density", "100")
             collision_geom.set("friction", "0.95 0.3 0.1")
             
-            # Add collision geom
             if visual_geom is not None:
-                # Add after visual geom
                 index = list(object_body).index(visual_geom) + 1
                 object_body.insert(index, collision_geom)
             else:
-                # Just append to body
                 object_body.append(collision_geom)
             
-            print(f"Added collision geometry to {name}")
+            # print(f"Added collision geometry to {name}")
     
     def __del__(self):
-        """Clean up temp directory when object is destroyed."""
+        """Clean up temp directory."""
         if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
+
 
 def _extract_cylinder_size(config: Dict) -> List[float]:
     """Extract [radius, height] for cylinder-like objects."""
@@ -423,7 +363,7 @@ def _extract_cylinder_size(config: Dict) -> List[float]:
         return [config['radius'], config['height']]
     
     size = config.get('size', [0.02, 0.02, 0.04])
-    if len(size) == 3:  # Convert from [width, length, height]
+    if len(size) == 3:
         radius = (size[0] + size[1]) / 4  
         return [radius, size[2]]
     elif len(size) == 2:
@@ -433,7 +373,6 @@ def _extract_cylinder_size(config: Dict) -> List[float]:
 
 # Object type mapping for built-in RoboSuite objects
 OBJECT_FACTORIES = {
-    # Primitive objects with customizable size
     'Ball': lambda cfg: BallObject(
         name=cfg['name'],
         size=[cfg.get('radius', 0.02)],
@@ -454,7 +393,6 @@ OBJECT_FACTORIES = {
         size=_extract_cylinder_size(cfg),
         rgba=cfg.get('color', [1, 0, 0, 1])
     ),
-    # Complex objects with fixed sizes
     'Milk': lambda cfg: MilkObject(name=cfg['name']),
     'Cereal': lambda cfg: CerealObject(name=cfg['name']),
     'Can': lambda cfg: CanObject(name=cfg['name']),
@@ -499,29 +437,28 @@ class ScenicManipulationEnv(ManipulationEnv):
                 pos = robot_config.get('position', [0, 0, 0])
                 self.robots[i].robot_model.set_base_xpos(pos)
     
-# Updated _create_arena method in ScenicManipulationEnv class
-
     def _create_arena(self):
         """Create arena based on configuration."""
-        # Custom arena takes priority
         if self.scenic_custom_arena:
             xml_string = self.scenic_custom_arena.get('xml', '')
             scenic_file_path = self.scenic_custom_arena.get('scenic_file_path', None)
-            print(f"DEBUG: Creating custom arena with scenic_file_path: {scenic_file_path}")
+            # print(f"DEBUG: Creating custom arena with scenic_file_path: {scenic_file_path}")
             return CustomXMLArena(xml_string, scenic_file_path)
         
-        # Tables create MultiTableArena
         if self.scenic_tables:
+            table_offsets = []
+            for t in self.scenic_tables:
+                pos = t.get('position', [0, 0, 0.8])
+                table_offsets.append([pos[0], pos[1], 0.8])  # Standard table height
+            
             return MultiTableArena(
-                table_offsets=[t.get('position', [0, 0, 0.8]) for t in self.scenic_tables],
+                table_offsets=table_offsets,
                 table_full_sizes=[t.get('size', (0.8, 0.8, 0.05)) for t in self.scenic_tables],
                 has_legs=[True] * len(self.scenic_tables)
             )
         
-        # Default to empty arena
         return EmptyArena()
     
-
     def _create_objects(self) -> List:
         """Create Robosuite objects from Scenic configuration."""
         mujoco_objects = []
@@ -531,17 +468,14 @@ class ScenicManipulationEnv(ManipulationEnv):
             obj_name = obj_config.get('name', f'unnamed_{i}')
             
             if obj_type == 'MJCF':
-                # Custom MJCF object - joint and collision always ensured
                 scenic_file_path = obj_config.get('scenic_file_path', None)
                 
                 mj_obj = CustomMeshObject(
                     name=obj_name,
                     xml_string=obj_config.get('mjcf_xml', ''),
                     scenic_file_path=scenic_file_path
-                    # No auto_add_joint or auto_add_collision - always automatic
                 )
             else:
-                # Built-in RoboSuite object
                 factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
                 mj_obj = factory(obj_config)
             
@@ -556,7 +490,6 @@ class ScenicManipulationEnv(ManipulationEnv):
         
         for obj in self.mujoco_objects:
             try:
-                # Try to find the object's body
                 if hasattr(obj, 'root_body'):
                     body_name = obj.root_body
                 else:
@@ -565,7 +498,6 @@ class ScenicManipulationEnv(ManipulationEnv):
                 body_id = self.sim.model.body_name2id(body_name)
                 self.obj_body_ids[obj.name] = body_id
             except:
-                # Try with different naming patterns
                 for suffix in ['_main', '_body', '']:
                     try:
                         body_name = f"{obj.name}{suffix}"
@@ -598,33 +530,25 @@ class ScenicManipulationEnv(ManipulationEnv):
         """Reset environment internals."""
         super()._reset_internal()
         
-        # Set positions for all objects
         for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
             if 'position' in obj_config:
                 pos = obj_config['position']
                 quat = obj_config.get('quaternion', [1, 0, 0, 0])
                 
-                # Find the joint name - RoboSuite prefixes object name to joints
                 joint_name = None
-                
-                # Try multiple naming patterns
                 possible_names = []
                 
                 if hasattr(mj_obj, 'joint_name'):
-                    # For custom objects with stored joint name
                     base_joint = mj_obj.joint_name
                     possible_names.append(f"{mj_obj.name}_{base_joint}")
                     possible_names.append(base_joint)
                 
                 if hasattr(mj_obj, 'joints') and mj_obj.joints:
-                    # For built-in objects with joints list
                     possible_names.extend(mj_obj.joints)
                 
-                # Also try standard patterns
                 possible_names.append(f"{mj_obj.name}_joint0")
                 possible_names.append(f"{mj_obj.name}_object_joint")
                 
-                # Find first matching joint
                 for name in possible_names:
                     if name in self.sim.model.joint_names:
                         joint_name = name
@@ -635,11 +559,9 @@ class ScenicManipulationEnv(ManipulationEnv):
                         joint_name,
                         np.concatenate([np.array(pos), np.array(quat)])
                     )
-                else:
-                    print(f"Warning: Could not find joint for {mj_obj.name}")
-                    print(f"  Available joints: {[j for j in self.sim.model.joint_names if mj_obj.name.lower() in j.lower()]}")
+                # else:
+                #     print(f"Warning: Could not find joint for {mj_obj.name}")
         
-        # Step simulation to apply changes
         self.sim.forward()
         self.sim.step()
     
@@ -693,24 +615,20 @@ class RobosuiteSimulation(Simulation):
         self.camera_view = camera_view
         self.lite_physics = lite_physics
         
-        # Environment state
         self.robosuite_env = None
         self.model = None
         self.data = None
         
-        # Object tracking
         self.body_id_map = {}
         self.object_name_map = {}
         self.robots = []
         self.prev_positions = {}
         self._current_obs = None
         
-        # Action handling
         self.pending_robot_action = None
         self.action_dim = DEFAULT_ACTION_DIM
         self.controller_type = None
         
-        # Timing
         self.timestep = kwargs.get('timestep') or DEFAULT_TIMESTEP
         self.physics_timestep = kwargs.get('physics_timestep') or DEFAULT_PHYSICS_TIMESTEP
         self.physics_steps = int(self.timestep / self.physics_timestep)
@@ -722,14 +640,11 @@ class RobosuiteSimulation(Simulation):
         """Initialize the RoboSuite environment."""
         super().setup()
         
-        # Extract configuration from Scenic scene
         scenic_config = self._extract_scenic_config()
         
-        # Check for robots - at least one required
         if not scenic_config['robots']:
             raise ValueError("At least one robot is required in the scene")
         
-        # Setup environment
         robot_arg = self._get_robot_arg(scenic_config['robots'])
         
         env_kwargs = {
@@ -749,7 +664,6 @@ class RobosuiteSimulation(Simulation):
         self._current_obs = self.robosuite_env.reset()
         self._detect_controller_type(scenic_config['robots'])
         
-        # Finalize setup
         self._finalize_setup()
     
     def _finalize_setup(self):
@@ -762,7 +676,6 @@ class RobosuiteSimulation(Simulation):
         
         self._setup_body_mapping()
         
-        # Identify agents
         self.agents = [obj for obj in self.objects 
                       if hasattr(obj, 'behavior') and obj.behavior]
     
@@ -774,25 +687,20 @@ class RobosuiteSimulation(Simulation):
         if self.robosuite_env.viewer:
             self.robosuite_env.viewer.set_camera(camera_id=camera_id)
     
-
-
-    # Updated _extract_scenic_config method in RobosuiteSimulation class
-
     def _extract_scenic_config(self) -> Dict:
         """Extract configuration from Scenic scene."""
         config = {'robots': [], 'tables': [], 'objects': [], 'custom_arena': None}
         
-        # Get the Scenic file directory - try multiple approaches
         scenic_file_path = None
         
-        # Approach 1: Check if user explicitly set scenic_file_dir param
+        # Check if user explicitly set scenic_file_dir param
         if 'scenic_file_dir' in self.scene.params:
             path_obj = self.scene.params.get('scenic_file_dir')
             if path_obj:
                 scenic_file_path = str(path_obj)
-                print(f"Found scenic_file_dir from params: {scenic_file_path}")
+                # print(f"Found scenic_file_dir from params: {scenic_file_path}")
         
-        # Approach 2: Try to get from command line arguments
+        # Try to get from command line arguments
         if not scenic_file_path:
             import sys
             for arg in sys.argv:
@@ -800,21 +708,22 @@ class RobosuiteSimulation(Simulation):
                     scenic_file_abspath = os.path.abspath(arg)
                     if os.path.exists(scenic_file_abspath):
                         scenic_file_path = os.path.dirname(scenic_file_abspath)
-                        print(f"Found scenic file path from sys.argv: {scenic_file_path}")
+                        # print(f"Found scenic file path from sys.argv: {scenic_file_path}")
                         break
         
-        # Final fallback: Use current working directory with a warning
+        # Fallback to current directory
         if not scenic_file_path:
             scenic_file_path = os.getcwd()
-            print(f"WARNING: Could not determine Scenic file directory automatically!")
-            print(f"  Using current working directory: {scenic_file_path}")
-            print(f"  For correct relative paths, add this to your .scenic file:")
-            print(f"    param scenic_file_dir = localPath(\".\")")
+            # print(f"WARNING: Could not determine Scenic file directory")
+            # print(f"  Add to your .scenic file: param scenic_file_dir = localPath(\".\")")
         
-        print(f"DEBUG: Final scenic file directory: {scenic_file_path}")
+        # print(f"DEBUG: Final scenic file directory: {scenic_file_path}")
         
         # Process all objects in the scene
         for obj in self.objects:
+            if hasattr(obj, '_isArenaComponent') and obj._isArenaComponent:
+                continue
+                
             if hasattr(obj, 'robot_type'):
                 self._add_robot_config(config['robots'], obj)
             elif hasattr(obj, 'isCustomArena') and obj.isCustomArena:
@@ -829,15 +738,14 @@ class RobosuiteSimulation(Simulation):
         
         return config
     
-    
     def _add_robot_config(self, robots: List, obj):
         """Add robot configuration."""
         robots.append({
             'type': obj.robot_type,
-            'position': [obj.position.x, obj.position.y, obj.position.z]
+            'position': [obj.position.x, obj.position.y, 0] 
         })
         self.robots.append(obj)
-    
+
     def _add_table_config(self, tables: List, obj):
         """Add table configuration."""
         tables.append({
@@ -864,19 +772,16 @@ class RobosuiteSimulation(Simulation):
         
         self.object_name_map[obj] = obj_name
         
-        # Handle MJCF objects
         if obj.objectType == 'MJCF':
             config['mjcf_xml'] = getattr(obj, 'mjcf_xml', '')
             config['scenic_file_path'] = scenic_file_path
-            # No auto_add_joint or auto_add_collision - always automatic
         elif obj.objectType == 'Ball' and hasattr(obj, 'radius'):
             config['radius'] = obj.radius
         elif obj.objectType in ['Box', 'Cylinder', 'Capsule'] and hasattr(obj, 'width'):
             config['size'] = [obj.width, obj.length, obj.height]
         
         objects.append(config)
-
-
+    
     def _get_robot_arg(self, robots: List) -> Union[str, List[str]]:
         """Get robot argument for environment creation."""
         if not robots:
@@ -905,7 +810,6 @@ class RobosuiteSimulation(Simulation):
         if not obj_name:
             return
         
-        # Try to find the body
         for suffix in ['', '_main', '_body']:
             body_name = f"{obj_name}{suffix}"
             try:
@@ -921,7 +825,6 @@ class RobosuiteSimulation(Simulation):
     
     def createObjectInSimulator(self, obj):
         """Required by Scenic's Simulator interface."""
-        # Objects are created during setup in ScenicManipulationEnv
         pass
     
     def executeActions(self, allActions: Dict[Any, List]) -> None:
@@ -942,14 +845,12 @@ class RobosuiteSimulation(Simulation):
         if hasattr(self, '_done') and self._done:
             return
         
-        # Store previous positions
         for name, body_id in self.body_id_map.items():
             self.prev_positions[name] = self.data.xpos[body_id].copy()
         
         action = (self.pending_robot_action if self.pending_robot_action is not None 
                  else np.zeros(self.action_dim))
         
-        # Step simulation
         for _ in range(self.physics_steps):
             obs, reward, done, info = self.robosuite_env.step(action)
             self._current_obs = obs

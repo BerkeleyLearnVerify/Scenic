@@ -1,4 +1,3 @@
-# examples/robosuite/two_tables_cubes.scenic
 """Test with two XML tables and XML cubes on top, positioned in front of robot."""
 model scenic.simulators.robosuite.model
 
@@ -68,19 +67,19 @@ green_cube_xml = """
 
 
 # Create the first table (brown) - closer to robot
-table1 = new CustomObject at (0.7, 0, 0.825),
+table1 = new CustomObject on arena_floor,
     with mjcf_xml table_xml
 
 # Create the second table (blue) - farther from robot
-table2 = new CustomObject at (1.9, 0, 0.825),
+table2 = new CustomObject on arena_floor,
     with mjcf_xml table_xml
 
 
-red_cube = new CustomObject at (0.5, 0, 0.88),
+red_cube = new CustomObject on table1,
     with mjcf_xml red_cube_xml
 
 # Place green cube on second table
-green_cube = new CustomObject at (1.9, 0, 0.88),
+green_cube = new CustomObject on table2,
     with mjcf_xml green_cube_xml
 
 # Robot at origin

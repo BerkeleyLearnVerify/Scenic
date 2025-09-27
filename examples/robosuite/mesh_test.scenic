@@ -38,16 +38,17 @@ dragon_object_xml = """
 """
 
 # Use default table arena
-table = new Table at (0.5, 0, 0.8)
+table = new Table on arena_floor
 
 # Create dragon - path in XML is relative to this .scenic file
-dragon = new CustomObject at (0.5, 0, 0.88),
-    with mjcf_xml dragon_object_xml
+dragon = new CustomObject on table,
+    with mjcf_xml dragon_object_xml,
+    with color (1, 0, 1, 1)
 
 # Add a simple ball for comparison
-ball = new Ball at (0.8, 0., 0.88),
+ball = new Ball on table,
     with color (0, 1, 0, 1),
     with radius 0.03
 
 # Robot
-ego = new Panda at (0, 0, 0)
+ego = new Panda on (0, 0, 0)
