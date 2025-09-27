@@ -2081,7 +2081,6 @@ class MeshSurfaceRegion(MeshRegion):
     def containsObject(self, obj):
         # A surface cannot contain an object, which must have a volume.
         # Use footprint
-        return False
         return self.boundingPolygon.containsObject(obj)
 
     def containsRegionInner(self, reg, tolerance):

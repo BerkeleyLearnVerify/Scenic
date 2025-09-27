@@ -283,7 +283,7 @@ class Vehicle(DrivingObject):
             distribution derived from car color popularity statistics; see
             :obj:`Color.defaultCarColor`.
     """
-    regionContainedIn: roadOrShoulder # Change region to bounding polygon region
+    regionContainedIn: roadOrShoulder.boundingPolygon # Change region to bounding polygon region
     position: new Point on road
     parentOrientation: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0

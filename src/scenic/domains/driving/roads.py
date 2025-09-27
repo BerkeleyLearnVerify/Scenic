@@ -1395,13 +1395,17 @@ class Network:
             target = point if distance == 0 else point.buffer(distance)
             indices = self._rtree.query(target, predicate="intersects")
             candidates = {self._uidForIndex[index] for index in indices}
+            print(candidates)
             if candidates:
                 closest = None
                 for elem in elems:
                     if elem.uid in candidates:
+                        print(elem, elem.distanceTo(p))
                         if closest == None:
                             closest = elem
-                        elif elem.distanceTo(p) < closest.distanceTo(p):
+                        elif elem.distanceTo(p) <= closest.distanceTo(
+                            p
+                        ):  # Tie goes to later element
                             closest = elem
                 return closest
             return None

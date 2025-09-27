@@ -398,12 +398,6 @@ class ContainmentRequirement(SamplingRequirement):
     def falsifiedByInner(self, sample):
         obj = sample[self.obj]
         container = sample[self.container]
-        print(type(container))
-        print(type(obj))
-        if type(container) is MeshSurfaceRegion:
-            return not PolygonalRegion(polygon=container._boundingPolygon).containsObject(
-                obj
-            )
         return not container.containsObject(obj)
 
     @property

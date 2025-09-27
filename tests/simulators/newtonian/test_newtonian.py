@@ -9,6 +9,7 @@ from scenic.simulators.newtonian import NewtonianSimulator
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
+# Test will not pass unless local map is made in 2D mode
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic")
     scene, _ = scenario.generate(maxIterations=1)
