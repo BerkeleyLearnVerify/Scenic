@@ -1273,6 +1273,7 @@ class Road:
                 points.append((x,y))
         
         crosswalk_polygon = cleanPolygon(Polygon(points), tolerance)
+        crosswalk_polygon_coords = list(crosswalk_polygon.exterior.coords[:-1])
 
         mrr = list(crosswalk_polygon.minimum_rotated_rectangle.exterior.coords)[:-1] #Drop last point - same as the first point
         edges = []
@@ -1293,64 +1294,83 @@ class Road:
             lengths.append(distance)
         
         get_mrr_shortest_indices = np.argsort(lengths)[:2] #Get the fist two indices - they correspond to the shortest edges
-        shortest_edge = edges[get_mrr_shortest_indices[0]]
-        shortest_opp_edge = edges[get_mrr_shortest_indices[1]]
+
+        mrr_shortest_edge = edges[get_mrr_shortest_indices[0]]
+        mrr_shortest_opp_edge = edges[get_mrr_shortest_indices[1]]
 
         def get_edge_midpoint(vertex1, vertex2):
-            return ((vertex1[0] + vertex2[0]) / 2, (vertex1[1] + vertex2[1]) / 2) #USE NP ARRAYS
+            return (np.asarray(vertex1) + np.asarray(vertex2)) / 2
         
-        m1 = get_edge_midpoint(shortest_edge[0], shortest_edge[1])
-        m2 = get_edge_midpoint(shortest_opp_edge[0], shortest_opp_edge[1])
+        m1 = get_edge_midpoint(mrr_shortest_edge[0], mrr_shortest_edge[1])
+        m2 = get_edge_midpoint(mrr_shortest_opp_edge[0], mrr_shortest_opp_edge[1])
 
-        mrr_center_line = LineString([m1, m2]) #LineString so we can use shapely.intersection()
-        intersection_vertices = mrr_center_line.intersection(crosswalk_polygon.exterior) #Vertices of the intersection between rectangle and crosswalk polygon. Should be a MultiPoint
-    
-        #SHOULD ALWAYS GET TWO INTERSECTION POINTS - CHECK JUST IN CASE
-        if intersection_vertices.is_empty:
-            print("Intersection vertices are empty")
-            return crosswalk_polygon, None, None, None
-        
-        if isinstance(intersection_vertices, Point):
-            print("Only one intersection vertex")
-            return crosswalk_polygon, None, None, None
-        
-        if len(intersection_vertices.geoms) != 2:
-            print("Need 2 intersection vertices")
-            return crosswalk_polygon, None, None, None
+        mrr_shortest_edge_distances = []
+        mrr_shortest_opp_edge_distances = []
+
+        mrr_shortest_edge = LineString(mrr_shortest_edge)
+        mrr_shortest_opp_edge = LineString(mrr_shortest_opp_edge)
+
+        for x,y in crosswalk_polygon_coords:
+            crosswalk_polygon_vertex = Point(x,y)
+            mrr_shortest_opp_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge)) #Distance from each vertex on the crosswalk polygon to the bottom edge of the MRR (shortest distance to any point on the bottom edge)
+            mrr_shortest_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_edge))
+
+        bottom_cut_index = 0
+        top_cut_index = 0
+        final_bottom_score = float("inf")
+        final_top_score = float("inf")
+
+        for i in range(len(crosswalk_polygon_coords)):
+            j = (i + 1) % len(crosswalk_polygon_coords)
             
-        polygon_boundary = LineString(crosswalk_polygon.exterior.coords)
-        snapped_intersection_vertices = snap(intersection_vertices, polygon_boundary, tolerance=1) #Snap the intersection vertices to the polygon boundary
-
-        v1, v2 = snapped_intersection_vertices.geoms
-        v1x, v1y = v1.x, v1.y
-        v2x, v2y = v2.x, v2.y
-
-        dx = v2x - v1x
-        dy = v2y - v1y
-
-        v1v2 = Vector(dx, dy)
-        N = Vector(-dy, dx)
-
-        left_edge = []
-        right_edge = []
-
-        for crosswalk_polygon_vertices in polygon_boundary.coords[:-1]:
-            #Compute dot product of N and (X-A) where X is the crosswalk polygon vertex and A is v1
-            dot = (crosswalk_polygon_vertices[0] - v1x) * N.x + (crosswalk_polygon_vertices[1] - v1y) * N.y
+            b_score = max(mrr_shortest_opp_edge_distances[i], mrr_shortest_opp_edge_distances[j]) #Max of the two distances to the MRR bottom edge
+            if b_score < final_bottom_score:
+                final_bottom_score = b_score
+                bottom_cut_index = i
             
-            if dot > 0:
-                left_edge.append(crosswalk_polygon_vertices)
-            if dot < 0:
-                right_edge.append(crosswalk_polygon_vertices)
+            t_score = max(mrr_shortest_edge_distances[i], mrr_shortest_edge_distances[j]) #Max of the two distances to the MRR top edge
+            if t_score < final_top_score:
+                final_top_score = t_score
+                top_cut_index = i
+
+        top_cut = (top_cut_index, (top_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the top cut
+        top_cut_vertices = (crosswalk_polygon_coords[top_cut[0]], crosswalk_polygon_coords[top_cut[1]])
+        bottom_cut = (bottom_cut_index, (bottom_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the bottom cut
+        bottom_cut_vertices = (crosswalk_polygon_coords[bottom_cut[0]], crosswalk_polygon_coords[bottom_cut[1]])
+
+        '''
+        -start at top edge
+        -the first index of the top edge would be "left"
+        -go to first index and walk
+        '''
+        def walk_polygon(n, bottom_cut, top_cut):
+            t0, t1 = top_cut #top cut edge indices (t0 -> t1)
+            b0, b1 = bottom_cut #bottom edge indices (b0 -> b1)
+
+            left_indices = [t0]
+            i = t0
+            while i != b1:
+                i = (i - 1 + n) % n
+                left_indices.append(i)
+            
+            right_indices = [t1]
+            i = t1
+            while i != b0:
+                i = (i + 1) % n
+                right_indices.append(i)
+            
+            return left_indices, right_indices
+        
+        left_indices, right_indices = walk_polygon(len(crosswalk_polygon_coords), bottom_cut, top_cut)
+        left_edge = [crosswalk_polygon_coords[i] for i in left_indices]
+        right_edge = [crosswalk_polygon_coords[i] for i in right_indices]
+
+        print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge} for road {self.id_} crosswalk {cw.id_}")
+        print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge} for road {self.id_} crosswalk {cw.id_}") 
 
         leftEdge = PolylineRegion(cleanChain(left_edge))
         rightEdge = PolylineRegion(cleanChain(right_edge))
         centerLine = self.create_center_line(leftEdge, rightEdge)
-
-        for point in leftEdge.lineString.coords:
-            print(f"Left edge point: {point} for road {self.id_}, crosswalk {cw.id_}")
-        for point in rightEdge.lineString.coords:
-            print(f"Right edge point: {point} for road {self.id_}, crosswalk {cw.id_}")
 
         return crosswalk_polygon, centerLine, leftEdge, rightEdge
 
