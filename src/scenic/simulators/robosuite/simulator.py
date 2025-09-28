@@ -748,9 +748,15 @@ class RobosuiteSimulation(Simulation):
 
     def _add_table_config(self, tables: List, obj):
         """Add table configuration."""
+        """
+            LIMITATION: Table thickness is hardcoded to 0.05 for robosuite's MultiTableArena.
+            This value controls tabletop thickness, not full table height.
+            Changing this causes visual inconsistency with Scenic's representation. 
+        """
         tables.append({
             'position': [obj.position.x, obj.position.y, obj.position.z],
-            'size': (obj.width, obj.length, obj.height)
+            # 'size': (obj.width, obj.length, obj.height)
+            'size': (obj.width, obj.length, 0.05)  # FIXED: MultiTableArena tabletop thickness
         })
     
     def _add_object_config(self, objects: List, obj, scenic_file_path):

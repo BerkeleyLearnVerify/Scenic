@@ -245,13 +245,20 @@ class CustomArena(RoboSuiteObject):
     arena_xml: ""
 
 class Table(RoboSuiteObject):
-    """Table in environment."""
+    """Table in environment - creates MultiTableArena.
+    
+    WARNING: Table height is fixed and should not be modified.
+    - Scenic uses full table mesh height (0.85m) for collision/visualization
+    - Robosuite uses tabletop thickness (0.05m) for MultiTableArena
+    Changing these values causes visual inconsistencies between simulators.
+    """
     isTable: True
     shape: MeshShape.fromFile(localPath("utils/table_meshes/standard_table.glb"))
     width: DEFAULTS['table_width']
-    length: DEFAULTS['table_length'] 
-    height: 0.85
-    position: (0, 0, 0.425)
+    length: DEFAULTS['table_length']
+    # Height is fixed from mesh - DO NOT make configurable
+    height: 0.85  # Full table height for Scenic collision
+    position: (0, 0, 0.425)  # Center of table volume
 
 class ManipulationObject(RoboSuiteObject):
     """Base class for manipulable objects."""
