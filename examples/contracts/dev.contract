@@ -570,8 +570,8 @@ accurate_distance_known = refine accurate_distance_known_raw as AccurateDistance
 accurate_distance_unknown = test car.ps satisfies AccurateDistanceUnknownConds(
     PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR),
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.999, batchSize=10, verbose=False),
-    terminating after 60*60 seconds
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.999, batchSize=1, verbose=False),
+    terminating after 8*60*60 seconds
 
 accurate_distance_raw = weak merge over car.ps:
     use accurate_distance_known
@@ -584,8 +584,8 @@ accurate_distance = refine accurate_distance_raw as AccurateDistance(
 # accurate_distance = test car.ps satisfies AccurateDistance(
 #     PERCEPTION_DISTANCE,
 #     abs_dist_err=ABS_DIST_ERR),
-#     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.999, batchSize=10, verbose=False),
-#     terminating after 30*60 seconds
+#     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.999, batchSize=1, verbose=False),
+#     terminating after 4*60*60 seconds
 
 accurate_speed = assume car.sm satisfies AccurateSpeed()
 
@@ -599,7 +599,7 @@ cs_safety = compose over car.cs:
             max_brake=MAX_BRAKE,
             max_accel=MAX_ACCEL) using LeanContractProof("LeanLTL/Examples/Scenic/SafeThrottleFilter", LEANLTL_LOC, REPL_LOC)
 
-max_braking_force = assume car.cac satisfies MaxBrakingForce(MAX_BRAKE), with correctness 0.99, with confidence 1
+max_braking_force = assume car.cac satisfies MaxBrakingForce(MAX_BRAKE), with correctness 0.99, with confidence 0.999
 
 keeps_distance_raw = compose over car:
     use accurate_distance

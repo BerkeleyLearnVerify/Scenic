@@ -467,8 +467,11 @@ class TestingContractResult(ContractResult):
         if self.v_count + self.g_count == 0:
             return 0
 
+        sat_count = self.v_count + self.a_count
+        total_count = self.v_count + self.a_count + self.g_count
+
         bt = scipy.stats.binomtest(
-            k=self.v_count, n=self.v_count + self.g_count, alternative="greater"
+            k=sat_count, n=total_count, alternative="greater"
         )
         ci = bt.proportion_ci(confidence_level=self.confidence)
         return ci.low

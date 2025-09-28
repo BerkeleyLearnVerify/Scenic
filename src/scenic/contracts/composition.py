@@ -380,7 +380,6 @@ class WeakMerge(VerificationTechnique):
 
         # TODO: Remove limitation of 2 sub-contracts
         if len(sub_stmts) == 2 and sum(self.static_assumptions.values()) >= 1:
-            print("TODO: Check for dynamic requirements")
             self.weak_merge_speedup = True
         else:
             self.weak_merge_speedup = False
