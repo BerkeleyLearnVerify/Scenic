@@ -35,6 +35,12 @@ def test_element_tolerance(cached_maps, pytestconfig):
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
+    top_level_region = drivable.union(network.shoulderRegion).union(
+        network.sidewalkRegion
+    )
+    outside_top_level = top_level_region.buffer(2 * tol).difference(
+        top_level_region.buffer(1.5 * tol)
+    )
     road = network.roads[0]
     nearby = road.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
@@ -48,6 +54,10 @@ def test_element_tolerance(cached_maps, pytestconfig):
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
             network.roadAt(pt, reject=True)
+        pt = outside_top_level.uniformPointInner()
+        assert network.elementAt(pt) is None
+        with pytest.raises(RejectionException):
+            network.elementAt(pt, reject=True)
 
 
 def test_orientation_consistency(network):
@@ -244,16 +254,3 @@ def test_sidewalk(network):
         pt = sw.uniformPointInner()
         assert network.sidewalkAt(pt) is sw
         assert network.elementAt(pt) is sw
-
-
-def test_reject_outside(network):
-    whole = (
-        network.roadRegion.union(network.intersectionRegion)
-        .union(network.sidewalkRegion)
-        .union(network.shoulderRegion)
-    )
-    outside = whole.buffer(5.0).difference(whole.buffer(4.0))
-    pt = outside.uniformPointInner()
-    assert network.elementAt(pt) is None
-    with pytest.raises(RejectionException):
-        network.elementAt(pt, reject=True)
