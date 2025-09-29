@@ -384,10 +384,16 @@ def _get_env_class():
         
         def _position_robots(self):
             """Position robots based on scenic configuration."""
-            for i, robot_config in enumerate(self.scenic_config.get('robots', [])):
-                if i < len(self.robots):
-                    pos = robot_config.get('position', [0, 0, 0])
-                    self.robots[i].robot_model.set_base_xpos(pos)
+            scenic_robots = self.scenic_config.get('robots', [])
+            actual_robots = self.robots  # RoboSuite env robots
+            
+            if len(scenic_robots) != len(actual_robots):
+                raise RuntimeError(f"Robot count mismatch: requested {len(scenic_robots)}, "
+                                f"created {len(actual_robots)}")
+            
+            for i, robot_config in enumerate(scenic_robots):
+                pos = robot_config.get('position', [0, 0, 0])
+                actual_robots[i].robot_model.set_base_xpos(pos)
         
         def _create_arena(self):
             """Create arena based on configuration."""
