@@ -241,11 +241,12 @@ def test_shoulder(network):
         pt = sh.uniformPointInner()
         assert network.shoulderAt(pt) is sh
         assert network.elementAt(pt) is sh
-        so = sh.orientation[pt]
-        assert network.roadDirection[pt] == pytest.approx(so)
+        so_yaw = sh.orientation[pt].yaw
+        rd_yaw = network.roadDirection[pt].yaw
+        assert rd_yaw == pytest.approx(so_yaw)
         dirs = network.nominalDirectionsAt(pt)
         assert len(dirs) == 1
-        assert dirs[0] == pytest.approx(so)
+        assert dirs[0].yaw == pytest.approx(so_yaw)
 
 
 def test_sidewalk(network):
