@@ -2,28 +2,10 @@
 
 from typing import Dict, List, Any, Optional, Union
 import numpy as np
-import mujoco
 import os
 import tempfile
 import shutil
 import xml.etree.ElementTree as ET
-
-try:
-    import robosuite as suite
-    from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
-    from robosuite.models.arenas import Arena, EmptyArena, MultiTableArena
-    from robosuite.models.tasks import ManipulationTask
-    from robosuite.models.objects import (
-        MujocoXMLObject,
-        BallObject, BoxObject, CylinderObject, CapsuleObject,
-        MilkObject, CerealObject, CanObject, BreadObject,
-        HammerObject, SquareNutObject, RoundNutObject, BottleObject
-    )
-    from robosuite.utils.observables import Observable, sensor
-    from robosuite.utils.mjcf_utils import xml_path_completion
-except ImportError as e:
-    suite = None
-    _import_error = e
 
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
@@ -46,317 +28,504 @@ CAMERA_VIEWS = {
 }
 
 
-class CustomXMLArena(Arena):
-    """Arena created from custom XML string or file."""
+# Deferred class definitions to avoid importing RoboSuite at module load
+def _get_arena_class():
+    """Get CustomXMLArena class (requires RoboSuite imports)."""
+    from robosuite.models.arenas import Arena
+    from robosuite.utils.mjcf_utils import xml_path_completion
     
-    def __init__(self, xml_string, scenic_file_path=None):
-        super().__init__(xml_path_completion("arenas/empty_arena.xml"))
+    class CustomXMLArena(Arena):
+        """Arena created from custom XML string or file."""
         
-        # Handle file path vs XML string
-        if not xml_string.strip().startswith('<'):
-            base_dir = os.path.dirname(scenic_file_path) if scenic_file_path else os.getcwd()
-            if not os.path.isabs(xml_string):
-                xml_path = os.path.join(base_dir, xml_string)
-            else:
-                xml_path = xml_string
+        def __init__(self, xml_string, scenic_file_path=None):
+            super().__init__(xml_path_completion("arenas/empty_arena.xml"))
             
-            if os.path.exists(xml_path):
-                with open(xml_path, 'r') as f:
-                    xml_string = f.read()
-            else:
-                raise FileNotFoundError(f"Arena XML file not found: {xml_path}")
-        
-        # Parse custom XML
-        custom_tree = ET.fromstring(xml_string)
-        
-        custom_worldbody = custom_tree.find(".//worldbody")
-        if custom_worldbody is None:
-            raise ValueError("Custom XML must have a worldbody element")
-        
-        # Replace worldbody content
-        for child in list(self.worldbody):
-            self.worldbody.remove(child)
-        
-        for element in custom_worldbody:
-            self.worldbody.append(element)
-        
-        # Merge assets
-        custom_asset = custom_tree.find(".//asset")
-        if custom_asset is not None and self.asset is not None:
-            for child in custom_asset:
-                self.asset.append(child)
-        
-        # Set floor reference
-        self.floor = self.worldbody.find(".//geom[@name='floor']")
-        if self.floor is None:
-            for geom in self.worldbody.findall(".//geom"):
-                if geom.get("type") == "plane":
-                    self.floor = geom
-                    break
-        
-        # Set table references if they exist
-        self.table_body = self.worldbody.find(".//body[@name='custom_table']")
-        self.table_top = self.worldbody.find(".//geom[@name='table_top']")
+            # Handle file path vs XML string
+            if not xml_string.strip().startswith('<'):
+                base_dir = os.path.dirname(scenic_file_path) if scenic_file_path else os.getcwd()
+                if not os.path.isabs(xml_string):
+                    xml_path = os.path.join(base_dir, xml_string)
+                else:
+                    xml_path = xml_string
+                
+                if os.path.exists(xml_path):
+                    with open(xml_path, 'r') as f:
+                        xml_string = f.read()
+                else:
+                    raise FileNotFoundError(f"Arena XML file not found: {xml_path}")
+            
+            # Parse custom XML
+            custom_tree = ET.fromstring(xml_string)
+            
+            custom_worldbody = custom_tree.find(".//worldbody")
+            if custom_worldbody is None:
+                raise ValueError("Custom XML must have a worldbody element")
+            
+            # Replace worldbody content
+            for child in list(self.worldbody):
+                self.worldbody.remove(child)
+            
+            for element in custom_worldbody:
+                self.worldbody.append(element)
+            
+            # Merge assets
+            custom_asset = custom_tree.find(".//asset")
+            if custom_asset is not None and self.asset is not None:
+                for child in custom_asset:
+                    self.asset.append(child)
+            
+            # Set floor reference
+            self.floor = self.worldbody.find(".//geom[@name='floor']")
+            if self.floor is None:
+                for geom in self.worldbody.findall(".//geom"):
+                    if geom.get("type") == "plane":
+                        self.floor = geom
+                        break
+            
+            # Set table references if they exist
+            self.table_body = self.worldbody.find(".//body[@name='custom_table']")
+            self.table_top = self.worldbody.find(".//geom[@name='table_top']")
+    
+    return CustomXMLArena
 
 
-class CustomMeshObject(MujocoXMLObject):
-    """Custom manipulable object from XML string with automatic joint and collision handling."""
+def _get_object_class():
+    """Get CustomMeshObject class (requires RoboSuite imports)."""
+    from robosuite.models.objects import MujocoXMLObject
     
-    _existing_joint_names = set()
-    
-    def __init__(self, name, xml_string, scenic_file_path=None):
-        self.object_name = name
-        self.temp_dir = tempfile.mkdtemp()
+    class CustomMeshObject(MujocoXMLObject):
+        """Custom manipulable object from XML string with automatic joint and collision handling."""
         
-        base_dir = scenic_file_path if scenic_file_path else os.getcwd()
+        _existing_joint_names = set()
         
-        # Handle file path vs XML string
-        if not xml_string.strip().startswith('<'):
-            if not os.path.isabs(xml_string):
-                xml_path = os.path.join(base_dir, xml_string)
-            else:
-                xml_path = xml_string
+        def __init__(self, name, xml_string, scenic_file_path=None):
+            self.object_name = name
+            self.temp_dir = tempfile.mkdtemp()
             
-            if os.path.exists(xml_path):
-                with open(xml_path, 'r') as f:
-                    xml_string = f.read()
-                base_dir = os.path.dirname(xml_path)
-            else:
-                raise FileNotFoundError(f"Object XML file not found: {xml_path}")
-        
-        tree = ET.fromstring(xml_string)
-        
-        self._process_asset_files(tree, base_dir)
-        tree = self._process_xml_tree(tree, name)
-        
-        fixed_xml = ET.tostring(tree, encoding='unicode')
-        
-        temp_xml_path = os.path.join(self.temp_dir, f"{name}.xml")
-        with open(temp_xml_path, 'w') as f:
-            f.write(fixed_xml)
-        
-        try:
-            super().__init__(
-                temp_xml_path,
-                name=name,
-                joints=None,
-                obj_type="all",
-                duplicate_collision_geoms=False
-            )
-        finally:
-            pass  # Keep temp_dir for MuJoCo to access files
-    
-    def _process_asset_files(self, tree, base_dir):
-        """Copy mesh and texture files to temp directory."""
-        # Process mesh files
-        for mesh in tree.findall(".//mesh"):
-            file_attr = mesh.get("file")
-            if file_attr:
-                if not os.path.isabs(file_attr):
-                    full_path = os.path.join(base_dir, file_attr)
+            base_dir = scenic_file_path if scenic_file_path else os.getcwd()
+            
+            # Handle file path vs XML string
+            if not xml_string.strip().startswith('<'):
+                if not os.path.isabs(xml_string):
+                    xml_path = os.path.join(base_dir, xml_string)
                 else:
-                    full_path = file_attr
+                    xml_path = xml_string
                 
-                if os.path.exists(full_path):
-                    filename = os.path.basename(full_path)
-                    temp_path = os.path.join(self.temp_dir, filename)
-                    shutil.copy2(full_path, temp_path)
-                    mesh.set("file", filename)
-                    
-                    # Auto-copy MTL file for OBJ meshes
-                    if full_path.endswith('.obj'):
-                        mtl_path = full_path.replace('.obj', '.mtl')
-                        if os.path.exists(mtl_path):
-                            mtl_filename = os.path.basename(mtl_path)
-                            temp_mtl_path = os.path.join(self.temp_dir, mtl_filename)
-                            shutil.copy2(mtl_path, temp_mtl_path)
-        
-        # Process texture files
-        for texture in tree.findall(".//texture"):
-            file_attr = texture.get("file")
-            if file_attr and not texture.get("builtin"):
-                if not os.path.isabs(file_attr):
-                    full_path = os.path.join(base_dir, file_attr)
+                if os.path.exists(xml_path):
+                    with open(xml_path, 'r') as f:
+                        xml_string = f.read()
+                    base_dir = os.path.dirname(xml_path)
                 else:
-                    full_path = file_attr
-                
-                if os.path.exists(full_path):
-                    filename = os.path.basename(full_path)
-                    
-                    # Convert JPG to PNG if needed
-                    if filename.lower().endswith(('.jpg', '.jpeg')):
-                        try:
-                            from PIL import Image
-                            img = Image.open(full_path)
-                            filename = filename.rsplit('.', 1)[0] + '.png'
-                            temp_path = os.path.join(self.temp_dir, filename)
-                            img.save(temp_path)
-                        except ImportError:
-                            temp_path = os.path.join(self.temp_dir, filename)
-                            shutil.copy2(full_path, temp_path)
+                    raise FileNotFoundError(f"Object XML file not found: {xml_path}")
+            
+            tree = ET.fromstring(xml_string)
+            
+            self._process_asset_files(tree, base_dir)
+            tree = self._process_xml_tree(tree, name)
+            
+            fixed_xml = ET.tostring(tree, encoding='unicode')
+            
+            temp_xml_path = os.path.join(self.temp_dir, f"{name}.xml")
+            with open(temp_xml_path, 'w') as f:
+                f.write(fixed_xml)
+            
+            try:
+                super().__init__(
+                    temp_xml_path,
+                    name=name,
+                    joints=None,
+                    obj_type="all",
+                    duplicate_collision_geoms=False
+                )
+            finally:
+                pass  # Keep temp_dir for MuJoCo to access files
+        
+        def _process_asset_files(self, tree, base_dir):
+            """Copy mesh and texture files to temp directory."""
+            # Process mesh files
+            for mesh in tree.findall(".//mesh"):
+                file_attr = mesh.get("file")
+                if file_attr:
+                    if not os.path.isabs(file_attr):
+                        full_path = os.path.join(base_dir, file_attr)
                     else:
+                        full_path = file_attr
+                    
+                    if os.path.exists(full_path):
+                        filename = os.path.basename(full_path)
                         temp_path = os.path.join(self.temp_dir, filename)
                         shutil.copy2(full_path, temp_path)
+                        mesh.set("file", filename)
+                        
+                        # Auto-copy MTL file for OBJ meshes
+                        if full_path.endswith('.obj'):
+                            mtl_path = full_path.replace('.obj', '.mtl')
+                            if os.path.exists(mtl_path):
+                                mtl_filename = os.path.basename(mtl_path)
+                                temp_mtl_path = os.path.join(self.temp_dir, mtl_filename)
+                                shutil.copy2(mtl_path, temp_mtl_path)
+            
+            # Process texture files
+            for texture in tree.findall(".//texture"):
+                file_attr = texture.get("file")
+                if file_attr and not texture.get("builtin"):
+                    if not os.path.isabs(file_attr):
+                        full_path = os.path.join(base_dir, file_attr)
+                    else:
+                        full_path = file_attr
                     
-                    texture.set("file", filename)
-    
-    def _process_xml_tree(self, tree, name):
-        """Ensure joint and collision geometry."""
-        # Find object body
-        object_body = tree.find(".//body[@name='object']")
-        if object_body is None:
-            worldbody = tree.find(".//worldbody")
-            if worldbody is not None:
-                for body in worldbody.findall("body"):
-                    inner_body = body.find("body[@name='object']")
-                    if inner_body is not None:
-                        object_body = inner_body
-                        break
+                    if os.path.exists(full_path):
+                        filename = os.path.basename(full_path)
+                        
+                        # Convert JPG to PNG if needed
+                        if filename.lower().endswith(('.jpg', '.jpeg')):
+                            try:
+                                from PIL import Image
+                                img = Image.open(full_path)
+                                filename = filename.rsplit('.', 1)[0] + '.png'
+                                temp_path = os.path.join(self.temp_dir, filename)
+                                img.save(temp_path)
+                            except ImportError:
+                                temp_path = os.path.join(self.temp_dir, filename)
+                                shutil.copy2(full_path, temp_path)
+                        else:
+                            temp_path = os.path.join(self.temp_dir, filename)
+                            shutil.copy2(full_path, temp_path)
+                        
+                        texture.set("file", filename)
         
-        if object_body is None:
+        def _process_xml_tree(self, tree, name):
+            """Ensure joint and collision geometry."""
+            # Find object body
+            object_body = tree.find(".//body[@name='object']")
+            if object_body is None:
+                worldbody = tree.find(".//worldbody")
+                if worldbody is not None:
+                    for body in worldbody.findall("body"):
+                        inner_body = body.find("body[@name='object']")
+                        if inner_body is not None:
+                            object_body = inner_body
+                            break
+            
+            if object_body is None:
+                return tree
+            
+            self._ensure_free_joint(object_body, name)
+            self._ensure_collision_geometry(object_body, name)
+            
             return tree
         
-        self._ensure_free_joint(object_body, name)
-        self._ensure_collision_geometry(object_body, name)
-        
-        return tree
-    
-    def _ensure_free_joint(self, object_body, name):
-        """Ensure object has a free joint for physics."""
-        has_free_joint = False
-        existing_joint_name = None
-        
-        for joint in object_body.findall("joint"):
-            if joint.get("type") == "free":
-                has_free_joint = True
-                existing_joint_name = joint.get("name")
-                if existing_joint_name:
-                    self._existing_joint_names.add(existing_joint_name)
-                    self.joint_name = existing_joint_name
-                break
-        
-        if not has_free_joint:
-            # Generate unique joint name
-            joint_counter = 0
-            while True:
-                joint_name = f"{name}_joint_{joint_counter}"
-                if joint_name not in self._existing_joint_names:
+        def _ensure_free_joint(self, object_body, name):
+            """Ensure object has a free joint for physics."""
+            has_free_joint = False
+            existing_joint_name = None
+            
+            for joint in object_body.findall("joint"):
+                if joint.get("type") == "free":
+                    has_free_joint = True
+                    existing_joint_name = joint.get("name")
+                    if existing_joint_name:
+                        self._existing_joint_names.add(existing_joint_name)
+                        self.joint_name = existing_joint_name
                     break
-                joint_counter += 1
             
-            joint = ET.Element("joint")
-            joint.set("name", joint_name)
-            joint.set("type", "free")
-            joint.set("damping", "0.0005")
-            
-            object_body.insert(0, joint)
-            self._existing_joint_names.add(joint_name)
-            self.joint_name = joint_name
-    
-    def _ensure_collision_geometry(self, object_body, name):
-        """Ensure proper collision geometry exists."""
-        has_proper_collision = False
-        mesh_collision_geom = None
-        visual_geom = None
+            if not has_free_joint:
+                # Generate unique joint name
+                joint_counter = 0
+                while True:
+                    joint_name = f"{name}_joint_{joint_counter}"
+                    if joint_name not in self._existing_joint_names:
+                        break
+                    joint_counter += 1
+                
+                joint = ET.Element("joint")
+                joint.set("name", joint_name)
+                joint.set("type", "free")
+                joint.set("damping", "0.0005")
+                
+                object_body.insert(0, joint)
+                self._existing_joint_names.add(joint_name)
+                self.joint_name = joint_name
         
-        for geom in object_body.findall("geom"):
-            geom_group = geom.get("group", "0")
-            geom_type = geom.get("type", "box")
+        def _ensure_collision_geometry(self, object_body, name):
+            """Ensure proper collision geometry exists."""
+            has_proper_collision = False
+            mesh_collision_geom = None
+            visual_geom = None
             
-            if geom_group == "0":
-                if geom_type == "mesh":
-                    mesh_collision_geom = geom
-                    # print(f"Found mesh collision geometry for {name} - will convert to box")
-                else:
-                    has_proper_collision = True
-                    break
-            elif geom_group == "1":
-                visual_geom = geom
-        
-        # Convert mesh collision to visual + box collision
-        if mesh_collision_geom is not None and not has_proper_collision:
-            mesh_collision_geom.set("group", "1")
-            mesh_collision_geom.set("contype", "0")
-            mesh_collision_geom.set("conaffinity", "0")
+            for geom in object_body.findall("geom"):
+                geom_group = geom.get("group", "0")
+                geom_type = geom.get("type", "box")
+                
+                if geom_group == "0":
+                    if geom_type == "mesh":
+                        mesh_collision_geom = geom
+                    else:
+                        has_proper_collision = True
+                        break
+                elif geom_group == "1":
+                    visual_geom = geom
             
-            collision_geom = ET.Element("geom")
-            collision_geom.set("name", "collision_auto")
-            collision_geom.set("type", "box")
-            collision_geom.set("size", "0.04 0.04 0.04")
-            
-            pos = mesh_collision_geom.get("pos", "0 0 0")
-            collision_geom.set("pos", pos)
-            
-            collision_geom.set("group", "0")
-            collision_geom.set("rgba", "0 0 0 0")
-            
-            for prop in ["solimp", "solref", "density", "friction"]:
-                value = mesh_collision_geom.get(prop)
-                if value:
-                    collision_geom.set(prop, value)
-            
-            if not collision_geom.get("solimp"):
-                collision_geom.set("solimp", "0.998 0.998 0.001")
-            if not collision_geom.get("solref"):
-                collision_geom.set("solref", "0.001 1")
-            if not collision_geom.get("density"):
-                collision_geom.set("density", "100")
-            if not collision_geom.get("friction"):
-                collision_geom.set("friction", "0.95 0.3 0.1")
-            
-            index = list(object_body).index(mesh_collision_geom) + 1
-            object_body.insert(index, collision_geom)
-            # print(f"Converted mesh collision to visual + box collision for {name}")
-            return
-        
-        # Create collision if none exists
-        if not has_proper_collision:
-            if visual_geom is not None:
+            # Convert mesh collision to visual + box collision
+            if mesh_collision_geom is not None and not has_proper_collision:
+                mesh_collision_geom.set("group", "1")
+                mesh_collision_geom.set("contype", "0")
+                mesh_collision_geom.set("conaffinity", "0")
+                
                 collision_geom = ET.Element("geom")
                 collision_geom.set("name", "collision_auto")
-                
-                geom_type = visual_geom.get("type", "box")
-                pos = visual_geom.get("pos", "0 0 0")
-                
-                if geom_type == "mesh":
-                    collision_geom.set("type", "box")
-                    collision_geom.set("size", "0.04 0.04 0.04")
-                else:
-                    collision_geom.set("type", geom_type)
-                    size = visual_geom.get("size")
-                    if size:
-                        collision_geom.set("size", size)
-                
-                collision_geom.set("pos", pos)
-                
-            else:
-                collision_geom = ET.Element("geom")
-                collision_geom.set("name", "collision_default")
                 collision_geom.set("type", "box")
                 collision_geom.set("size", "0.04 0.04 0.04")
-                collision_geom.set("pos", "0 0 0")
-            
-            collision_geom.set("group", "0")
-            collision_geom.set("rgba", "0 0 0 0")
-            collision_geom.set("solimp", "0.998 0.998 0.001")
-            collision_geom.set("solref", "0.001 1")
-            collision_geom.set("density", "100")
-            collision_geom.set("friction", "0.95 0.3 0.1")
-            
-            if visual_geom is not None:
-                index = list(object_body).index(visual_geom) + 1
+                
+                pos = mesh_collision_geom.get("pos", "0 0 0")
+                collision_geom.set("pos", pos)
+                
+                collision_geom.set("group", "0")
+                collision_geom.set("rgba", "0 0 0 0")
+                
+                for prop in ["solimp", "solref", "density", "friction"]:
+                    value = mesh_collision_geom.get(prop)
+                    if value:
+                        collision_geom.set(prop, value)
+                
+                if not collision_geom.get("solimp"):
+                    collision_geom.set("solimp", "0.998 0.998 0.001")
+                if not collision_geom.get("solref"):
+                    collision_geom.set("solref", "0.001 1")
+                if not collision_geom.get("density"):
+                    collision_geom.set("density", "100")
+                if not collision_geom.get("friction"):
+                    collision_geom.set("friction", "0.95 0.3 0.1")
+                
+                index = list(object_body).index(mesh_collision_geom) + 1
                 object_body.insert(index, collision_geom)
-            else:
-                object_body.append(collision_geom)
+                return
             
-            # print(f"Added collision geometry to {name}")
+            # Create collision if none exists
+            if not has_proper_collision:
+                if visual_geom is not None:
+                    collision_geom = ET.Element("geom")
+                    collision_geom.set("name", "collision_auto")
+                    
+                    geom_type = visual_geom.get("type", "box")
+                    pos = visual_geom.get("pos", "0 0 0")
+                    
+                    if geom_type == "mesh":
+                        collision_geom.set("type", "box")
+                        collision_geom.set("size", "0.04 0.04 0.04")
+                    else:
+                        collision_geom.set("type", geom_type)
+                        size = visual_geom.get("size")
+                        if size:
+                            collision_geom.set("size", size)
+                    
+                    collision_geom.set("pos", pos)
+                    
+                else:
+                    collision_geom = ET.Element("geom")
+                    collision_geom.set("name", "collision_default")
+                    collision_geom.set("type", "box")
+                    collision_geom.set("size", "0.04 0.04 0.04")
+                    collision_geom.set("pos", "0 0 0")
+                
+                collision_geom.set("group", "0")
+                collision_geom.set("rgba", "0 0 0 0")
+                collision_geom.set("solimp", "0.998 0.998 0.001")
+                collision_geom.set("solref", "0.001 1")
+                collision_geom.set("density", "100")
+                collision_geom.set("friction", "0.95 0.3 0.1")
+                
+                if visual_geom is not None:
+                    index = list(object_body).index(visual_geom) + 1
+                    object_body.insert(index, collision_geom)
+                else:
+                    object_body.append(collision_geom)
+        
+        def __del__(self):
+            """Clean up temp directory."""
+            if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
     
-    def __del__(self):
-        """Clean up temp directory."""
-        if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
+    return CustomMeshObject
 
 
+def _get_env_class():
+    """Get ScenicManipulationEnv class (requires RoboSuite imports)."""
+    from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
+    from robosuite.models.arenas import EmptyArena, MultiTableArena
+    from robosuite.models.tasks import ManipulationTask
+    from robosuite.utils.observables import Observable, sensor
+    
+    class ScenicManipulationEnv(ManipulationEnv):
+        """Scenic-driven manipulation environment."""
+        
+        def __init__(self, scenic_config: Dict, **kwargs):
+            self.scenic_config = scenic_config
+            self.scenic_objects = scenic_config.get('objects', [])
+            self.scenic_tables = scenic_config.get('tables', [])
+            self.scenic_custom_arena = scenic_config.get('custom_arena', None)
+            super().__init__(**kwargs)
+        
+        def _load_model(self):
+            """Load models and create arena."""
+            super()._load_model()
+            
+            self._position_robots()
+            mujoco_arena = self._create_arena()
+            mujoco_arena.set_origin([0, 0, 0])
+            
+            self.mujoco_objects = self._create_objects()
+            
+            self.model = ManipulationTask(
+                mujoco_arena=mujoco_arena,
+                mujoco_robots=[robot.robot_model for robot in self.robots],
+                mujoco_objects=self.mujoco_objects
+            )
+        
+        def _position_robots(self):
+            """Position robots based on scenic configuration."""
+            for i, robot_config in enumerate(self.scenic_config.get('robots', [])):
+                if i < len(self.robots):
+                    pos = robot_config.get('position', [0, 0, 0])
+                    self.robots[i].robot_model.set_base_xpos(pos)
+        
+        def _create_arena(self):
+            """Create arena based on configuration."""
+            if self.scenic_custom_arena:
+                xml_string = self.scenic_custom_arena.get('xml', '')
+                scenic_file_path = self.scenic_custom_arena.get('scenic_file_path', None)
+                return CustomXMLArena(xml_string, scenic_file_path)
+            
+            if self.scenic_tables:
+                table_offsets = []
+                for t in self.scenic_tables:
+                    pos = t.get('position', [0, 0, 0.8])
+                    table_offsets.append([pos[0], pos[1], 0.8])
+                
+                return MultiTableArena(
+                    table_offsets=table_offsets,
+                    table_full_sizes=[t.get('size', (0.8, 0.8, 0.05)) for t in self.scenic_tables],
+                    has_legs=[True] * len(self.scenic_tables)
+                )
+            
+            return EmptyArena()
+        
+        def _create_objects(self) -> List:
+            """Create Robosuite objects from Scenic configuration."""
+            mujoco_objects = []
+            
+            for i, obj_config in enumerate(self.scenic_objects):
+                obj_type = obj_config['type']
+                obj_name = obj_config.get('name', f'unnamed_{i}')
+                
+                if obj_type == 'MJCF':
+                    scenic_file_path = obj_config.get('scenic_file_path', None)
+                    
+                    mj_obj = CustomMeshObject(
+                        name=obj_name,
+                        xml_string=obj_config.get('mjcfXml', ''),
+                        scenic_file_path=scenic_file_path
+                    )
+                else:
+                    factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
+                    mj_obj = factory(obj_config)
+                
+                mujoco_objects.append(mj_obj)
+            
+            return mujoco_objects
+        
+        def _setup_references(self):
+            """Setup references to simulation objects."""
+            super()._setup_references()
+            self.obj_body_ids = {}
+            
+            for obj in self.mujoco_objects:
+                try:
+                    if hasattr(obj, 'root_body'):
+                        body_name = obj.root_body
+                    else:
+                        body_name = obj.name
+                    
+                    body_id = self.sim.model.body_name2id(body_name)
+                    self.obj_body_ids[obj.name] = body_id
+                except:
+                    for suffix in ['_main', '_body', '']:
+                        try:
+                            body_name = f"{obj.name}{suffix}"
+                            body_id = self.sim.model.body_name2id(body_name)
+                            self.obj_body_ids[obj.name] = body_id
+                            break
+                        except:
+                            continue
+        
+        def _setup_observables(self) -> Dict:
+            """Setup observables for objects."""
+            observables = super()._setup_observables()
+            
+            for obj in self.mujoco_objects:
+                if obj.name in self.obj_body_ids:
+                    @sensor(modality="object")
+                    def obj_pos(obs_cache, name=obj.name):
+                        return np.array(self.sim.data.body_xpos[self.obj_body_ids[name]])
+                    
+                    obj_pos.__name__ = f"{obj.name}_pos"
+                    observables[obj_pos.__name__] = Observable(
+                        name=obj_pos.__name__,
+                        sensor=obj_pos,
+                        sampling_rate=self.control_freq
+                    )
+            
+            return observables
+        
+        def _reset_internal(self):
+            """Reset environment internals."""
+            super()._reset_internal()
+            
+            for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
+                if 'position' in obj_config:
+                    pos = obj_config['position']
+                    quat = obj_config.get('quaternion', [1, 0, 0, 0])
+                    
+                    joint_name = None
+                    possible_names = []
+                    
+                    if hasattr(mj_obj, 'joint_name'):
+                        base_joint = mj_obj.joint_name
+                        possible_names.append(f"{mj_obj.name}_{base_joint}")
+                        possible_names.append(base_joint)
+                    
+                    if hasattr(mj_obj, 'joints') and mj_obj.joints:
+                        possible_names.extend(mj_obj.joints)
+                    
+                    possible_names.append(f"{mj_obj.name}_joint0")
+                    possible_names.append(f"{mj_obj.name}_object_joint")
+                    
+                    for name in possible_names:
+                        if name in self.sim.model.joint_names:
+                            joint_name = name
+                            break
+                    
+                    if joint_name:
+                        self.sim.data.set_joint_qpos(
+                            joint_name,
+                            np.concatenate([np.array(pos), np.array(quat)])
+                        )
+            
+            self.sim.forward()
+            self.sim.step()
+        
+        def reward(self, action=None) -> float:
+            """Compute reward."""
+            return 0.0
+        
+        def _check_success(self) -> bool:
+            """Check task success."""
+            return False
+    
+    return ScenicManipulationEnv
+
+
+# Helper function for cylinder size extraction
 def _extract_cylinder_size(config: Dict) -> List[float]:
     """Extract [radius, height] for cylinder-like objects."""
     if 'radius' in config and 'height' in config:
@@ -371,207 +540,8 @@ def _extract_cylinder_size(config: Dict) -> List[float]:
     return [0.02, 0.04]
 
 
-# Object type mapping for built-in RoboSuite objects
-OBJECT_FACTORIES = {
-    'Ball': lambda cfg: BallObject(
-        name=cfg['name'],
-        size=[cfg.get('radius', 0.02)],
-        rgba=cfg.get('color', [1, 0, 0, 1])
-    ),
-    'Box': lambda cfg: BoxObject(
-        name=cfg['name'],
-        size=cfg.get('size', [0.025, 0.025, 0.025]),
-        rgba=cfg.get('color', [1, 0, 0, 1])
-    ),
-    'Cylinder': lambda cfg: CylinderObject(
-        name=cfg['name'],
-        size=_extract_cylinder_size(cfg),
-        rgba=cfg.get('color', [1, 0, 0, 1])
-    ),
-    'Capsule': lambda cfg: CapsuleObject(
-        name=cfg['name'],
-        size=_extract_cylinder_size(cfg),
-        rgba=cfg.get('color', [1, 0, 0, 1])
-    ),
-    'Milk': lambda cfg: MilkObject(name=cfg['name']),
-    'Cereal': lambda cfg: CerealObject(name=cfg['name']),
-    'Can': lambda cfg: CanObject(name=cfg['name']),
-    'Bread': lambda cfg: BreadObject(name=cfg['name']),
-    'Hammer': lambda cfg: HammerObject(name=cfg['name']),
-    'SquareNut': lambda cfg: SquareNutObject(name=cfg['name']),
-    'RoundNut': lambda cfg: RoundNutObject(name=cfg['name']),
-    'Bottle': lambda cfg: BottleObject(name=cfg['name'])
-}
-
-
-class ScenicManipulationEnv(ManipulationEnv):
-    """Scenic-driven manipulation environment."""
-    
-    def __init__(self, scenic_config: Dict, **kwargs):
-        self.scenic_config = scenic_config
-        self.scenic_objects = scenic_config.get('objects', [])
-        self.scenic_tables = scenic_config.get('tables', [])
-        self.scenic_custom_arena = scenic_config.get('custom_arena', None)
-        super().__init__(**kwargs)
-    
-    def _load_model(self):
-        """Load models and create arena."""
-        super()._load_model()
-        
-        self._position_robots()
-        mujoco_arena = self._create_arena()
-        mujoco_arena.set_origin([0, 0, 0])
-        
-        self.mujoco_objects = self._create_objects()
-        
-        self.model = ManipulationTask(
-            mujoco_arena=mujoco_arena,
-            mujoco_robots=[robot.robot_model for robot in self.robots],
-            mujoco_objects=self.mujoco_objects
-        )
-    
-    def _position_robots(self):
-        """Position robots based on scenic configuration."""
-        for i, robot_config in enumerate(self.scenic_config.get('robots', [])):
-            if i < len(self.robots):
-                pos = robot_config.get('position', [0, 0, 0])
-                self.robots[i].robot_model.set_base_xpos(pos)
-    
-    def _create_arena(self):
-        """Create arena based on configuration."""
-        if self.scenic_custom_arena:
-            xml_string = self.scenic_custom_arena.get('xml', '')
-            scenic_file_path = self.scenic_custom_arena.get('scenic_file_path', None)
-            # print(f"DEBUG: Creating custom arena with scenic_file_path: {scenic_file_path}")
-            return CustomXMLArena(xml_string, scenic_file_path)
-        
-        if self.scenic_tables:
-            table_offsets = []
-            for t in self.scenic_tables:
-                pos = t.get('position', [0, 0, 0.8])
-                table_offsets.append([pos[0], pos[1], 0.8])  # Standard table height
-            
-            return MultiTableArena(
-                table_offsets=table_offsets,
-                table_full_sizes=[t.get('size', (0.8, 0.8, 0.05)) for t in self.scenic_tables],
-                has_legs=[True] * len(self.scenic_tables)
-            )
-        
-        return EmptyArena()
-    
-    def _create_objects(self) -> List:
-        """Create Robosuite objects from Scenic configuration."""
-        mujoco_objects = []
-        
-        for i, obj_config in enumerate(self.scenic_objects):
-            obj_type = obj_config['type']
-            obj_name = obj_config.get('name', f'unnamed_{i}')
-            
-            if obj_type == 'MJCF':
-                scenic_file_path = obj_config.get('scenic_file_path', None)
-                
-                mj_obj = CustomMeshObject(
-                    name=obj_name,
-                    xml_string=obj_config.get('mjcf_xml', ''),
-                    scenic_file_path=scenic_file_path
-                )
-            else:
-                factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
-                mj_obj = factory(obj_config)
-            
-            mujoco_objects.append(mj_obj)
-        
-        return mujoco_objects
-
-    def _setup_references(self):
-        """Setup references to simulation objects."""
-        super()._setup_references()
-        self.obj_body_ids = {}
-        
-        for obj in self.mujoco_objects:
-            try:
-                if hasattr(obj, 'root_body'):
-                    body_name = obj.root_body
-                else:
-                    body_name = obj.name
-                
-                body_id = self.sim.model.body_name2id(body_name)
-                self.obj_body_ids[obj.name] = body_id
-            except:
-                for suffix in ['_main', '_body', '']:
-                    try:
-                        body_name = f"{obj.name}{suffix}"
-                        body_id = self.sim.model.body_name2id(body_name)
-                        self.obj_body_ids[obj.name] = body_id
-                        break
-                    except:
-                        continue
-    
-    def _setup_observables(self) -> Dict:
-        """Setup observables for objects."""
-        observables = super()._setup_observables()
-        
-        for obj in self.mujoco_objects:
-            if obj.name in self.obj_body_ids:
-                @sensor(modality="object")
-                def obj_pos(obs_cache, name=obj.name):
-                    return np.array(self.sim.data.body_xpos[self.obj_body_ids[name]])
-                
-                obj_pos.__name__ = f"{obj.name}_pos"
-                observables[obj_pos.__name__] = Observable(
-                    name=obj_pos.__name__,
-                    sensor=obj_pos,
-                    sampling_rate=self.control_freq
-                )
-        
-        return observables
-    
-    def _reset_internal(self):
-        """Reset environment internals."""
-        super()._reset_internal()
-        
-        for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
-            if 'position' in obj_config:
-                pos = obj_config['position']
-                quat = obj_config.get('quaternion', [1, 0, 0, 0])
-                
-                joint_name = None
-                possible_names = []
-                
-                if hasattr(mj_obj, 'joint_name'):
-                    base_joint = mj_obj.joint_name
-                    possible_names.append(f"{mj_obj.name}_{base_joint}")
-                    possible_names.append(base_joint)
-                
-                if hasattr(mj_obj, 'joints') and mj_obj.joints:
-                    possible_names.extend(mj_obj.joints)
-                
-                possible_names.append(f"{mj_obj.name}_joint0")
-                possible_names.append(f"{mj_obj.name}_object_joint")
-                
-                for name in possible_names:
-                    if name in self.sim.model.joint_names:
-                        joint_name = name
-                        break
-                
-                if joint_name:
-                    self.sim.data.set_joint_qpos(
-                        joint_name,
-                        np.concatenate([np.array(pos), np.array(quat)])
-                    )
-                # else:
-                #     print(f"Warning: Could not find joint for {mj_obj.name}")
-        
-        self.sim.forward()
-        self.sim.step()
-    
-    def reward(self, action=None) -> float:
-        """Compute reward."""
-        return 0.0
-    
-    def _check_success(self) -> bool:
-        """Check task success."""
-        return False
+# Placeholder for object factories (will be loaded when needed)
+OBJECT_FACTORIES = {}
 
 
 class RobosuiteSimulator(Simulator):
@@ -581,8 +551,54 @@ class RobosuiteSimulator(Simulator):
                  env_config: Optional[Dict] = None, controller_config: Optional[Dict] = None,
                  camera_view: Optional[str] = None, lite_physics: Optional[bool] = None):
         super().__init__()
-        if suite is None:
-            raise RuntimeError(f"Unable to import RoboSuite: {_import_error}")
+        
+        # Import RoboSuite only when creating simulator
+        try:
+            global mujoco, suite
+            import mujoco
+            import robosuite as suite
+        except ImportError as e:
+            raise RuntimeError(f"Unable to import RoboSuite: {e}")
+        
+        # Import RoboSuite object classes
+        from robosuite.models.objects import (
+            BallObject, BoxObject, CylinderObject, CapsuleObject,
+            MilkObject, CerealObject, CanObject, BreadObject,
+            HammerObject, SquareNutObject, RoundNutObject, BottleObject
+        )
+        
+        # Setup object factories
+        global OBJECT_FACTORIES
+        OBJECT_FACTORIES = {
+            'Ball': lambda cfg: BallObject(
+                name=cfg['name'],
+                size=[cfg.get('radius', 0.02)],
+                rgba=cfg.get('color', [1, 0, 0, 1])
+            ),
+            'Box': lambda cfg: BoxObject(
+                name=cfg['name'],
+                size=cfg.get('size', [0.025, 0.025, 0.025]),
+                rgba=cfg.get('color', [1, 0, 0, 1])
+            ),
+            'Cylinder': lambda cfg: CylinderObject(
+                name=cfg['name'],
+                size=_extract_cylinder_size(cfg),
+                rgba=cfg.get('color', [1, 0, 0, 1])
+            ),
+            'Capsule': lambda cfg: CapsuleObject(
+                name=cfg['name'],
+                size=_extract_cylinder_size(cfg),
+                rgba=cfg.get('color', [1, 0, 0, 1])
+            ),
+            'Milk': lambda cfg: MilkObject(name=cfg['name']),
+            'Cereal': lambda cfg: CerealObject(name=cfg['name']),
+            'Can': lambda cfg: CanObject(name=cfg['name']),
+            'Bread': lambda cfg: BreadObject(name=cfg['name']),
+            'Hammer': lambda cfg: HammerObject(name=cfg['name']),
+            'SquareNut': lambda cfg: SquareNutObject(name=cfg['name']),
+            'RoundNut': lambda cfg: RoundNutObject(name=cfg['name']),
+            'Bottle': lambda cfg: BottleObject(name=cfg['name'])
+        }
         
         self.render = render
         self.real_time = real_time
@@ -607,6 +623,13 @@ class RobosuiteSimulation(Simulation):
     def __init__(self, scene, render: bool, real_time: bool, speed: float,
                  env_config: Optional[Dict], controller_config: Optional[Dict],
                  camera_view: Optional[str], lite_physics: Optional[bool], **kwargs):
+        
+        # Load deferred classes
+        global CustomXMLArena, CustomMeshObject, ScenicManipulationEnv
+        CustomXMLArena = _get_arena_class()
+        CustomMeshObject = _get_object_class()
+        ScenicManipulationEnv = _get_env_class()
+        
         self.render = render
         self.real_time = real_time
         self.speed = speed
@@ -693,14 +716,11 @@ class RobosuiteSimulation(Simulation):
         
         scenic_file_path = None
         
-        # Check if user explicitly set scenic_file_dir param
         if 'scenic_file_dir' in self.scene.params:
             path_obj = self.scene.params.get('scenic_file_dir')
             if path_obj:
                 scenic_file_path = str(path_obj)
-                # print(f"Found scenic_file_dir from params: {scenic_file_path}")
         
-        # Try to get from command line arguments
         if not scenic_file_path:
             import sys
             for arg in sys.argv:
@@ -708,27 +728,20 @@ class RobosuiteSimulation(Simulation):
                     scenic_file_abspath = os.path.abspath(arg)
                     if os.path.exists(scenic_file_abspath):
                         scenic_file_path = os.path.dirname(scenic_file_abspath)
-                        # print(f"Found scenic file path from sys.argv: {scenic_file_path}")
                         break
         
-        # Fallback to current directory
         if not scenic_file_path:
             scenic_file_path = os.getcwd()
-            # print(f"WARNING: Could not determine Scenic file directory")
-            # print(f"  Add to your .scenic file: param scenic_file_dir = localPath(\".\")")
         
-        # print(f"DEBUG: Final scenic file directory: {scenic_file_path}")
-        
-        # Process all objects in the scene
         for obj in self.objects:
             if hasattr(obj, '_isArenaComponent') and obj._isArenaComponent:
                 continue
                 
-            if hasattr(obj, 'robot_type'):
+            if hasattr(obj, 'robotType'):
                 self._add_robot_config(config['robots'], obj)
             elif hasattr(obj, 'isCustomArena') and obj.isCustomArena:
                 config['custom_arena'] = {
-                    'xml': getattr(obj, 'arena_xml', ''),
+                    'xml': getattr(obj, 'arenaXml', ''),
                     'scenic_file_path': scenic_file_path
                 }
             elif hasattr(obj, 'isTable') and obj.isTable:
@@ -741,21 +754,15 @@ class RobosuiteSimulation(Simulation):
     def _add_robot_config(self, robots: List, obj):
         """Add robot configuration."""
         robots.append({
-            'type': obj.robot_type,
+            'type': obj.robotType,
             'position': [obj.position.x, obj.position.y, 0] 
         })
         self.robots.append(obj)
-
+    
     def _add_table_config(self, tables: List, obj):
         """Add table configuration."""
-        """
-            LIMITATION: Table thickness is hardcoded to 0.05 for robosuite's MultiTableArena.
-            This value controls tabletop thickness, not full table height.
-            Changing this causes visual inconsistency with Scenic's representation. 
-        """
         tables.append({
             'position': [obj.position.x, obj.position.y, obj.position.z],
-            # 'size': (obj.width, obj.length, obj.height)
             'size': (obj.width, obj.length, 0.05)  # FIXED: MultiTableArena tabletop thickness
         })
     
@@ -779,7 +786,7 @@ class RobosuiteSimulation(Simulation):
         self.object_name_map[obj] = obj_name
         
         if obj.objectType == 'MJCF':
-            config['mjcf_xml'] = getattr(obj, 'mjcf_xml', '')
+            config['mjcfXml'] = getattr(obj, 'mjcfXml', '')
             config['scenic_file_path'] = scenic_file_path
         elif obj.objectType == 'Ball' and hasattr(obj, 'radius'):
             config['radius'] = obj.radius
@@ -876,11 +883,11 @@ class RobosuiteSimulation(Simulation):
         for prop in properties:
             if prop == 'position':
                 values[prop] = self._get_object_position(obj)
-            elif prop == 'joint_positions' and robot_idx is not None:
+            elif prop == 'jointPositions' and robot_idx is not None:
                 values[prop] = self._get_robot_joints(robot_idx)
-            elif prop == 'eef_pos' and robot_idx is not None:
+            elif prop == 'eefPos' and robot_idx is not None:
                 values[prop] = self._get_eef_position(robot_idx)
-            elif prop == 'gripper_state' and robot_idx is not None:
+            elif prop == 'gripperState' and robot_idx is not None:
                 values[prop] = self._get_gripper_state(robot_idx)
             else:
                 values[prop] = getattr(obj, prop, None)

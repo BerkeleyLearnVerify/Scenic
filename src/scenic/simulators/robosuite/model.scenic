@@ -1,6 +1,27 @@
-"""Scenic world model for RoboSuite with MJCF mesh extraction."""
+"""Scenic world model for RoboSuite robotic manipulation.
 
-from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
+The model supports various robots (Panda, UR5e, Jaco, IIWA), manipulable objects
+(primitives and custom MJCF), and tables. It provides behaviors for pick-and-place
+tasks and integrates with RoboSuite's physics simulation.
+
+Global Parameters:
+    env_config (dict): Additional RoboSuite environment configuration options.
+        Default is empty dict.
+    controller_config (dict or None): Robot controller configuration. If None,
+        uses RoboSuite's default controller for the robot type. Default is None.
+    camera_view (str or None): Camera viewpoint for rendering. Options include
+        'frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview',
+        'robot0_eye_in_hand'. Default is None (uses RoboSuite default).
+    render (bool): Whether to render the simulation visually. Default is True.
+    real_time (bool): Whether to run simulation in real-time. Default is True.
+    speed (float): Simulation speed multiplier when real_time is True. Default is 1.0.
+    lite_physics (bool or None): Whether to use simplified physics for faster
+        simulation. Default is None (uses RoboSuite default).
+    scenic_file_dir (Path): Directory containing the Scenic file, used for resolving
+        relative paths in MJCF XML files. Automatically set to localPath(".").
+"""
+
+
 from scenic.core.utils import repairMesh
 import trimesh
 import json
@@ -8,6 +29,18 @@ import tempfile
 import os
 from pathlib import Path
 import numpy as np
+
+# At top of model.scenic
+try:
+    from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
+except ImportError:
+    # Dummy classes for compilation without RoboSuite
+    class RobosuiteSimulator:
+        def __init__(self, **kwargs):
+            raise RuntimeError('RoboSuite is required to run simulations from this scenario')
+    
+    class SetJointPositions: pass
+    class OSCPositionAction: pass
 
 # Global parameters
 param env_config = {}
@@ -23,9 +56,6 @@ param scenic_file_dir = localPath(".")
 _arena_config_path = localPath("utils/arena_meshes/arena_config.json")
 with open(_arena_config_path) as f:
     _arena_config = json.load(f)
-
-_floor_surface_z = _arena_config['floor']['position'][2] + _arena_config['floor']['dimensions'][2] / 2
-param floor_surface_z = _floor_surface_z
 
 # Simulator
 simulator RobosuiteSimulator(
@@ -48,34 +78,10 @@ with open(_robot_dims_path) as f:
             dims = eval(dims_str.strip())
             _robot_dimensions[robot] = dims
 
-# Default values
-DEFAULTS = {
-    'object_size': 0.03,
-    'density': 1000,
-    'friction': (1.0, 0.005, 0.0001),
-    'solref': (0.02, 1.0),
-    'solimp': (0.9, 0.95, 0.001, 0.5, 2.0),
-    'default_color': (0.5, 0.5, 0.5, 1.0),
-    
-    'table_height': 0.8,
-    'table_width': 0.8,
-    'table_length': 0.8,
-    'table_thickness': 0.05,
-    
-    'control_gain': 3.0,
-    'control_limit': 0.3,
-    'position_tolerance': 0.02,
-    'height_tolerance': 0.02,
-    'gripper_open_steps': 20,
-    'gripper_close_steps': 30,
-    'max_control_steps': 100,
-    'max_lift_steps': 200
-}
 
-
-def _mjcf_to_shape(mjcf_xml: str, scenic_file_path: str = None) -> Shape:
+def _mjcf_to_shape(mjcfXml: str, scenic_file_path: str = None) -> Shape:
     """Convert MJCF XML to MeshShape via temp GLB file."""
-    if not mjcf_xml:
+    if not mjcfXml:
         return BoxShape()
     
     import xml.etree.ElementTree as ET
@@ -85,12 +91,12 @@ def _mjcf_to_shape(mjcf_xml: str, scenic_file_path: str = None) -> Shape:
     base_dir = scenic_file_path if scenic_file_path else os.getcwd()
     
     # Handle file path vs XML string
-    xml_content = mjcf_xml
-    if not mjcf_xml.strip().startswith('<'):
-        if not os.path.isabs(mjcf_xml):
-            xml_path = os.path.join(base_dir, mjcf_xml)
+    xml_content = mjcfXml
+    if not mjcfXml.strip().startswith('<'):
+        if not os.path.isabs(mjcfXml):
+            xml_path = os.path.join(base_dir, mjcfXml)
         else:
-            xml_path = mjcf_xml
+            xml_path = mjcfXml
         
         if os.path.exists(xml_path):
             with open(xml_path, 'r') as f:
@@ -205,11 +211,10 @@ def _load_robot_mesh_shape(path):
 # Base classes
 class RoboSuiteObject(Object):
     """Base class for all RoboSuite objects."""
-    density: DEFAULTS['density']
-    friction: DEFAULTS['friction']
-    solref: DEFAULTS['solref']
-    solimp: DEFAULTS['solimp']
-    shape: BoxShape()
+    density: 1000
+    friction: (1.0, 0.005, 0.0001)
+    solref: (0.02, 1.0)
+    solimp: (0.9, 0.95, 0.001, 0.5, 2.0)
     allowCollisions: False
     requireVisible: False
     regionContainedIn: None
@@ -242,63 +247,63 @@ arena_walls = new ArenaWalls on (0.5, 0.0, 0.0)
 class CustomArena(RoboSuiteObject):
     """Custom arena defined by complete MJCF XML."""
     isCustomArena: True
-    arena_xml: ""
+    arenaXml: ""
 
 class Table(RoboSuiteObject):
     """Table in environment - creates MultiTableArena.
     
-    WARNING: Table height is fixed and should not be modified.
-    - Scenic uses full table mesh height (0.85m) for collision/visualization
-    - Robosuite uses tabletop thickness (0.05m) for MultiTableArena
-    Changing these values causes visual inconsistencies between simulators.
+    Note: Table dimensions have limitations due to RoboSuite's MultiTableArena:
+    - Height is fixed at 0.85m (full table) for Scenic collision detection
+    - RoboSuite only uses tabletop thickness (0.05m) internally
+    - Changing dimensions may cause visual inconsistencies between simulators
+    See table-rendering-issue.md for technical details.
     """
     isTable: True
     shape: MeshShape.fromFile(localPath("utils/table_meshes/standard_table.glb"))
-    width: DEFAULTS['table_width']
-    length: DEFAULTS['table_length']
-    # Height is fixed from mesh - DO NOT make configurable
-    height: 0.85  # Full table height for Scenic collision
+    width: 0.8
+    length: 0.8
+    height: 0.85  # Full table height for Scenic collision - DO NOT MODIFY
     position: (0, 0, 0.425)  # Center of table volume
 
 class ManipulationObject(RoboSuiteObject):
     """Base class for manipulable objects."""
-    color: DEFAULTS['default_color']
+    color: (0.5, 0.5, 0.5, 1.0)
 
 class CustomObject(ManipulationObject):
     """Custom object with automatic dimension extraction."""
     objectType: "MJCF"
-    mjcf_xml: ""  
-    shape: _mjcf_to_shape(self.mjcf_xml, globalParameters.scenic_file_dir) if self.mjcf_xml else BoxShape()
+    mjcfXml: ""  
+    shape: _mjcf_to_shape(self.mjcfXml, globalParameters.scenic_file_dir) if self.mjcfXml else BoxShape()
 
 # Primitive objects
 class Box(ManipulationObject):
     """Box object."""
     objectType: "Box"
-    width: DEFAULTS['object_size']
-    length: DEFAULTS['object_size']
-    height: DEFAULTS['object_size']
+    width: 0.03
+    length: 0.03
+    height: 0.03
 
 class Ball(ManipulationObject):
     """Ball/sphere object."""
     objectType: "Ball"
-    radius: DEFAULTS['object_size']
-    width: DEFAULTS['object_size'] * 2
-    length: DEFAULTS['object_size'] * 2
-    height: DEFAULTS['object_size'] * 2
+    radius: 0.03
+    width: 0.06
+    length: 0.06
+    height: 0.06
 
 class Cylinder(ManipulationObject):
     """Cylinder object."""
     objectType: "Cylinder"
-    width: DEFAULTS['object_size'] * 2
-    length: DEFAULTS['object_size'] * 2
-    height: DEFAULTS['object_size'] * 4
+    width: 0.06
+    length: 0.06
+    height: 0.12
 
 class Capsule(ManipulationObject):
     """Capsule object."""
     objectType: "Capsule"
-    width: DEFAULTS['object_size'] * 1.5
-    length: DEFAULTS['object_size'] * 1.5
-    height: DEFAULTS['object_size'] * 3
+    width: 0.045
+    length: 0.045
+    height: 0.09
 
 # Complex objects
 class Milk(ManipulationObject):
@@ -328,77 +333,73 @@ class RoundNut(ManipulationObject):
 # Robots
 class Robot(RoboSuiteObject):
     """Base robot class."""
-    robot_type: "Panda"
-    shape: BoxShape()
-    gripper_type: "default"
-    controller_config: None
-    initial_qpos: None
-    base_type: "default"
+    robotType: "Panda"
+    gripperType: "default"
+    controllerConfig: None
+    initialQpos: None
+    baseType: "default"
     width: 0.4
     length: 0.4
     height: 1.0
     position: (0, 0, 0)
     
-    joint_positions[dynamic]: []
-    eef_pos[dynamic]: [0, 0, 0]
-    gripper_state[dynamic]: [0, 0]
+    jointPositions[dynamic]: []
+    eefPos[dynamic]: [0, 0, 0]
+    gripperState[dynamic]: [0, 0]
 
 class Panda(Robot):
-    robot_type: "Panda"
+    robotType: "Panda"
     shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/Panda.glb"))
     width: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[0]
     length: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[1]
     height: _robot_dimensions.get("Panda", [0.4, 0.4, 1.0])[2]
-    gripper_type: "PandaGripper"
+    gripperType: "PandaGripper"
 
 class UR5e(Robot):
-    robot_type: "UR5e"
+    robotType: "UR5e"
     shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/UR5e.glb"))
     width: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[0]
     length: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[1]
     height: _robot_dimensions.get("UR5e", [0.4, 0.4, 1.0])[2]
-    gripper_type: "Robotiq85Gripper"
+    gripperType: "Robotiq85Gripper"
 
 class Jaco(Robot):
-    robot_type: "Jaco"
+    robotType: "Jaco"
     shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/Jaco.glb"))
     width: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[0]
     length: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[1]
     height: _robot_dimensions.get("Jaco", [0.4, 0.4, 1.0])[2]
-    gripper_type: "JacoThreeFingerGripper"
+    gripperType: "JacoThreeFingerGripper"
 
 class IIWA(Robot):
-    robot_type: "IIWA"
+    robotType: "IIWA"
     shape: _load_robot_mesh_shape(localPath("utils/robot_meshes/IIWA.glb"))
     width: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[0]
     length: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[1]
     height: _robot_dimensions.get("IIWA", [0.4, 0.4, 1.0])[2]
-    gripper_type: "Robotiq140Gripper"
+    gripperType: "Robotiq140Gripper"
 
 # Behaviors
-behavior OpenGripper(steps=DEFAULTS['gripper_open_steps']):
+behavior OpenGripper(steps=20):
     """Open gripper over multiple steps."""
     for _ in range(steps):
         take OSCPositionAction(gripper=-1)
 
-behavior CloseGripper(steps=DEFAULTS['gripper_close_steps']):
+behavior CloseGripper(steps=30):
     """Close gripper over multiple steps."""
     for _ in range(steps):
         take OSCPositionAction(gripper=1)
 
-behavior MoveToPosition(target_pos, 
-                        tolerance=DEFAULTS['position_tolerance'], 
-                        max_steps=DEFAULTS['max_control_steps'], 
-                        gain=DEFAULTS['control_gain']):
+behavior MoveToPosition(target_pos, tolerance=0.02, max_steps=100, gain=3.0):
     """Move end-effector to target position."""
     for _ in range(max_steps):
-        eef_pos = self.eef_pos
+        eef_pos = self.eefPos
         error = [target_pos[i] - eef_pos[i] for i in range(3)]
         
         if sum(e**2 for e in error)**0.5 < tolerance:
             return
         
-        limit = DEFAULTS['control_limit']
+        limit = 0.3
         delta = [max(-limit, min(limit, e * gain)) for e in error]
         take OSCPositionAction(position_delta=delta, gripper=-1)
 
@@ -416,17 +417,17 @@ behavior MoveToGrasp(target_object, grasp_offset=0.02):
                   target_object.position.z - grasp_offset]
     do MoveToPosition(target_pos, tolerance=0.01)
 
-behavior LiftToHeight(target_height=1.0, max_steps=DEFAULTS['max_lift_steps']):
+behavior LiftToHeight(target_height=1.0, max_steps=200):
     """Lift to absolute height."""
     for _ in range(max_steps):
-        eef_pos = self.eef_pos
+        eef_pos = self.eefPos
         error = [0, 0, target_height - eef_pos[2]]
         
-        if abs(error[2]) < DEFAULTS['height_tolerance']:
+        if abs(error[2]) < 0.02:
             return
         
-        limit = DEFAULTS['control_limit']
-        gain = DEFAULTS['control_gain']
+        limit = 0.3
+        gain = 3.0
         delta = [max(-limit, min(limit, e * gain)) for e in error]
         take OSCPositionAction(position_delta=delta, gripper=1)
 
