@@ -472,25 +472,9 @@ def _get_env_class():
                         except:
                             continue
         
-        def _setup_observables(self) -> Dict:
-            """Setup observables for objects."""
-            observables = super()._setup_observables()
-            
-            for obj in self.mujoco_objects:
-                if obj.name in self.obj_body_ids:
-                    @sensor(modality="object")
-                    def obj_pos(obs_cache, name=obj.name):
-                        return np.array(self.sim.data.body_xpos[self.obj_body_ids[name]])
-                    
-                    obj_pos.__name__ = f"{obj.name}_pos"
-                    observables[obj_pos.__name__] = Observable(
-                        name=obj_pos.__name__,
-                        sensor=obj_pos,
-                        sampling_rate=self.control_freq
-                    )
-            
-            return observables
-        
+
+
+
         def _reset_internal(self):
             """Reset environment internals."""
             super()._reset_internal()
@@ -849,19 +833,14 @@ class RobosuiteSimulation(Simulation):
         return values
     
     def _get_object_position(self, obj) -> Vector:
-        """Get object position."""
         obj_name = self.object_name_map.get(obj)
-        if obj_name and self._current_obs:
-            obs_key = f"{obj_name}_pos"
-            if obs_key in self._current_obs:
-                pos = self._current_obs[obs_key]
-                return Vector(pos[0], pos[1], pos[2])
-            elif obj_name in self.body_id_map:
-                body_id = self.body_id_map[obj_name]
-                pos = self.data.xpos[body_id]
-                return Vector(pos[0], pos[1], pos[2])
+        if obj_name and obj_name in self.body_id_map:
+            body_id = self.body_id_map[obj_name]
+            pos = self.data.xpos[body_id]
+            return Vector(pos[0], pos[1], pos[2])
         return obj.position
-    
+
+
     def _get_robot_joints(self, robot_idx: int) -> List:
         """Get robot joint positions."""
         if robot_idx < len(self.robosuite_env.robots):
