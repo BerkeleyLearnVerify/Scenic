@@ -275,60 +275,65 @@ class CustomObject(ManipulationObject):
     mjcfXml: ""  
     shape: _mjcf_to_shape(self.mjcfXml, globalParameters.scenic_file_dir) if self.mjcfXml else BoxShape()
 
-# Primitive objects
+# Primitive objects with makeRobosuiteObject methods
 class Box(ManipulationObject):
     """Box object."""
-    objectType: "Box"
     width: 0.03
     length: 0.03
     height: 0.03
+    
+    def makeRobosuiteObject(self, name):
+        from robosuite.models.objects import BoxObject
+        return BoxObject(
+            name=name,
+            size=[self.width, self.length, self.height],
+            rgba=self.color
+        )
 
 class Ball(ManipulationObject):
     """Ball/sphere object."""
-    objectType: "Ball"
     radius: 0.03
     width: 0.06
     length: 0.06
     height: 0.06
+    
+    def makeRobosuiteObject(self, name):
+        from robosuite.models.objects import BallObject
+        return BallObject(
+            name=name,
+            size=[self.radius],
+            rgba=self.color
+        )
 
 class Cylinder(ManipulationObject):
     """Cylinder object."""
-    objectType: "Cylinder"
     width: 0.06
     length: 0.06
     height: 0.12
+    
+    def makeRobosuiteObject(self, name):
+        from robosuite.models.objects import CylinderObject
+        radius = (self.width + self.length) / 4
+        return CylinderObject(
+            name=name,
+            size=[radius, self.height],
+            rgba=self.color
+        )
 
 class Capsule(ManipulationObject):
     """Capsule object."""
-    objectType: "Capsule"
     width: 0.045
     length: 0.045
     height: 0.09
-
-# Complex objects
-class Milk(ManipulationObject):
-    objectType: "Milk"
-
-class Cereal(ManipulationObject):
-    objectType: "Cereal"
-
-class Can(ManipulationObject):
-    objectType: "Can"
-
-class Bread(ManipulationObject):
-    objectType: "Bread"
-
-class Bottle(ManipulationObject):
-    objectType: "Bottle"
-
-class Hammer(ManipulationObject):
-    objectType: "Hammer"
-
-class SquareNut(ManipulationObject):
-    objectType: "SquareNut"
-
-class RoundNut(ManipulationObject):
-    objectType: "RoundNut"
+    
+    def makeRobosuiteObject(self, name):
+        from robosuite.models.objects import CapsuleObject
+        radius = (self.width + self.length) / 4
+        return CapsuleObject(
+            name=name,
+            size=[radius, self.height],
+            rgba=self.color
+        )
 
 # Robots
 class Robot(RoboSuiteObject):

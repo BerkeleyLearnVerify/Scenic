@@ -415,20 +415,28 @@ def _get_env_class():
             mujoco_objects = []
             
             for i, obj_config in enumerate(self.scenic_objects):
-                obj_type = obj_config['type']
+                scenic_obj = obj_config.get('scenic_obj')
                 obj_name = obj_config.get('name', f'unnamed_{i}')
                 
-                if obj_type == 'MJCF':
+                if obj_config['type'] == 'MJCF':
+                    # Custom MJCF object
                     scenic_file_path = obj_config.get('scenic_file_path', None)
-                    
                     mj_obj = CustomMeshObject(
                         name=obj_name,
                         xml_string=obj_config.get('mjcfXml', ''),
                         scenic_file_path=scenic_file_path
                     )
+                elif scenic_obj and hasattr(scenic_obj, 'makeRobosuiteObject'):
+                    # Use the makeRobosuiteObject method from the Scenic class
+                    mj_obj = scenic_obj.makeRobosuiteObject(obj_name)
                 else:
-                    factory = OBJECT_FACTORIES.get(obj_type, OBJECT_FACTORIES['Box'])
-                    mj_obj = factory(obj_config)
+                    # Fallback - shouldn't happen if properly configured
+                    from robosuite.models.objects import BoxObject
+                    mj_obj = BoxObject(
+                        name=obj_name,
+                        size=[0.025, 0.025, 0.025],
+                        rgba=obj_config.get('color', [1, 0, 0, 1])
+                    )
                 
                 mujoco_objects.append(mj_obj)
             
@@ -525,25 +533,6 @@ def _get_env_class():
     return ScenicManipulationEnv
 
 
-# Helper function for cylinder size extraction
-def _extract_cylinder_size(config: Dict) -> List[float]:
-    """Extract [radius, height] for cylinder-like objects."""
-    if 'radius' in config and 'height' in config:
-        return [config['radius'], config['height']]
-    
-    size = config.get('size', [0.02, 0.02, 0.04])
-    if len(size) == 3:
-        radius = (size[0] + size[1]) / 4  
-        return [radius, size[2]]
-    elif len(size) == 2:
-        return size
-    return [0.02, 0.04]
-
-
-# Placeholder for object factories (will be loaded when needed)
-OBJECT_FACTORIES = {}
-
-
 class RobosuiteSimulator(Simulator):
     """Simulator for RoboSuite custom environments."""
     
@@ -559,46 +548,6 @@ class RobosuiteSimulator(Simulator):
             import robosuite as suite
         except ImportError as e:
             raise RuntimeError(f"Unable to import RoboSuite: {e}")
-        
-        # Import RoboSuite object classes
-        from robosuite.models.objects import (
-            BallObject, BoxObject, CylinderObject, CapsuleObject,
-            MilkObject, CerealObject, CanObject, BreadObject,
-            HammerObject, SquareNutObject, RoundNutObject, BottleObject
-        )
-        
-        # Setup object factories
-        global OBJECT_FACTORIES
-        OBJECT_FACTORIES = {
-            'Ball': lambda cfg: BallObject(
-                name=cfg['name'],
-                size=[cfg.get('radius', 0.02)],
-                rgba=cfg.get('color', [1, 0, 0, 1])
-            ),
-            'Box': lambda cfg: BoxObject(
-                name=cfg['name'],
-                size=cfg.get('size', [0.025, 0.025, 0.025]),
-                rgba=cfg.get('color', [1, 0, 0, 1])
-            ),
-            'Cylinder': lambda cfg: CylinderObject(
-                name=cfg['name'],
-                size=_extract_cylinder_size(cfg),
-                rgba=cfg.get('color', [1, 0, 0, 1])
-            ),
-            'Capsule': lambda cfg: CapsuleObject(
-                name=cfg['name'],
-                size=_extract_cylinder_size(cfg),
-                rgba=cfg.get('color', [1, 0, 0, 1])
-            ),
-            'Milk': lambda cfg: MilkObject(name=cfg['name']),
-            'Cereal': lambda cfg: CerealObject(name=cfg['name']),
-            'Can': lambda cfg: CanObject(name=cfg['name']),
-            'Bread': lambda cfg: BreadObject(name=cfg['name']),
-            'Hammer': lambda cfg: HammerObject(name=cfg['name']),
-            'SquareNut': lambda cfg: SquareNutObject(name=cfg['name']),
-            'RoundNut': lambda cfg: RoundNutObject(name=cfg['name']),
-            'Bottle': lambda cfg: BottleObject(name=cfg['name'])
-        }
         
         self.render = render
         self.real_time = real_time
@@ -746,7 +695,7 @@ class RobosuiteSimulation(Simulation):
                 }
             elif hasattr(obj, 'isTable') and obj.isTable:
                 self._add_table_config(config['tables'], obj)
-            elif hasattr(obj, 'objectType'):
+            elif hasattr(obj, 'makeRobosuiteObject') or (hasattr(obj, 'objectType') and obj.objectType == 'MJCF'):
                 self._add_object_config(config['objects'], obj, scenic_file_path)
         
         return config
@@ -763,35 +712,34 @@ class RobosuiteSimulation(Simulation):
         """Add table configuration."""
         tables.append({
             'position': [obj.position.x, obj.position.y, obj.position.z],
-            'size': (obj.width, obj.length, 0.05)  # FIXED: MultiTableArena tabletop thickness
+            'size': (obj.width, obj.length, 0.05)  # MultiTableArena tabletop thickness
         })
     
     def _add_object_config(self, objects: List, obj, scenic_file_path):
         """Add object configuration."""
         scenic_name = getattr(obj, 'name', None)
         
-        if obj.objectType == 'MJCF':
+        if hasattr(obj, 'objectType') and obj.objectType == 'MJCF':
             obj_name = f"{scenic_name}_{len(objects)}" if scenic_name else f"mjcf_object_{len(objects)}"
+            obj_type = 'MJCF'
         else:
-            base_name = scenic_name if scenic_name else obj.objectType
+            base_name = scenic_name if scenic_name else obj.__class__.__name__
             obj_name = f"{base_name}_{len(objects)}"
+            obj_type = obj.__class__.__name__
         
         config = {
-            'type': obj.objectType,
+            'type': obj_type,
             'name': obj_name,
             'position': [obj.position.x, obj.position.y, obj.position.z],
-            'color': getattr(obj, 'color', [1, 0, 0, 1])
+            'color': getattr(obj, 'color', [1, 0, 0, 1]),
+            'scenic_obj': obj  # Store reference to the Scenic object
         }
         
         self.object_name_map[obj] = obj_name
         
-        if obj.objectType == 'MJCF':
+        if obj_type == 'MJCF':
             config['mjcfXml'] = getattr(obj, 'mjcfXml', '')
             config['scenic_file_path'] = scenic_file_path
-        elif obj.objectType == 'Ball' and hasattr(obj, 'radius'):
-            config['radius'] = obj.radius
-        elif obj.objectType in ['Box', 'Cylinder', 'Capsule'] and hasattr(obj, 'width'):
-            config['size'] = [obj.width, obj.length, obj.height]
         
         objects.append(config)
     
