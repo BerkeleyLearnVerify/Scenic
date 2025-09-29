@@ -359,18 +359,20 @@ def _get_env_class():
     class ScenicManipulationEnv(ManipulationEnv):
         """Scenic-driven manipulation environment."""
         
-        def __init__(self, scenic_config: Dict, **kwargs):
-            self.scenic_config = scenic_config
-            self.scenic_objects = scenic_config.get('objects', [])
-            self.scenic_tables = scenic_config.get('tables', [])
-            self.scenic_custom_arena = scenic_config.get('custom_arena', None)
+        def __init__(self, scenic_sim, **kwargs):
+            self.scenic_sim = scenic_sim
             super().__init__(**kwargs)
         
         def _load_model(self):
             """Load models and create arena."""
             super()._load_model()
             
-            self._position_robots()
+            # Position robots directly from scenic_sim
+            for i, robot in enumerate(self.scenic_sim.robots):
+                if i < len(self.robots):
+                    pos = [robot.position.x, robot.position.y, 0]
+                    self.robots[i].robot_model.set_base_xpos(pos)
+            
             mujoco_arena = self._create_arena()
             mujoco_arena.set_origin([0, 0, 0])
             
@@ -382,108 +384,88 @@ def _get_env_class():
                 mujoco_objects=self.mujoco_objects
             )
         
-        def _position_robots(self):
-            """Position robots based on scenic configuration."""
-            scenic_robots = self.scenic_config.get('robots', [])
-            actual_robots = self.robots  # RoboSuite env robots
-            
-            if len(scenic_robots) != len(actual_robots):
-                raise RuntimeError(f"Robot count mismatch: requested {len(scenic_robots)}, "
-                                f"created {len(actual_robots)}")
-            
-            for i, robot_config in enumerate(scenic_robots):
-                pos = robot_config.get('position', [0, 0, 0])
-                actual_robots[i].robot_model.set_base_xpos(pos)
-        
         def _create_arena(self):
-            """Create arena based on configuration."""
-            if self.scenic_custom_arena:
-                xml_string = self.scenic_custom_arena.get('xml', '')
-                scenic_file_path = self.scenic_custom_arena.get('scenic_file_path', None)
-                return CustomXMLArena(xml_string, scenic_file_path)
+            """Create arena based on scenic objects."""
+            # Check for custom arena
+            for obj in self.scenic_sim.objects:
+                if hasattr(obj, 'isCustomArena') and obj.isCustomArena:
+                    xml_string = getattr(obj, 'arenaXml', '')
+                    scenic_file_path = str(self.scenic_sim.scene.params.get('scenic_file_dir', ''))
+                    return CustomXMLArena(xml_string, scenic_file_path)
             
-            if self.scenic_tables:
+            # Check for tables
+            tables = [obj for obj in self.scenic_sim.objects 
+                    if hasattr(obj, 'isTable') and obj.isTable]
+            
+            if tables:
                 table_offsets = []
-                for t in self.scenic_tables:
-                    pos = t.get('position', [0, 0, 0.8])
-                    table_offsets.append([pos[0], pos[1], 0.8])
+                for t in tables:
+                    table_offsets.append([t.position.x, t.position.y, 0.8])
                 
                 return MultiTableArena(
                     table_offsets=table_offsets,
-                    table_full_sizes=[t.get('size', (0.8, 0.8, 0.05)) for t in self.scenic_tables],
-                    has_legs=[True] * len(self.scenic_tables)
+                    table_full_sizes=[(t.width, t.length, 0.05) for t in tables],
+                    has_legs=[True] * len(tables)
                 )
             
             return EmptyArena()
         
         def _create_objects(self) -> List:
-            """Create Robosuite objects from Scenic configuration."""
+            """Create Robosuite objects from Scenic objects."""
             mujoco_objects = []
+            scenic_file_path = str(self.scenic_sim.scene.params.get('scenic_file_dir', ''))
             
-            for i, obj_config in enumerate(self.scenic_objects):
-                scenic_obj = obj_config.get('scenic_obj')
-                obj_name = obj_config.get('name', f'unnamed_{i}')
+            for obj in self.scenic_sim.objects:
+                # Skip non-manipulable objects
+                if (hasattr(obj, '_isArenaComponent') and obj._isArenaComponent) or \
+                hasattr(obj, 'robotType') or \
+                hasattr(obj, 'isCustomArena') or \
+                hasattr(obj, 'isTable'):
+                    continue
                 
-                if obj_config['type'] == 'MJCF':
-                    # Custom MJCF object
-                    scenic_file_path = obj_config.get('scenic_file_path', None)
+                # Generate unique name
+                scenic_name = getattr(obj, 'name', None)
+                if hasattr(obj, 'objectType') and obj.objectType == 'MJCF':
+                    obj_name = f"{scenic_name}_{len(mujoco_objects)}" if scenic_name else f"mjcf_object_{len(mujoco_objects)}"
                     mj_obj = CustomMeshObject(
                         name=obj_name,
-                        xml_string=obj_config.get('mjcfXml', ''),
+                        xml_string=getattr(obj, 'mjcfXml', ''),
                         scenic_file_path=scenic_file_path
                     )
-                elif scenic_obj and hasattr(scenic_obj, 'makeRobosuiteObject'):
-                    # Use the makeRobosuiteObject method from the Scenic class
-                    mj_obj = scenic_obj.makeRobosuiteObject(obj_name)
+                elif hasattr(obj, 'makeRobosuiteObject'):
+                    obj_name = f"{scenic_name}_{len(mujoco_objects)}" if scenic_name else f"{obj.__class__.__name__}_{len(mujoco_objects)}"
+                    mj_obj = obj.makeRobosuiteObject(obj_name)
                 else:
-                    # Fallback - shouldn't happen if properly configured
-                    from robosuite.models.objects import BoxObject
-                    mj_obj = BoxObject(
-                        name=obj_name,
-                        size=[0.025, 0.025, 0.025],
-                        rgba=obj_config.get('color', [1, 0, 0, 1])
-                    )
+                    continue
                 
+                # Store mapping
+                self.scenic_sim.object_name_map[obj] = obj_name
                 mujoco_objects.append(mj_obj)
             
             return mujoco_objects
         
-        def _setup_references(self):
-            """Setup references to simulation objects."""
-            super()._setup_references()
-            self.obj_body_ids = {}
-            
-            for obj in self.mujoco_objects:
-                try:
-                    if hasattr(obj, 'root_body'):
-                        body_name = obj.root_body
-                    else:
-                        body_name = obj.name
-                    
-                    body_id = self.sim.model.body_name2id(body_name)
-                    self.obj_body_ids[obj.name] = body_id
-                except:
-                    for suffix in ['_main', '_body', '']:
-                        try:
-                            body_name = f"{obj.name}{suffix}"
-                            body_id = self.sim.model.body_name2id(body_name)
-                            self.obj_body_ids[obj.name] = body_id
-                            break
-                        except:
-                            continue
-        
-
-
-
         def _reset_internal(self):
             """Reset environment internals."""
             super()._reset_internal()
             
-            for obj_config, mj_obj in zip(self.scenic_objects, self.mujoco_objects):
-                if 'position' in obj_config:
-                    pos = obj_config['position']
-                    quat = obj_config.get('quaternion', [1, 0, 0, 0])
+            # Set initial positions
+            for obj in self.scenic_sim.objects:
+                obj_name = self.scenic_sim.object_name_map.get(obj)
+                if not obj_name:
+                    continue
                     
+                # Find corresponding mujoco object
+                mj_obj = None
+                for mobj in self.mujoco_objects:
+                    if mobj.name == obj_name:
+                        mj_obj = mobj
+                        break
+                
+                if mj_obj:
+                    pos = [obj.position.x, obj.position.y, obj.position.z]
+                    quat = [1, 0, 0, 0]  # Default quaternion
+                    
+                    # Find joint name
                     joint_name = None
                     possible_names = []
                     
@@ -512,6 +494,29 @@ def _get_env_class():
             self.sim.forward()
             self.sim.step()
         
+        def _setup_references(self):
+            """Setup references to simulation objects."""
+            super()._setup_references()
+            # Let scenic_sim handle body mapping
+            for obj in self.mujoco_objects:
+                try:
+                    if hasattr(obj, 'root_body'):
+                        body_name = obj.root_body
+                    else:
+                        body_name = obj.name
+                    
+                    body_id = self.sim.model.body_name2id(body_name)
+                    self.scenic_sim.body_id_map[obj.name] = body_id
+                except:
+                    for suffix in ['_main', '_body', '']:
+                        try:
+                            body_name = f"{obj.name}{suffix}"
+                            body_id = self.sim.model.body_name2id(body_name)
+                            self.scenic_sim.body_id_map[obj.name] = body_id
+                            break
+                        except:
+                            continue
+        
         def reward(self, action=None) -> float:
             """Compute reward."""
             return 0.0
@@ -519,7 +524,7 @@ def _get_env_class():
         def _check_success(self) -> bool:
             """Check task success."""
             return False
-    
+
     return ScenicManipulationEnv
 
 
@@ -621,19 +626,25 @@ class RobosuiteSimulation(Simulation):
         
         super().__init__(scene, **kwargs)
     
+
     def setup(self):
         """Initialize the RoboSuite environment."""
         super().setup()
         
-        scenic_config = self._extract_scenic_config()
+        # Extract robots for environment
+        robot_types = []
+        for obj in self.objects:
+            if hasattr(obj, 'robotType'):
+                robot_types.append(obj.robotType)
+                self.robots.append(obj)
         
-        if not scenic_config['robots']:
+        if not robot_types:
             raise ValueError("At least one robot is required in the scene")
         
-        robot_arg = self._get_robot_arg(scenic_config['robots'])
+        robot_arg = robot_types[0] if len(robot_types) == 1 else robot_types
         
         env_kwargs = {
-            'scenic_config': scenic_config,
+            'scenic_sim': self,  # Pass self directly
             'robots': robot_arg,
             'has_renderer': self.render,
             'render_camera': self.camera_view,
@@ -647,10 +658,11 @@ class RobosuiteSimulation(Simulation):
         
         self.robosuite_env = ScenicManipulationEnv(**env_kwargs)
         self._current_obs = self.robosuite_env.reset()
-        self._detect_controller_type(scenic_config['robots'])
+        self._detect_controller_type()
         
         self._finalize_setup()
-    
+
+
     def _finalize_setup(self):
         """Common setup after environment creation."""
         self.model = self.robosuite_env.sim.model._model
@@ -763,9 +775,9 @@ class RobosuiteSimulation(Simulation):
         return ([r['type'] for r in robots] if len(robots) > 1 
                 else robots[0]['type'])
     
-    def _detect_controller_type(self, robot_configs: List):
+    def _detect_controller_type(self):
         """Detect controller type from first robot."""
-        if robot_configs and self.robosuite_env.robots:
+        if self.robots and self.robosuite_env.robots:
             first_robot = self.robosuite_env.robots[0]
             if hasattr(first_robot, 'controller'):
                 self.controller_type = type(first_robot.controller).__name__
