@@ -32,14 +32,13 @@ import numpy as np
 
 # At top of model.scenic
 try:
-    from .simulator import RobosuiteSimulator, SetJointPositions, OSCPositionAction
+    from .simulator import RobosuiteSimulator, OSCPositionAction
 except ImportError:
     # Dummy classes for compilation without RoboSuite
     class RobosuiteSimulator:
         def __init__(self, **kwargs):
             raise RuntimeError('RoboSuite is required to run simulations from this scenario')
     
-    class SetJointPositions: pass
     class OSCPositionAction: pass
 
 # Global parameters

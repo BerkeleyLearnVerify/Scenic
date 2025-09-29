@@ -815,16 +815,8 @@ class RobosuiteSimulation(Simulation):
     
     def executeActions(self, allActions: Dict[Any, List]) -> None:
         """Execute actions by calling their applyTo methods."""
+        self.pending_robot_action = None  
         super().executeActions(allActions)
-        
-        self.pending_robot_action = None
-        
-        for agent in self.agents:
-            if agent in allActions and allActions[agent]:
-                for action in allActions[agent]:
-                    if action and hasattr(action, 'applyTo'):
-                        action.applyTo(agent, self)
-                        break
     
     def step(self):
         """Step the simulation forward one timestep."""
@@ -898,11 +890,11 @@ class RobosuiteSimulation(Simulation):
         """Get current observation dictionary."""
         return self._current_obs
     
-    def checkSuccess(self) -> bool:
-        """Check if task is successfully completed."""
-        if hasattr(self.robosuite_env, '_check_success'):
-            return self.robosuite_env._check_success()
-        return False
+    # def checkSuccess(self) -> bool:
+    #     """Check if task is successfully completed."""
+    #     if hasattr(self.robosuite_env, '_check_success'):
+    #         return self.robosuite_env._check_success()
+    #     return False
     
     def destroy(self):
         """Clean up simulation resources."""
@@ -911,21 +903,7 @@ class RobosuiteSimulation(Simulation):
             self.robosuite_env = None
 
 
-# Actions
-class SetJointPositions(Action):
-    """Set robot joint positions."""
-    
-    def __init__(self, positions: List[float]):
-        self.positions = positions
-    
-    def applyTo(self, agent, sim: RobosuiteSimulation):
-        """Apply action to agent."""
-        if hasattr(sim, 'robots') and agent in sim.robots:
-            robot_idx = sim.robots.index(agent)
-            if robot_idx < len(sim.robosuite_env.robots):
-                sim.pending_robot_action = np.array(self.positions)
-
-
+# Controller Interface
 class OSCPositionAction(Action):
     """Operational Space Control for end-effector."""
     
@@ -936,18 +914,45 @@ class OSCPositionAction(Action):
         self.orientation_delta = orientation_delta or [0, 0, 0]
         self.gripper = gripper if gripper is not None else 0
     
+    def canBeTakenBy(self, agent) -> bool:
+        """Only robots can take this action."""
+        return hasattr(agent, 'robotType')
+    
     def applyTo(self, agent, sim: RobosuiteSimulation):
         """Apply action to agent."""
-        if hasattr(sim, 'robots') and agent in sim.robots:
-            robot_idx = sim.robots.index(agent)
-            if robot_idx < len(sim.robosuite_env.robots):
-                if sim.controller_type == 'JOINT_POSITION':
-                    action = np.zeros(sim.action_dim)
-                    action[:3] = self.position_delta
-                else:
-                    action = np.zeros(7)
-                    action[:3] = self.position_delta
-                    action[3:6] = self.orientation_delta
-                    action[6] = self.gripper
-                
-                sim.pending_robot_action = action
+        robot_idx = sim.robots.index(agent)
+        
+        # OSC control always uses 7D action vector
+        action = np.zeros(7)
+        action[:3] = self.position_delta
+        action[3:6] = self.orientation_delta
+        action[6] = self.gripper
+        
+        sim.pending_robot_action = action
+    """Operational Space Control for end-effector."""
+
+    def __init__(self, position_delta: Optional[List[float]] = None,
+                 orientation_delta: Optional[List[float]] = None,
+                 gripper: Optional[float] = None):
+        self.position_delta = position_delta or [0, 0, 0]
+        self.orientation_delta = orientation_delta or [0, 0, 0]
+        self.gripper = gripper if gripper is not None else 0
+    
+    def canBeTakenBy(self, agent) -> bool:
+        """Only robots can take this action."""
+        return hasattr(agent, 'robotType')
+    
+    def applyTo(self, agent, sim: RobosuiteSimulation):
+        """Apply action to agent."""
+        robot_idx = sim.robots.index(agent)
+        
+        if sim.controller_type == 'JOINT_POSITION':
+            action = np.zeros(sim.action_dim)
+            action[:3] = self.position_delta
+        else:
+            action = np.zeros(7)
+            action[:3] = self.position_delta
+            action[3:6] = self.orientation_delta
+            action[6] = self.gripper
+        
+        sim.pending_robot_action = action
