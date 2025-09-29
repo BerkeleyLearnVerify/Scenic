@@ -57,7 +57,7 @@ custom_xml = """
 
 # Yellow block at table surface  
 yellow_block = new CustomObject at (0.5, 0.2, 0.85),
-    with mjcf_xml custom_xml
+    with mjcfXml custom_xml
 
 # Complex object (Milk carton) at table surface
 milk = new Milk at (0.8, -0.1, 0.85)

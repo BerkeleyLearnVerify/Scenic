@@ -42,7 +42,7 @@ table = new Table on arena_floor
 
 # Create dragon - path in XML is relative to this .scenic file
 dragon = new CustomObject on table,
-    with mjcf_xml dragon_object_xml,
+    with mjcfXml dragon_object_xml,
     with color (1, 0, 1, 1)
 
 # Add a simple ball for comparison

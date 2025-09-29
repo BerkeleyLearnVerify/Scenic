@@ -66,7 +66,7 @@ arena = new CustomArena,
 
 # Create a yellow ball using custom XML
 yellow_ball = new CustomObject at (0.5, 0.0, 1.0),
-    with mjcf_xml ball_object_xml
+    with mjcfXml ball_object_xml
 
 # Create a red box using built-in Box class for comparison
 red_box = new Box at (0.7, 0.2, 1.0),

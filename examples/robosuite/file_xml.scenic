@@ -12,5 +12,5 @@ table1 = new Table on arena_floor
 
 # Load bread object from XML file
 bread = new CustomObject on table1,
-    with mjcf_xml "custom_object/bread.xml",
+    with mjcfXml "custom_object/bread.xml",
     with color (0, 1, 1, 1)
