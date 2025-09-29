@@ -524,8 +524,31 @@ def _get_env_class():
 
 
 class RobosuiteSimulator(Simulator):
-    """Simulator for RoboSuite custom environments."""
+
+    """Simulator for RoboSuite robotic manipulation environments.
     
+    Args:
+        render: Whether to render the simulation visually. If True, opens a 
+            viewer window showing the simulation. Default True.
+        real_time: Whether to run the simulation in real-time. If False, runs
+            as fast as possible. Default True.
+        speed: Speed multiplier for real-time simulation. Values > 1.0 speed up
+            the simulation, < 1.0 slow it down. Only used when real_time=True.
+            Default 1.0.
+        env_config: Additional configuration passed to RoboSuite environment.
+            Can include settings like 'control_freq', 'horizon', etc. Default
+            empty dict.
+        controller_config: Robot controller configuration. If None, uses 
+            RoboSuite's default controller for the robot type. Can specify
+            controller type and parameters. Default None.
+        camera_view: Name of camera to use for rendering. Options include
+            'frontview', 'birdview', 'agentview', 'sideview', 'robot0_robotview',
+            'robot0_eye_in_hand'. Default None (uses RoboSuite default).
+        lite_physics: Whether to use simplified physics for faster simulation.
+            Reduces physics accuracy but improves performance. Default None
+            (uses RoboSuite default).
+    """
+
     def __init__(self, render: bool = True, real_time: bool = True, speed: float = 1.0,
                  env_config: Optional[Dict] = None, controller_config: Optional[Dict] = None,
                  camera_view: Optional[str] = None, lite_physics: Optional[bool] = None):
