@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
 from scenic.core.dynamics import Action
+from scenic.core.object_types import Orientation
 
 # Constants
 DEFAULT_PHYSICS_TIMESTEP = 0.002
@@ -448,7 +449,7 @@ def _get_env_class():
             """Reset environment internals."""
             super()._reset_internal()
             
-            # Set initial positions
+            # Set initial positions and orientations
             for obj in self.scenic_sim.objects:
                 obj_name = self.scenic_sim.object_name_map.get(obj)
                 if not obj_name:
@@ -463,7 +464,44 @@ def _get_env_class():
                 
                 if mj_obj:
                     pos = [obj.position.x, obj.position.y, obj.position.z]
-                    quat = [1, 0, 0, 0]  # Default quaternion
+                    
+                    # Get orientation from Scenic object
+                    if hasattr(obj, 'orientation'):
+                        scenic_orientation = obj.orientation
+                        if scenic_orientation is not None:
+                            # Get quaternion from Orientation object
+                            # Try different methods to access quaternion
+                            if hasattr(scenic_orientation, 'getQuaternion'):
+                                quat = list(scenic_orientation.getQuaternion())
+                            elif hasattr(scenic_orientation, 'toQuaternion'):
+                                quat = list(scenic_orientation.toQuaternion())
+                            elif hasattr(scenic_orientation, '_quaternion'):
+                                quat = list(scenic_orientation._quaternion)
+                            else:
+                                # Fallback: compute from Euler angles
+                                import math
+                                yaw = obj.yaw if hasattr(obj, 'yaw') else 0
+                                pitch = obj.pitch if hasattr(obj, 'pitch') else 0
+                                roll = obj.roll if hasattr(obj, 'roll') else 0
+                                
+                                # Convert Euler to quaternion (ZXY order)
+                                cy = math.cos(yaw * 0.5)
+                                sy = math.sin(yaw * 0.5)
+                                cp = math.cos(pitch * 0.5)
+                                sp = math.sin(pitch * 0.5)
+                                cr = math.cos(roll * 0.5)
+                                sr = math.sin(roll * 0.5)
+                                
+                                w = cr * cp * cy + sr * sp * sy
+                                x = sr * cp * cy - cr * sp * sy
+                                y = cr * sp * cy + sr * cp * sy
+                                z = cr * cp * sy - sr * sp * cy
+                                
+                                quat = [w, x, y, z]
+                        else:
+                            quat = [1, 0, 0, 0]  # Default quaternion
+                    else:
+                        quat = [1, 0, 0, 0]  # Default quaternion
                     
                     # Find joint name
                     joint_name = None
@@ -529,7 +567,6 @@ def _get_env_class():
 
 
 class RobosuiteSimulator(Simulator):
-
     """Simulator for RoboSuite robotic manipulation environments.
     
     Args:
@@ -626,7 +663,6 @@ class RobosuiteSimulation(Simulation):
         
         super().__init__(scene, **kwargs)
     
-
     def setup(self):
         """Initialize the RoboSuite environment."""
         super().setup()
@@ -661,7 +697,6 @@ class RobosuiteSimulation(Simulation):
         self._detect_controller_type()
         
         self._finalize_setup()
-
 
     def _finalize_setup(self):
         """Common setup after environment creation."""
@@ -854,20 +889,162 @@ class RobosuiteSimulation(Simulation):
                 values[prop] = self._get_eef_position(robot_idx)
             elif prop == 'gripperState' and robot_idx is not None:
                 values[prop] = self._get_gripper_state(robot_idx)
+            elif prop in ['yaw', 'pitch', 'roll', 'orientation']:
+                values[prop] = self._get_object_orientation(obj, prop)
+            elif prop == 'velocity':
+                values[prop] = self._get_object_velocity(obj)
+            elif prop in ['angularVelocity', 'angularSpeed']:
+                values[prop] = self._get_object_angular_velocity(obj, prop)
+            elif prop == 'speed':
+                values[prop] = self._get_object_speed(obj)
             else:
                 values[prop] = getattr(obj, prop, None)
         
         return values
     
     def _get_object_position(self, obj) -> Vector:
+        """Get object position from MuJoCo."""
         obj_name = self.object_name_map.get(obj)
         if obj_name and obj_name in self.body_id_map:
             body_id = self.body_id_map[obj_name]
             pos = self.data.xpos[body_id]
             return Vector(pos[0], pos[1], pos[2])
         return obj.position
-
-
+    
+    def _get_object_orientation(self, obj, prop: str):
+        """Get object orientation from MuJoCo."""
+        obj_name = self.object_name_map.get(obj)
+        if obj_name and obj_name in self.body_id_map:
+            body_id = self.body_id_map[obj_name]
+            quat = self.data.xquat[body_id]  # [w, x, y, z]
+            
+            # Convert quaternion to Euler angles (ZXY order for Scenic)
+            # This matches Scenic's orientation convention
+            w, x, y, z = quat
+            
+            # Convert to Euler angles
+            # Roll (x-axis rotation)
+            sinr_cosp = 2 * (w * x + y * z)
+            cosr_cosp = 1 - 2 * (x * x + y * y)
+            roll = np.arctan2(sinr_cosp, cosr_cosp)
+            
+            # Pitch (y-axis rotation)
+            sinp = 2 * (w * y - z * x)
+            pitch = np.arcsin(np.clip(sinp, -1, 1))
+            
+            # Yaw (z-axis rotation)
+            siny_cosp = 2 * (w * z + x * y)
+            cosy_cosp = 1 - 2 * (y * y + z * z)
+            yaw = np.arctan2(siny_cosp, cosy_cosp)
+            
+            if prop == 'yaw':
+                return yaw
+            elif prop == 'pitch':
+                return pitch
+            elif prop == 'roll':
+                return roll
+            elif prop == 'orientation':
+                # Return a Scenic Orientation object
+                return Orientation.fromEuler(yaw, pitch, roll)
+        
+        # Fallback to stored values
+        return getattr(obj, prop, 0 if prop in ['yaw', 'pitch', 'roll'] else None)
+    
+    def _get_object_velocity(self, obj) -> Vector:
+        """Get object linear velocity from MuJoCo."""
+        obj_name = self.object_name_map.get(obj)
+        if obj_name:
+            # For objects with free joints, velocity is in qvel
+            # Try to find the joint for this object
+            joint_name = None
+            
+            # Look for the joint name in our mujoco objects
+            for mobj in self.robosuite_env.mujoco_objects if hasattr(self, 'robosuite_env') else []:
+                if mobj.name == obj_name:
+                    if hasattr(mobj, 'joint_name'):
+                        joint_name = mobj.joint_name
+                        break
+            
+            if joint_name:
+                try:
+                    # Get joint ID
+                    joint_id = mujoco.mj_name2id(
+                        self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name
+                    )
+                    if joint_id != -1:
+                        # Get qvel address for this joint
+                        # Free joint has 6 DOF for velocity: 3 linear + 3 angular
+                        qvel_addr = self.model.jnt_dofadr[joint_id]
+                        # Linear velocity is in the first 3 components
+                        vel = self.data.qvel[qvel_addr:qvel_addr+3]
+                        return Vector(vel[0], vel[1], vel[2])
+                except Exception as e:
+                    pass
+            
+            # Fallback to body cvel if no joint found
+            if obj_name in self.body_id_map:
+                body_id = self.body_id_map[obj_name]
+                vel = self.data.cvel[body_id][:3]
+                return Vector(vel[0], vel[1], vel[2])
+        
+        # Final fallback
+        return getattr(obj, 'velocity', Vector(0, 0, 0))
+    
+    def _get_object_angular_velocity(self, obj, prop: str):
+        """Get object angular velocity from MuJoCo."""
+        obj_name = self.object_name_map.get(obj)
+        if obj_name:
+            # For objects with free joints, angular velocity is in qvel
+            joint_name = None
+            
+            # Look for the joint name in our mujoco objects
+            for mobj in self.robosuite_env.mujoco_objects if hasattr(self, 'robosuite_env') else []:
+                if mobj.name == obj_name:
+                    if hasattr(mobj, 'joint_name'):
+                        joint_name = mobj.joint_name
+                        break
+            
+            if joint_name:
+                try:
+                    # Get joint ID
+                    joint_id = mujoco.mj_name2id(
+                        self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name
+                    )
+                    if joint_id != -1:
+                        # Get qvel address for this joint
+                        # Free joint has 6 DOF for velocity: 3 linear + 3 angular
+                        qvel_addr = self.model.jnt_dofadr[joint_id]
+                        # Angular velocity is in components 3-5
+                        ang_vel = self.data.qvel[qvel_addr+3:qvel_addr+6]
+                        
+                        if prop == 'angularVelocity':
+                            return Vector(ang_vel[0], ang_vel[1], ang_vel[2])
+                        elif prop == 'angularSpeed':
+                            return np.linalg.norm(ang_vel)
+                except Exception as e:
+                    pass
+            
+            # Fallback to body cvel if no joint found
+            if obj_name in self.body_id_map:
+                body_id = self.body_id_map[obj_name]
+                ang_vel = self.data.cvel[body_id][3:]
+                
+                if prop == 'angularVelocity':
+                    return Vector(ang_vel[0], ang_vel[1], ang_vel[2])
+                elif prop == 'angularSpeed':
+                    return np.linalg.norm(ang_vel)
+        
+        # Final fallback
+        if prop == 'angularVelocity':
+            return getattr(obj, 'angularVelocity', Vector(0, 0, 0))
+        else:
+            return getattr(obj, 'angularSpeed', 0)
+    
+    def _get_object_speed(self, obj) -> float:
+        """Get object speed (magnitude of velocity)."""
+        velocity = self._get_object_velocity(obj)
+        return np.linalg.norm([velocity.x, velocity.y, velocity.z])
+    
     def _get_robot_joints(self, robot_idx: int) -> List:
         """Get robot joint positions."""
         if robot_idx < len(self.robosuite_env.robots):
@@ -890,12 +1067,6 @@ class RobosuiteSimulation(Simulation):
         """Get current observation dictionary."""
         return self._current_obs
     
-    # def checkSuccess(self) -> bool:
-    #     """Check if task is successfully completed."""
-    #     if hasattr(self.robosuite_env, '_check_success'):
-    #         return self.robosuite_env._check_success()
-    #     return False
-    
     def destroy(self):
         """Clean up simulation resources."""
         if self.robosuite_env:
@@ -907,30 +1078,6 @@ class RobosuiteSimulation(Simulation):
 class OSCPositionAction(Action):
     """Operational Space Control for end-effector."""
     
-    def __init__(self, position_delta: Optional[List[float]] = None,
-                 orientation_delta: Optional[List[float]] = None,
-                 gripper: Optional[float] = None):
-        self.position_delta = position_delta or [0, 0, 0]
-        self.orientation_delta = orientation_delta or [0, 0, 0]
-        self.gripper = gripper if gripper is not None else 0
-    
-    def canBeTakenBy(self, agent) -> bool:
-        """Only robots can take this action."""
-        return hasattr(agent, 'robotType')
-    
-    def applyTo(self, agent, sim: RobosuiteSimulation):
-        """Apply action to agent."""
-        robot_idx = sim.robots.index(agent)
-        
-        # OSC control always uses 7D action vector
-        action = np.zeros(7)
-        action[:3] = self.position_delta
-        action[3:6] = self.orientation_delta
-        action[6] = self.gripper
-        
-        sim.pending_robot_action = action
-    """Operational Space Control for end-effector."""
-
     def __init__(self, position_delta: Optional[List[float]] = None,
                  orientation_delta: Optional[List[float]] = None,
                  gripper: Optional[float] = None):
