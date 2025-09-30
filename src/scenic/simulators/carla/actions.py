@@ -112,9 +112,11 @@ class SetAutopilotAction(VehicleAction):
         """
         :param enabled: Enable or disable autopilot (bool)
         :param kwargs: Additional autopilot options such as:
-            - desired_speed: Fixed target speed of the car in m/s (default: None).
-              Mutually exclusive with speed_limit_offset_percentage.
-            - speed_limit_offset_percentage: Percentage difference from speed limit (negative values exceed the limit).
+            - speed: Target speed of the car in m/s (default: None). Mutually
+              exclusive with vehicle_percentage_speed_difference.
+            - vehicle_percentage_speed_difference: Percentage difference between
+              intended speed and the current speed limit. Can be negative to
+              exceed the speed limit.
             - path: Route for the vehicle to follow (default: None)
             - ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
             - ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
@@ -127,9 +129,9 @@ class SetAutopilotAction(VehicleAction):
         self.enabled = enabled
 
         # Default values for optional parameters
-        self.desired_speed = kwargs.get("desired_speed", None)
-        self.speed_limit_offset_percentage = kwargs.get(
-            "speed_limit_offset_percentage", None
+        self.speed = kwargs.get("speed", None)
+        self.vehicle_percentage_speed_difference = kwargs.get(
+            "vehicle_percentage_speed_difference", None
         )
         self.path = kwargs.get("path", None)
         self.ignore_signs_percentage = kwargs.get("ignore_signs_percentage", 0)
@@ -137,11 +139,11 @@ class SetAutopilotAction(VehicleAction):
         self.ignore_walkers_percentage = kwargs.get("ignore_walkers_percentage", 0)
         self.auto_lane_change = kwargs.get("auto_lane_change", False)  # Default: False
 
-        if (self.desired_speed is not None) and (
-            self.speed_limit_offset_percentage is not None
+        if (self.speed is not None) and (
+            self.vehicle_percentage_speed_difference is not None
         ):
             raise RuntimeError(
-                "Provide either 'desired_speed' or 'speed_limit_offset_percentage', not both."
+                "Provide either 'speed' or 'vehicle_percentage_speed_difference', not both."
             )
 
     def applyTo(self, obj, sim):
@@ -153,11 +155,11 @@ class SetAutopilotAction(VehicleAction):
 
         if self.path:
             sim.tm.set_route(vehicle, self.path)
-        if self.desired_speed is not None:
-            sim.tm.set_desired_speed(vehicle, 3.6 * self.desired_speed)
-        if self.speed_limit_offset_percentage is not None:
+        if self.speed is not None:
+            sim.tm.set_desired_speed(vehicle, 3.6 * self.speed)
+        if self.vehicle_percentage_speed_difference is not None:
             sim.tm.vehicle_percentage_speed_difference(
-                vehicle, self.speed_limit_offset_percentage
+                vehicle, self.vehicle_percentage_speed_difference
             )
 
         # Apply traffic management settings

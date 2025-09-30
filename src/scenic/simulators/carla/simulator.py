@@ -346,9 +346,6 @@ class CarlaSimulation(DrivingSimulation):
         return values
 
     def destroy(self):
-        # Tick once so CARLA registers any pending spawns, allowing destroy() to clean them up after a partial spawn failure.
-        self.world.tick()
-
         for obj in self.objects:
             if obj.sensors:
                 for sensor in obj.sensors.values():
