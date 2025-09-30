@@ -2315,6 +2315,8 @@ class RoadMap:
                 crossings=(),  # TODO add these
                 region=region,
             )
+            # print("intersection.maneuvers:", intersection.maneuvers)
+            # breakpoint()
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:

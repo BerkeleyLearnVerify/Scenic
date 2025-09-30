@@ -2092,6 +2092,7 @@ class MeshSurfaceRegion(MeshRegion):
         if isinstance(reg, MeshSurfaceRegion):
             diff_region = reg.difference(self)
 
+            """return self.boundingPolygon.polygons.contains(reg.boundingPolygon.polygons)"""
             return isinstance(diff_region, EmptyRegion)
 
         raise NotImplementedError

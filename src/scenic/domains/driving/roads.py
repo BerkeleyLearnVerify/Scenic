@@ -1071,7 +1071,7 @@ class Network:
                 self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
-            if self.use2DMap == 0:
+            if not self.use2DMap:
                 combined = trimesh.util.concatenate(
                     (
                         self.laneRegion.mesh,
@@ -1107,7 +1107,7 @@ class Network:
                 )
 
         if self.walkableRegion is None:
-            if self.use2DMap == 0:
+            if not self.use2DMap:
                 combined = trimesh.util.concatenate(
                     (
                         self.sidewalkRegion.mesh,
@@ -1395,17 +1395,15 @@ class Network:
             target = point if distance == 0 else point.buffer(distance)
             indices = self._rtree.query(target, predicate="intersects")
             candidates = {self._uidForIndex[index] for index in indices}
-            print(candidates)
             if candidates:
                 closest = None
                 for elem in elems:
                     if elem.uid in candidates:
-                        print(elem, elem.distanceTo(p))
                         if closest == None:
                             closest = elem
-                        elif elem.distanceTo(p) <= closest.distanceTo(
+                        elif elem.distanceTo(p) < closest.distanceTo(
                             p
-                        ):  # Tie goes to later element
+                        ):  # Tie goes to first element
                             closest = elem
                 return closest
             return None
@@ -1431,11 +1429,11 @@ class Network:
         point = _toVector(point)
         found = []
         for thing in things:
-            if key(thing).containsPoint(point):
+            if key(thing).boundingPolygon.containsPoint(point):
                 found.append(thing)
         if not found and self.tolerance > 0:
             for thing in things:
-                if key(thing).distanceTo(point) <= self.tolerance:
+                if key(thing).boundingPolygon.distanceTo(point) <= self.tolerance:
                     found.append(thing)
         return found
 
