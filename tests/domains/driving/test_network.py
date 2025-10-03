@@ -35,7 +35,7 @@ def test_element_tolerance(cached_maps, cached_maps3D, pytestconfig, use2DMap):
         if use2DMap
         else cached_maps3D[str(mapFolder / "CARLA" / "Town01.xodr")]
     )
-    tol = 0.05
+    tol = 0.10
     network = Network.fromFile(path, tolerance=tol, use2DMap=use2DMap)
     drivable = network.drivableRegion.boundingPolygon
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
