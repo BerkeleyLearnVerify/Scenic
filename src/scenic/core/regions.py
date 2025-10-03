@@ -219,7 +219,6 @@ class Region(Samplable, ABC):
             if self.size is not None and reg.size is not None:
                 # A smaller region cannot contain a larger region of the
                 # same dimensionality.
-                breakpoint()
                 if self.dimensionality == reg.dimensionality and self.size < reg.size:
                     return False
 

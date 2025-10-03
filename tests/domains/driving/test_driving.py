@@ -73,7 +73,7 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
             code=basicScenario,
             useCache=False,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap},
+            params={"use2DMap": use2DMap, "tolerance": 0.115},
         )
         sampleScene(scenario, maxIterations=1000)
         # Second, try the cached version of the network
@@ -83,7 +83,7 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
             code=basicScenario,
             useCache=True,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap},
+            params={"use2DMap": use2DMap, "tolerance": 0.115},
         )
         sampleScene(scenario, maxIterations=1000)
     except TriangulationError:

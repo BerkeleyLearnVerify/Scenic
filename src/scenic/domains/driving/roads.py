@@ -1303,7 +1303,7 @@ class Network:
         cls,
         path,
         ref_points: int = 20,
-        tolerance: float = 0.15,
+        tolerance: float = 0.115,
         fill_gaps: bool = True,
         fill_intersections: bool = True,
         elide_short_roads: bool = False,
