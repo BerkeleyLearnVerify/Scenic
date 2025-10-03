@@ -219,6 +219,7 @@ class Region(Samplable, ABC):
             if self.size is not None and reg.size is not None:
                 # A smaller region cannot contain a larger region of the
                 # same dimensionality.
+                breakpoint()
                 if self.dimensionality == reg.dimensionality and self.size < reg.size:
                     return False
 
@@ -2084,16 +2085,29 @@ class MeshSurfaceRegion(MeshRegion):
         return self.boundingPolygon.containsObject(obj)
 
     def containsRegionInner(self, reg, tolerance):
-        if tolerance != 0:
-            warnings.warn(
-                "Nonzero tolerances are ignored for containsRegionInner on MeshSurfaceRegion"
-            )
-
         if isinstance(reg, MeshSurfaceRegion):
-            diff_region = reg.difference(self)
+            print(tolerance)
+            if self.mesh.is_empty:
+                return False
+            elif reg.mesh.is_empty:
+                return True
+            # For Debugging
+            # """viewer = trimesh.Scene()
+            # reg.mesh.visual.face_colors = [200, 250, 200, 100]
+            # viewer.add_geometry(reg.mesh)
+            # viewer.show()"""
 
-            """return self.boundingPolygon.polygons.contains(reg.boundingPolygon.polygons)"""
-            return isinstance(diff_region, EmptyRegion)
+            # import matplotlib.pyplot as plt
+
+            # self.boundingPolygon.show(plt, style="-", color="#00A0FF")
+            # reg.boundingPolygon.show(plt, style="--", color="#9E9E9E")
+            # diff_region = self.boundingPolygon.difference(reg.boundingPolygon.buffer(tolerance))
+            # print(tolerance)
+            # diff_region.show(plt, style="-", color="#FF0000")
+            # plt.show()
+            return self.boundingPolygon.polygons.buffer(tolerance).contains(
+                reg.boundingPolygon.polygons
+            )
 
         raise NotImplementedError
 

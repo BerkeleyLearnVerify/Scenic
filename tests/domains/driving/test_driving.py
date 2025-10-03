@@ -152,16 +152,9 @@ def test_intersection(cached_maps, cached_maps3D, use2DMap):
         network = intersection.network
         assert network.elementAt(ego) is intersection
         directions = intersection.nominalDirectionsAt(ego)
-        print(i)
         maneuvers = intersection.maneuversAt(ego)
         lane = ego.lane
-        print(ego.lane.id)
-        print(maneuvers)
         assert directions == network.nominalDirectionsAt(ego)
-        print("Directions:")
-        for direction in directions:
-            print(direction.yaw)
-        print("Ego heading:", ego.heading)
         assert any(
             ego.heading == pytest.approx(direction.yaw) for direction in directions
         )

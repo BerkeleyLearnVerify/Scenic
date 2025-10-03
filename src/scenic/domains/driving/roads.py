@@ -1095,16 +1095,40 @@ class Network:
                         self.intersectionRegion,
                     )
                 )
-                # TODO: Create assertions for drivableRegion, these don't work properly with 3D meshes
-                assert self.drivableRegion.containsRegion(
-                    self.laneRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegion(
-                    self.roadRegion, tolerance=self.tolerance
-                )
-                assert self.drivableRegion.containsRegion(
-                    self.intersectionRegion, tolerance=self.tolerance
-                )
+            # TODO: Create assertions for drivableRegion, these don't work properly with 3D meshes
+
+            # viewer = trimesh.Scene()
+            # self.intersectionRegion.mesh.visual.face_colors = [250, 0, 0, 100]
+            # viewer.add_geometry(self.intersectionRegion.mesh)
+            # self.laneRegion.mesh.visual.face_colors = [0, 250, 0, 100]
+            # viewer.add_geometry(self.laneRegion.mesh)
+            # import numpy as np
+            # bounds_min = np.array([-10, 30, -1])
+            # bounds_max = np.array([ 2,  34,  1])
+
+            # # Force the scene camera to frame those bounds
+            # viewer.set_camera(angles=[0, 0, 0], distance=3.0, center=(bounds_min + bounds_max) / 2.0)
+            # viewer.show()
+
+            # import matplotlib.pyplot as plt
+
+            # self.drivableRegion.boundingPolygon.show(plt, style="-", color="#00A0FF")
+            # self.laneRegion.boundingPolygon.show(plt, style="--", color="#9E9E9E")
+            # diff_region = self.laneRegion.boundingPolygon.difference(
+            #      self.drivableRegion.boundingPolygon.buffer(self.tolerance)
+            # )
+            # diff_region.show(plt, style="--", color="#FF0000")
+            # plt.show()
+            print(self.drivableRegion.size, self.laneRegion.size)
+            assert self.drivableRegion.containsRegion(
+                self.laneRegion, tolerance=self.tolerance
+            )
+            assert self.drivableRegion.containsRegion(
+                self.roadRegion, tolerance=self.tolerance
+            )
+            assert self.drivableRegion.containsRegion(
+                self.intersectionRegion, tolerance=self.tolerance
+            )
 
         if self.walkableRegion is None:
             if not self.use2DMap:
@@ -1119,15 +1143,24 @@ class Network:
                 self.walkableRegion = MeshSurfaceRegion(
                     combined, centerMesh=False, position=None, orientation=orientation
                 )
+                if not self.walkableRegion.mesh.is_empty:
+                    # if there are no sidewalks or crossings, the combined mesh will be
+                    # empty; in that case we'll just use an empty region
+                    assert self.walkableRegion.containsRegion(
+                        self.sidewalkRegion, tolerance=self.tolerance
+                    )
+                    assert self.walkableRegion.containsRegion(
+                        self.crossingRegion, tolerance=self.tolerance
+                    )
             else:
                 self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
-
                 assert self.walkableRegion.containsRegion(
                     self.sidewalkRegion, tolerance=self.tolerance
                 )
                 assert self.walkableRegion.containsRegion(
                     self.crossingRegion, tolerance=self.tolerance
                 )
+
         if self.curbRegion is None:
             edges = []
             for road in self.roads:  # only include curbs of ordinary roads
@@ -1270,7 +1303,7 @@ class Network:
         cls,
         path,
         ref_points: int = 20,
-        tolerance: float = 0.05,
+        tolerance: float = 0.15,
         fill_gaps: bool = True,
         fill_intersections: bool = True,
         elide_short_roads: bool = False,
