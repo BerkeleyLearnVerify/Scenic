@@ -956,6 +956,8 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+        self._roadDirElems = self.roads + self.shoulders
+        self._nominalDirElems = self.intersections + self.roads + self.shoulders
         self._topLevelElements = (
             self.intersections + self.roads + self.shoulders + self.sidewalks
         )
@@ -967,16 +969,8 @@ class Network:
         :meta private:
         """
         point = _toVector(point)
-
-        road = self.roadAt(point)
-        if road is not None:
-            return road.orientation[point]
-
-        shoulder = self.shoulderAt(point)
-        if shoulder is not None:
-            return shoulder.orientation[point]
-
-        return 0
+        elem = self.findPointIn(point, self._roadDirElems, reject=False)
+        return elem.orientation[point] if elem is not None else 0
 
     #: File extension for cached versions of processed networks.
     pickledExt = ".snet"
@@ -1307,16 +1301,8 @@ class Network:
         There can be more than one such direction in an intersection, for example: a car
         at a given point could be going straight, turning left, etc.
         """
-        inter = self.intersectionAt(point)
-        if inter is not None:
-            return inter.nominalDirectionsAt(point)
-        road = self.roadAt(point)
-        if road is not None:
-            return road.nominalDirectionsAt(point)
-        shoulder = self.shoulderAt(point, reject=reject)
-        if shoulder is not None:
-            return shoulder.nominalDirectionsAt(point)
-        return ()
+        elem = self.findPointIn(point, self._nominalDirElems, reject)
+        return elem.nominalDirectionsAt(point) if elem is not None else ()
 
     def show(self, labelIncomingLanes=False, showCurbArrows=False):
         """Render a schematic of the road network for debugging.
