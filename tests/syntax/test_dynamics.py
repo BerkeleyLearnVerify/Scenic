@@ -476,7 +476,7 @@ def test_obj_equals_self_inside_behavior():
         """
         behavior Foo():
             for obj in simulation().objects:
-                take (obj == self)
+                take ((obj == self) and (obj is self))
 
         ego = new Object with behavior Foo
         other = new Object at 10@10
