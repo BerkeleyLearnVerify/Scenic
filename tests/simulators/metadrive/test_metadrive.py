@@ -357,7 +357,7 @@ def test_render_2D_saves_gif(getMetadriveSimulator, tmp_path):
 
         model scenic.simulators.metadrive.model
 
-        ego = new Car
+        ego = new Car at (30, 2)
         terminate after 2 steps
     """
     scenario = compileScenic(code, mode2D=True)
@@ -382,7 +382,7 @@ def test_follow_lane(getMetadriveSimulator):
         terminate after 8 steps
     """
     scenario = compileScenic(code, mode2D=True)
-    scene = sampleScene(scenario)
+    scene = sampleScene(scenario, maxIterations=1000)
     simulation = simulator.simulate(scene)
     assert simulation.result.records[
         "OnLane"
