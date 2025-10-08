@@ -128,7 +128,7 @@ class MetaDriveActor(DrivingObject):
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._control = {"steering": 0.0, "throttle": 0.0, "brake": 0.0}
+        self._control = {"steer": 0.0, "throttle": 0.0, "brake": 0.0}
         self._reverse = False
         self._handbrake = False
 
@@ -136,7 +136,7 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
         self._control["throttle"] = throttle
 
     def setSteering(self, steering):
-        self._control["steering"] = steering
+        self._control["steer"] = steering
 
     def setBraking(self, braking):
         self._control["brake"] = braking
@@ -147,26 +147,25 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
     def setHandbrake(self, handbrake):
         self._handbrake = handbrake
 
-    def _should_enable_reverse(self):
-        if self._handbrake:
-            return False
-        # reverse only if reverse was requested and positive drive effort (throttle > brake)
-        throttle_brake = self._control["throttle"] - self._control["brake"]
-        return self._reverse and (throttle_brake > 0.0)
-
-    def _collect_action(self):
-        steering = -self._control["steering"]
-        if self._handbrake:
-            return [steering, -1.0]
-        throttle_brake = self._control["throttle"] - self._control["brake"]
-        if self._reverse and throttle_brake > 0.0:
-            throttle_brake = -throttle_brake
-        return [steering, throttle_brake]
-
     def _prepare_action(self):
-        action = self._collect_action()
-        self.metaDriveActor.enable_reverse = self._should_enable_reverse()
-        return action
+        # MetaDrive is opposite of Scenic (Scenic uses + for left)
+        steer = -self._control["steer"]
+
+        # Handbrake overrides everything: disable reverse, full brake.
+        if self._handbrake:
+            self.metaDriveActor.enable_reverse = False
+            return [steer, -1.0]
+
+        # MetaDrive uses a single combined throttle/brake value
+        throttle_brake = self._control["throttle"] - self._control["brake"]
+
+        # Enable reverse only if requested AND there’s forward drive effort.
+        enable_reverse = self._reverse and (throttle_brake > 0.0)
+        self.metaDriveActor.enable_reverse = enable_reverse
+        if enable_reverse:
+            throttle_brake = -throttle_brake  # negative drives backward
+        return [steer, throttle_brake]
+
 
 class Car(Vehicle):
     @property
