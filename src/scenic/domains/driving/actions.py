@@ -139,7 +139,7 @@ class SetSteerAction(SteeringAction):
     """Set the steering 'angle'.
 
     Arguments:
-        steer: Steering 'angle' between -1 and 1.
+        steer: Steering 'angle' between -1 and 1. Positive values steer to the right.
     """
 
     def __init__(self, steer: float):
