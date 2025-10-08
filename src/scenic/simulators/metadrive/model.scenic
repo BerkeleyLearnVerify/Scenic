@@ -148,7 +148,7 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
         self._handbrake = handbrake
 
     def _prepare_action(self):
-        # MetaDrive is opposite of Scenic (Scenic uses + for left)
+        # MetaDrive uses the opposite convention: positive steer turns left
         steer = -self._control["steer"]
 
         # Handbrake overrides everything: disable reverse, full brake.
