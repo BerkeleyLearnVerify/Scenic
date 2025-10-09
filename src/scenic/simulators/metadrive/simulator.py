@@ -270,7 +270,7 @@ class MetaDriveSimulation(DrivingSimulation):
         super().executeActions(allActions)
 
         # Apply control updates to vehicles and pedestrians
-        for obj in self.scene.objects[1:]:  # Skip ego vehicle (it is handled separately)
+        for obj in self.agents[1:]:  # Skip ego vehicle (it is handled separately)
             if obj.isVehicle:
                 action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
@@ -291,7 +291,7 @@ class MetaDriveSimulation(DrivingSimulation):
         start_time = time.monotonic()
 
         # Special handling for the ego vehicle
-        ego_obj = self.scene.objects[0]
+        ego_obj = self.objects[0]
         action = ego_obj._collect_action()
         self.client.step(action)  # Apply action in the simulator
         ego_obj._reset_control()
