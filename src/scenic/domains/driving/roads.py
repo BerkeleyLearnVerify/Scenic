@@ -1119,8 +1119,8 @@ class Network:
                     combined, centerMesh=False, position=None, orientation=orientation
                 )
                 if not self.walkableRegion.mesh.is_empty:
-                    # if there are no sidewalks or crossings, the combined mesh will be
-                    # empty; in that case we'll just use an empty region
+                    # if there are no sidewalks or crossings, the combined mesh will be empty
+                    # in which case we skip these assertions
                     assert self.walkableRegion.containsRegion(
                         self.sidewalkRegion, tolerance=self.tolerance
                     )
