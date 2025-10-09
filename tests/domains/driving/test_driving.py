@@ -261,3 +261,63 @@ def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
             mode2D=use2DMap,
             params={"use2DMap": use2DMap},
         )
+
+
+def test_cars_at_underpass(cached_maps3D):
+    scenario = compileDrivingScenario(
+        cached_maps3D,
+        """
+        ego = new Car on road, at (10, -12, 0), with regionContainedIn everywhere
+        """,
+        path = mapFolder / "CARLA" / "Town04.xodr",
+        mode2D=False,
+        params={"use2DMap": False},
+    )
+    ego = sampleEgo(scenario, maxIterations=1000)
+    directions = ego.element.network.nominalDirectionsAt(ego)
+    # Check the car is under the overpass
+    assert ego.position.x > 8 and ego.position.x < 12
+    assert ego.position.y < -10 and ego.position.y > -14
+    assert ego.position.z < 5
+    # Checks that road orientation is same as ego orientation
+    assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
+    assert any(ego.orientation.pitch == pytest.approx(direction.pitch) for direction in directions)
+    assert any(ego.orientation.roll == pytest.approx(direction.roll) for direction in directions)
+
+    scenario = compileDrivingScenario(
+        # (10, -12, 100) projects car down to map
+        cached_maps3D,
+        """
+        ego = new Car on road, at (10, -12, 100), with regionContainedIn everywhere
+        """,
+        path = mapFolder / "CARLA" / "Town04.xodr",
+        mode2D=False,
+        params={"use2DMap": False},
+    )
+    ego = sampleEgo(scenario, maxIterations=1000)
+    directions = ego.element.network.nominalDirectionsAt(ego)
+    # Check the car is over the overpass
+    assert ego.position.x > 8 and ego.position.x < 12
+    assert ego.position.y < -10 and ego.position.y > -14
+    assert ego.position.z > 10
+    # Checks that road orientation is same as ego orientation
+    assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
+    assert any(ego.orientation.pitch == pytest.approx(direction.pitch) for direction in directions)
+    assert any(ego.orientation.roll == pytest.approx(direction.roll) for direction in directions)
+    
+def test_car_on_slope(cached_maps3D):
+    scenario = compileDrivingScenario(
+        cached_maps3D,
+        """
+        ego = new Car on road, at (200, -12, 0), with regionContainedIn everywhere
+        """,
+        path = mapFolder / "CARLA" / "Town04.xodr",
+        mode2D=False,
+        params={"use2DMap": False},
+    )
+    ego = sampleEgo(scenario, maxIterations=1000)
+    directions = ego.element.network.nominalDirectionsAt(ego)
+    # Checks that road orientation is same as ego orientation
+    assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
+    assert any(ego.orientation.pitch == pytest.approx(direction.pitch) for direction in directions)
+    assert any(ego.orientation.roll == pytest.approx(direction.roll) for direction in directions)

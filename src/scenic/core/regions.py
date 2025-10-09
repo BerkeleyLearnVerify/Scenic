@@ -2085,25 +2085,10 @@ class MeshSurfaceRegion(MeshRegion):
 
     def containsRegionInner(self, reg, tolerance):
         if isinstance(reg, MeshSurfaceRegion):
-            print(tolerance)
             if self.mesh.is_empty:
                 return False
             elif reg.mesh.is_empty:
                 return True
-            # For Debugging
-            # """viewer = trimesh.Scene()
-            # reg.mesh.visual.face_colors = [200, 250, 200, 100]
-            # viewer.add_geometry(reg.mesh)
-            # viewer.show()"""
-
-            # import matplotlib.pyplot as plt
-
-            # self.boundingPolygon.show(plt, style="-", color="#00A0FF")
-            # reg.boundingPolygon.show(plt, style="--", color="#9E9E9E")
-            # diff_region = self.boundingPolygon.difference(reg.boundingPolygon.buffer(tolerance))
-            # print(tolerance)
-            # diff_region.show(plt, style="-", color="#FF0000")
-            # plt.show()
             return self.boundingPolygon.polygons.buffer(tolerance).contains(
                 reg.boundingPolygon.polygons
             )
