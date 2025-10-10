@@ -956,7 +956,6 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
-        self._roadDirElems = self.roads + self.shoulders
         self._nominalDirElems = self.intersections + self.roads + self.shoulders
         self._topLevelElements = (
             self.intersections + self.roads + self.shoulders + self.sidewalks
@@ -969,7 +968,7 @@ class Network:
         :meta private:
         """
         point = _toVector(point)
-        elem = self.findPointIn(point, self._roadDirElems, reject=False)
+        elem = self.findPointIn(point, self._nominalDirElems, reject=False)
         return elem.orientation[point] if elem is not None else 0
 
     #: File extension for cached versions of processed networks.
