@@ -292,4 +292,4 @@ def test_composed_scenario(getMetadriveSimulator):
 
     assert len(traj[0]) == 2, f"expected 2 objects, got {len(traj[0])}"
     assert traj[0][0] != traj[-1][0], f"ego car did not move."
-    assert traj[0][1] != traj[-1][1], f"composed car did not move."
+    assert traj[0][1] != traj[-1][1], f"subscenario car did not move."
