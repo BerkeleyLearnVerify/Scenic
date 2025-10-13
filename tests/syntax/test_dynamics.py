@@ -476,14 +476,14 @@ def test_obj_equals_self_inside_behavior():
         """
         behavior Foo():
             for obj in simulation().objects:
-                take ((obj == self) and (obj is self))
+                take (obj == self, obj is self)
 
         ego = new Object with behavior Foo
         other = new Object at 10@10
         """
     )
-    actions = sampleEgoActions(scenario, maxSteps=2)
-    assert actions == [True, False]
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == ((True, True), (False, False))
 
 
 # Termination
