@@ -229,9 +229,6 @@ def test_linkage(network, network3D, use2DMap):
                 assert outgoing in intersection.outgoingLanes
                 assert outgoing.road in intersection.roads
                 for conf in maneuver.conflictingManeuvers:
-                    print(conf.connectingLane.id)
-                    print(connecting.id)
-                    print(connecting.intersects(conf.connectingLane))
                     assert conf is not maneuver
                     assert connecting.intersects(conf.connectingLane)
                 for rev in maneuver.reverseManeuvers:
