@@ -58,7 +58,9 @@ def test_element_tolerance(cached_maps, cached_maps3D, pytestconfig, use2DMap):
         assert not network.nominalDirectionsAt(pt)
 
 
-def test_orientation_consistency(network):
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_orientation_consistency(network, network3D, use2DMap):
+    network = network if use2DMap else network3D
     for i in range(30):
         pt = network.drivableRegion.uniformPointInner()
         dirs = network.nominalDirectionsAt(pt)
@@ -100,7 +102,9 @@ def test_orientation_consistency(network):
             assert laneSec.orientation[pt] == pytest.approx(d)
 
 
-def test_linkage(network):
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_linkage(network, network3D, use2DMap):
+    network = network if use2DMap else network3D
     for road in network.roads:
         assert road.forwardLanes or road.backwardLanes
         assert road.is1Way == (not (road.forwardLanes and road.backwardLanes))
@@ -225,6 +229,9 @@ def test_linkage(network):
                 assert outgoing in intersection.outgoingLanes
                 assert outgoing.road in intersection.roads
                 for conf in maneuver.conflictingManeuvers:
+                    print(conf.connectingLane.id)
+                    print(connecting.id)
+                    print(connecting.intersects(conf.connectingLane))
                     assert conf is not maneuver
                     assert connecting.intersects(conf.connectingLane)
                 for rev in maneuver.reverseManeuvers:

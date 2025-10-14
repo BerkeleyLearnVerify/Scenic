@@ -318,7 +318,9 @@ class NetworkElement(_ElementReferencer, Region):  ### Was part of: PolygonalReg
         return self.region.intersect(other)
 
     def intersects(self, other, triedReversed=False):
-        return self.region.intersects(other, triedReversed=triedReversed)
+        return self.region.boundingPolygon.intersects(
+            other.boundingPolygon, triedReversed=triedReversed
+        )
 
     def containsPoint(self, point):
         return self.region.containsPoint(point)
