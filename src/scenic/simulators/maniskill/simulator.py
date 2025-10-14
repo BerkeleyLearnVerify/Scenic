@@ -6,14 +6,14 @@ import tempfile
 from typing import Optional
 
 import gymnasium as gym
-import numpy as np
-import sapien
-import torch
 from mani_skill.envs.sapien_env import BaseEnv
 from mani_skill.sensors.camera import CameraConfig
 from mani_skill.utils import sapien_utils
 from mani_skill.utils.building.ground import build_ground
 from mani_skill.utils.registration import register_env
+import numpy as np
+import sapien
+import torch
 
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Orientation, Vector
@@ -45,14 +45,16 @@ class ScenicEnv(BaseEnv):
     @property
     def _default_sensor_configs(self):
         """Return camera configurations for the scene.
-        
+
         Uses scene-defined cameras if available, otherwise creates a default camera.
         """
         if self.scene_camera_configs:
             return self.scene_camera_configs
 
         # Fallback to default camera configuration
-        pose = sapien_utils.look_at(eye=DEFAULT_CAMERA_EYE, target=DEFAULT_CAMERA_TARGET)
+        pose = sapien_utils.look_at(
+            eye=DEFAULT_CAMERA_EYE, target=DEFAULT_CAMERA_TARGET
+        )
         return [
             CameraConfig(
                 "base_camera",
@@ -147,7 +149,7 @@ class ScenicEnv(BaseEnv):
 
     def _initialize_episode(self, env_idx, options: dict):
         """Initialize the robot configuration for the episode.
-        
+
         Sets the robot's joint angles from the Scenic scene if provided,
         otherwise uses the robot's default configuration.
         """
@@ -164,10 +166,14 @@ class ScenicEnv(BaseEnv):
 
         robot = robot_objects[0]
 
-        if hasattr(robot, "jointAngles") and robot.jointAngles and len(robot.jointAngles) > 0:
+        if (
+            hasattr(robot, "jointAngles")
+            and robot.jointAngles
+            and len(robot.jointAngles) > 0
+        ):
             # Use user-specified joint angles
             qpos = np.array(robot.jointAngles, dtype=np.float32)
-            
+
             # Validate joint angles match robot DOF
             robot_dof = self.agent.robot.dof
             if len(qpos) != robot_dof:
@@ -175,7 +181,7 @@ class ScenicEnv(BaseEnv):
                     f"Joint angles length ({len(qpos)}) does not match robot DOF ({robot_dof}). "
                     f"For Panda robot, provide {robot_dof} joint angles."
                 )
-            
+
             qpos = torch.from_numpy(qpos)
             self.agent.reset(qpos)
             self.agent.robot.set_pose(sapien.Pose(DEFAULT_ROBOT_POSITION))
@@ -199,10 +205,7 @@ class ManiSkillSimulator(Simulator):
 
     def createSimulation(self, scene, **kwargs):
         self.last_simulation = ManiSkillSimulation(
-            scene, 
-            render=self.render, 
-            stride=self.stride,
-            **kwargs
+            scene, render=self.render, stride=self.stride, **kwargs
         )
         return self.last_simulation
 
@@ -252,7 +255,7 @@ class ManiSkillSimulation(Simulation):
 
     def extract_camera_configs(self):
         """Extract camera configurations from Scenic objects.
-        
+
         Converts Scenic Camera objects to ManiSkill CameraConfig objects.
         Uses the camera's orientation to determine the look-at target.
         """
