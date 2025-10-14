@@ -22,11 +22,10 @@ from scenic.core.geometry import (
     polygonUnion,
     removeHoles,
 )
-from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.regions import PolygonalRegion, PolylineRegion, nowhere
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
 
-print("TESTING TESTING TESTING")
 
 class OpenDriveWarning(UserWarning):
     pass
@@ -728,7 +727,7 @@ class Road:
                     sec.sidewalk_lanes[id_] = lane
                 elif ty in shoulder_lane_types:
                     sec.shoulder_lanes[id_] = lane
-            if not sec.drivable_lanes:
+            if not sec.drivable_lanes: #COME BACK TO THIS
                 continue
 
             rightmost = None
@@ -768,7 +767,17 @@ class Road:
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
         ):
             pts = [pt[:2] for pt in pts]  # drop s coordinate
-            assert sec.drivable_lanes
+            
+            #Move this here so we can still get sidewalk and shoulder sections before skipping roads with no drivable region
+            for id_, lane in sec.sidewalk_lanes.items():
+                sidewalkSections[id_].append(lane)
+            for id_, lane in sec.shoulder_lanes.items():
+                shoulderSections[id_].append(lane)
+            
+            if not sec.drivable_lanes:
+                #MIGHT NEED TO MAKE ROADSECTION
+                continue
+            #assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
                 succ = None  # will set this later
@@ -819,10 +828,10 @@ class Road:
             allElements.append(section)
             last_section = section
 
-            for id_, lane in sec.sidewalk_lanes.items():
-                sidewalkSections[id_].append(lane)
-            for id_, lane in sec.shoulder_lanes.items():
-                shoulderSections[id_].append(lane)
+            # for id_, lane in sec.sidewalk_lanes.items():
+            #     sidewalkSections[id_].append(lane)
+            # for id_, lane in sec.shoulder_lanes.items():
+            #     shoulderSections[id_].append(lane)
 
         # Build sidewalks and shoulders
         # TODO improve this!
@@ -857,8 +866,7 @@ class Road:
                     rightPoints.extend(reversed(leftSec.left_bounds))
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
-
-            centerline = self.create_center_line(leftEdge, rightEdge) #Moved heuristic centerline creation to create_center_line function
+            centerline = nowhere if self.drivable_region.is_empty else self.create_center_line(leftEdge, rightEdge)
             allPolys = (
                 sec.poly
                 for id_ in range(rightmost, leftmost + 1)
@@ -1041,17 +1049,20 @@ class Road:
                     (forwardLanes if forward else backwardLanes).append(lane)
                     allElements.append(lane)
         lanes = forwardLanes + backwardLanes
-        assert lanes
-
-        # Compute lane adjacencies
-        for lane in lanes:
-            adj = []
-            for section in lane.sections:
-                adj.extend(sec.lane for sec in section.adjacentLanes)
-            lane.adjacentLanes = tuple(adj)
+        #assert lanes
+        
+        if lanes:
+            # Compute lane adjacencies
+            for lane in lanes:
+                adj = []
+                for section in lane.sections:
+                    adj.extend(sec.lane for sec in section.adjacentLanes)
+                lane.adjacentLanes = tuple(adj)
 
         # Create lane groups
         def getEdges(forward):
+            if not roadSections:
+                return nowhere, nowhere, nowhere
             if forward:
                 sec = roadSections[0]
                 startLanes = sec.forwardLanes
@@ -1077,8 +1088,8 @@ class Road:
             middleLane = startLanes[len(startLanes) // 2].lane  # rather arbitrary
             return leftEdge, middleLane.centerline, rightEdge
 
-        if forwardLanes:
-            leftEdge, centerline, rightEdge = getEdges(forward=True)
+        if forwardLanes or forwardShoulder or forwardSidewalk:
+            leftEdge, centerline, rightEdge = getEdges(forward=True) #fix get edges to handle no lanes case - retur nowehere
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
                 polygon=buffer_union(
@@ -1098,7 +1109,7 @@ class Road:
             allElements.append(forwardGroup)
         else:
             forwardGroup = None
-        if backwardLanes:
+        if backwardLanes or backwardShoulder or backwardSidewalk: #was just backwardLanes
             leftEdge, centerline, rightEdge = getEdges(forward=False)
             backwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_backward",
@@ -1134,7 +1145,7 @@ class Road:
             roadSignals.append(signal)
 
         # Create road
-        assert forwardGroup or backwardGroup
+        assert forwardGroup or backwardGroup #At least one LaneGroup required for Road creation
         if forwardGroup:
             rightEdge = forwardGroup.rightEdge
         else:
@@ -1144,6 +1155,8 @@ class Road:
         else:
             leftEdge = forwardGroup.leftEdge
         centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
+        # if self.drivable_region.is_empty:
+        #     centerline = nowhere
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1334,15 +1347,10 @@ class Road:
                 top_cut_index = i
 
         top_cut = (top_cut_index, (top_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the top cut
-        top_cut_vertices = (crosswalk_polygon_coords[top_cut[0]], crosswalk_polygon_coords[top_cut[1]])
+        #top_cut_vertices = (crosswalk_polygon_coords[top_cut[0]], crosswalk_polygon_coords[top_cut[1]])
         bottom_cut = (bottom_cut_index, (bottom_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the bottom cut
-        bottom_cut_vertices = (crosswalk_polygon_coords[bottom_cut[0]], crosswalk_polygon_coords[bottom_cut[1]])
+        #bottom_cut_vertices = (crosswalk_polygon_coords[bottom_cut[0]], crosswalk_polygon_coords[bottom_cut[1]])
 
-        '''
-        -start at top edge
-        -the first index of the top edge would be "left"
-        -go to first index and walk
-        '''
         def walk_polygon(n, bottom_cut, top_cut):
             t0, t1 = top_cut #top cut edge indices (t0 -> t1)
             b0, b1 = bottom_cut #bottom edge indices (b0 -> b1)
@@ -1365,8 +1373,8 @@ class Road:
         left_edge = [crosswalk_polygon_coords[i] for i in left_indices]
         right_edge = [crosswalk_polygon_coords[i] for i in right_indices]
 
-        print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge} for road {self.id_} crosswalk {cw.id_}")
-        print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge} for road {self.id_} crosswalk {cw.id_}") 
+        #print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge} for road {self.id_} crosswalk {cw.id_}")
+        #print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge} for road {self.id_} crosswalk {cw.id_}") 
 
         leftEdge = PolylineRegion(cleanChain(left_edge))
         rightEdge = PolylineRegion(cleanChain(right_edge))
@@ -2005,8 +2013,6 @@ class RoadMap:
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
-            if road.drivable_region.is_empty:
-                continue  # not actually a road you can drive on
             newRoad, elts = road.toScenicRoad(tolerance=self.tolerance)
             registerAll(elts)
             (connectingRoads if road.junction else mainRoads)[id_] = newRoad
@@ -2021,6 +2027,8 @@ class RoadMap:
 
             # Work out connectivity of roads and adjacent sections
             roadA, roadB = roads[link.id_a], roads[link.id_b]
+            if not roadA.sections or not roadB.sections:
+                continue  # skip roads with no drivable lanes, hence no road sections
             if link.contact_a == "start":
                 secA = roadA.sections[0]
                 roadA._predecessor = roadB
@@ -2074,12 +2082,12 @@ class RoadMap:
             for connection in junction.connections:
                 incomingID = connection.incoming_id
                 incomingRoad = mainRoads.get(incomingID)
-                if not incomingRoad:
+                if not incomingRoad or not incomingRoad.sections:
                     continue  # incoming road has no drivable lanes; skip it
 
                 connectingID = connection.connecting_id
                 connectingRoad = connectingRoads.get(connectingID)
-                if not connectingRoad:
+                if not connectingRoad or not connectingRoad.sections:
                     continue  # connecting road has no drivable lanes; skip it
 
                 for signal in connectingRoad.signals:
@@ -2216,6 +2224,8 @@ class RoadMap:
             if rid not in roads:
                 continue  # road does not have any drivable lanes, so we skipped it
             newRoad = roads[rid]
+            if not newRoad.sections:
+                continue  # road does not have any drivable lanes
             if oldRoad.predecessor:
                 intersection = intersections[oldRoad.predecessor]
                 newRoad._predecessor = intersection
