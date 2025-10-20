@@ -1,0 +1,656 @@
+{
+  "server_version": "0.10.0",
+  "ids": {
+    "carModels": [
+      "vehicle.taxi.ford",
+      "vehicle.nissan.patrol",
+      "vehicle.dodgecop.charger",
+      "vehicle.dodge.charger",
+      "vehicle.mini.cooper",
+      "vehicle.lincoln.mkz"
+    ],
+    "bicycleModels": [],
+    "motorcycleModels": [],
+    "truckModels": [
+      "vehicle.carlacola.actors",
+      "vehicle.firetruck.actors",
+      "vehicle.ambulance.ford"
+    ],
+    "vanModels": [],
+    "busModels": [
+      "vehicle.fuso.mitsubishi"
+    ],
+    "walkerModels": [
+      "walker.pedestrian.0049",
+      "walker.pedestrian.0050",
+      "walker.pedestrian.0048",
+      "walker.pedestrian.0029",
+      "walker.pedestrian.0040",
+      "walker.pedestrian.0025",
+      "walker.pedestrian.0023",
+      "walker.pedestrian.0046",
+      "walker.pedestrian.0044",
+      "walker.pedestrian.0039",
+      "walker.pedestrian.0051",
+      "walker.pedestrian.0028",
+      "walker.pedestrian.0017",
+      "walker.pedestrian.0026",
+      "walker.pedestrian.0016",
+      "walker.pedestrian.0038",
+      "walker.pedestrian.0015",
+      "walker.pedestrian.0037",
+      "walker.pedestrian.0047",
+      "walker.pedestrian.0034",
+      "walker.pedestrian.0031",
+      "walker.pedestrian.0033",
+      "walker.pedestrian.0032",
+      "walker.pedestrian.0041",
+      "walker.pedestrian.0030",
+      "walker.pedestrian.0035",
+      "walker.pedestrian.0036",
+      "walker.pedestrian.0027",
+      "walker.pedestrian.0024",
+      "walker.pedestrian.0045",
+      "walker.pedestrian.0022",
+      "walker.pedestrian.0019",
+      "walker.pedestrian.0021",
+      "walker.pedestrian.0020",
+      "walker.pedestrian.0043",
+      "walker.pedestrian.0018",
+      "walker.pedestrian.0042"
+    ],
+    "trashModels": [
+      "static.prop.trashcan03",
+      "static.prop.trashcan02",
+      "static.prop.trashcan04",
+      "static.prop.trashcan01"
+    ],
+    "coneModels": [
+      "static.prop.trafficcone01",
+      "static.prop.trafficcone02",
+      "static.prop.constructioncone"
+    ],
+    "debrisModels": [
+      "static.prop.dirtdebris03",
+      "static.prop.dirtdebris02",
+      "static.prop.dirtdebris01"
+    ],
+    "vendingMachineModels": [
+      "static.prop.vendingmachine"
+    ],
+    "chairModels": [
+      "static.prop.plasticchair"
+    ],
+    "busStopModels": [
+      "static.prop.busstop"
+    ],
+    "advertisementModels": [
+      "static.prop.streetsign01",
+      "static.prop.advertisement",
+      "static.prop.streetsign04",
+      "static.prop.streetsign"
+    ],
+    "garbageModels": [
+      "static.prop.garbage02",
+      "static.prop.garbage01",
+      "static.prop.plasticbag",
+      "static.prop.colacan",
+      "static.prop.garbage06",
+      "static.prop.platformgarbage01",
+      "static.prop.garbage04",
+      "static.prop.garbage03",
+      "static.prop.trashbag",
+      "static.prop.garbage05"
+    ],
+    "containerModels": [
+      "static.prop.container"
+    ],
+    "tableModels": [
+      "static.prop.maptable",
+      "static.prop.plastictable"
+    ],
+    "barrierModels": [
+      "static.prop.streetbarrier",
+      "static.prop.chainbarrierend",
+      "static.prop.chainbarrier"
+    ],
+    "plantpotModels": [
+      "static.prop.plantpot02",
+      "static.prop.plantpot06",
+      "static.prop.plantpot03",
+      "static.prop.plantpot07",
+      "static.prop.plantpot01",
+      "static.prop.plantpot05",
+      "static.prop.plantpot04"
+    ],
+    "mailboxModels": [
+      "static.prop.mailbox"
+    ],
+    "gnomeModels": [
+      "static.prop.gnome"
+    ],
+    "creasedboxModels": [
+      "static.prop.creasedbox01"
+    ],
+    "caseModels": [
+      "static.prop.guitarcase",
+      "static.prop.travelcase",
+      "static.prop.briefcase"
+    ],
+    "boxModels": [],
+    "benchModels": [
+      "static.prop.bench01",
+      "static.prop.bench02"
+    ],
+    "barrelModels": [
+      "static.prop.barrel"
+    ],
+    "atmModels": [
+      "static.prop.atm"
+    ],
+    "kioskModels": [
+      "static.prop.kiosk_01"
+    ],
+    "ironplateModels": [],
+    "trafficwarningModels": [
+      "static.prop.trafficwarning"
+    ]
+  },
+  "dims": {
+    "vehicle.taxi.ford": {
+      "width": 1.7890609502792358,
+      "length": 5.354491233825684,
+      "height": 1.575230598449707
+    },
+    "vehicle.carlacola.actors": {
+      "width": 2.9117815494537354,
+      "length": 8.003673553466797,
+      "height": 4.054566383361816
+    },
+    "vehicle.firetruck.actors": {
+      "width": 2.90128493309021,
+      "length": 8.579916000366211,
+      "height": 3.8267812728881836
+    },
+    "vehicle.fuso.mitsubishi": {
+      "width": 3.927680492401123,
+      "length": 10.174287796020508,
+      "height": 4.241000652313232
+    },
+    "vehicle.nissan.patrol": {
+      "width": 2.1466238498687744,
+      "length": 5.591163635253906,
+      "height": 2.05902099609375
+    },
+    "vehicle.ambulance.ford": {
+      "width": 2.3511743545532227,
+      "length": 6.356935024261475,
+      "height": 2.431001663208008
+    },
+    "vehicle.dodgecop.charger": {
+      "width": 1.9244433641433716,
+      "length": 5.236761569976807,
+      "height": 1.6439720392227173
+    },
+    "vehicle.dodge.charger": {
+      "width": 1.8809516429901123,
+      "length": 5.006043434143066,
+      "height": 1.540313720703125
+    },
+    "vehicle.mini.cooper": {
+      "width": 2.0955777168273926,
+      "length": 4.55255126953125,
+      "height": 1.7724559307098389
+    },
+    "vehicle.lincoln.mkz": {
+      "width": 1.8356460332870483,
+      "length": 4.891970157623291,
+      "height": 1.5241189002990723
+    },
+    "walker.pedestrian.0049": {
+      "width": 0.5,
+      "length": 0.5,
+      "height": 1.1100000143051147
+    },
+    "walker.pedestrian.0050": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.9049999713897705
+    },
+    "walker.pedestrian.0048": {
+      "width": 0.5,
+      "length": 0.5,
+      "height": 1.1100000143051147
+    },
+    "walker.pedestrian.0029": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0040": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0025": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0023": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0046": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0044": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8299999237060547
+    },
+    "walker.pedestrian.0039": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0051": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.9049999713897705
+    },
+    "walker.pedestrian.0028": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0017": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0026": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0016": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0038": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8700000047683716
+    },
+    "walker.pedestrian.0015": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0037": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.9199999570846558
+    },
+    "walker.pedestrian.0047": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0034": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8700000047683716
+    },
+    "walker.pedestrian.0031": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0033": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0032": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0041": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0030": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0035": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.9149999618530273
+    },
+    "walker.pedestrian.0036": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.9199999570846558
+    },
+    "walker.pedestrian.0027": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0024": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0045": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0022": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0019": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8499999046325684
+    },
+    "walker.pedestrian.0021": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0020": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0043": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8299999237060547
+    },
+    "walker.pedestrian.0018": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8399999141693115
+    },
+    "walker.pedestrian.0042": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8299999237060547
+    },
+    "static.prop.streetsign01": {
+      "width": 0.3029319941997528,
+      "length": 2.470391273498535,
+      "height": 3.8779332637786865
+    },
+    "static.prop.plantpot02": {
+      "width": 0.43072694540023804,
+      "length": 1.0511938333511353,
+      "height": 0.48692914843559265
+    },
+    "static.prop.trafficcone01": {
+      "width": 0.9552291035652161,
+      "length": 0.955228865146637,
+      "height": 1.2336182594299316
+    },
+    "static.prop.garbage02": {
+      "width": 0.05342775210738182,
+      "length": 0.05342775210738182,
+      "height": 0.009213896468281746
+    },
+    "static.prop.trafficwarning": {
+      "width": 2.8705859184265137,
+      "length": 2.373429536819458,
+      "height": 3.569523334503174
+    },
+    "static.prop.garbage01": {
+      "width": 0.05342775210738182,
+      "length": 0.053427763283252716,
+      "height": 0.08676455914974213
+    },
+    "static.prop.guitarcase": {
+      "width": 0.1251685619354248,
+      "length": 1.242393970489502,
+      "height": 0.4944811165332794
+    },
+    "static.prop.container": {
+      "width": 1.6529669761657715,
+      "length": 5.399704933166504,
+      "height": 1.3477081060409546
+    },
+    "static.prop.plasticbag": {
+      "width": 0.4025624990463257,
+      "length": 0.3109833598136902,
+      "height": 0.5523712635040283
+    },
+    "static.prop.trafficcone02": {
+      "width": 0.3945564925670624,
+      "length": 0.455596923828125,
+      "height": 1.1829206943511963
+    },
+    "static.prop.maptable": {
+      "width": 0.6170762777328491,
+      "length": 1.5732090473175049,
+      "height": 1.1810814142227173
+    },
+    "static.prop.dirtdebris03": {
+      "width": 1.5139321088790894,
+      "length": 1.8574368953704834,
+      "height": 0.1883699893951416
+    },
+    "static.prop.kiosk_01": {
+      "width": 1.6540685892105103,
+      "length": 1.6252474784851074,
+      "height": 3.2453691959381104
+    },
+    "static.prop.creasedbox01": {
+      "width": 0.9068000316619873,
+      "length": 1.0287128686904907,
+      "height": 0.061725616455078125
+    },
+    "static.prop.gnome": {
+      "width": 0.37559059262275696,
+      "length": 0.36661627888679504,
+      "height": 0.8829975724220276
+    },
+    "static.prop.colacan": {
+      "width": 0.07167824357748032,
+      "length": 0.06817007064819336,
+      "height": 0.10954885929822922
+    },
+    "static.prop.plantpot06": {
+      "width": 1.5932812690734863,
+      "length": 1.5932812690734863,
+      "height": 0.84954833984375
+    },
+    "static.prop.constructioncone": {
+      "width": 0.4784207046031952,
+      "length": 0.478452205657959,
+      "height": 0.7117974162101746
+    },
+    "static.prop.travelcase": {
+      "width": 0.3276098966598511,
+      "length": 0.5673347115516663,
+      "height": 1.262577772140503
+    },
+    "static.prop.garbage06": {
+      "width": 0.2133311778306961,
+      "length": 0.3661772906780243,
+      "height": 0.07683420181274414
+    },
+    "static.prop.trashcan03": {
+      "width": 0.7573251724243164,
+      "length": 0.7565627098083496,
+      "height": 0.9889887571334839
+    },
+    "static.prop.streetbarrier": {
+      "width": 0.3716789782047272,
+      "length": 1.2149077653884888,
+      "height": 1.069164514541626
+    },
+    "static.prop.advertisement": {
+      "width": 0.28684958815574646,
+      "length": 1.549233317375183,
+      "height": 2.4428441524505615
+    },
+    "static.prop.mailbox": {
+      "width": 0.43842461705207825,
+      "length": 0.526629626750946,
+      "height": 1.1572810411453247
+    },
+    "static.prop.dirtdebris02": {
+      "width": 1.5139321088790894,
+      "length": 1.8574368953704834,
+      "height": 0.14900343120098114
+    },
+    "static.prop.barrel": {
+      "width": 0.47143638134002686,
+      "length": 0.4596165418624878,
+      "height": 0.8067459464073181
+    },
+    "static.prop.plantpot03": {
+      "width": 0.43072694540023804,
+      "length": 1.0511937141418457,
+      "height": 0.4869290888309479
+    },
+    "static.prop.platformgarbage01": {
+      "width": 1.7114051580429077,
+      "length": 3.6332411766052246,
+      "height": 0.33158016204833984
+    },
+    "static.prop.atm": {
+      "width": 0.8325381278991699,
+      "length": 0.5721203684806824,
+      "height": 2.194814443588257
+    },
+    "static.prop.garbage04": {
+      "width": 0.05568109452724457,
+      "length": 0.05727477744221687,
+      "height": 0.06884017586708069
+    },
+    "static.prop.garbage03": {
+      "width": 0.05944278463721275,
+      "length": 0.059658296406269073,
+      "height": 0.07927705347537994
+    },
+    "static.prop.briefcase": {
+      "width": 0.18117640912532806,
+      "length": 0.543353796005249,
+      "height": 0.43285050988197327
+    },
+    "static.prop.plasticchair": {
+      "width": 0.7504488825798035,
+      "length": 0.7304753661155701,
+      "height": 1.2713558673858643
+    },
+    "static.prop.streetsign04": {
+      "width": 0.12483911216259003,
+      "length": 1.1708152294158936,
+      "height": 2.7728850841522217
+    },
+    "static.prop.chainbarrierend": {
+      "width": 0.24313338100910187,
+      "length": 0.24313347041606903,
+      "height": 0.6920976042747498
+    },
+    "static.prop.busstop": {
+      "width": 3.8760786056518555,
+      "length": 1.8936100006103516,
+      "height": 2.738938331604004
+    },
+    "static.prop.streetsign": {
+      "width": 0.1252390295267105,
+      "length": 1.0643447637557983,
+      "height": 2.154392957687378
+    },
+    "static.prop.plantpot07": {
+      "width": 0.5304248929023743,
+      "length": 0.5304248929023743,
+      "height": 0.4888741672039032
+    },
+    "static.prop.plantpot01": {
+      "width": 0.4757719337940216,
+      "length": 1.08914053440094,
+      "height": 0.5573238730430603
+    },
+    "static.prop.plantpot05": {
+      "width": 0.4757719337940216,
+      "length": 0.4946027398109436,
+      "height": 0.5573238730430603
+    },
+    "static.prop.chainbarrier": {
+      "width": 0.24313338100910187,
+      "length": 1.6833475828170776,
+      "height": 0.6920976042747498
+    },
+    "static.prop.dirtdebris01": {
+      "width": 1.5139321088790894,
+      "length": 1.8574368953704834,
+      "height": 0.14900343120098114
+    },
+    "static.prop.plantpot04": {
+      "width": 0.7366006970405579,
+      "length": 4.967305660247803,
+      "height": 0.12478026747703552
+    },
+    "static.prop.trashbag": {
+      "width": 0.42955997586250305,
+      "length": 0.3779701590538025,
+      "height": 0.702082097530365
+    },
+    "static.prop.trashcan02": {
+      "width": 0.6696233749389648,
+      "length": 0.7931143045425415,
+      "height": 1.0590858459472656
+    },
+    "static.prop.garbage05": {
+      "width": 0.23253268003463745,
+      "length": 0.23187801241874695,
+      "height": 0.05761278420686722
+    },
+    "static.prop.bench01": {
+      "width": 0.6381909847259521,
+      "length": 1.7933329343795776,
+      "height": 1.0038363933563232
+    },
+    "static.prop.trashcan04": {
+      "width": 0.5135547518730164,
+      "length": 0.5238340497016907,
+      "height": 1.0454455614089966
+    },
+    "static.prop.trashcan01": {
+      "width": 0.37456512451171875,
+      "length": 0.5437172055244446,
+      "height": 1.2140138149261475
+    },
+    "static.prop.vendingmachine": {
+      "width": 1.102043867111206,
+      "length": 0.8728882670402527,
+      "height": 2.1082382202148438
+    },
+    "static.prop.bench02": {
+      "width": 0.5126523971557617,
+      "length": 1.58349609375,
+      "height": 0.5126523971557617
+    },
+    "static.prop.plastictable": {
+      "width": 2.4822070598602295,
+      "length": 2.4822070598602295,
+      "height": 2.479797840118408
+    }
+  }
+}

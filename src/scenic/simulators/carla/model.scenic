@@ -44,7 +44,7 @@ Global Parameters:
 import pathlib
 from scenic.domains.driving.model import *
 
-import scenic.simulators.carla.blueprints as blueprints
+import scenic.simulators.carla.blueprints as bp
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 
@@ -182,7 +182,10 @@ class Car(Vehicle):
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
     blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
     """
-    blueprint: Uniform(*blueprints.carModels)
+    blueprint: Uniform(*bp.any_in("car"))
+    width: bp.width(self.blueprint, 2)
+    length: bp.length(self.blueprint, 4.5)
+    height: bp.height(self.blueprint, 1.5)
 
     @property
     def isCar(self):
@@ -192,22 +195,34 @@ class NPCCar(Car):  # no distinction between these in CARLA
     pass
 
 class Bicycle(Vehicle):
-    width: 1
-    length: 2
-    blueprint: Uniform(*blueprints.bicycleModels)
-
+    blueprint: Uniform(*bp.any_in("bicycle"))
+    width: bp.width(self.blueprint, 1)
+    length: bp.length(self.blueprint, 2)
+    height: bp.height(self.blueprint, 1.5)
 
 class Motorcycle(Vehicle):
-    width: 1
-    length:2
-    blueprint: Uniform(*blueprints.motorcycleModels)
-
+    blueprint: Uniform(*bp.any_in("motorcycle"))
+    width: bp.width(self.blueprint, 1)
+    length: bp.length(self.blueprint, 2)
+    height: bp.height(self.blueprint, 1.5)
 
 class Truck(Vehicle):
-    width: 3
-    length: 7
-    blueprint: Uniform(*blueprints.truckModels)
+    blueprint: Uniform(*bp.any_in("truck"))
+    width: bp.width(self.blueprint, 3)
+    length: bp.length(self.blueprint, 7)
+    height: bp.height(self.blueprint, 2.5)
 
+class Van(Vehicle):
+    blueprint: Uniform(*bp.any_in("van"))
+    width: bp.width(self.blueprint, 2)
+    length: bp.length(self.blueprint, 6)
+    height: bp.height(self.blueprint, 2)
+
+class Bus(Vehicle):
+    blueprint: Uniform(*bp.any_in("bus"))
+    width: bp.width(self.blueprint, 4)
+    length: bp.length(self.blueprint, 10)
+    height: bp.height(self.blueprint, 4)
 
 class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
     """A pedestrian.
@@ -215,9 +230,10 @@ class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
     blueprints listed in :obj:`scenic.simulators.carla.blueprints.walkerModels`.
     """
-    width: 0.5
-    length: 0.5
-    blueprint: Uniform(*blueprints.walkerModels)
+    blueprint: Uniform(*bp.any_in("walker"))
+    width: bp.width(self.blueprint, 0.5)
+    length: bp.length(self.blueprint, 0.5)
+    height: bp.height(self.blueprint, 0.5)
     carlaController: None
 
     def setWalkingDirection(self, heading):
@@ -238,100 +254,99 @@ class Prop(CarlaActor):
     regionContainedIn: road
     position: new Point on road
     parentOrientation: Range(0, 360) deg
-    width: 0.5
-    length: 0.5
+    width: bp.width(self.blueprint, 0.5)
+    length: bp.length(self.blueprint, 0.5)
+    height: bp.height(self.blueprint, 0.5)
     physics: False
 
 class Trash(Prop):
-    blueprint: Uniform(*blueprints.trashModels)
+    blueprint: Uniform(*bp.any_in("trash"))
 
 
 class Cone(Prop):
-    blueprint: Uniform(*blueprints.coneModels)
+    blueprint: Uniform(*bp.any_in("cone"))
 
 
 class Debris(Prop):
-    blueprint: Uniform(*blueprints.debrisModels)
+    blueprint: Uniform(*bp.any_in("debris"))
 
 
 class VendingMachine(Prop):
-    blueprint: Uniform(*blueprints.vendingMachineModels)
-
+    blueprint: Uniform(*bp.any_in("vendingMachine"))
+ 
 
 class Chair(Prop):
-    blueprint: Uniform(*blueprints.chairModels)
-
+    blueprint: Uniform(*bp.any_in("chair"))
+ 
 
 class BusStop(Prop):
-    blueprint: Uniform(*blueprints.busStopModels)
+    blueprint: Uniform(*bp.any_in("busStop"))
 
 
 class Advertisement(Prop):
-    blueprint: Uniform(*blueprints.advertisementModels)
+    blueprint: Uniform(*bp.any_in("advertisement"))
 
 
 class Garbage(Prop):
-    blueprint: Uniform(*blueprints.garbageModels)
-
+    blueprint: Uniform(*bp.any_in("garbage"))
 
 class Container(Prop):
-    blueprint: Uniform(*blueprints.containerModels)
+    blueprint: Uniform(*bp.any_in("container"))
 
 
 class Table(Prop):
-    blueprint: Uniform(*blueprints.tableModels)
+    blueprint: Uniform(*bp.any_in("table"))
 
 
 class Barrier(Prop):
-    blueprint: Uniform(*blueprints.barrierModels)
+    blueprint: Uniform(*bp.any_in("barrier"))
 
 
 class PlantPot(Prop):
-    blueprint: Uniform(*blueprints.plantpotModels)
+    blueprint: Uniform(*bp.any_in("plantpot"))
 
 
 class Mailbox(Prop):
-    blueprint: Uniform(*blueprints.mailboxModels)
-
+    blueprint: Uniform(*bp.any_in("mailbox"))
 
 class Gnome(Prop):
-    blueprint: Uniform(*blueprints.gnomeModels)
+    blueprint: Uniform(*bp.any_in("gnome"))
 
 
 class CreasedBox(Prop):
-    blueprint: Uniform(*blueprints.creasedboxModels)
+    blueprint: Uniform(*bp.any_in("creasedbox"))
 
 
 class Case(Prop):
-    blueprint: Uniform(*blueprints.caseModels)
+    blueprint: Uniform(*bp.any_in("case"))
 
 
 class Box(Prop):
-    blueprint: Uniform(*blueprints.boxModels)
+    blueprint: Uniform(*bp.any_in("box"))
 
 
 class Bench(Prop):
-    blueprint: Uniform(*blueprints.benchModels)
+    blueprint: Uniform(*bp.any_in("bench"))
 
 
 class Barrel(Prop):
-    blueprint: Uniform(*blueprints.barrelModels)
+    blueprint: Uniform(*bp.any_in("barrel"))
 
 
 class ATM(Prop):
-    blueprint: Uniform(*blueprints.atmModels)
+    blueprint: Uniform(*bp.any_in("atm"))
 
 
 class Kiosk(Prop):
-    blueprint: Uniform(*blueprints.kioskModels)
+    blueprint: Uniform(*bp.any_in("kiosk"))
 
 
 class IronPlate(Prop):
-    blueprint: Uniform(*blueprints.ironplateModels)
+    blueprint: Uniform(*bp.any_in("ironplate"))
 
 
 class TrafficWarning(Prop):
-    blueprint: Uniform(*blueprints.trafficwarningModels)
+    blueprint: Uniform(*bp.any_in("trafficwarning"))
 
 
 ## Utility functions
