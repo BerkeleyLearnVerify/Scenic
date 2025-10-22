@@ -510,6 +510,31 @@ def test_list_filtered_empty_2():
     assert sum(v == 2 for v in vs) >= 85
 
 
+def test_filter_lambda_random_global():
+    scenario = compileScenic(
+        """
+        thresh = Range(0, 1)
+        mylist = [Range(-1, 1), Range(2, 3)]
+        filtered = filter(lambda v: v > thresh, mylist)
+        ego = new Object with foo Uniform(*filtered)
+        """
+    )
+    with pytest.raises(RandomControlFlowError):
+        sampleEgo(scenario)
+
+
+def test_filter_lambda_random_threshold():
+    scenario = compileScenic(
+        """
+        mylist = [Range(-1, 1), Range(3, 4)]
+        filtered = filter(lambda v: v > Range(0, 1), mylist)
+        ego = new Object with foo Uniform(*filtered)
+        """
+    )
+    with pytest.raises(RandomControlFlowError):
+        sampleEgo(scenario)
+
+
 def test_tuple():
     scenario = compileScenic("ego = new Object with foo tuple([3, Uniform(1, 2)])")
     ts = [sampleEgo(scenario).foo for i in range(60)]
