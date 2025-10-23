@@ -73,7 +73,6 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
             code=basicScenario,
             useCache=False,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap, "tolerance": 0.115},
         )
         sampleScene(scenario, maxIterations=1000)
         # Second, try the cached version of the network
@@ -83,7 +82,6 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
             code=basicScenario,
             useCache=True,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap, "tolerance": 0.115},
         )
         sampleScene(scenario, maxIterations=1000)
     except TriangulationError:
@@ -108,7 +106,6 @@ def test_elements_at(cached_maps, cached_maps3D, use2DMap):
             param intersection = network.intersectionAt(spot)
     """,
         mode2D=use2DMap,
-        params={"use2DMap": use2DMap},
     )
     scene = sampleScene(scenario, maxIterations=1000)
     ego = scene.egoObject
@@ -140,7 +137,6 @@ def test_intersection(cached_maps, cached_maps3D, use2DMap):
         ego = new Car on maneuver.connectingLane.centerline
     """,
         mode2D=use2DMap,
-        params={"use2DMap": use2DMap},
     )
     for i in range(20):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -174,7 +170,6 @@ def test_curb(cached_maps, cached_maps3D, use2DMap):
         new Car left of spot by 0.25
     """,
         mode2D=use2DMap,
-        params={"use2DMap": use2DMap},
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
@@ -213,7 +208,6 @@ def test_caching(tmpdir, use2DMap):
             new Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
         """,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap},
         )
         sampleScene(scenario, maxIterations=1000)
 
@@ -229,7 +223,6 @@ def test_pickle(cached_maps, cached_maps3D, use2DMap):
         new Pedestrian on visible sidewalk
     """,
         mode2D=use2DMap,
-        params={"use2DMap": use2DMap},
     )
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
@@ -246,7 +239,6 @@ def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
             param foo = ego.oppositeLaneGroup.sidewalk
             """,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap},
         )
 
     with pytest.raises(InvalidScenarioError):
@@ -259,7 +251,6 @@ def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
             param foo = ego.lane
             """,
             mode2D=use2DMap,
-            params={"use2DMap": use2DMap},
         )
 
 
@@ -270,8 +261,6 @@ def test_cars_at_underpass(cached_maps3D):
         ego = new Car on road, at (10, -12, 0), with regionContainedIn everywhere
         """,
         path=mapFolder / "CARLA" / "Town04.xodr",
-        mode2D=False,
-        params={"use2DMap": False},
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
@@ -296,8 +285,6 @@ def test_cars_at_underpass(cached_maps3D):
         ego = new Car on road, at (10, -12, 100), with regionContainedIn everywhere
         """,
         path=mapFolder / "CARLA" / "Town04.xodr",
-        mode2D=False,
-        params={"use2DMap": False},
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
@@ -323,8 +310,6 @@ def test_car_on_slope(cached_maps3D):
         ego = new Car on road, at (200, -12, 0), with regionContainedIn everywhere
         """,
         path=mapFolder / "CARLA" / "Town04.xodr",
-        mode2D=False,
-        params={"use2DMap": False},
     )
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
