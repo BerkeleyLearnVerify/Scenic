@@ -35,7 +35,7 @@ from tests.domains.driving.conftest import map_params, mapFolder
 
 
 def compileDrivingScenario(
-    cached_maps, code="", useCache=True, path=None, mode2D=True, params={}
+    cached_maps, code="", useCache=True, path=None, mode2D=False, params={}
 ):
     if not path:
         path = mapFolder / "CARLA" / "Town01.xodr"
