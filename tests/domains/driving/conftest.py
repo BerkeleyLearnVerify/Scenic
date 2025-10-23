@@ -39,10 +39,32 @@ def cached_maps(tmpdir_factory):
 
 
 @pytest.fixture(scope="session")
+def cached_maps3D(tmpdir_factory):
+    folder = tmpdir_factory.mktemp("maps3D")
+    paths = {}
+    for localMap in maps:
+        newPath = folder.join(localMap)
+        os.makedirs(newPath.dirname, exist_ok=True)
+        shutil.copyfile(localMap, newPath)
+        paths[localMap] = newPath
+    return paths
+
+
+@pytest.fixture(scope="session")
 def network(cached_maps, pytestconfig):
     if pytestconfig.getoption("--fast", False):
         path = mapFolder / "CARLA" / "Town01.xodr"
     else:
         path = mapFolder / "CARLA" / "Town03.xodr"
     path = cached_maps[str(path)]
-    return Network.fromFile(path)
+    return Network.fromFile(path, use2DMap=True)
+
+
+@pytest.fixture(scope="session")
+def network3D(cached_maps3D, pytestconfig):
+    if pytestconfig.getoption("--fast", False):
+        path = mapFolder / "CARLA" / "Town01.xodr"
+    else:
+        path = mapFolder / "CARLA" / "Town03.xodr"
+    path = cached_maps3D[str(path)]
+    return Network.fromFile(path, use2DMap=False)

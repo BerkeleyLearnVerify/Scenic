@@ -102,7 +102,7 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
-param snapToGroundDefault = is2DMode()
+param snapToGroundDefault = True # Default to True, setting to is2DMode() causes issue with vehicle clipping with road
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,

@@ -2041,6 +2041,33 @@ class MeshSurfaceRegion(MeshRegion):
 
         return super().intersects(other, triedReversed)
 
+    def union(self, other, triedReversed=False):
+        """Get a `Region` representing the union of this region with another.
+
+        This function handles union computation for `MeshSurfaceRegion` with:
+            - `MeshSurfaceRegion`
+        """
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
+            return super().union(other, triedReversed)
+
+        # If other region is represented by a mesh, we can extract the mesh to
+        # perform boolean operations on it
+        if isinstance(other, MeshSurfaceRegion):
+            other_mesh = other.mesh
+
+            # Compute union using Trimesh
+            new_mesh = trimesh.util.concatenate(self.mesh, other_mesh)
+
+            return MeshSurfaceRegion(
+                new_mesh,
+                tolerance=min(self.tolerance, other.tolerance),
+                centerMesh=False,
+            )
+
+        # Don't know how to compute this union, fall back to default behavior.
+        return super().union(other, triedReversed)
+
     @distributionFunction
     def containsPoint(self, point):
         """Check if this region's surface contains a point."""
@@ -2052,18 +2079,18 @@ class MeshSurfaceRegion(MeshRegion):
 
     def containsObject(self, obj):
         # A surface cannot contain an object, which must have a volume.
-        return False
+        # Use footprint
+        return self.boundingPolygon.containsObject(obj)
 
     def containsRegionInner(self, reg, tolerance):
-        if tolerance != 0:
-            warnings.warn(
-                "Nonzero tolerances are ignored for containsRegionInner on MeshSurfaceRegion"
-            )
-
         if isinstance(reg, MeshSurfaceRegion):
-            diff_region = reg.difference(self)
-
-            return isinstance(diff_region, EmptyRegion)
+            if self.mesh.is_empty:
+                return False
+            elif reg.mesh.is_empty:
+                return True
+            return self.boundingPolygon.polygons.buffer(tolerance).contains(
+                reg.boundingPolygon.polygons
+            )
 
         raise NotImplementedError
 
@@ -2076,9 +2103,7 @@ class MeshSurfaceRegion(MeshRegion):
         point = toVector(point, f"Could not convert {point} to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-
         dist = abs(pq.signed_distance([point.coordinates])[0])
-
         return dist
 
     @property
@@ -2767,11 +2792,22 @@ class PathRegion(Region):
             numpy.linalg.norm(b - a, axis=1), (len(a), 1)
         )
 
+    def intersects(self, other, triedReversed=False):
+        if isinstance(other, PathRegion):
+            self_polyline = PolylineRegion(points=[(v.x, v.y) for v in self.vertices])
+            other_polyline = PolylineRegion(points=[(v.x, v.y) for v in other.vertices])
+            poly = toPolygon(other_polyline)
+            if poly is not None:
+                return self_polyline.lineString.intersects(poly)
+            return self_polyline.intersects(other, triedReversed)
+        else:
+            return super().intersects(other, triedReversed)
+
     def containsPoint(self, point):
         return self.distanceTo(point) < self.tolerance
 
     def containsObject(self, obj):
-        return False
+        raise NotImplementedError
 
     def containsRegionInner(self, reg, tolerance):
         raise NotImplementedError
@@ -2819,6 +2855,27 @@ class PathRegion(Region):
             tuple(numpy.amin(self.vertices, axis=0)),
             tuple(numpy.amax(self.vertices, axis=0)),
         )
+
+    @distributionMethod
+    def signedDistanceTo(self, point) -> float:
+        """Compute the signed distance of the PathRegion to a point.
+
+        The distance is positive if the point is left of the nearest segment,
+        and negative otherwise.
+        """
+        dist = self.distanceTo(point)
+        start, end = self.nearestSegmentTo(point)
+        rp = point - start
+        tangent = end - start
+        return dist if tangent.angleWith(rp) >= 0 else -dist
+
+    def __getitem__(self, i) -> Vector:
+        """Get the ith point along this path.
+
+        If the region consists of multiple polylines, this order is linear
+        along each polyline but arbitrary across different polylines.
+        """
+        return self.vertices[i]
 
     def uniformPointInner(self):
         # Pick an edge, weighted by length, and extract its two points
@@ -3079,6 +3136,16 @@ class PolygonalRegion(Region):
         orientation = VectorField.forUnionOf(regs, tolerance=buf)
         z = 0 if z is None else z
         return PolygonalRegion(polygon=union, orientation=orientation, z=z)
+
+    @cached_property
+    def _boundingPolygon(self):
+        return self._polygon
+
+    @cached_property
+    @distributionFunction
+    def boundingPolygon(self):
+        """A PolygonalRegion returning self"""
+        return self
 
     @property
     @distributionFunction
