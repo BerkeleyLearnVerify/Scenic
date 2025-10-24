@@ -70,6 +70,31 @@ def test_ego_complex_assignment():
         compileScenic("(ego, thing1), thing2 = ((new Object at 1@1), 2), 3")
 
 
+def test_list_new():
+    scenario = compileScenic("objs = [new Object at 10@10, new Object at 20@20]")
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
+    pos = [obj.position.x for obj in scene.objects]
+    assert pos == [10, 20]
+
+
+def test_dict_new():
+    scenario = compileScenic(
+        """
+        objs = {
+            'a': new Object at 10@10,
+            'b': new Object at 20@20
+        }
+        """
+    )
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
+    pos = [obj.position.x for obj in scene.objects]
+    assert pos == [10, 20]
+
+
 def test_noninterference():
     scenario = compileScenic("ego = new Object")
     assert len(scenario.objects) == 1
