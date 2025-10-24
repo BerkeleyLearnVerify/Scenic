@@ -1033,6 +1033,42 @@ def test_invariant_rejection_shuffle():
         assert result.records["test_val"] == (1, 0)
 
 
+def test_precondition_multiline():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            precondition: (
+                self.position.x > 0
+                and self.position.y == 0
+            )
+            take self.position.x
+        ego = new Object at Range(-1, 1) @ 0, with behavior Foo
+        """
+    )
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=1, maxScenes=50)
+        assert actions[0] > 0
+
+
+def test_invariant_multiline():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            invariant: (
+                self.position.x > 0
+                and self.position.y == 0
+            )
+            while True:
+                take self.position.x
+                self.position -= Range(0, 2) @ 0
+        ego = new Object at 1 @ 0, with behavior Foo
+        """
+    )
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
+        assert actions[1] > 0
+
+
 # Random selection of sub-behaviors
 
 
