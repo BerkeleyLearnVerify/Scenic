@@ -1,8 +1,11 @@
 """Collect CARLA blueprint snapshots.
 
-- Connects to (or launches) CARLA, enumerates vehicle/walker/prop blueprints,
-  and measures bounding-box dims.
-- Writes snapshots/blueprints_<server_version>.json.
+- Connects to (or launches) CARLA.
+- Measures dimensions for all ``vehicle.*``, ``walker.pedestrian.*``, and
+  ``static.prop.*`` blueprints.
+- Categorizes blueprints for Scenic.
+- Writes snapshots/blueprints_<server_version>.json with:
+  {"server_version", "ids" (by category), "dims" (per blueprint id)}.
 
 Requires: CARLA_ROOT, HOST/PORT reachable.
 Usage: python tools/carla/make_snapshot.py
@@ -93,6 +96,14 @@ VEHICLE_BASETYPE_TO_CATEGORY = {
     "bus": "busModels",
 }
 
+# Explicit fixes for empty base_type on known blueprints
+VEHICLE_ID_TO_CATEGORY = {
+    "vehicle.kawasaki.ninja": "motorcycleModels",  # base_type == "" in 0.9.14
+    "vehicle.mini.cooper_s": "carModels",  # base_type == "" in 0.9.15/0.9.16
+    "vehicle.bmw.grandtourer": "carModels",  # base_type == "" in 0.9.15/0.9.16
+    "vehicle.sprinter.mercedes": "vanModels",  # base_type == "" in 0.10.0
+}
+
 PROP_CATEGORY_RULES = [
     ("trashModels", ["trashcan", "bin"]),
     ("coneModels", ["cone"]),
@@ -142,6 +153,10 @@ def get_dimensions_from_spawned(actor):
 def measure_dims(world, bp):
     import carla
 
+    # `static.prop.mesh` width/length/height == inf
+    if bp.id == "static.prop.mesh":
+        return None
+
     tf = carla.Transform(carla.Location(x=0.0, y=0.0, z=500.0))
     actor = None
     try:
@@ -175,14 +190,20 @@ def categorize_vehicle(bp):
             file=sys.stderr,
         )
         return None
+
     val = bp.get_attribute("base_type").as_str().lower()
     category = VEHICLE_BASETYPE_TO_CATEGORY.get(val)
-    if not category:
-        print(
-            f"[WARN] vehicle blueprint '{bp.id}' has unsupported base_type='{val}'; skipping.",
-            file=sys.stderr,
-        )
-    return category
+    if category:
+        return category
+
+    # Fallback for the empty/unknown base_type case we know about
+    if bp.id in VEHICLE_ID_TO_CATEGORY:
+        return VEHICLE_ID_TO_CATEGORY[bp.id]
+    print(
+        f"[WARN] vehicle blueprint '{bp.id}' has unsupported base_type='{val}'; skipping.",
+        file=sys.stderr,
+    )
+    return None
 
 
 def categorize_prop(bp):
@@ -225,13 +246,12 @@ def main():
 
         def add_group(bps, category_for_bp):
             for bp in bps:
-                category = category_for_bp(bp)
-                if not category:
-                    continue
-                ids[category].append(bp.id)
                 md = measure_dims(world, bp)
                 if md:
                     dims[bp.id] = md
+                category = category_for_bp(bp)
+                if category:
+                    ids[category].append(bp.id)
 
         add_group(vehicle_bps, categorize_vehicle)
         add_group(walker_bps, lambda bp: WALKER_CATEGORY)

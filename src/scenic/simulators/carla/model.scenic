@@ -208,14 +208,14 @@ class Motorcycle(Vehicle):
 
 class Truck(Vehicle):
     blueprint: Uniform(*bp.any_in("truck"))
-    width: bp.width(self.blueprint, 3)
-    length: bp.length(self.blueprint, 7)
-    height: bp.height(self.blueprint, 2.5)
+    width: bp.width(self.blueprint, 2.5)
+    length: bp.length(self.blueprint, 7.5)
+    height: bp.height(self.blueprint, 3)
 
 class Van(Vehicle):
     blueprint: Uniform(*bp.any_in("van"))
     width: bp.width(self.blueprint, 2)
-    length: bp.length(self.blueprint, 6)
+    length: bp.length(self.blueprint, 5)
     height: bp.height(self.blueprint, 2)
 
 class Bus(Vehicle):
@@ -233,7 +233,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
     blueprint: Uniform(*bp.any_in("walker"))
     width: bp.width(self.blueprint, 0.5)
     length: bp.length(self.blueprint, 0.5)
-    height: bp.height(self.blueprint, 0.5)
+    height: bp.height(self.blueprint, 1.5)
     carlaController: None
 
     def setWalkingDirection(self, heading):

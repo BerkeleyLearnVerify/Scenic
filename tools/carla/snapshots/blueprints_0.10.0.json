@@ -16,7 +16,9 @@
       "vehicle.firetruck.actors",
       "vehicle.ambulance.ford"
     ],
-    "vanModels": [],
+    "vanModels": [
+      "vehicle.sprinter.mercedes"
+    ],
     "busModels": [
       "vehicle.fuso.mitsubishi"
     ],
@@ -176,6 +178,11 @@
       "width": 3.927680492401123,
       "length": 10.174287796020508,
       "height": 4.241000652313232
+    },
+    "vehicle.sprinter.mercedes": {
+      "width": 1.988406777381897,
+      "length": 5.9151387214660645,
+      "height": 2.7260189056396484
     },
     "vehicle.nissan.patrol": {
       "width": 2.1466238498687744,
@@ -392,10 +399,30 @@
       "length": 0.3753577768802643,
       "height": 1.8299999237060547
     },
+    "static.prop.calibrator": {
+      "width": 0.690200924873352,
+      "length": 1.5475953817367554,
+      "height": 0.20195052027702332
+    },
+    "static.prop.doghouse": {
+      "width": 1.2721054553985596,
+      "length": 1.0791168212890625,
+      "height": 1.0936739444732666
+    },
     "static.prop.streetsign01": {
       "width": 0.3029319941997528,
       "length": 2.470391273498535,
       "height": 3.8779332637786865
+    },
+    "static.prop.bike helmet": {
+      "width": 0.2770470678806305,
+      "length": 0.18554961681365967,
+      "height": 0.1712976098060608
+    },
+    "static.prop.warningconstruction": {
+      "width": 1.055053472518921,
+      "length": 1.3050163984298706,
+      "height": 1.8602019548416138
     },
     "static.prop.plantpot02": {
       "width": 0.43072694540023804,
@@ -412,6 +439,21 @@
       "length": 0.05342775210738182,
       "height": 0.009213896468281746
     },
+    "static.prop.recycleglass": {
+      "width": 1.7764321565628052,
+      "length": 1.0195367336273193,
+      "height": 1.943043828010559
+    },
+    "static.prop.dumpster": {
+      "width": 1.3943947553634644,
+      "length": 2.8662402629852295,
+      "height": 2.2673521041870117
+    },
+    "static.prop.fountain": {
+      "width": 8.401816368103027,
+      "length": 8.401811599731445,
+      "height": 6.924410343170166
+    },
     "static.prop.trafficwarning": {
       "width": 2.8705859184265137,
       "length": 2.373429536819458,
@@ -421,6 +463,11 @@
       "width": 0.05342775210738182,
       "length": 0.053427763283252716,
       "height": 0.08676455914974213
+    },
+    "static.prop.mobile": {
+      "width": 0.007261085323989391,
+      "length": 0.08048340678215027,
+      "height": 0.16641773283481598
     },
     "static.prop.guitarcase": {
       "width": 0.1251685619354248,
@@ -437,6 +484,26 @@
       "length": 0.3109833598136902,
       "height": 0.5523712635040283
     },
+    "static.prop.recycleplastic": {
+      "width": 1.9872466325759888,
+      "length": 2.5890233516693115,
+      "height": 2.188204765319824
+    },
+    "static.prop.haybale": {
+      "width": 1.1933469772338867,
+      "length": 1.247710943222046,
+      "height": 1.1949762105941772
+    },
+    "static.prop.motorhelmet": {
+      "width": 0.2592744827270508,
+      "length": 0.20041197538375854,
+      "height": 0.25808918476104736
+    },
+    "static.prop.recyclecardboard": {
+      "width": 2.3846962451934814,
+      "length": 2.5890233516693115,
+      "height": 2.0096852779388428
+    },
     "static.prop.trafficcone02": {
       "width": 0.3945564925670624,
       "length": 0.455596923828125,
@@ -447,10 +514,20 @@
       "length": 1.5732090473175049,
       "height": 1.1810814142227173
     },
+    "static.prop.gardenlamp": {
+      "width": 0.28122183680534363,
+      "length": 0.2972412407398224,
+      "height": 0.6478500366210938
+    },
     "static.prop.dirtdebris03": {
       "width": 1.5139321088790894,
       "length": 1.8574368953704834,
       "height": 0.1883699893951416
+    },
+    "static.prop.swingcouch": {
+      "width": 2.362380266189575,
+      "length": 1.357409954071045,
+      "height": 2.2493832111358643
     },
     "static.prop.kiosk_01": {
       "width": 1.6540685892105103,
@@ -461,6 +538,16 @@
       "width": 0.9068000316619873,
       "length": 1.0287128686904907,
       "height": 0.061725616455078125
+    },
+    "static.prop.brokentile04": {
+      "width": 0.12647496163845062,
+      "length": 0.12972931563854218,
+      "height": 0.01014416478574276
+    },
+    "static.prop.brokentile02": {
+      "width": 0.15229617059230804,
+      "length": 0.20967701077461243,
+      "height": 0.007594939786940813
     },
     "static.prop.gnome": {
       "width": 0.37559059262275696,
@@ -497,10 +584,20 @@
       "length": 0.7565627098083496,
       "height": 0.9889887571334839
     },
+    "static.prop.purse": {
+      "width": 0.3326959013938904,
+      "length": 0.15921518206596375,
+      "height": 0.5852110385894775
+    },
     "static.prop.streetbarrier": {
       "width": 0.3716789782047272,
       "length": 1.2149077653884888,
       "height": 1.069164514541626
+    },
+    "static.prop.trampoline": {
+      "width": 4.131584644317627,
+      "length": 4.131584644317627,
+      "height": 2.801903247833252
     },
     "static.prop.advertisement": {
       "width": 0.28684958815574646,
@@ -511,6 +608,11 @@
       "width": 0.43842461705207825,
       "length": 0.526629626750946,
       "height": 1.1572810411453247
+    },
+    "static.prop.recycleorganic": {
+      "width": 1.7764321565628052,
+      "length": 1.0195363759994507,
+      "height": 1.943043828010559
     },
     "static.prop.dirtdebris02": {
       "width": 1.5139321088790894,
@@ -552,6 +654,11 @@
       "length": 0.543353796005249,
       "height": 0.43285050988197327
     },
+    "static.prop.brokentile03": {
+      "width": 0.1449233442544937,
+      "length": 0.1544525921344757,
+      "height": 0.008505801670253277
+    },
     "static.prop.plasticchair": {
       "width": 0.7504488825798035,
       "length": 0.7304753661155701,
@@ -587,6 +694,11 @@
       "length": 1.08914053440094,
       "height": 0.5573238730430603
     },
+    "static.prop.shoppingcart": {
+      "width": 1.207547903060913,
+      "length": 0.6694015264511108,
+      "height": 1.0793083906173706
+    },
     "static.prop.plantpot05": {
       "width": 0.4757719337940216,
       "length": 0.4946027398109436,
@@ -602,6 +714,21 @@
       "length": 1.8574368953704834,
       "height": 0.14900343120098114
     },
+    "static.prop.pergola": {
+      "width": 5.085033893585205,
+      "length": 5.029393672943115,
+      "height": 3.541531562805176
+    },
+    "static.prop.warningaccident": {
+      "width": 1.055053472518921,
+      "length": 1.3050163984298706,
+      "height": 1.8602019548416138
+    },
+    "static.prop.shoppingbag": {
+      "width": 0.2432928830385208,
+      "length": 0.47446563839912415,
+      "height": 0.6006307601928711
+    },
     "static.prop.plantpot04": {
       "width": 0.7366006970405579,
       "length": 4.967305660247803,
@@ -611,6 +738,11 @@
       "width": 0.42955997586250305,
       "length": 0.3779701590538025,
       "height": 0.702082097530365
+    },
+    "static.prop.swing": {
+      "width": 1.5768225193023682,
+      "length": 4.105227947235107,
+      "height": 2.5724740028381348
     },
     "static.prop.trashcan02": {
       "width": 0.6696233749389648,
@@ -632,15 +764,35 @@
       "length": 0.5238340497016907,
       "height": 1.0454455614089966
     },
+    "static.prop.barbeque": {
+      "width": 0.49884626269340515,
+      "length": 0.9456468820571899,
+      "height": 1.2640891075134277
+    },
+    "static.prop.foodcart": {
+      "width": 4.638397693634033,
+      "length": 2.2846763134002686,
+      "height": 3.573108673095703
+    },
     "static.prop.trashcan01": {
       "width": 0.37456512451171875,
       "length": 0.5437172055244446,
       "height": 1.2140138149261475
     },
+    "static.prop.brokentile01": {
+      "width": 0.1760428547859192,
+      "length": 0.13444176316261292,
+      "height": 0.006563859060406685
+    },
     "static.prop.vendingmachine": {
       "width": 1.102043867111206,
       "length": 0.8728882670402527,
       "height": 2.1082382202148438
+    },
+    "static.prop.streetfountain": {
+      "width": 0.9839538335800171,
+      "length": 0.405456006526947,
+      "height": 1.0484803915023804
     },
     "static.prop.bench02": {
       "width": 0.5126523971557617,
@@ -651,6 +803,11 @@
       "width": 2.4822070598602295,
       "length": 2.4822070598602295,
       "height": 2.479797840118408
+    },
+    "static.prop.shoppingtrolley": {
+      "width": 0.33110183477401733,
+      "length": 0.5055894255638123,
+      "height": 1.0936459302902222
     }
   }
 }

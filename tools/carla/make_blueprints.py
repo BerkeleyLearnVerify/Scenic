@@ -25,7 +25,9 @@ HEADER = '''\
 
 """CARLA blueprints for cars, pedestrians, etc."""
 
-from importlib.metadata import version as _pkg_version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+import warnings
+
 from scenic.core.errors import InvalidScenarioError
 
 try:
@@ -33,12 +35,14 @@ try:
 except PackageNotFoundError:
     _CARLA_VER = "0.0.0"  # no carla package; default to newest known blueprints
 
+    
 def _verkey(s: str):
     # Handle '0.9.15', '0.10.0', '1.2' -> (major, minor, patch)
-    parts = [int(p) for p in s.split('.')]
+    parts = [int(p) for p in s.split(".")]
     parts += [0] * (3 - len(parts))
     return tuple(parts[:3])
 
+    
 def _pick(vermap, ver):
     """Choose the blueprint map for CARLA version"""
     # 1) Exact match
@@ -52,8 +56,14 @@ def _pick(vermap, ver):
         return vermap[best]
     # 3) Otherwise, use the newest version.
     best = max(vermap.keys(), key=_verkey)
+    if ver != "0.0.0":
+        warnings.warn(
+            f"Unknown CARLA version {ver}; using blueprints for {best}."
+            "Scenic may not have the correct set of blueprints."
+        )
     return vermap[best]
 
+    
 oldBlueprintNames = {
     # Map current names to legacy names
     "vehicle.dodge.charger_police": ("vehicle.dodge_charger.police",),
@@ -66,8 +76,9 @@ oldBlueprintNames = {
 
 
 FOOTER = '''\
-ids  = _pick(_IDS,  _CARLA_VER)
+ids = _pick(_IDS, _CARLA_VER)
 dims = _pick(_DIMS, _CARLA_VER)
+
 
 def any_in(category):
     """Return all blueprint IDs for a category; raise if none recorded."""
@@ -79,15 +90,32 @@ def any_in(category):
         f"Scenic has no '{category}' blueprints recorded for CARLA {_CARLA_VER}."
     )
 
+
+def _get_dim(bp_id, key, default):
+    """Dimension lookup with fallback.
+
+    CARLA 0.9.14 snapshots sometimes store 0.0 for certain blueprint dimensions;
+    treat missing/None/<=0 as unknown and return ``default`` instead. See CARLA issue #5841
+    """
+    rec = dims.get(bp_id) or {}
+    dim = rec.get(key)
+    return default if dim is None or dim <= 0 else dim
+
+
 def width(bp_id, default):
-    """Width for ``bp_id``, or ``default`` if unknown."""
-    d = dims.get(bp_id); return d['width']  if d else default
+    """Width; falls back to default if missing or <= 0."""
+    return _get_dim(bp_id, "width", default)
+
+
 def length(bp_id, default):
-    """Length for ``bp_id``, or ``default`` if unknown."""
-    d = dims.get(bp_id); return d['length'] if d else default
+    """Length; falls back to default if missing or <= 0."""
+    return _get_dim(bp_id, "length", default)
+
+
 def height(bp_id, default):
-    """Height for ``bp_id``, or ``default`` if unknown."""
-    d = dims.get(bp_id); return d['height'] if d else default
+    """Height; falls back to default if missing or <= 0."""
+    return _get_dim(bp_id, "height", default)
+
 '''
 
 

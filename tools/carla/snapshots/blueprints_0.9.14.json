@@ -1,5 +1,5 @@
 {
-  "server_version": "0.9.15",
+  "server_version": "0.9.14",
   "ids": {
     "carModels": [
       "vehicle.audi.a2",
@@ -15,8 +15,8 @@
       "vehicle.dodge.charger_2020",
       "vehicle.lincoln.mkz_2020",
       "vehicle.mini.cooper_s_2021",
-      "vehicle.ford.crown",
       "vehicle.toyota.prius",
+      "vehicle.ford.crown",
       "vehicle.nissan.patrol_2021",
       "vehicle.audi.etron",
       "vehicle.seat.leon",
@@ -34,13 +34,12 @@
       "vehicle.bh.crossbike"
     ],
     "motorcycleModels": [
-      "vehicle.yamaha.yzf",
       "vehicle.harley-davidson.low_rider",
       "vehicle.vespa.zx125",
-      "vehicle.kawasaki.ninja"
+      "vehicle.kawasaki.ninja",
+      "vehicle.yamaha.yzf"
     ],
     "truckModels": [
-      "vehicle.carlamotors.european_hgv",
       "vehicle.carlamotors.carlacola",
       "vehicle.tesla.cybertruck",
       "vehicle.carlamotors.firetruck"
@@ -62,17 +61,18 @@
       "walker.pedestrian.0035",
       "walker.pedestrian.0001",
       "walker.pedestrian.0002",
+      "walker.pedestrian.0003",
       "walker.pedestrian.0004",
       "walker.pedestrian.0011",
       "walker.pedestrian.0037",
       "walker.pedestrian.0005",
       "walker.pedestrian.0009",
       "walker.pedestrian.0010",
-      "walker.pedestrian.0026",
-      "walker.pedestrian.0014",
       "walker.pedestrian.0045",
       "walker.pedestrian.0015",
       "walker.pedestrian.0016",
+      "walker.pedestrian.0030",
+      "walker.pedestrian.0046",
       "walker.pedestrian.0038",
       "walker.pedestrian.0041",
       "walker.pedestrian.0043",
@@ -81,26 +81,23 @@
       "walker.pedestrian.0020",
       "walker.pedestrian.0039",
       "walker.pedestrian.0022",
-      "walker.pedestrian.0046",
-      "walker.pedestrian.0017",
-      "walker.pedestrian.0034",
       "walker.pedestrian.0040",
-      "walker.pedestrian.0003",
-      "walker.pedestrian.0051",
+      "walker.pedestrian.0033",
+      "walker.pedestrian.0028",
       "walker.pedestrian.0047",
       "walker.pedestrian.0048",
       "walker.pedestrian.0049",
-      "walker.pedestrian.0050",
-      "walker.pedestrian.0031",
-      "walker.pedestrian.0028",
-      "walker.pedestrian.0033",
-      "walker.pedestrian.0030",
       "walker.pedestrian.0007",
       "walker.pedestrian.0036",
+      "walker.pedestrian.0031",
       "walker.pedestrian.0029",
+      "walker.pedestrian.0014",
+      "walker.pedestrian.0026",
       "walker.pedestrian.0012",
       "walker.pedestrian.0025",
       "walker.pedestrian.0024",
+      "walker.pedestrian.0034",
+      "walker.pedestrian.0017",
       "walker.pedestrian.0021",
       "walker.pedestrian.0019",
       "walker.pedestrian.0023",
@@ -109,11 +106,11 @@
     ],
     "trashModels": [
       "static.prop.trashcan03",
-      "static.prop.bin",
+      "static.prop.trashcan04",
       "static.prop.trashcan05",
       "static.prop.trashcan01",
       "static.prop.trashcan02",
-      "static.prop.trashcan04"
+      "static.prop.bin"
     ],
     "coneModels": [
       "static.prop.trafficcone02",
@@ -146,11 +143,11 @@
       "static.prop.garbage06",
       "static.prop.garbage01",
       "static.prop.garbage03",
+      "static.prop.platformgarbage01",
       "static.prop.garbage05",
       "static.prop.trashbag",
       "static.prop.plasticbag",
       "static.prop.garbage02",
-      "static.prop.platformgarbage01",
       "static.prop.colacan"
     ],
     "containerModels": [
@@ -200,8 +197,8 @@
       "static.prop.box01"
     ],
     "benchModels": [
-      "static.prop.bench02",
       "static.prop.bench01",
+      "static.prop.bench02",
       "static.prop.bench03"
     ],
     "barrelModels": [
@@ -266,20 +263,15 @@
       "length": 5.0267767906188965,
       "height": 1.6506516933441162
     },
-    "vehicle.yamaha.yzf": {
-      "width": 0.8659172654151917,
-      "length": 2.1907684803009033,
-      "height": 1.530381441116333
-    },
     "vehicle.mercedes.coupe_2020": {
       "width": 1.8118125200271606,
       "length": 4.673638820648193,
       "height": 1.441947340965271
     },
     "vehicle.harley-davidson.low_rider": {
-      "width": 0.7662330269813538,
-      "length": 2.350175619125366,
-      "height": 1.6494941711425781
+      "width": 0.7457675933837891,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.dodge.charger_2020": {
       "width": 1.8816219568252563,
@@ -301,20 +293,15 @@
       "length": 4.552699089050293,
       "height": 1.7671663761138916
     },
-    "vehicle.ford.crown": {
-      "width": 1.8007241487503052,
-      "length": 5.365678787231445,
-      "height": 1.5749659538269043
-    },
     "vehicle.toyota.prius": {
       "width": 2.006814479827881,
       "length": 4.513522624969482,
       "height": 1.5248334407806396
     },
-    "vehicle.carlamotors.european_hgv": {
-      "width": 2.8910882472991943,
-      "length": 7.935710430145264,
-      "height": 3.4619433879852295
+    "vehicle.ford.crown": {
+      "width": 1.8007241487503052,
+      "length": 5.365678787231445,
+      "height": 1.5749659538269043
     },
     "vehicle.carlamotors.carlacola": {
       "width": 2.6269896030426025,
@@ -322,9 +309,9 @@
       "height": 2.467444658279419
     },
     "vehicle.vespa.zx125": {
-      "width": 0.8659406304359436,
-      "length": 1.8171066045761108,
-      "height": 1.5900908708572388
+      "width": 0.7517611384391785,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.nissan.patrol_2021": {
       "width": 2.1499669551849365,
@@ -361,15 +348,15 @@
       "length": 4.901683330535889,
       "height": 1.5107464790344238
     },
-    "vehicle.carlamotors.firetruck": {
-      "width": 2.8910882472991943,
-      "length": 8.46804141998291,
-      "height": 3.8274123668670654
-    },
     "vehicle.ford.mustang": {
       "width": 1.894826889038086,
       "length": 4.717525005340576,
       "height": 1.300939917564392
+    },
+    "vehicle.carlamotors.firetruck": {
+      "width": 2.8910882472991943,
+      "length": 8.46804141998291,
+      "height": 3.8274123668670654
     },
     "vehicle.volkswagen.t2": {
       "width": 2.069315195083618,
@@ -387,14 +374,14 @@
       "height": 1.4876600503921509
     },
     "vehicle.diamondback.century": {
-      "width": 0.5824381709098816,
-      "length": 1.6562436819076538,
-      "height": 1.6197669506072998
+      "width": 0.0,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.gazelle.omafiets": {
-      "width": 0.6590427160263062,
-      "length": 1.843441367149353,
-      "height": 1.7758288383483887
+      "width": 0.0,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.bmw.grandtourer": {
       "width": 2.241713285446167,
@@ -402,14 +389,14 @@
       "height": 1.6672759056091309
     },
     "vehicle.bh.crossbike": {
-      "width": 0.8659406304359436,
-      "length": 1.5093227624893188,
-      "height": 1.6123536825180054
+      "width": 0.7165295481681824,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.kawasaki.ninja": {
-      "width": 0.7969123125076294,
-      "length": 2.043684244155884,
-      "height": 1.523191213607788
+      "width": 0.6402643918991089,
+      "length": 0.0,
+      "height": 0.0
     },
     "vehicle.nissan.patrol": {
       "width": 1.9315929412841797,
@@ -425,6 +412,11 @@
       "width": 1.970275640487671,
       "length": 3.805800199508667,
       "height": 1.4750301837921143
+    },
+    "vehicle.yamaha.yzf": {
+      "width": 0.652134358882904,
+      "length": 0.0,
+      "height": 0.0
     },
     "walker.pedestrian.0013": {
       "width": 0.3753577768802643,
@@ -461,6 +453,11 @@
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
     },
+    "walker.pedestrian.0003": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
     "walker.pedestrian.0004": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
@@ -491,16 +488,6 @@
       "length": 0.5,
       "height": 1.100000023841858
     },
-    "walker.pedestrian.0026": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0014": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.2999999523162842
-    },
     "walker.pedestrian.0045": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
@@ -512,6 +499,16 @@
       "height": 1.8600000143051147
     },
     "walker.pedestrian.0016": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
+    "walker.pedestrian.0030": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
+    "walker.pedestrian.0046": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
@@ -556,32 +553,17 @@
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
     },
-    "walker.pedestrian.0046": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0017": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0034": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
     "walker.pedestrian.0040": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
     },
-    "walker.pedestrian.0003": {
+    "walker.pedestrian.0033": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
     },
-    "walker.pedestrian.0051": {
+    "walker.pedestrian.0028": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
@@ -601,31 +583,6 @@
       "length": 0.5,
       "height": 1.100000023841858
     },
-    "walker.pedestrian.0050": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0031": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0028": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0033": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
-    "walker.pedestrian.0030": {
-      "width": 0.3753577768802643,
-      "length": 0.3753577768802643,
-      "height": 1.8600000143051147
-    },
     "walker.pedestrian.0007": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
@@ -636,7 +593,22 @@
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
     },
+    "walker.pedestrian.0031": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
     "walker.pedestrian.0029": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
+    "walker.pedestrian.0014": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.2999999523162842
+    },
+    "walker.pedestrian.0026": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
@@ -652,6 +624,16 @@
       "height": 1.8600000143051147
     },
     "walker.pedestrian.0024": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
+    "walker.pedestrian.0034": {
+      "width": 0.3753577768802643,
+      "length": 0.3753577768802643,
+      "height": 1.8600000143051147
+    },
+    "walker.pedestrian.0017": {
       "width": 0.3753577768802643,
       "length": 0.3753577768802643,
       "height": 1.8600000143051147
@@ -796,15 +778,25 @@
       "length": 0.526629626750946,
       "height": 1.157265543937683
     },
-    "static.prop.bin": {
-      "width": 0.6381588578224182,
-      "length": 0.548203706741333,
-      "height": 1.0591405630111694
+    "static.prop.bench01": {
+      "width": 0.735850989818573,
+      "length": 1.5440508127212524,
+      "height": 0.9697656035423279
     },
-    "static.prop.fountain": {
-      "width": 8.401816368103027,
-      "length": 8.401811599731445,
-      "height": 6.924375057220459
+    "static.prop.dirtdebris03": {
+      "width": 1.5139321088790894,
+      "length": 1.8574368953704834,
+      "height": 0.1883593648672104
+    },
+    "static.prop.platformgarbage01": {
+      "width": 1.7114051580429077,
+      "length": 3.6332411766052246,
+      "height": 0.33156248927116394
+    },
+    "static.prop.trashcan04": {
+      "width": 0.5803966522216797,
+      "length": 0.7887265086174011,
+      "height": 1.0163280963897705
     },
     "static.prop.guitarcase": {
       "width": 0.1251685619354248,
@@ -941,16 +933,6 @@
       "length": 1.5636827945709229,
       "height": 0.5090624690055847
     },
-    "static.prop.dirtdebris03": {
-      "width": 1.5139321088790894,
-      "length": 1.8574368953704834,
-      "height": 0.1883593648672104
-    },
-    "static.prop.platformgarbage01": {
-      "width": 1.7114051580429077,
-      "length": 3.6332411766052246,
-      "height": 0.33156248927116394
-    },
     "static.prop.kiosk_01": {
       "width": 1.6540685892105103,
       "length": 1.6252474784851074,
@@ -1061,6 +1043,11 @@
       "length": 1.2394330501556396,
       "height": 1.810156226158142
     },
+    "static.prop.fountain": {
+      "width": 8.401816368103027,
+      "length": 8.401811599731445,
+      "height": 6.924375057220459
+    },
     "static.prop.dirtdebris02": {
       "width": 1.5139321088790894,
       "length": 1.8574368953704834,
@@ -1106,20 +1093,15 @@
       "length": 0.12972931563854218,
       "height": 0.01015624962747097
     },
-    "static.prop.trashcan04": {
-      "width": 0.5803966522216797,
-      "length": 0.7887265086174011,
-      "height": 1.0163280963897705
-    },
-    "static.prop.bench01": {
-      "width": 0.735850989818573,
-      "length": 1.5440508127212524,
-      "height": 0.9697656035423279
-    },
     "static.prop.brokentile02": {
       "width": 0.15229617059230804,
       "length": 0.20967696607112885,
       "height": 0.007578124757856131
+    },
+    "static.prop.bin": {
+      "width": 0.6381588578224182,
+      "length": 0.548203706741333,
+      "height": 1.0591405630111694
     },
     "static.prop.brokentile01": {
       "width": 0.1760428547859192,
@@ -1141,11 +1123,6 @@
       "length": 0.543353796005249,
       "height": 0.43281248211860657
     },
-    "static.prop.bench03": {
-      "width": 0.5126523971557617,
-      "length": 1.58349609375,
-      "height": 0.5126562118530273
-    },
     "static.prop.calibrator": {
       "width": 0.690200924873352,
       "length": 1.5475953817367554,
@@ -1155,6 +1132,11 @@
       "width": 3.8760783672332764,
       "length": 1.893609881401062,
       "height": 2.738906145095825
+    },
+    "static.prop.bench03": {
+      "width": 0.5126523971557617,
+      "length": 1.58349609375,
+      "height": 0.5126562118530273
     }
   }
 }
