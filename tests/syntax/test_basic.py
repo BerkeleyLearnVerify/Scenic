@@ -330,3 +330,14 @@ def test_mode2D_heading_parentOrientation():
 
     obj = sampleEgoFrom(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 0.56
+
+
+def test_simulator_name_binding_executes():
+    scenario = compileScenic(
+        """
+        simulator = 7
+        ego = new Object with foo simulator
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert ego.foo == 7
