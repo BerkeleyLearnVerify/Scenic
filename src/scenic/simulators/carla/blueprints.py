@@ -4232,26 +4232,24 @@ def any_in(category):
 
 
 def _get_dim(bp_id, key, default):
-    """Dimension lookup with fallback.
+    """Return recorded dimension or ``default`` if missing/0.
 
-    CARLA 0.9.14 snapshots sometimes store 0.0 for certain blueprint dimensions;
-    treat missing/None/<=0 as unknown and return ``default`` instead. See CARLA issue #5841
+    Note: CARLA 0.9.14 bbox returns 0 for some blueprints (see CARLA issue #5841).
     """
-    rec = dims.get(bp_id) or {}
-    dim = rec.get(key)
-    return default if dim is None or dim <= 0 else dim
+    val = dims.get(bp_id, {}).get(key)
+    return val if val else default
 
 
 def width(bp_id, default):
-    """Width; falls back to default if missing or <= 0."""
+    """Get width for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "width", default)
 
 
 def length(bp_id, default):
-    """Length; falls back to default if missing or <= 0."""
+    """Get length for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "length", default)
 
 
 def height(bp_id, default):
-    """Height; falls back to default if missing or <= 0."""
+    """Get height for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "height", default)
