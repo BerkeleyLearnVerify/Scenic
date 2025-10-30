@@ -57,7 +57,7 @@ class VehicleAction(Action):
 class SetManualGearShiftAction(VehicleAction):
     def __init__(self, manualGearShift):
         if not isinstance(manualGearShift, bool):
-            raise RuntimeError("Manual gear shift must be a boolean.")
+            raise TypeError("Manual gear shift must be a boolean.")
         self.manualGearShift = manualGearShift
 
     def applyTo(self, obj, sim):
@@ -70,7 +70,7 @@ class SetManualGearShiftAction(VehicleAction):
 class SetGearAction(VehicleAction):
     def __init__(self, gear):
         if not isinstance(gear, int):
-            raise RuntimeError("Gear must be an int.")
+            raise TypeError("Gear must be an int.")
         self.gear = gear
 
     def applyTo(self, obj, sim):
@@ -98,7 +98,7 @@ class SetTrafficLightAction(VehicleAction):
     def __init__(self, color, distance=100, group=False):
         self.color = _utils.scenicToCarlaTrafficLightStatus(color)
         if color is None:
-            raise RuntimeError("Color must be red/yellow/green/off/unknown.")
+            raise ValueError("Color must be red/yellow/green/off/unknown.")
         self.distance = distance
 
     def applyTo(self, obj, sim):
@@ -112,7 +112,11 @@ class SetAutopilotAction(VehicleAction):
         """
         :param enabled: Enable or disable autopilot (bool)
         :param kwargs: Additional autopilot options such as:
-            - speed: Speed of the car in m/s (default: None)
+            - speed: Target speed of the car in m/s (default: None). Mutually
+              exclusive with vehicle_percentage_speed_difference.
+            - vehicle_percentage_speed_difference: Percentage difference between
+              intended speed and the current speed limit. Can be negative to
+              exceed the speed limit.
             - path: Route for the vehicle to follow (default: None)
             - ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
             - ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
@@ -120,17 +124,27 @@ class SetAutopilotAction(VehicleAction):
             - auto_lane_change: Whether to allow automatic lane changes (default: False)
         """
         if not isinstance(enabled, bool):
-            raise RuntimeError("Enabled must be a boolean.")
+            raise TypeError("Enabled must be a boolean.")
 
         self.enabled = enabled
 
         # Default values for optional parameters
         self.speed = kwargs.get("speed", None)
+        self.vehicle_percentage_speed_difference = kwargs.get(
+            "vehicle_percentage_speed_difference", None
+        )
         self.path = kwargs.get("path", None)
         self.ignore_signs_percentage = kwargs.get("ignore_signs_percentage", 0)
         self.ignore_lights_percentage = kwargs.get("ignore_lights_percentage", 0)
         self.ignore_walkers_percentage = kwargs.get("ignore_walkers_percentage", 0)
         self.auto_lane_change = kwargs.get("auto_lane_change", False)  # Default: False
+
+        if (self.speed is not None) and (
+            self.vehicle_percentage_speed_difference is not None
+        ):
+            raise ValueError(
+                "Provide either 'speed' or 'vehicle_percentage_speed_difference', not both."
+            )
 
     def applyTo(self, obj, sim):
         vehicle = obj.carlaActor
@@ -141,8 +155,12 @@ class SetAutopilotAction(VehicleAction):
 
         if self.path:
             sim.tm.set_route(vehicle, self.path)
-        if self.speed:
+        if self.speed is not None:
             sim.tm.set_desired_speed(vehicle, 3.6 * self.speed)
+        if self.vehicle_percentage_speed_difference is not None:
+            sim.tm.vehicle_percentage_speed_difference(
+                vehicle, self.vehicle_percentage_speed_difference
+            )
 
         # Apply traffic management settings
         sim.tm.update_vehicle_lights(vehicle, True)
@@ -183,7 +201,7 @@ class PedestrianAction(Action):
 class SetJumpAction(PedestrianAction):
     def __init__(self, jump):
         if not isinstance(jump, bool):
-            raise RuntimeError("Jump must be a boolean.")
+            raise TypeError("Jump must be a boolean.")
         self.jump = jump
 
     def applyTo(self, obj, sim):
@@ -196,7 +214,7 @@ class SetJumpAction(PedestrianAction):
 class SetWalkAction(PedestrianAction):
     def __init__(self, enabled, maxSpeed=1.4):
         if not isinstance(enabled, bool):
-            raise RuntimeError("Enabled must be a boolean.")
+            raise TypeError("Enabled must be a boolean.")
         self.enabled = enabled
         self.maxSpeed = maxSpeed
 

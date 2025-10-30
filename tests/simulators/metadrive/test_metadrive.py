@@ -237,3 +237,31 @@ def test_duplicate_sensor_names(getMetadriveSimulator):
     assert img0.shape == (64, 64, 3)
     assert img1.shape == (64, 64, 3)
     assert not np.array_equal(img0, img1)
+
+
+def test_steer(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+        model scenic.simulators.metadrive.model
+
+        behavior TurnRight():
+            while True:
+                take SetThrottleAction(0.5), SetSteerAction(1)
+
+        # Ego facing west
+        ego = new Car at (300, -55), with behavior TurnRight
+
+        record initial ego.heading as InitialHeading
+        record final ego.heading as FinalHeading
+        terminate after 3 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    sim = simulator.simulate(scene)
+    initial_heading = sim.result.records["InitialHeading"]
+    final_heading = sim.result.records["FinalHeading"]
+    assert (
+        initial_heading > final_heading
+    ), "Positive steer should turn right (heading must decrease)."

@@ -216,6 +216,14 @@ class Wait(AST):
     pass
 
 
+class WaitFor(AST):
+    duration: Union["Seconds", "Steps"]
+
+
+class WaitUntil(AST):
+    cond: ast.AST
+
+
 class Terminate(AST):
     pass
 
