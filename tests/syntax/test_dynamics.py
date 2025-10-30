@@ -743,6 +743,22 @@ def test_behavior_invoke_multiple():
         )
 
 
+def test_behavior_tuple_invalid():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take 1
+        behavior Bar():
+            take 2
+        behavior Baz():
+            do (Foo(), Bar())
+        ego = new Object with behavior Baz
+        """
+    )
+    with pytest.raises(TypeError):
+        sampleEgoActions(scenario, maxSteps=1)
+
+
 def test_behavior_calls():
     """Ordinary function calls inside behaviors should still work."""
     scenario = compileScenic(
