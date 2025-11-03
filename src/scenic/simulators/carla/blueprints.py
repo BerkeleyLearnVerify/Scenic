@@ -6,6 +6,7 @@
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 import warnings
 
+from scenic.core.distributions import distributionFunction
 from scenic.core.errors import InvalidScenarioError
 
 try:
@@ -4240,16 +4241,19 @@ def _get_dim(bp_id, key, default):
     return val if val else default
 
 
+@distributionFunction
 def width(bp_id, default):
     """Get width for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "width", default)
 
 
+@distributionFunction
 def length(bp_id, default):
     """Get length for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "length", default)
 
 
+@distributionFunction
 def height(bp_id, default):
     """Get height for ``bp_id``; return ``default`` if unknown."""
     return _get_dim(bp_id, "height", default)

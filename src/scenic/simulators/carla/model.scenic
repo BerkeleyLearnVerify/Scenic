@@ -122,6 +122,12 @@ class CarlaActor(DrivingObject):
         carlaActor (dynamic): Set during simulations to the ``carla.Actor`` representing this
             object.
         blueprint (str): Identifier of the CARLA blueprint specifying the type of object.
+        defaultWidth (float): Default width to use if Scenic has no recorded dimensions for this blueprint. 
+        defaultLength (float): Default length to use if Scenic has no recorded dimensions for this blueprint. 
+        defaultHeight (float): Default height to use if Scenic has no recorded dimensions for this blueprint. 
+        width (float): Width for this blueprint; uses Scenic's recorded dimensions when available, otherwise ``defaultWidth``. 
+        length (float): Length for this blueprint; uses Scenic's recorded dimensions when available, otherwise ``defaultLength``. 
+        height (float): Height for this blueprint; uses Scenic's recorded dimensions when available, otherwise ``defaultHeight``.
         rolename (str): Can be used to differentiate specific actors during runtime. Default
             value ``None``.
         physics (bool): Whether physics is enabled for this object in CARLA. Default true.
@@ -130,8 +136,13 @@ class CarlaActor(DrivingObject):
     """
     carlaActor: None
     blueprint: None
+    defaultWidth: 1 
+    defaultLength: 1 
+    defaultHeight: 1 
+    width: bp.width(self.blueprint, self.defaultWidth) 
+    length: bp.length(self.blueprint, self.defaultLength) 
+    height: bp.height(self.blueprint, self.defaultHeight)
     rolename: None
-    color: None
     physics: True
     snapToGround: globalParameters.snapToGroundDefault
 
@@ -155,7 +166,7 @@ class CarlaActor(DrivingObject):
         else:
             self.carlaActor.set_velocity(cvel)
 
-class Vehicle(Vehicle, CarlaActor, Steers, _CarlaVehicle):
+class Vehicle(CarlaActor, Vehicle, Steers, _CarlaVehicle):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
@@ -183,9 +194,9 @@ class Car(Vehicle):
     blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
     """
     blueprint: Uniform(*bp.any_in("car"))
-    width: bp.width(self.blueprint, 2)
-    length: bp.length(self.blueprint, 4.5)
-    height: bp.height(self.blueprint, 1.5)
+    defaultWidth: 2 
+    defaultLength: 4.5 
+    defaultHeight: 1.5
 
     @property
     def isCar(self):
@@ -196,44 +207,44 @@ class NPCCar(Car):  # no distinction between these in CARLA
 
 class Bicycle(Vehicle):
     blueprint: Uniform(*bp.any_in("bicycle"))
-    width: bp.width(self.blueprint, 1)
-    length: bp.length(self.blueprint, 2)
-    height: bp.height(self.blueprint, 1.5)
+    defaultWidth: 1 
+    defaultLength: 2 
+    defaultHeight: 1.5
 
 class Motorcycle(Vehicle):
     blueprint: Uniform(*bp.any_in("motorcycle"))
-    width: bp.width(self.blueprint, 1)
-    length: bp.length(self.blueprint, 2)
-    height: bp.height(self.blueprint, 1.5)
+    defaultWidth: 1
+    defaultLength: 2 
+    defaultHeight: 1.5
 
 class Truck(Vehicle):
     blueprint: Uniform(*bp.any_in("truck"))
-    width: bp.width(self.blueprint, 2.5)
-    length: bp.length(self.blueprint, 7.5)
-    height: bp.height(self.blueprint, 3)
+    defaultWidth: 2.5
+    defaultLength: 7.5
+    defaultHeight: 3
 
 class Van(Vehicle):
     blueprint: Uniform(*bp.any_in("van"))
-    width: bp.width(self.blueprint, 2)
-    length: bp.length(self.blueprint, 5)
-    height: bp.height(self.blueprint, 2)
+    defaultWidth: 2 
+    defaultLength: 5 
+    defaultHeight: 2
 
 class Bus(Vehicle):
     blueprint: Uniform(*bp.any_in("bus"))
-    width: bp.width(self.blueprint, 4)
-    length: bp.length(self.blueprint, 10)
-    height: bp.height(self.blueprint, 4)
+    defaultWidth: 4 
+    defaultLength: 10
+    defaultHeight: 4
 
-class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
+class Pedestrian(CarlaActor, Pedestrian, Walks, _CarlaPedestrian):
     """A pedestrian.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
     blueprints listed in :obj:`scenic.simulators.carla.blueprints.walkerModels`.
     """
     blueprint: Uniform(*bp.any_in("walker"))
-    width: bp.width(self.blueprint, 0.5)
-    length: bp.length(self.blueprint, 0.5)
-    height: bp.height(self.blueprint, 1.5)
+    defaultWidth: 0.5 
+    defaultLength: 0.5 
+    defaultHeight: 1.5
     carlaController: None
 
     def setWalkingDirection(self, heading):
@@ -254,9 +265,9 @@ class Prop(CarlaActor):
     regionContainedIn: road
     position: new Point on road
     parentOrientation: Range(0, 360) deg
-    width: bp.width(self.blueprint, 0.5)
-    length: bp.length(self.blueprint, 0.5)
-    height: bp.height(self.blueprint, 0.5)
+    defaultWidth: 0.5
+    defaultLength: 0.5 
+    defaultHeight: 0.5
     physics: False
 
 class Trash(Prop):
