@@ -265,3 +265,31 @@ def test_steer(getMetadriveSimulator):
     assert (
         initial_heading > final_heading
     ), "Positive steer should turn right (heading must decrease)."
+
+
+def test_composed_scenario(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+        model scenic.simulators.metadrive.model
+
+        scenario Sub():
+            setup:
+                follower = new Car with behavior FollowLaneBehavior()
+                terminate after 3 steps
+
+        scenario Main():
+            setup:
+                ego = new Car with behavior FollowLaneBehavior()
+            compose:
+                do Sub()
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    traj = simulation.result.trajectory
+
+    assert len(traj[0]) == 2, f"expected 2 objects, got {len(traj[0])}"
+    assert traj[0][0] != traj[-1][0], f"ego car did not move."
+    assert traj[0][1] != traj[-1][1], f"subscenario car did not move."
