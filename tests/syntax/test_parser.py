@@ -1066,6 +1066,15 @@ class TestRequire:
             case _:
                 assert False
 
+    def test_chained_comparison(self):
+        mod = parse_string_helper("require a < b < c")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Compare(Name("a"), [Lt(), Lt()], [Name("b"), Name("c")])):
+                assert True
+            case _:
+                assert False
+
     def test_comparison(self):
         mod = parse_string_helper("require X > Y")
         stmt = mod.body[0]
