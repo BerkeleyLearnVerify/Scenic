@@ -252,14 +252,15 @@ class VerifaiSampler(ExternalSampler):
             self.rejectionFeedback = 1
         self.cachedSample = None
 
+        self._lastSample = None
+
     def nextSample(self, feedback):
-        return self.sampler.nextSample(feedback)
+        if feedback is not None:
+            assert self._lastSample is not None
+            self._lastSample.update(feedback)
 
-    def update(self, sample, info, rho):
-        self.sampler.update(sample, info, rho)
-
-    def getSample(self):
-        return self.sampler.getSample()
+        self._lastSample = self.sampler.getSample()
+        return self._lastSample.staticSample
 
     def valueFor(self, param):
         return getattr(self.cachedSample, self.nameForParam(param.index))
