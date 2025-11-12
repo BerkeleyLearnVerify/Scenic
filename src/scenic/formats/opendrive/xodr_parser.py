@@ -775,8 +775,9 @@ class Road:
                 shoulderSections[id_].append(lane)
             
             if not sec.drivable_lanes:
-                #MIGHT NEED TO MAKE ROADSECTION
+                #If we don't want to skip, maybe build some sort of RoadSection here or add gaurds for attributes like left_edge, right_edge
                 continue
+                
             #assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
@@ -866,13 +867,17 @@ class Road:
                     rightPoints.extend(reversed(leftSec.left_bounds))
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
-            centerline = nowhere if self.drivable_region.is_empty else self.create_center_line(leftEdge, rightEdge)
+            centerline = nowhere if self.drivable_region.is_empty else self.create_center_line(leftEdge, rightEdge) #nowhere for now
+            centerline = self.create_center_line(leftEdge, rightEdge)
             allPolys = (
                 sec.poly
                 for id_ in range(rightmost, leftmost + 1)
                 for sec in sections[id_]
             )
             union = buffer_union(allPolys, tolerance=tolerance)
+            if not union.buffer(tolerance).covers(centerline.lineString): #If the centerline isn't fully in the polygon
+                print(f"road{self.id_}")
+                centerline = nowhere #remove this
             id_ = f"road{self.id_}_{name}({leftmost},{rightmost})"
             return id_, union, centerline, leftEdge, rightEdge
         
@@ -1089,7 +1094,7 @@ class Road:
             return leftEdge, middleLane.centerline, rightEdge
 
         if forwardLanes or forwardShoulder or forwardSidewalk:
-            leftEdge, centerline, rightEdge = getEdges(forward=True) #fix get edges to handle no lanes case - retur nowehere
+            leftEdge, centerline, rightEdge = getEdges(forward=True) #fix get edges to handle no lanes case - return nowehere
             forwardGroup = roadDomain.LaneGroup(
                 id=f"road{self.id_}_forward",
                 polygon=buffer_union(
