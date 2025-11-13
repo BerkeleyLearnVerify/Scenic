@@ -56,31 +56,6 @@ EXPR_NAME_MAPPING = {
 }
 
 
-def parse_file(
-    path: str,
-    py_version: Optional[tuple]=None,
-    token_stream_factory: Optional[
-        Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    ] = None,
-    verbose:bool = False,
-) -> ast.Module:
-    """Parse a file."""
-    with open(path) as f:
-        tok_stream = (
-            token_stream_factory(f.readline)
-            if token_stream_factory else
-            tokenize.generate_tokens(f.readline)
-        )
-        tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
-        parser = ScenicParser(
-            tokenizer,
-            verbose=verbose,
-            filename=os.path.basename(path),
-            py_version=py_version
-        )
-        return parser.parse("file")
-
-
 def parse_string(
     source: str,
     mode: Union[Literal["eval"], Literal["exec"]],
@@ -99,7 +74,24 @@ def parse_string(
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
-    return parser.parse(mode if mode == "eval" else "file")
+
+    # Tokenization / early indentation errors are raised before ScenicParser
+    # runs; wrap them in ScenicParseError so they use Scenic's normal syntax
+    # error reporting (correct filename, consistent formatting).
+    try:
+        return parser.parse(mode if mode == "eval" else "file")
+    except tokenize.TokenError as e:
+        msg, (lineno, offset) = e.args
+        syn = SyntaxError(msg)
+        syn.filename = filename
+        syn.lineno = lineno
+        syn.offset = offset
+        raise ScenicParseError(syn) from None
+
+    except IndentationError as e:
+        e.filename = filename
+        raise ScenicParseError(e) from None
+
 
 
 class Target(enum.Enum):
@@ -337,7 +329,8 @@ class Parser(Parser):
             line, col_offset = t.end
         source += "\\n)"
         try:
-            m = ast.parse(source)
+            # Use the Scenic parser's filename so f-string errors report the right file.
+            m = ast.parse(source, filename=self.filename)
         except SyntaxError as err:
             args = (err.filename, err.lineno + line_offset - 2, err.offset, err.text)
             if sys.version_info >= (3, 10):
