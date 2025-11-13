@@ -96,6 +96,8 @@ For more information on how to customize the sampler, see `VerifaiSampler`.
 
 """
 
+from abc import ABC, abstractmethod
+
 from dotmap import DotMap
 import numpy
 
@@ -182,6 +184,7 @@ class VerifaiSampler(ExternalSampler):
         import verifai.server
 
         # construct FeatureSpace
+        timeBound = globalParams.get("verifaiTimeBound", 0)
         usingProbs = False
         self.params = tuple(params)
         for index, param in enumerate(self.params):
@@ -195,9 +198,14 @@ class VerifaiSampler(ExternalSampler):
                 usingProbs = True
         space = verifai.features.FeatureSpace(
             {
-                self.nameForParam(index): verifai.features.Feature(param.domain)
+                self.nameForParam(index): (
+                    verifai.features.Feature(param.domain)
+                    if not param.timeSeries
+                    else verifai.features.TimeSeriesFeature(param.domain)
+                )
                 for index, param in enumerate(self.params)
-            }
+            },
+            timeBound=timeBound,
         )
 
         # set up VerifAI sampler
@@ -260,10 +268,21 @@ class VerifaiSampler(ExternalSampler):
             self._lastSample.update(feedback)
 
         self._lastSample = self.sampler.getSample()
-        return self._lastSample.staticSample
+        return self._lastSample
 
     def valueFor(self, param):
-        return getattr(self.cachedSample, self.nameForParam(param.index))
+        if not param.timeSeries:
+            return param.extractOutput(
+                getattr(self.cachedSample.staticSample, self.nameForParam(param.index))
+            )
+        else:
+            callback = lambda feedback: param.extractOutput(
+                getattr(
+                    self.cachedSample.getDynamicSample(feedback),
+                    self.nameForParam(param.index),
+                )
+            )
+            return TimeSeriesParameter(callback)
 
     @staticmethod
     def nameForParam(i):
@@ -271,12 +290,13 @@ class VerifaiSampler(ExternalSampler):
         return f"param{i}"
 
 
-class ExternalParameter(Distribution):
+class ExternalParameter(Distribution, ABC):
     """A value determined by external code rather than Scenic's internal sampler."""
 
-    def __init__(self):
+    def __init__(self, timeSeries):
         super().__init__()
         self.sampler = None
+        self.timeSeries = timeSeries
         import scenic.syntax.veneer as veneer  # TODO improve?
 
         veneer.registerExternalParameter(self)
@@ -290,12 +310,25 @@ class ExternalParameter(Distribution):
         assert self.sampler is not None
         return self.sampler.valueFor(self)
 
+    @abstractmethod
+    def extractOutput(self, value):
+        pass
+
+
+class TimeSeriesParameter:
+    def __init__(self, callback):
+        self._callback = callback
+
+    def getSample(self):
+        scenic_context = None  # TODO
+        return self._callback(scenic_context)
+
 
 class VerifaiParameter(ExternalParameter):
     """An external parameter sampled using one of VerifAI's samplers."""
 
-    def __init__(self, domain):
-        super().__init__()
+    def __init__(self, domain, timeSeries=False):
+        super().__init__(timeSeries=timeSeries)
         self.domain = domain
 
     @staticmethod
@@ -323,10 +356,10 @@ class VerifaiRange(VerifaiParameter):
 
     _defaultValueType = float
 
-    def __init__(self, low, high, buckets=None, weights=None):
+    def __init__(self, low, high, buckets=None, weights=None, timeSeries=False):
         import verifai.features
 
-        super().__init__(verifai.features.Box([low, high]))
+        super().__init__(verifai.features.Box([low, high]), timeSeries=timeSeries)
         if weights is not None:
             weights = tuple(weights)
             if buckets is not None and len(weights) != buckets:
@@ -342,8 +375,7 @@ class VerifaiRange(VerifaiParameter):
         total = sum(weights)
         self.probs = tuple(wt / total for wt in weights)
 
-    def sampleGiven(self, value):
-        value = super().sampleGiven(value)
+    def extractOutput(self, value):
         assert len(value) == 1
         return value[0]
 
@@ -353,10 +385,10 @@ class VerifaiDiscreteRange(VerifaiParameter):
 
     _defaultValueType = float
 
-    def __init__(self, low, high, weights=None):
+    def __init__(self, low, high, weights=None, timeSeries=False):
         import verifai.features
 
-        super().__init__(verifai.features.DiscreteBox([low, high]))
+        super().__init__(verifai.features.DiscreteBox([low, high]), timeSeries=timeSeries)
         if weights is not None:
             if len(weights) != (high - low + 1):
                 raise RuntimeError(
@@ -368,8 +400,7 @@ class VerifaiDiscreteRange(VerifaiParameter):
         else:
             self.probs = None
 
-    def sampleGiven(self, value):
-        value = super().sampleGiven(value)
+    def extractOutput(self, value):
         assert len(value) == 1
         return value[0]
 
