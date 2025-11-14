@@ -125,15 +125,7 @@ autodoc_default_options = {
     "show-inheritance": None,
 }
 
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-    "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
-    "pytest": ("https://docs.pytest.org/en/stable/", None),
-    "trimesh": ("https://trimesh.org/", None),
-}
+from intersphinx_config import intersphinx_mapping
 
 highlight_language = "scenic"
 pygments_style = "scenic.syntax.pygment.ScenicStyle"
