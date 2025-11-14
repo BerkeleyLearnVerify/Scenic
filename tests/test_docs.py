@@ -23,11 +23,11 @@ def _get_intersphinx_urls():
         sys.path.pop(0)
 
 
-def _check_intersphinx_connectivity(timeout=3.0):
+def _check_intersphinx_connectivity(timeout=5.0):
     """Check Intersphinx inventories before building docs.
 
-    If any inventory URL returns 404, fail as a configuration error.
-    If any inventory URL has other HTTP or network errors, skip to avoid flaky CI.
+    404 errors are treated as configuration issues; network failures cause this
+    test to be skipped.
     """
     urls = _get_intersphinx_urls()
     if not urls:
@@ -43,7 +43,7 @@ def _check_intersphinx_connectivity(timeout=3.0):
             if exc.code == 404:
                 config_errors.append(f"{url} (HTTP 404)")
             else:
-                network_errors.append(f"{url} (HTTP {exc.code})")
+                continue
         except URLError as exc:
             network_errors.append(f"{url} ({exc.reason!r})")
         except Exception as exc:
