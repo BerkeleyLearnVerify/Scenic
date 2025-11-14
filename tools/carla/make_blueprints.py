@@ -119,6 +119,9 @@ def height(bp_id, default):
     return _get_dim(bp_id, "height", default)
 '''
 
+# Template for src/scenic/simulators/carla/blueprints.py
+TEMPLATE = "{HEADER}\n" "_IDS = {IDS_JSON}\n\n" "_DIMS = {DIMS_JSON}\n\n" "{FOOTER}"
+
 
 def _verkey(s: str):
     parts = [int(p) for p in s.split(".")]
@@ -154,11 +157,14 @@ def normalize(versions):
 
 def build_source(versions):
     ids_map, dims_map = normalize(versions)
-    out = [HEADER, "\n"]
-    out += ["_IDS = ", json.dumps(ids_map, indent=2), "\n\n"]
-    out += ["_DIMS = ", json.dumps(dims_map, indent=2), "\n\n"]
-    out += [FOOTER]
-    return "".join(out)
+    ids_json = json.dumps(ids_map, indent=2)
+    dims_json = json.dumps(dims_map, indent=2)
+    return TEMPLATE.format(
+        HEADER=HEADER,
+        IDS_JSON=ids_json,
+        DIMS_JSON=dims_json,
+        FOOTER=FOOTER,
+    )
 
 
 def main():
