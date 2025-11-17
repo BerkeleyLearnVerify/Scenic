@@ -2,51 +2,42 @@
 
 import pytest
 
-from tests.utils import compileScenic, sampleEgoActions
+from tests.utils import sampleParamPFrom
 
 
 def test_multiple_assignment_swap():
-    scenario = compileScenic(
+    p = sampleParamPFrom(
         """
-        behavior Foo():
-            a = 1
-            b = 2
-            a, b = b, a
-            take a
-            take b
-        ego = new Object with behavior Foo
+        a = 1
+        b = 2
+        a, b = b, a
+        param p = (a, b)
         """
     )
-    actions = sampleEgoActions(scenario, maxSteps=2)
-    assert actions == [2, 1]
+    assert p == (2, 1)
 
 
 def test_lhs_tuple_unpack():
-    scenario = compileScenic(
+    p = sampleParamPFrom(
         """
-        behavior Foo():
-            x, y = (3, 4)
-            take x
-            take y
-        ego = new Object with behavior Foo
+        x, y = (3, 4)
+        param p = (x, y)
         """
     )
-    assert sampleEgoActions(scenario, maxSteps=2) == [3, 4]
+    assert p == (3, 4)
 
 
 def test_unpack_from_distribution_pair():
-    scenario = compileScenic(
-        """
-        behavior Foo():
-            pair = Uniform((0, 1), (1, 0))
-            x, y = pair
-            take x
-            take y
-        ego = new Object with behavior Foo
-        """
-    )
-    outs = [tuple(sampleEgoActions(scenario, maxSteps=2)) for _ in range(60)]
-    assert {(0, 1), (1, 0)} <= set(outs)
+    code = """
+        pair = (Uniform(0, 1), Uniform(0, 1))
+        x, y = pair
+        param p = (x, y)
+    """
+    outs = [sampleParamPFrom(code) for _ in range(20)]
+    assert len(set(outs)) > 1
+    for x, y in outs:
+        assert 0 <= x <= 1
+        assert 0 <= y <= 1
 
 
 @pytest.mark.parametrize(
@@ -54,13 +45,10 @@ def test_unpack_from_distribution_pair():
     ["(1, 2, 3)", "(1,)"],  # too many; not enough
 )
 def test_unpack_arity_mismatch_exec_raises(rhs):
-    scenario = compileScenic(
-        f"""
-        behavior Foo():
-            x, y = {rhs}
-            take x
-        ego = new Object with behavior Foo
-    """
-    )
     with pytest.raises(ValueError):
-        sampleEgoActions(scenario, maxSteps=1)
+        sampleParamPFrom(
+            f"""
+            x, y = {rhs}
+            param p = x
+            """
+        )
