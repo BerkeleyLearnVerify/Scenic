@@ -364,3 +364,79 @@ def readStr(stream):
 
 
 Serializer.addCodec(str, writeStr, readStr)
+
+from scenariogeneration import ScenarioGenerator, xosc
+
+
+def toOpenScenario(
+    scenario,
+    scene,
+    simulationResult,
+    wheelbaseRatio=0.6,
+    maxSteeringAngle=0.523598775598,
+    wheelDiameter=0.8,
+    trackWidth=1.68,
+    groundClearance=0.4,
+    maxSpeed=69,
+    maxAcceleration=10,
+    maxDeceleration=10,
+):
+    # Create catalog
+    xosc_catalog = xosc.Catalog()
+
+    # Extract map
+    assert "map" in scenario.params
+    map_path = scenario.params["map"]
+    xosc_road = xosc.RoadNetwork(roadfile=map_path)
+
+    # Create entitities
+    entities = xosc.Entities()
+    xosc_objects = []
+    for obj_i, obj in enumerate(scene.objects):
+        veh_name = obj.name if hasattr(obj, "name") else f"Vehicle_{obj_i}"
+        # NOTE: XOSC coordinate system swaps X and Y compared to Scenic.
+        veh_bb = xosc.BoundingBox(
+            obj.length,
+            obj.width,
+            obj.height,
+            0.5 * wheelbaseRatio * obj.length,
+            0,
+            obj.height / 2,
+        )
+        veh_fa = xosc.Axle(
+            maxSteeringAngle,
+            wheelDiameter,
+            trackWidth,
+            wheelbaseRatio * obj.length,
+            groundClearance,
+        )
+        veh_ra = xosc.Axle(
+            maxSteeringAngle, wheelDiameter, trackWidth, 0, groundClearance
+        )
+        xosc_veh = xosc.Vehicle(
+            name=veh_name,
+            vehicle_type=xosc.VehicleCategory.car,
+            boundingbox=veh_bb,
+            frontaxle=veh_fa,
+            rearaxle=veh_ra,
+            max_speed=maxSpeed,
+            max_acceleration=maxAcceleration,
+            max_deceleration=maxDeceleration,
+            mass=None,
+            model3d=None,
+            max_acceleration_rate=None,
+            max_deceleration_rate=None,
+            role=None,
+        )
+        xosc_objects.append(xosc_veh)
+        entities.add_scenario_object(veh_name, xosc_veh)
+
+    # Create init
+    init = xosc.Init()
+
+    for xosc_obj in xosc_objects:
+        breakpoint()
+        obj_init_action = xosc.TeleportAction(xosc.LanePosition(25, 0, -1, 1))
+        init.add_init_action(xosc_obj.name, obj_init_action)
+
+    assert False
