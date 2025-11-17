@@ -276,12 +276,12 @@ def test_composed_scenario(getMetadriveSimulator):
 
         scenario Sub():
             setup:
-                follower = new Car with behavior FollowLaneBehavior()
+                other = new Car at (190, -196), with behavior FollowLaneBehavior()
                 terminate after 3 steps
 
         scenario Main():
             setup:
-                ego = new Car with behavior FollowLaneBehavior()
+                ego = new Car at (129, -196), with behavior FollowLaneBehavior()
             compose:
                 do Sub()
     """
