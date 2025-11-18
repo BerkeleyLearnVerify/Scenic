@@ -7,6 +7,7 @@ For high-level serialization APIs, see `Scenario.sceneToBytes`,
 
 import io
 import math
+import os
 import pickle
 import struct
 import types
@@ -372,6 +373,8 @@ def toOpenScenario(
     scenario,
     scene,
     simulationResult,
+    mapPath=None,
+    scenarioName="ScenicScenario",
     wheelbaseRatio=0.6,
     maxSteeringAngle=0.523598775598,
     wheelDiameter=0.8,
@@ -384,22 +387,27 @@ def toOpenScenario(
     # Create catalog
     xosc_catalog = xosc.Catalog()
 
+    # Create parameters
+    xosc_paramdec = xosc.ParameterDeclarations()
+
     # Extract map
     assert "map" in scenario.params
-    map_path = scenario.params["map"]
+    map_path = mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
     xosc_road = xosc.RoadNetwork(roadfile=map_path)
+
+    # network = scenario.dynamicScenario._dummyNamespace["network"]
 
     # Create entitities
     entities = xosc.Entities()
-    xosc_objects = []
+    xosc_objects = {}
     for obj_i, obj in enumerate(scene.objects):
-        veh_name = obj.name if hasattr(obj, "name") else f"Vehicle_{obj_i}"
+        veh_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
         # NOTE: XOSC coordinate system swaps X and Y compared to Scenic.
         veh_bb = xosc.BoundingBox(
             obj.length,
             obj.width,
             obj.height,
-            0.5 * wheelbaseRatio * obj.length,
+            0,
             0,
             obj.height / 2,
         )
@@ -428,15 +436,99 @@ def toOpenScenario(
             max_deceleration_rate=None,
             role=None,
         )
-        xosc_objects.append(xosc_veh)
+        xosc_objects[obj] = xosc_veh
         entities.add_scenario_object(veh_name, xosc_veh)
 
     # Create init
     init = xosc.Init()
 
-    for xosc_obj in xosc_objects:
-        breakpoint()
-        obj_init_action = xosc.TeleportAction(xosc.LanePosition(25, 0, -1, 1))
+    for obj, xosc_obj in xosc_objects.items():
+        init_position = xosc.WorldPosition(x=obj.x, y=obj.y, z=obj.z, h=obj.heading)
+        obj_init_action = xosc.TeleportAction(init_position)
         init.add_init_action(xosc_obj.name, obj_init_action)
 
-    assert False
+    # Dynamics
+    xosc_act = xosc.Act(
+        "MainAct",
+        xosc.ValueTrigger(
+            "StartSimulation",
+            0,
+            xosc.ConditionEdge.none,
+            xosc.SimulationTimeCondition(0, xosc.Rule.greaterThan),
+        ),
+    )
+
+    for obj_i, (obj, xosc_obj) in enumerate(xosc_objects.items()):
+        action_times = []
+        action_positions = []
+        for t, states in enumerate(simulationResult.trajectory):
+            state_position = states.positions[obj_i]
+            state_orientation = states.orientations[obj_i].yaw
+            action_times.append(simulationResult.timestep * t)
+            pos = xosc.WorldPosition(
+                x=state_position.x,
+                y=state_position.y,
+                z=state_position.z,
+                h=state_orientation,
+            )
+            action_positions.append(pos)
+
+        polyline = xosc.Polyline(time=action_times, positions=action_positions)
+        trajectory = xosc.Trajectory(name=f"Trajectory_{xosc_obj.name}", closed=False)
+        trajectory.add_shape(polyline)
+
+        traj_action = xosc.FollowTrajectoryAction(
+            trajectory=trajectory,
+            following_mode=xosc.FollowingMode.position,
+            reference_domain=xosc.ReferenceContext.absolute,
+            scale=1,
+            offset=0,
+        )
+
+        event = xosc.Event(f"Event_{xosc_obj.name}", xosc.Priority.override)
+        event.add_trigger(
+            xosc.ValueTrigger(
+                f"TimeTrigger_{xosc_obj.name}_{t}",
+                0,
+                xosc.ConditionEdge.none,
+                xosc.SimulationTimeCondition(0, xosc.Rule.greaterThan),
+            )
+        )
+        event.add_action(f"Action_{xosc_obj.name}", action=traj_action)
+
+        maneuver = xosc.Maneuver("Maneuver_{xosc_obj.name}")
+        maneuver.add_event(event)
+
+        manuever_group = xosc.ManeuverGroup(f"ManeuverGroup_{xosc_obj.name}")
+        manuever_group.add_maneuver(maneuver)
+        manuever_group.add_actor(xosc_obj.name)
+
+        xosc_act.add_maneuver_group(manuever_group)
+
+    # Create storyboard
+    xosc_sb = xosc.StoryBoard(
+        init,
+        xosc.ValueTrigger(
+            "StopSimulation",
+            0,
+            xosc.ConditionEdge.rising,
+            xosc.SimulationTimeCondition(
+                simulationResult.currentRealTime, xosc.Rule.greaterThan
+            ),
+            "stop",
+        ),
+    )
+    xosc_sb.add_act(xosc_act)
+
+    # Create scenario
+    xosc_scenario = xosc.Scenario(
+        scenarioName,
+        "Scenic",
+        xosc_paramdec,
+        entities=entities,
+        storyboard=xosc_sb,
+        roadnetwork=xosc_road,
+        catalog=xosc_catalog,
+    )
+
+    return xosc_scenario

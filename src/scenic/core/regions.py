@@ -3695,6 +3695,9 @@ class PolylineRegion(Region):
         dist2D = self.lineString.distance(makeShapelyPoint(point))
         return math.hypot(dist2D, point.z)
 
+    def distanceAlong(self, point) -> float:
+        return shapely.line_locate_point(self.lineString, makeShapelyPoint(point))
+
     def projectVector(self, point, onDirection):
         raise TypeError('PolylineRegion does not support projection using "on"')
 
