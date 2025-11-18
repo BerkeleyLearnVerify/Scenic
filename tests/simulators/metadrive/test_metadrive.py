@@ -47,11 +47,14 @@ def test_pickle(loadLocalScenario):
 def getMetadriveSimulator(getAssetPath):
     base = getAssetPath("maps/CARLA")
 
-    def _getMetadriveSimulator(town, *, render=False, render3D=False):
+    def _getMetadriveSimulator(town, *, render=False, render3D=False, **kwargs):
         openDrivePath = os.path.join(base, f"{town}.xodr")
         sumoPath = os.path.join(base, f"{town}.net.xml")
         simulator = MetaDriveSimulator(
-            sumo_map=sumoPath, render=render, render3D=render3D
+            sumo_map=sumoPath,
+            render=render,
+            render3D=render3D,
+            **kwargs,
         )
         return simulator, openDrivePath, sumoPath
 
@@ -344,12 +347,12 @@ def test_render_2D_saves_gif(getMetadriveSimulator, tmp_path):
     outdir.mkdir()
 
     simulator, openDrivePath, sumoPath = getMetadriveSimulator(
-        "Town01", render=True, render3D=False
+        "Town01",
+        render=True,
+        screen_record=True,
+        screen_record_filename="render2d.gif",
+        screen_record_path=str(outdir),
     )
-
-    simulator.screen_record = True
-    simulator.screen_record_filename = "render2d.gif"
-    simulator.screen_record_path = str(outdir)
 
     code = f"""
         param map = r'{openDrivePath}'
@@ -368,6 +371,8 @@ def test_render_2D_saves_gif(getMetadriveSimulator, tmp_path):
 
 
 def test_follow_lane(getMetadriveSimulator):
+    # Exercise MetaDrive's getLaneFollowingControllers via FollowLaneBehavior:
+    # car should stay on a lane and actually accelerate.
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
         param map = r'{openDrivePath}'
