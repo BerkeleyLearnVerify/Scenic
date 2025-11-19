@@ -11,6 +11,7 @@ import os
 import pickle
 import struct
 import types
+import warnings
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.utils import DefaultIdentityDict
@@ -395,12 +396,14 @@ def toOpenScenario(
     map_path = mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
     xosc_road = xosc.RoadNetwork(roadfile=map_path)
 
-    # network = scenario.dynamicScenario._dummyNamespace["network"]
-
     # Create entitities
     entities = xosc.Entities()
     xosc_objects = {}
     for obj_i, obj in enumerate(scene.objects):
+        if not hasattr(obj, "isVehicle") or not obj.isVehicle:
+            warnings.warn("Non-vehicle object {} is ignored.")
+            continue
+
         veh_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
         # NOTE: XOSC coordinate system swaps X and Y compared to Scenic.
         veh_bb = xosc.BoundingBox(
@@ -488,7 +491,7 @@ def toOpenScenario(
         event = xosc.Event(f"Event_{xosc_obj.name}", xosc.Priority.override)
         event.add_trigger(
             xosc.ValueTrigger(
-                f"TimeTrigger_{xosc_obj.name}_{t}",
+                f"TimeTrigger_{xosc_obj.name}",
                 0,
                 xosc.ConditionEdge.none,
                 xosc.SimulationTimeCondition(0, xosc.Rule.greaterThan),
