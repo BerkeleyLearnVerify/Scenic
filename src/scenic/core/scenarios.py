@@ -3,9 +3,11 @@
 import dataclasses
 import io
 import itertools
+import multiprocessing
 import random
 import sys
 import time
+import warnings
 
 import numpy
 import trimesh
@@ -38,6 +40,7 @@ from scenic.core.requirements import (
 )
 from scenic.core.sample_checking import BasicChecker, WeightedAcceptanceChecker
 from scenic.core.serialization import Serializer, dumpAsScenicCode
+from scenic.core.utils import generateInnerBatchHelper
 from scenic.core.vectors import Vector
 
 # Global params
@@ -315,6 +318,7 @@ class Scenario(_ScenarioPickleMixin):
         self.dependencies = (
             self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
         )
+        self._scenarioCreationData = None
 
         # Setup the default checker
         self.defaultRequirements = self.generateDefaultRequirements()
@@ -400,11 +404,16 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
-        scenes, iterations = self.generateBatch(1, maxIterations, verbosity, feedback)
-        return scenes[0], iterations
+        return next(self.generateBatch(1, maxIterations, verbosity, feedback))
 
     def generateBatch(
-        self, numScenes, maxIterations=float("inf"), verbosity=0, feedback=None
+        self,
+        numScenes,
+        maxIterations=float("inf"),
+        verbosity=0,
+        feedback=None,
+        numWorkers=0,
+        mute=True,
     ):
         """Sample several `Scene` objects from this scenario.
 
@@ -416,29 +425,71 @@ class Scenario(_ScenarioPickleMixin):
             verbosity (int): Verbosity level.
             feedback (float): Feedback to pass to external samplers doing active sampling.
                 See :mod:`scenic.core.external_params`.
+            numWorkers (int): The number of workers to be used when generating scenes. If numWorkers
+                is 0, scenes will be generated in the main process.
+            mute (bool): Whether or not to mute stdOut and stdErr in the worker processes.
 
         Returns:
-            A pair with a list of the sampled `Scene` objects and the total number
-            of iterations used.
+            An iterable of pairs with a sampled `Scene` and the number of iterations used for that scene.
 
         Raises:
             `RejectionException`: if not enough valid samples are found in **maxIterations** iterations.
         """
-        totalIterations = 0
-        scenes = []
+        if numWorkers == 0:
+            totalIterations = 0
 
-        for _ in range(numScenes):
+            for _ in range(numScenes):
+                try:
+                    remainingIts = maxIterations - totalIterations
+                    scene, iterations = self._generateInner(
+                        remainingIts, verbosity, feedback
+                    )
+                    totalIterations += iterations
+                    yield (scene, iterations)
+                except RejectionException:
+                    raise RejectionException(
+                        f"failed to generate scenario in {maxIterations} iterations"
+                    )
+        else:
+            if maxIterations != float("inf"):
+                raise RuntimeError("maxIterations not supported for parallel sampling.")
+
+            if feedback is not None:
+                raise RuntimeError("Feedback not supported for parallel sampling.")
+
+            if verbosity > 0:
+                warnings.warn("Verbosity > 0 ignored during parallel sampling")
+
+            # Initialize queues and lock
+            seedQueue = multiprocessing.Queue()
+            for _ in range(numScenes):
+                seedQueue.put(random.getrandbits(32))
+
+            sceneQueue = multiprocessing.Queue()
+
+            # Initialize processes
+            params = (self._scenarioCreationData, seedQueue, sceneQueue, mute)
+            processes = [
+                multiprocessing.Process(target=generateInnerBatchHelper, args=params)
+                for _ in range(numWorkers)
+            ]
             try:
-                remainingIts = maxIterations - totalIterations
-                scene, iterations = self._generateInner(remainingIts, verbosity, feedback)
-                scenes.append(scene)
-                totalIterations += iterations
-            except RejectionException:
-                raise RejectionException(
-                    f"failed to generate scenario in {maxIterations} iterations"
-                )
+                # Prepare process pool
+                for process in processes:
+                    process.start()
 
-        return scenes, totalIterations
+                for _ in range(numScenes):
+                    sceneBytes, iterations = sceneQueue.get()
+                    scene = self.sceneFromBytes(sceneBytes, verify=False)
+                    yield (scene, iterations)
+
+            finally:
+                # Close processes and queues
+                for process in processes:
+                    process.terminate()
+
+                seedQueue.close()
+                sceneQueue.close()
 
     def _generateInner(self, maxIterations, verbosity, feedback):
         # choose which custom requirements will be enforced for this sample
