@@ -404,7 +404,16 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
-        return next(self.generateBatch(1, maxIterations, verbosity, feedback))
+        scenes, totalIterations = self.generateBatch(
+            numScenes=1,
+            maxIterations=maxIterations,
+            verbosity=verbosity,
+            feedback=feedback,
+            numWorkers=0,
+            mute=False,
+        )
+        assert len(scenes) == 1
+        return (scenes[0], totalIterations)
 
     def generateBatch(
         self,
@@ -414,6 +423,8 @@ class Scenario(_ScenarioPickleMixin):
         feedback=None,
         numWorkers=0,
         mute=True,
+        deterministic=True,
+        serialized=False,
     ):
         """Sample several `Scene` objects from this scenario.
 
@@ -428,6 +439,59 @@ class Scenario(_ScenarioPickleMixin):
             numWorkers (int): The number of workers to be used when generating scenes. If numWorkers
                 is 0, scenes will be generated in the main process.
             mute (bool): Whether or not to mute stdOut and stdErr in the worker processes.
+            deterministic (bool): Whether or not scenes will be returned in a deterministic order.
+            serialized (bool): Whether or not to return scenes in a serialized format.
+
+        Returns:
+            A pair with a list of the sampled `Scene` objects and the total number
+            of iterations used.
+
+        Raises:
+            `RejectionException`: if not enough valid samples are found in **maxIterations** iterations.
+        """
+        stream = self.generateStream(
+            numScenes=numScenes,
+            maxIterations=maxIterations,
+            verbosity=verbosity,
+            feedback=feedback,
+            numWorkers=numWorkers,
+            mute=mute,
+            deterministic=deterministic,
+            serialized=serialized,
+        )
+        results_list = list(stream)
+        scenes = tuple(r[0] for r in results_list)
+        totalIterations = sum([r[1] for r in results_list])
+        return (scenes, totalIterations)
+
+    def generateStream(
+        self,
+        numScenes,
+        maxIterations=float("inf"),
+        verbosity=0,
+        feedback=None,
+        numWorkers=0,
+        mute=True,
+        deterministic=False,
+        serialized=False,
+    ):
+        """Sample several `Scene` objects from this scenario.
+
+        For a description of how scene generation is done, see `scene generation`.
+
+        Args:
+            numScenes (int): Number of scenes to generate.
+            maxIterations (int): Maximum number of rejection sampling iterations (over all scenes).
+            verbosity (int): Verbosity level.
+            feedback (float): Feedback to pass to external samplers doing active sampling.
+                See :mod:`scenic.core.external_params`.
+            numWorkers (int): The number of workers to be used when generating scenes. If numWorkers
+                is 0, scenes will be generated in the main process.
+            mute (bool): Whether or not to mute stdOut and stdErr in the worker processes.
+            deterministic (bool): Whether or not scenes will be returned in a deterministic order.
+                NOTE: Setting this to True may increase latency when waiting for the next `Scene` in
+                the stream.
+            serialized (bool): Whether or not to return scenes in a serialized format.
 
         Returns:
             An iterable of pairs with a sampled `Scene` and the number of iterations used for that scene.
@@ -457,31 +521,67 @@ class Scenario(_ScenarioPickleMixin):
             if feedback is not None:
                 raise RuntimeError("Feedback not supported for parallel sampling.")
 
-            if verbosity > 0:
-                warnings.warn("Verbosity > 0 ignored during parallel sampling")
+            # Initialize results tracking data
+            resultsList = []
+            returnedResults = 0
 
             # Initialize queues and lock
             seedQueue = multiprocessing.Queue()
+            seedHistory = {}
+
+            def putSeed():
+                newSeed = random.getrandbits(32)
+                seedQueue.put(newSeed)
+                seedHistory[newSeed] = len(seedHistory)
+                if deterministic:
+                    resultsList.append(None)
+
             for _ in range(numScenes):
-                seedQueue.put(random.getrandbits(32))
+                putSeed()
 
             sceneQueue = multiprocessing.Queue()
 
             # Initialize processes
-            params = (self._scenarioCreationData, seedQueue, sceneQueue, mute)
+            params = (self._scenarioCreationData, seedQueue, sceneQueue, verbosity, mute)
             processes = [
                 multiprocessing.Process(target=generateInnerBatchHelper, args=params)
                 for _ in range(numWorkers)
             ]
+
+            # Initialized result management functions
+            def getResult():
+                sceneBytes, resultIterations, resultSeed = sceneQueue.get()
+                resultScene = (
+                    sceneBytes
+                    if serialized
+                    else self.sceneFromBytes(sceneBytes, verify=False)
+                )
+                return (resultScene, resultIterations), resultSeed
+
+            def getNextResult():
+                if not deterministic:
+                    return getResult()[0]
+
+                while True:
+                    assert len(resultsList) > 0
+
+                    if resultsList[0] is not None:
+                        return resultsList.pop(0)
+
+                    result, resultSeed = getResult()
+                    resultIndex = seedHistory[resultSeed] - returnedResults
+                    assert resultsList[resultIndex] is None
+                    resultsList[resultIndex] = result
+
+            # Start sampling processes and yield samples
             try:
                 # Prepare process pool
                 for process in processes:
                     process.start()
 
                 for _ in range(numScenes):
-                    sceneBytes, iterations = sceneQueue.get()
-                    scene = self.sceneFromBytes(sceneBytes, verify=False)
-                    yield (scene, iterations)
+                    yield getNextResult()
+                    returnedResults += 1
 
             finally:
                 # Close processes and queues

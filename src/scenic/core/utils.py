@@ -402,7 +402,9 @@ def setSeed(seed):
     numpy.random.seed(seed)
 
 
-def generateInnerBatchHelper(scenarioCreationData, seedQueue, sceneQueue, mute):
+def generateInnerBatchHelper(
+    scenarioCreationData, seedQueue, sceneQueue, verbosity, mute
+):
     if mute:
         sys.stdout = open(os.devnull, "w")
         sys.stderr = open(os.devnull, "w")
@@ -422,12 +424,11 @@ def generateInnerBatchHelper(scenarioCreationData, seedQueue, sceneQueue, mute):
 
     while True:
         seed = seedQueue.get()
-
         setSeed(seed)
 
         scene, iterations = scenario._generateInner(
-            maxIterations=float("inf"), verbosity=0, feedback=None
+            maxIterations=float("inf"), verbosity=verbosity, feedback=None
         )
         sceneBytes = scenario.sceneToBytes(scene)
 
-        sceneQueue.put((sceneBytes, iterations))
+        sceneQueue.put((sceneBytes, iterations, seed))
