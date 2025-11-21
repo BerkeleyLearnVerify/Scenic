@@ -281,7 +281,7 @@ class METSRClient:
 
 
     # set the road for co-simulation
-    def set_cosim_road(self, roadID):
+    def set_cosim_road(self, roadID): # IF a road or METSR road ID is here, the MetsR DOES NOT control it
         msg = {
                 "TYPE": "CTRL_setCoSimRoad",
                 "DATA": [] 
