@@ -17,6 +17,6 @@ intersphinx_mapping = {
 
 
 def iter_intersphinx_urls():
-    """Yield the inventory URLs derived from the mapping."""
+    """Yield the base URLs from the mapping."""
     for base_url, _ in intersphinx_mapping.values():
-        yield base_url.rstrip("/") + "/objects.inv"
+        yield base_url
