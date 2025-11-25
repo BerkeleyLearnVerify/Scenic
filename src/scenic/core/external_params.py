@@ -261,6 +261,8 @@ class VerifaiSampler(ExternalSampler):
         self.cachedSample = None
 
         self._lastSample = None
+        self._lastDynamicSample = None
+        self._lastTime = -1
 
     def nextSample(self, feedback):
         if feedback is not None:
@@ -270,15 +272,27 @@ class VerifaiSampler(ExternalSampler):
         self._lastSample = self.sampler.getSample()
         return self._lastSample
 
+    def nextDynamicSample(self):
+        import scenic.syntax.veneer as veneer
+
+        assert veneer.currentSimulation is not None
+
+        if veneer.currentSimulation.currentTime > self._lastTime:
+            feedback = None  # TODO
+            self._lastDynamicSample = self.cachedSample.getDynamicSample(feedback)
+            self._lastTime = veneer.currentSimulation.currentTime
+
+        return self._lastDynamicSample
+
     def valueFor(self, param):
         if not param.timeSeries:
             return param.extractOutput(
                 getattr(self.cachedSample.staticSample, self.nameForParam(param.index))
             )
         else:
-            callback = lambda feedback: param.extractOutput(
+            callback = lambda: param.extractOutput(
                 getattr(
-                    self.cachedSample.getDynamicSample(feedback),
+                    self.nextDynamicSample(),
                     self.nameForParam(param.index),
                 )
             )
@@ -318,10 +332,20 @@ class ExternalParameter(Distribution, ABC):
 class TimeSeriesParameter:
     def __init__(self, callback):
         self._callback = callback
+        self._lastTime = -1
 
     def getSample(self):
-        scenic_context = None  # TODO
-        return self._callback(scenic_context)
+        import scenic.syntax.veneer as veneer
+
+        assert veneer.currentSimulation is not None
+
+        if veneer.currentSimulation.currentTime <= self._lastTime:
+            raise RuntimeError(
+                "Attempted `getSample` for a timeSeries property twice in one timestep."
+            )
+
+        self._lastTime = veneer.currentSimulation.currentTime
+        return self._callback()
 
 
 class VerifaiParameter(ExternalParameter):
