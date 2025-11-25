@@ -405,10 +405,9 @@ def toOpenScenario(
             continue
 
         veh_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
-        # NOTE: XOSC coordinate system swaps X and Y compared to Scenic.
         veh_bb = xosc.BoundingBox(
-            obj.length,
             obj.width,
+            obj.length,
             obj.height,
             0,
             0,
@@ -446,7 +445,9 @@ def toOpenScenario(
     init = xosc.Init()
 
     for obj, xosc_obj in xosc_objects.items():
-        init_position = xosc.WorldPosition(x=obj.x, y=obj.y, z=obj.z, h=obj.heading)
+        init_position = xosc.WorldPosition(
+            x=obj.x, y=obj.y, z=obj.z, h=obj.heading + math.radians(90)
+        )
         obj_init_action = xosc.TeleportAction(init_position)
         init.add_init_action(xosc_obj.name, obj_init_action)
 
@@ -466,7 +467,7 @@ def toOpenScenario(
         action_positions = []
         for t, states in enumerate(simulationResult.trajectory):
             state_position = states.positions[obj_i]
-            state_orientation = states.orientations[obj_i].yaw
+            state_orientation = states.orientations[obj_i].yaw + math.radians(90)
             action_times.append(simulationResult.timestep * t)
             pos = xosc.WorldPosition(
                 x=state_position.x,
