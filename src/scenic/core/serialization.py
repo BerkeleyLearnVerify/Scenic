@@ -15,6 +15,7 @@ import warnings
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.utils import DefaultIdentityDict
+from scenic.core.vectors import Vector
 
 ## JSON
 
@@ -411,7 +412,7 @@ def toOpenScenario(
             obj.height,
             0,
             0,
-            obj.height / 2,
+            0,
         )
         veh_fa = xosc.Axle(
             maxSteeringAngle,
@@ -445,8 +446,16 @@ def toOpenScenario(
     init = xosc.Init()
 
     for obj, xosc_obj in xosc_objects.items():
+        scenic_yaw = obj.yaw
+        state_orientation = scenic_yaw + math.radians(90)
+        state_position = obj.position.offsetRotated(
+            scenic_yaw, Vector(0, -0.5 * wheelbaseRatio * obj.length, 0)
+        )
         init_position = xosc.WorldPosition(
-            x=obj.x, y=obj.y, z=obj.z, h=obj.heading + math.radians(90)
+            x=state_position.x,
+            y=state_position.y,
+            z=state_position.z,
+            h=state_orientation,
         )
         obj_init_action = xosc.TeleportAction(init_position)
         init.add_init_action(xosc_obj.name, obj_init_action)
@@ -466,8 +475,11 @@ def toOpenScenario(
         action_times = []
         action_positions = []
         for t, states in enumerate(simulationResult.trajectory):
-            state_position = states.positions[obj_i]
-            state_orientation = states.orientations[obj_i].yaw + math.radians(90)
+            scenic_yaw = states.orientations[obj_i].yaw
+            state_orientation = scenic_yaw + math.radians(90)
+            state_position = states.positions[obj_i].offsetRotated(
+                scenic_yaw, Vector(0, -0.5 * wheelbaseRatio * obj.length, 0)
+            )
             action_times.append(simulationResult.timestep * t)
             pos = xosc.WorldPosition(
                 x=state_position.x,
