@@ -59,6 +59,9 @@ metadrive = [
 	"metadrive-simulator@git+https://github.com/metadriverse/metadrive.git@85e5dadc6c7436d324348f6e3d8f8e680c06b4db",
 	"sumolib >= 1.21.0",
 ]
+openscenario = [
+	"scenariogeneration"
+]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest >= 7.0.0, <9",
 	"pytest-cov >= 3.0.0",
@@ -68,6 +71,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
 	"scenic[metadrive]",
+	"scenic[openscenario]",
 	"astor >= 0.8.1",
 	'carla >= 0.9.12; python_version <= "3.10" and (platform_system == "Linux" or platform_system == "Windows")',
 	"dill",
