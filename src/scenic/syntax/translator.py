@@ -77,7 +77,7 @@ class CompileOptions:
             if isinstance(value, (int, float, str)):
                 stream.write(str(value).encode())
             else:
-                stream.write([0])
+                stream.write(str([0]).encode())
         if self.scenario:
             stream.write(self.scenario.encode())
         # We can't use `hash` because it is not deterministic
@@ -165,6 +165,17 @@ def _scenarioFromStream(
           behavior as importing a Python module. See `purgeModulesUnsafeToCache`
           for a more detailed discussion of the internals behind this.
     """
+    # Backup stream and parameters
+    streamLines = stream.read()
+    scenarioCreationData = {
+        "streamLines": streamLines,
+        "compileOptions": compileOptions,
+        "filename": filename,
+        "scenario": scenario,
+        "path": path,
+    }
+    stream = io.BytesIO(streamLines)
+
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
@@ -174,7 +185,9 @@ def _scenarioFromStream(
         if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
     # Construct a Scenario from the resulting namespace
-    return constructScenarioFrom(namespace, scenario)
+    scenario = constructScenarioFrom(namespace, scenario)
+    scenario._scenarioCreationData = scenarioCreationData
+    return scenario
 
 
 @contextmanager
