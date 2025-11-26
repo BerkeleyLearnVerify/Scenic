@@ -1,10 +1,22 @@
 import os
+from urllib.error import URLError
 
 import numpy as np
 import pytest
 
 try:
     import metadrive
+    from metadrive.pull_asset import pull_asset
+
+    # Make sure MetaDrive assets are available.
+    # On CI, if the asset server is down or unreachable, skip this whole file.
+    try:
+        pull_asset(update=False)
+    except URLError as e:
+        pytest.skip(
+            f"MetaDrive assets could not be pulled ({e}); skipping MetaDrive tests",
+            allow_module_level=True,
+        )
 
     from scenic.simulators.metadrive import MetaDriveSimulator
 except ModuleNotFoundError:
