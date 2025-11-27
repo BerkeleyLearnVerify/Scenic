@@ -278,7 +278,7 @@ class VerifaiSampler(ExternalSampler):
         assert veneer.currentSimulation is not None
 
         if veneer.currentSimulation.currentTime > self._lastTime:
-            feedback = None  # TODO
+            feedback = veneer.currentSimulation
             self._lastDynamicSample = self.cachedSample.getDynamicSample(feedback)
             self._lastTime = veneer.currentSimulation.currentTime
 
