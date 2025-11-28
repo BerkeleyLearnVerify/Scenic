@@ -279,7 +279,10 @@ try:
                     successCount += 1
             else:
                 successCount += 1
-                if mode2D:
+                use2DMap = getattr(
+                    getattr(scene.workspace, "network", None), "use2DMap", False
+                )
+                if use2DMap:
                     if delay is None:
                         scene.show2D(zoom=args.zoom)
                     else:
