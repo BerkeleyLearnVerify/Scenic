@@ -471,6 +471,21 @@ def test_behavior_lazy_nested():
     assert tuple(actions) == (pytest.approx((1.5, -0.25)), pytest.approx((-0.5, -0.25)))
 
 
+def test_obj_equals_self_inside_behavior():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for obj in simulation().objects:
+                take (obj == self, obj is self)
+
+        ego = new Object with behavior Foo
+        other = new Object at 10@10
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == ((True, True), (False, False))
+
+
 # Termination
 
 
@@ -664,6 +679,56 @@ def test_subbehavior_misplaced_modifier():
             behavior Bar():
                 do Foo() for 5 steps, Foo()
             ego = new Object with behavior Bar
+            """
+        )
+
+
+def test_subbehavior_wait_for_steps():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            wait for 3 steps
+            take 2
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (None, None, None, 2)
+
+
+def test_subbehavior_wait_for_time():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            wait for 3 seconds
+            take 2
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=7, timestep=0.5)
+    assert tuple(actions) == (None, None, None, None, None, None, 2)
+
+
+def test_subbehavior_wait_until():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            wait until simulation().currentTime == 2
+            take 2
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (None, None, 2, None)
+
+
+def test_subbehavior_wait_incompatible_modifiers():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic(
+            """
+            behavior Foo():
+                wait for 5 steps until False
+            ego = new Object with behavior Foo
             """
         )
 

@@ -17,6 +17,9 @@ on:
         description: Git ref on which to run the tests.
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   coverage:
     strategy:
@@ -29,21 +32,21 @@ jobs:
 
     steps:
     - name: Checkout given ref
-      uses: actions/checkout@v3
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
       if: inputs.ref != ''
       with:
         ref: ${{ inputs.ref }}
         persist-credentials: false
 
     - name: Checkout current branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
       if: inputs.ref == ''
       with:
         ref: ${{ github.ref }}
         persist-credentials: false
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
@@ -59,9 +62,9 @@ jobs:
     - name: Run and report code coverage
       run: |
         pytest --cov --cov-report json
-    
+
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4.0.1
+      uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: BerkeleyLearnVerify/Scenic

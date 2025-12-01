@@ -21,17 +21,13 @@ MetaDrive
 
 Scenic supports integration with the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as an optional dependency,
 enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios.
-If your system supports it, you can install it with:
+You can install it with:
 
 .. code-block:: console
 
     python -m pip install scenic[metadrive]
 
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
-2D rendering is available on all systems, providing a top-down view.
-However, 3D rendering may not work properly on macOS devices with M-series chips.
-Additionally, there is an issue where cars do not fully brake in certain scenarios.
-These issues are expected to be addressed in the next version of MetaDrive.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
 Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html>`_ tool.
@@ -57,7 +53,7 @@ Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Sceni
 The interface supports dynamic scenarios written using the CARLA world model (:obj:`scenic.simulators.carla.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
 To use the interface, please follow these instructions:
 
-1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.14) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
+1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.16) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
    Note that CARLA currently only supports Linux and Windows.
 2. Install Scenic in your Python virtual environment as instructed in :ref:`quickstart`.
 3. Within the same virtual environment, install CARLA's Python API.

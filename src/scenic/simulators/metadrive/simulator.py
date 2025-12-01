@@ -1,16 +1,22 @@
 """Simulator interface for MetaDrive."""
 
 try:
-    from metadrive.component.traffic_participants.pedestrian import Pedestrian
-    from metadrive.component.vehicle.vehicle_type import DefaultVehicle
-except ImportError as e:
+    import metadrive
+except ModuleNotFoundError as e:
     raise ModuleNotFoundError(
         "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
     ) from e
 
+from datetime import datetime
 import logging
+import os
 import sys
 import time
+
+from metadrive.component.sensors.rgb_camera import RGBCamera
+from metadrive.component.sensors.semantic_camera import SemanticCamera
+from metadrive.component.traffic_participants.pedestrian import Pedestrian
+from metadrive.component.vehicle.vehicle_type import DefaultVehicle
 
 from scenic.core.simulators import InvalidScenarioError, SimulationCreationError
 from scenic.domains.driving.actions import *
@@ -19,6 +25,7 @@ from scenic.domains.driving.controllers import (
     PIDLongitudinalController,
 )
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
+from scenic.simulators.metadrive.sensors import MetaDriveRGBSensor, MetaDriveSSSensor
 import scenic.simulators.metadrive.utils as utils
 
 
@@ -27,11 +34,14 @@ class MetaDriveSimulator(DrivingSimulator):
 
     def __init__(
         self,
+        sumo_map,
         timestep=0.1,
         render=True,
         render3D=False,
-        sumo_map=None,
         real_time=True,
+        screen_record=False,
+        screen_record_filename=None,
+        screen_record_path="metadrive_gifs",
     ):
         super().__init__()
         self.render = render
@@ -40,7 +50,21 @@ class MetaDriveSimulator(DrivingSimulator):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
+        self.screen_record = screen_record
+        self.screen_record_filename = screen_record_filename
+        self.screen_record_path = screen_record_path
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+
+        if self.screen_record and self.render3D:
+            raise SimulationCreationError(
+                "screen_record=True requires 2D rendering: set render3D=False."
+            )
+
+        if self.screen_record and not self.render:
+            raise SimulationCreationError(
+                "screen_record=True requires rendering to be enabled: set render=True."
+            )
+
         if self.render and not self.render3D:
             self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
         else:
@@ -56,6 +80,9 @@ class MetaDriveSimulator(DrivingSimulator):
             timestep=self.timestep,
             sumo_map=self.sumo_map,
             real_time=self.real_time,
+            screen_record=self.screen_record,
+            screen_record_filename=self.screen_record_filename,
+            screen_record_path=self.screen_record_path,
             scenic_offset=self.scenic_offset,
             sumo_map_boundary=self.sumo_map_boundary,
             film_size=self.film_size,
@@ -73,6 +100,9 @@ class MetaDriveSimulation(DrivingSimulation):
         timestep,
         sumo_map,
         real_time,
+        screen_record,
+        screen_record_filename,
+        screen_record_path,
         scenic_offset,
         sumo_map_boundary,
         film_size,
@@ -95,10 +125,61 @@ class MetaDriveSimulation(DrivingSimulation):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
+        self.screen_record = screen_record
+        self.screen_record_filename = screen_record_filename
+        self.screen_record_path = screen_record_path
         self.scenic_offset = scenic_offset
         self.sumo_map_boundary = sumo_map_boundary
         self.film_size = film_size
         super().__init__(scene, timestep=timestep, **kwargs)
+
+    # --- sensor helpers ---
+    def _metadrive_sensor_name(self, obj, base_name: str) -> str:
+        """Return a unique MetaDrive sensor name by appending the object's index."""
+        idx = self.scene.objects.index(obj)
+        return f"{base_name}__obj{idx}"
+
+    def _attach_sensors(self, obj):
+        """Attach/track all sensors for this object in MetaDrive."""
+        if not obj.sensors:
+            return
+        for base_name, sensor in obj.sensors.items():
+            md_name = self._metadrive_sensor_name(obj, base_name)
+            md_sensor = self.client.engine.get_sensor(md_name)
+            if md_sensor is None:
+                raise RuntimeError(
+                    f"Metadrive sensor '{md_name}' not found; check setup naming."
+                )
+            offset = (
+                sensor.offset if sensor.offset is not None else obj.visionSensorOffset
+            )
+            md_sensor.track(obj.metaDriveActor.origin, offset, sensor.rotation)
+            sensor.metadrive_sensor = md_sensor
+
+    def setup(self):
+        self.drive_env_config = {}
+
+        for obj in self.scene.objects:
+            if obj.sensors:
+                for base_name, sensor in obj.sensors.items():
+                    md_name = self._metadrive_sensor_name(obj, base_name)
+                    if isinstance(sensor, MetaDriveRGBSensor):
+                        self.drive_env_config[md_name] = [
+                            RGBCamera,
+                            sensor.width,
+                            sensor.height,
+                        ]
+                    elif isinstance(sensor, MetaDriveSSSensor):
+                        self.drive_env_config[md_name] = [
+                            SemanticCamera,
+                            sensor.width,
+                            sensor.height,
+                        ]
+                    else:
+                        raise RuntimeError(f"Unknown sensor type: {type(sensor)}")
+
+        self.using_sensors = bool(self.drive_env_config)
+        super().setup()
 
     def createObjectInSimulator(self, obj):
         """
@@ -112,6 +193,14 @@ class MetaDriveSimulation(DrivingSimulation):
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
+        vehicle_config = {}
+        if obj.isVehicle:
+            vehicle_config["spawn_position_heading"] = [
+                converted_position,
+                converted_heading,
+            ]
+            vehicle_config["spawn_velocity"] = [obj.velocity.x, obj.velocity.y]
+
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
@@ -122,14 +211,12 @@ class MetaDriveSimulation(DrivingSimulation):
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render3D,
-                    vehicle_config={
-                        "spawn_position_heading": [
-                            converted_position,
-                            converted_heading,
-                        ],
-                    },
-                    use_mesh_terrain=self.render3D,
+                    vehicle_config=vehicle_config,
+                    use_mesh_terrain=False,
+                    height_scale=0.0001,
                     log_level=logging.CRITICAL,
+                    image_observation=self.using_sensors,
+                    sensors=self.drive_env_config,
                 )
             )
             self.client.config["sumo_map"] = self.sumo_map
@@ -139,17 +226,21 @@ class MetaDriveSimulation(DrivingSimulation):
             metadrive_objects = self.client.engine.get_objects()
             obj.metaDriveActor = list(metadrive_objects.values())[0]
             self.defined_ego = True
+
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
             return
 
         # For additional cars
         if obj.isVehicle:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
-                vehicle_config=dict(),
-                position=converted_position,
-                heading=converted_heading,
+                vehicle_config=vehicle_config,
             )
             obj.metaDriveActor = metaDriveActor
+
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
             return
 
         # For pedestrians
@@ -160,6 +251,13 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading_theta=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
+
+            # Attach sensors (if any)
+            self._attach_sensors(obj)
+
+            # Manually initialize pedestrian velocity to Scenic’s starting speed
+            direction = [math.cos(converted_heading), math.sin(converted_heading)]
+            metaDriveActor.set_velocity(direction, obj.speed)
             return
 
         # If the object type is unsupported, raise an error
@@ -172,7 +270,9 @@ class MetaDriveSimulation(DrivingSimulation):
         super().executeActions(allActions)
 
         # Apply control updates to vehicles and pedestrians
-        for obj in self.scene.objects[1:]:  # Skip ego vehicle (it is handled separately)
+        for obj in self.agents:
+            if obj is self.objects[0]:  # Skip ego vehicle (it is handled separately)
+                continue
             if obj.isVehicle:
                 action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
@@ -193,7 +293,7 @@ class MetaDriveSimulation(DrivingSimulation):
         start_time = time.monotonic()
 
         # Special handling for the ego vehicle
-        ego_obj = self.scene.objects[0]
+        ego_obj = self.objects[0]
         action = ego_obj._collect_action()
         self.client.step(action)  # Apply action in the simulator
         ego_obj._reset_control()
@@ -201,7 +301,11 @@ class MetaDriveSimulation(DrivingSimulation):
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
             self.client.render(
-                mode="topdown", semantic_map=True, film_size=self.film_size, scaling=5
+                mode="topdown",
+                semantic_map=True,
+                film_size=self.film_size,
+                scaling=5,
+                screen_record=self.screen_record,
             )
 
         # If real-time synchronization is enabled, sleep to maintain real-time pace
@@ -212,6 +316,21 @@ class MetaDriveSimulation(DrivingSimulation):
                 time.sleep(self.timestep - elapsed_time)
 
     def destroy(self):
+        if self.screen_record:
+            filename = self.screen_record_filename or datetime.now().strftime(
+                "%Y%m%d_%H%M%S"
+            )
+            if not filename.endswith(".gif"):
+                filename += ".gif"
+            path = os.path.join(self.screen_record_path, filename)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+
+            # Convert timestep (seconds) → milliseconds for GIF duration
+            duration_ms = int(round(self.timestep * 1000))
+
+            print(f"Saving screen recording to {path}")
+            self.client.top_down_renderer.generate_gif(path, duration=duration_ms)
+
         if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
             if object_ids:

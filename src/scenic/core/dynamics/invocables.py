@@ -100,7 +100,11 @@ class Invocable:
         if not scheduler:
 
             def scheduler():
-                yield from self._invokeInner(agent, subs)
+                if not subs:
+                    while True:
+                        yield ()
+                else:
+                    yield from self._invokeInner(agent, subs)
 
         if modifier:
             if modifier.name == "for":  # do X for Y [seconds | steps]

@@ -60,6 +60,8 @@ Table of Contents
    :maxdepth: 1
    :caption: General Information
 
+   roadmap
+   governance
    publications
    credits
 

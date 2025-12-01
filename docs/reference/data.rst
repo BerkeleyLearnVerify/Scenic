@@ -138,3 +138,12 @@ When creating a `MeshShape`, if no dimensions are provided then dimensions will 
 .. autoclass:: scenic.core.shapes.SpheroidShape
     :noindex:
     :no-show-inheritance:
+
+.. _Sensor:
+
+Sensor
+======
+
+Sensors are mounted on objects and produce observations during a simulation.
+Scenic provides several built-in sensor types.
+See the :ref:`Sensors Reference <sensors>` for available types, API details, and usage examples.

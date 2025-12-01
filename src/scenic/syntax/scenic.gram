@@ -637,6 +637,8 @@ scenic_stmt:
     | scenic_terminate_when_stmt
     | scenic_terminate_after_stmt
     | scenic_take_stmt
+    | scenic_wait_for_stmt
+    | scenic_wait_until_stmt
     | scenic_wait_stmt
     | scenic_terminate_simulation_stmt
     | scenic_terminate_stmt
@@ -856,7 +858,7 @@ scenic_class_statement[list]:
 
 scenic_class_property_stmt:
     # not a simple statement; reads NEWLINE
-    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE { 
+    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE {
         s.PropertyDef(
             property=a.string,
             attributes=b if b is not None else [],
@@ -930,10 +932,10 @@ scenic_behavior_statement[list]:
 
 scenic_invalid_behavior_statement:
     | a="invariant" ':' a=expression {
-        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a) 
+        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a)
      }
     | a="precondition" ':' a=expression {
-        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a) 
+        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a)
      }
 
 scenic_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
@@ -1408,7 +1410,7 @@ pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
 wildcard_pattern["ast.MatchAs"]:
-    | "_" { ast.MatchAs(pattern=None, target=None, LOCATIONS) }
+    | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
 
 value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
@@ -2125,8 +2127,12 @@ scenic_require_stmt_name:
     | a=STRING { a.string[1:-1] }
 
 scenic_record_stmt:
-    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
-        s.Record(value=e, name=n, LOCATIONS)
+    | "record" e=expression \
+        p=["every" a=scenic_dynamic_duration { a }] \
+        d=["after" a=scenic_dynamic_duration { a }] \
+        n=['as' a=scenic_require_stmt_name { a }] \
+        r=['to' a=expression { a }] {
+        s.Record(value=e, name=n, recorder=r, delay=d, period=p, LOCATIONS)
      }
 
 scenic_record_initial_stmt:
@@ -2148,6 +2154,10 @@ scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 
 scenic_take_stmt: "take" elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
+
+scenic_wait_for_stmt: "wait" 'for' u=scenic_dynamic_duration { s.WaitFor(duration=u, LOCATIONS) }
+
+scenic_wait_until_stmt: "wait" 'until' cond=expression { s.WaitUntil(cond=cond, LOCATIONS) }
 
 scenic_wait_stmt: "wait" { s.Wait(LOCATIONS) }
 

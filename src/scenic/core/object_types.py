@@ -16,6 +16,8 @@ property definitions and :ref:`specifier resolution`).
 
 from abc import ABC, abstractmethod
 import collections
+import functools
+import inspect
 import math
 import random
 import typing
@@ -77,7 +79,7 @@ from scenic.core.type_support import (
     toVector,
     underlyingType,
 )
-from scenic.core.utils import DefaultIdentityDict, cached_method, cached_property
+from scenic.core.utils import DefaultIdentityDict, cached, cached_method, cached_property
 from scenic.core.vectors import (
     Orientation,
     Vector,
@@ -214,6 +216,7 @@ class Constructible(Samplable):
         self.properties = tuple(sorted(properties.keys()))
         self._propertiesSet = set(self.properties)
         self._constProps = constProps
+        self._sampleParent = None
 
     @classmethod
     def _withProperties(cls, properties, constProps=None):
@@ -544,7 +547,9 @@ class Constructible(Samplable):
         if not needsSampling(self):
             return self
         props = {prop: value[getattr(self, prop)] for prop in self.properties}
-        return type(self)(props, constProps=self._constProps, _internal=True)
+        obj = type(self)(props, constProps=self._constProps, _internal=True)
+        obj._sampleParent = self
+        return obj
 
     def _allProperties(self):
         return {prop: getattr(self, prop) for prop in self.properties}
@@ -597,6 +602,35 @@ class Constructible(Samplable):
         else:
             allProps = "<under construction>"
         return f"{type(self).__name__}({allProps})"
+
+
+def precomputed_property(func):
+    """A @property which can be precomputed if its dependencies are not random.
+
+    Converts a function inside a subclass of `Constructible` into a method; the
+    function's arguments must correspond to the properties of the object needed
+    to compute this property. If any of those dependencies have random values,
+    this property will evaluate to `None`; otherwise it will be computed once
+    the first time it is needed and then reused across samples.
+    """
+    deps = tuple(inspect.signature(func).parameters)
+
+    @cached
+    @functools.wraps(func)
+    def method(self):
+        args = [getattr(self, prop) for prop in deps]
+        if any(needsSampling(arg) for arg in args):
+            return None
+        return func(*args)
+
+    @functools.wraps(func)
+    def wrapper(self):
+        parent = self._sampleParent or self
+        return method(parent)
+
+    wrapper._scenic_cache_clearer = method._scenic_cache_clearer
+
+    return property(wrapper)
 
 
 ## Mutators
@@ -998,6 +1032,9 @@ class Object(OrientedPoint):
           Default value :scenic:`((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5))`.
         cameraOffset (`Vector`): Position of the camera for the :keyword:`can see`
           operator, relative to the object's :prop:`position`. Default :scenic:`(0, 0, 0)`.
+        visionSensorOffset (`Vector`): Offset of the default vision sensor mount point,
+          relative to the object's :prop:`position`. Defaults to the front-center of the
+          bounding box, :scenic:`(0, self.length/2, 0)`.
         requireVisible (bool): Whether the object is required to be visible
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
@@ -1018,6 +1055,9 @@ class Object(OrientedPoint):
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
           (an empty tuple if the object is not an agent or this is the first time step).
+        sensors: Dict of ("name": sensor) that populate the observations field every time step
+        observations: Dict of ("name": observation) storing the latest observation of the sensor
+          with the same name
     """
 
     _scenic_properties = {
@@ -1033,6 +1073,9 @@ class Object(OrientedPoint):
         "contactTolerance": 1e-4,
         "sideComponentThresholds": ((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5)),
         "cameraOffset": Vector(0, 0, 0),
+        "visionSensorOffset": PropertyDefault(
+            ("length",), {}, lambda self: Vector(0, self.length / 2, 0)
+        ),
         "requireVisible": False,
         "occluding": True,
         "showVisibleRegion": False,
@@ -1046,6 +1089,9 @@ class Object(OrientedPoint):
         "lastActions": tuple(),
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
+        # Sensor properties
+        "sensors": PropertyDefault((), {}, lambda self: {}),
+        "observations": PropertyDefault((), {"final"}, lambda self: {}),
     }
 
     def __new__(cls, *args, **kwargs):
@@ -1297,12 +1343,36 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
+        if self._sampleParent and self._sampleParent._hasStaticBounds:
+            return self._sampleParent.occupiedSpace
+
         shape = self.shape
+        scaledShape = self._scaledShape
+        if scaledShape:
+            mesh = scaledShape.mesh
+            dimensions = None  # mesh does not need to be scaled
+            convex = scaledShape.isConvex
+        else:
+            mesh = shape.mesh
+            dimensions = (self.width, self.length, self.height)
+            convex = shape.isConvex
         return MeshVolumeRegion(
-            mesh=shape.mesh,
-            dimensions=(self.width, self.length, self.height),
+            mesh=mesh,
+            dimensions=dimensions,
             position=self.position,
             rotation=self.orientation,
+            centerMesh=False,
+            _internal=True,
+            _isConvex=convex,
+            _shape=shape,
+            _scaledShape=scaledShape,
+        )
+
+    @precomputed_property
+    def _scaledShape(shape, width, length, height):
+        return MeshVolumeRegion(
+            mesh=shape.mesh,
+            dimensions=(width, length, height),
             centerMesh=False,
             _internal=True,
             _isConvex=shape.isConvex,

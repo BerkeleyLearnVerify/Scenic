@@ -80,7 +80,7 @@ For examples of monitors, see our tutorial on :ref:`dynamics`.
 .. _setup:
 .. _compose:
 
-Modular Scenario Definition 
+Modular Scenario Definition
 ---------------------------
 
 .. code-block:: scenic-grammar
@@ -270,7 +270,7 @@ The default mutation system adds Gaussian noise to the :prop:`position` and :pro
     This is done by providing a value for the :prop:`mutator` property, which should be an instance of `Mutator`.
     Mutators inherited from superclasses (such as the default :prop:`position` and :prop:`heading` mutators from `Point` and `OrientedPoint`) will still be applied unless the new mutator disables them; see `Mutator` for details.
 
-.. _record [initial | final] {value} as {name}:
+.. _record [initial | final] {value} {...}:
 .. _record:
 .. _record initial:
 .. _record final:
@@ -281,6 +281,33 @@ Record the value of an expression during each simulation.
 The value can be recorded at the start of the simulation (``initial``), at the end of the simulation (``final``), or at every time step (if neither ``initial`` nor ``final`` is specified).
 The recorded values are available in the ``records`` dictionary of `SimulationResult`: its keys are the given names of the records (or synthesized names if not provided), and the corresponding values are either the value of the recorded expression or a tuple giving its value at each time step as appropriate.
 For debugging, the records can also be printed out using the :option:`--show-records` command-line option.
+
+When recording an entire time series (i.e. not using ``initial`` or ``final``), additional options are available, described below.
+
+.. _recordFolder:
+
+record *value* [every *duration*] [after *duration*] [as *name*] [to *recorder*]
+--------------------------------------------------------------------------------
+Record the value of an expression as a time series.
+The ``every`` clause allows specifying the interval between entries of the series, either in ``steps`` or ``seconds`` (the latter being rounded down to a whole number of time steps).
+Likewise, the ``after`` clause allows specifying an initial delay before recording starts.
+The ``as`` clause gives the name of the record in the final `SimulationResult` as above.
+
+The ``to`` clause allows records to be directly saved to files in common formats.
+In the most basic usage, you can pass a string giving the filename to save the time series to: the format will be determined automatically based on the file extension.
+For example, the clause ``to "foo.mp4"`` will save the data as an MP4 video file (assuming the given value can be interpreted as an image).
+The string can use Python :ref:`formatstrings` to refer to 3 replacement fields:
+
+    * ``simulation``: the name of the current simulation
+    * ``step``: the current simulation time step
+    * ``time``: the current simulation time in seconds
+
+Thus for example you can write ``to "out/{simulation}/foo{step}.jpg"`` to save a series of images called ``foo0.jpg``, ``foo1.jpg``, ``foo2.jpg``, in a new folder for each simulation, all contained in a folder called ``out``.
+To avoid having to repeat a prefix like ``out/{simulation}``, you can set the :term:`global parameter` ``recordFolder``, which will be used as the base folder for all ``record`` statements.
+For a complete example, see :ref:`sensors`.
+
+If you need to customize the way files are saved (e.g. to specify a specific video codec), you may pass a `Recorder` object to the ``to`` clause instead of a string.
+
 
 Dynamic Statements
 ==================
@@ -300,6 +327,18 @@ Unlike :keyword:`wait`, this statement may not be used in monitors or :term:`mod
 wait
 ----
 Take no actions this time step.
+
+.. _wait for {scalar} (seconds | steps):
+
+wait for *scalar* (seconds | steps)
+-----------------------------------
+Take no actions for a set number of simulation seconds/time steps.
+
+.. _wait until {boolean}:
+
+wait until *boolean*
+--------------------
+Take no actions until the given condition becomes true.
 
 .. _terminate:
 

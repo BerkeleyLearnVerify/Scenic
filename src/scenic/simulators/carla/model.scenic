@@ -48,6 +48,10 @@ import scenic.simulators.carla.blueprints as blueprints
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 
+# Sensor imports
+from scenic.simulators.carla.sensors import CarlaRGBSensor as RGBSensor
+from scenic.simulators.carla.sensors import CarlaSSSensor as SSSensor
+
 try:
     from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
     from scenic.simulators.carla.actions import *

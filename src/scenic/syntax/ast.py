@@ -1,15 +1,41 @@
 import ast
+import inspect
+import sys
 import typing
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 class AST(ast.AST):
-    "Scenic AST base class"
+    """Scenic AST base class.
+
+    N.B. The attributes ``_fields`` and ``_field_types`` expected in subclasses
+    of `ast.AST` are synthesized automatically from a dataclass-like syntax:
+    see below for many examples.
+    """
 
     _attributes = ("lineno", "col_offset", "end_lineno", "end_col_offset")
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        fts = _getFields(cls)
+        if sys.version_info >= (3, 13):
+            # The Python 3.13+ ast.AST initializer expects types like X | None, but we
+            # use Optional[X] for compatibility; convert the latter into the former.
+            optionalTy = type(Optional[str])
+            for field, ty in fts.items():
+                if isinstance(ty, optionalTy):
+                    raw = typing.get_args(ty)[0]
+                    fts[field] = raw | None
+        cls._field_types = fts
+        cls._fields = tuple(cls._field_types)
+        cls.__match_args__ = tuple(cls._fields)
+
+
+if sys.version_info >= (3, 10):
+    _getFields = inspect.get_annotations
+else:
+    # We won't bother with un-stringizing annotations: they won't be used anyway
+    _getFields = lambda cls: cls.__dict__.get("__annotations__", {})
 
 
 # special statements
@@ -18,75 +44,31 @@ class AST(ast.AST):
 class TryInterrupt(AST):
     """Scenic AST node that represents try-interrupt statements"""
 
-    __match_args__ = (
-        "body",
-        "interrupt_when_handlers",
-        "except_handlers",
-        "orelse",
-        "finalbody",
-    )
-
-    def __init__(
-        self,
-        body: typing.List[ast.stmt],
-        interrupt_when_handlers: typing.List["InterruptWhenHandler"],
-        except_handlers: typing.List[ast.ExceptHandler],
-        orelse: typing.List[ast.stmt],
-        finalbody: typing.List[ast.AST],
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.body = body
-        self.interrupt_when_handlers = interrupt_when_handlers
-        self.except_handlers = except_handlers
-        self.orelse = orelse
-        self.finalbody = finalbody
-        self._fields = [
-            "body",
-            "interrupt_when_handlers",
-            "except_handlers",
-            "orelse",
-            "finalbody",
-        ]
-        self._attributes = []
+    body: typing.List[ast.stmt]
+    interrupt_when_handlers: typing.List["InterruptWhenHandler"]
+    except_handlers: typing.List[ast.ExceptHandler]
+    orelse: typing.List[ast.stmt]
+    finalbody: typing.List[ast.AST]
 
 
 class InterruptWhenHandler(AST):
-    __match_args__ = ("cond", "body")
-
-    def __init__(
-        self, cond: ast.AST, body: typing.List[ast.AST], *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.cond = cond
-        self.body = body
-        self._fields = ["cond", "body"]
+    cond: ast.AST
+    body: typing.List[ast.AST]
 
 
 class TrackedAssign(AST):
-    __match_args__ = (
-        "target",
-        "value",
-    )
-
-    def __init__(
-        self, target: Union["Ego", "Workspace"], value: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.value = value
-        self._fields = ["target", "value"]
+    target: Union["Ego", "Workspace"]
+    value: ast.AST
 
 
 class Ego(AST):
-    "`ego` tracked assign target"
+    """`ego` tracked assign target"""
 
     functionName = "ego"
 
 
 class Workspace(AST):
-    ":term:`workspace` tracked assign target"
+    """:term:`workspace` tracked assign target"""
 
     functionName = "workspace"
 
@@ -96,326 +78,130 @@ class InitialScenario(AST):
 
 
 class PropertyDef(AST):
-    __match_args__ = ("property", "attributes", "value")
-
-    def __init__(
-        self,
-        property: str,
-        attributes: typing.List[Union["Additive", "Dynamic", "Final"]],
-        value=ast.AST,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.property = property
-        self.attributes = attributes
-        self.value = value
-        self._fields = ["property", "attributes", "value"]
+    property: str
+    attributes: typing.List[Union["Additive", "Dynamic", "Final"]]
+    value: ast.AST
 
 
 class Additive(AST):
     keyword = "additive"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Dynamic(AST):
     keyword = "dynamic"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Final(AST):
     keyword = "final"
-
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
 
 
 # behavior / monitor
 
 
 class BehaviorDef(AST):
-    __match_args__ = ("name", "args", "docstring", "header", "body")
-
-    def __init__(
-        self,
-        name: str,
-        args: ast.arguments,
-        docstring: Optional[str],
-        header: typing.List[Union["Precondition", "Invariant"]],
-        body: typing.List[any],
-        *_args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*_args, **kwargs)
-        self.name = name
-        self.args = args
-        self.docstring = docstring
-        self.header = header
-        self.body = body
-        self._fields = ["name", "args", "docstring", "header", "body"]
+    name: str
+    args: ast.arguments
+    docstring: Optional[str]
+    header: typing.List[Union["Precondition", "Invariant"]]
+    body: typing.List[ast.AST]
 
 
 class MonitorDef(AST):
-    __match_args__ = ("name", "args", "docstring", "body")
-
-    def __init__(
-        self,
-        name: str,
-        args: ast.arguments,
-        docstring: Optional[str],
-        body: typing.List[ast.AST],
-        *_args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*_args, **kwargs)
-        self.name = name
-        self.args = args
-        self.docstring = docstring
-        self.body = body
-        self._fields = ["name", "args", "docstring", "body"]
+    name: str
+    args: ast.arguments
+    docstring: Optional[str]
+    body: typing.List[ast.AST]
 
 
 class Precondition(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+    value: ast.AST
 
 
 class Invariant(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+    value: ast.AST
 
 
 # modular scenarios
 
 
 class ScenarioDef(AST):
-    __match_args__ = ("name", "args", "docstring", "header", "setup", "compose")
-
-    def __init__(
-        self,
-        name: str,
-        args: ast.arguments,
-        docstring: Optional[str],
-        header: Optional[typing.List[Union[Precondition, Invariant]]],
-        setup: typing.List[ast.AST],
-        compose: typing.List[ast.AST],
-        *_args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*_args, **kwargs)
-        self.name = name
-        self.args = args
-        self.docstring = docstring
-        self.header = header
-        self.setup = setup
-        self.compose = compose
-        self._fields = ["name", "args", "docstring", "header", "setup", "compose"]
+    name: str
+    args: ast.arguments
+    docstring: Optional[str]
+    header: Optional[typing.List[Union[Precondition, Invariant]]]
+    setup: typing.List[ast.AST]
+    compose: typing.List[ast.AST]
 
 
 # simple statements
 
 
 class Model(AST):
-    __match_args__ = ("name",)
-
-    def __init__(self, name: str, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.name = name
-        self._fields = ["name"]
+    name: str
 
 
 class Param(AST):
-    ":keyword:`param` statements"
+    """:keyword:`param` statements"""
 
-    __match_args__ = ("elts",)
-
-    def __init__(self, elts: typing.List["parameter"], *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self._fields = ["elts"]
+    elts: typing.List["parameter"]
 
 
 class parameter(AST):
-    "represents a parameter that is defined with `param` statements"
+    """Represents a parameter that is defined with `param` statements"""
 
-    __match_args__ = ("identifier", "value")
-
-    def __init__(
-        self, identifier: str, value: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.identifier = identifier
-        self.value = value
-        self._fields = ["identifier", "value"]
+    identifier: str
+    value: ast.AST
 
 
 class Require(AST):
-    __match_args__ = ("cond", "prob", "name")
-
-    def __init__(
-        self,
-        cond: ast.AST,
-        prob: Optional[float] = None,
-        name: Optional[str] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.cond = cond
-        self.prob = prob
-        self.name = name
-        self._fields = ["cond", "prob", "name"]
+    cond: ast.AST
+    prob: Optional[float] = None
+    name: Optional[str] = None
 
 
 class RequireMonitor(AST):
-    __match_args__ = ("monitor", "name")
-
-    def __init__(
-        self, monitor: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.monitor = monitor
-        self.name = name
-        self._fields = ["monitor", "name"]
+    monitor: ast.AST
+    name: Optional[str] = None
 
 
 class Always(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
-
-    def __reduce__(self):
-        return (
-            type(self),
-            (self.value,),
-            {
-                "lineno": self.lineno,
-                "end_lineno": self.end_lineno,
-                "col_offset": self.col_offset,
-                "end_col_offset": self.end_col_offset,
-            },
-        )
+    value: ast.AST
 
 
 class Eventually(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
-
-    def __reduce__(self):
-        return (
-            type(self),
-            (self.value,),
-            {
-                "lineno": self.lineno,
-                "end_lineno": self.end_lineno,
-                "col_offset": self.col_offset,
-                "end_col_offset": self.end_col_offset,
-            },
-        )
+    value: ast.AST
 
 
 class Next(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
-
-    def __reduce__(self):
-        return (
-            type(self),
-            (self.value,),
-            {
-                "lineno": self.lineno,
-                "end_lineno": self.end_lineno,
-                "col_offset": self.col_offset,
-                "end_col_offset": self.end_col_offset,
-            },
-        )
+    value: ast.AST
 
 
 class Record(AST):
-    __match_args__ = ("value", "name")
-
-    def __init__(
-        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self.name = name
-        self._fields = ["value", "name"]
+    value: ast.AST
+    name: Optional[str] = None
+    recorder: Optional[Any] = None
+    period: Optional[Union["Seconds", "Steps"]] = None
+    delay: Optional[Union["Seconds", "Steps"]] = None
 
 
 class RecordInitial(AST):
-    __match_args__ = ("value", "name")
-
-    def __init__(
-        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self.name = name
-        self._fields = ["value", "name"]
+    value: ast.AST
+    name: Optional[str] = None
 
 
 class RecordFinal(AST):
-    __match_args__ = ("value", "name")
-
-    def __init__(
-        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self.name = name
-        self._fields = ["value", "name"]
+    value: ast.AST
+    name: Optional[str] = None
 
 
 class Mutate(AST):
-    __match_args__ = ("elts", "scale")
-
-    def __init__(
-        self,
-        elts: typing.List[ast.Name],
-        scale: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self.scale = scale
-        self._fields = ["elts", "scale"]
+    elts: typing.List[ast.Name]
+    scale: Optional[ast.AST] = None
 
 
 class Override(AST):
-    __match_args__ = ("target", "specifiers")
-
-    def __init__(
-        self, target: ast.AST, specifiers: typing.List[ast.AST], *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.specifiers = specifiers
-        self._fields = ["target", "specifiers"]
+    target: ast.AST
+    specifiers: typing.List[ast.AST]
 
 
 class Abort(AST):
@@ -423,16 +209,19 @@ class Abort(AST):
 
 
 class Take(AST):
-    __match_args__ = ("elts",)
-
-    def __init__(self, elts: typing.List[ast.AST], *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self._fields = ["elts"]
+    elts: typing.List[ast.AST]
 
 
 class Wait(AST):
     pass
+
+
+class WaitFor(AST):
+    duration: Union["Seconds", "Steps"]
+
+
+class WaitUntil(AST):
+    cond: ast.AST
 
 
 class Terminate(AST):
@@ -444,840 +233,412 @@ class TerminateSimulation(AST):
 
 
 class TerminateSimulationWhen(AST):
-    __match_args__ = (
-        "cond",
-        "name",
-    )
-
-    def __init__(
-        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.cond = cond
-        self.name = name
-        self._fields = ["cond", "name"]
+    cond: ast.AST
+    name: Optional[str] = None
 
 
 class TerminateWhen(AST):
-    __match_args__ = (
-        "cond",
-        "name",
-    )
-
-    def __init__(
-        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.cond = cond
-        self.name = name
-        self._fields = ["cond", "name"]
+    cond: ast.AST
+    name: Optional[str] = None
 
 
 class TerminateAfter(AST):
-    __match_args__ = ("duration",)
-
-    def __init__(
-        self, duration: Union["Seconds", "Steps"], *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.duration = duration
-        self._fields = ["duration"]
+    duration: Union["Seconds", "Steps"]
 
 
 class DoFor(AST):
-    __match_args__ = ("elts", "duration")
-
-    def __init__(
-        self,
-        elts: typing.List[ast.AST],
-        duration: Union["Seconds", "Steps"],
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self.duration = duration
-        self._fields = ["elts", "duration"]
+    elts: typing.List[ast.AST]
+    duration: Union["Seconds", "Steps"]
 
 
 class Seconds(AST):
-    __match_args__ = ("value",)
     unitStr = "seconds"
 
-    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+    value: ast.AST
 
 
 class Steps(AST):
-    __match_args__ = ("value",)
     unitStr = "steps"
 
-    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+    value: ast.AST
 
 
 class DoUntil(AST):
-    __match_args__ = ("elts", "cond")
-
-    def __init__(
-        self, elts: typing.List[ast.AST], cond: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self.cond = cond
-        self._fields = ["elts", "cond"]
+    elts: typing.List[ast.AST]
+    cond: ast.AST
 
 
 class DoChoose(AST):
-    __match_args__ = ("elts",)
-
-    def __init__(self, elts: typing.List[ast.AST], *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self._fields = ["elts"]
+    elts: typing.List[ast.AST]
 
 
 class DoShuffle(AST):
-    __match_args__ = ("elts",)
-
-    def __init__(self, elts: typing.List[ast.AST], *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self._fields = ["elts"]
+    elts: typing.List[ast.AST]
 
 
 class Do(AST):
-    __match_args__ = ("elts",)
-
-    def __init__(self, elts: typing.List[ast.AST], *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.elts = elts
-        self._fields = ["elts"]
+    elts: typing.List[ast.AST]
 
 
 class Simulator(AST):
-    __match_args__ = ("value",)
-
-    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+    value: ast.AST
 
 
 # Instance Creation
 
 
 class New(AST):
-    __match_args__ = ("className", "specifiers")
+    className: str
+    specifiers: Optional[typing.List[ast.AST]]
 
-    def __init__(
-        self, className: str, specifiers: list, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.className = className
-        self.specifiers = specifiers if specifiers is not None else []
-        self._fields = ["className", "specifiers"]
+    def __init__(self, className, specifiers, **kwargs):
+        specs = specifiers if specifiers is not None else []
+        super().__init__(className, specs, **kwargs)
 
 
 # Specifiers
 
 
 class WithSpecifier(AST):
-    __match_args__ = ("prop", "value")
-
-    def __init__(self, prop: str, value: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.prop = prop
-        self.value = value
-        self._fields = ["prob", "value"]
+    prop: str
+    value: ast.AST
 
 
 class AtSpecifier(AST):
-    __match_args__ = ("position",)
-
-    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self._fields = ["position"]
+    position: ast.AST
 
 
 class OffsetBySpecifier(AST):
-    __match_args__ = ("offset",)
-
-    def __init__(self, offset: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.offset = offset
-        self._fields = ["offset"]
+    offset: ast.AST
 
 
 class OffsetAlongSpecifier(AST):
-    __match_args__ = ("direction", "offset")
-
-    def __init__(
-        self, direction: ast.AST, offset: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.direction = direction
-        self.offset = offset
-        self._fields = ["direction", "offset"]
+    direction: ast.AST
+    offset: ast.AST
 
 
 class DirectionOfSpecifier(AST):
-    __match_args__ = ("direction", "position", "distance")
-
-    def __init__(
-        self,
-        direction: Union["LeftOf", "RightOf", "AheadOf", "Behind"],
-        position: ast.AST,
-        distance: Optional[ast.AST],
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.direction = direction
-        self.position = position
-        self.distance = distance
-        self._fields = ["direction", "position", "distance"]
+    direction: Union["LeftOf", "RightOf", "AheadOf", "Behind"]
+    position: ast.AST
+    distance: Optional[ast.AST] = None
 
 
 class LeftOf(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class RightOf(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class AheadOf(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class Behind(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class Above(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class Below(AST):
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class BeyondSpecifier(AST):
-    __match_args__ = ("position", "offset", "base")
-
-    def __init__(
-        self,
-        position: ast.AST,
-        offset: ast.AST,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self.offset = offset
-        self.base = base
-        self._fields = ["position", "offset", "base"]
+    position: ast.AST
+    offset: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class VisibleSpecifier(AST):
-    __match_args__ = ("base",)
-
-    def __init__(self, base: Optional[ast.AST] = None, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.base = base
-        self._fields = ["base"]
+    base: Optional[ast.AST] = None
 
 
 class NotVisibleSpecifier(AST):
-    __match_args__ = ("base",)
-
-    def __init__(self, base: Optional[ast.AST] = None, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.base = base
-        self._fields = ["base"]
+    base: Optional[ast.AST] = None
 
 
 class InSpecifier(AST):
-    __match_args__ = ("region",)
-
-    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self._fields = ["region"]
+    region: ast.AST
 
 
 class OnSpecifier(AST):
-    __match_args__ = ("region",)
-
-    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self._fields = ["region"]
+    region: ast.AST
 
 
 class ContainedInSpecifier(AST):
-    __match_args__ = ("region",)
-
-    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self._fields = ["region"]
+    region: ast.AST
 
 
 class FollowingSpecifier(AST):
-    __match_args__ = ("field", "distance", "base")
-
-    def __init__(
-        self,
-        field: ast.AST,
-        distance: ast.AST,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.field = field
-        self.distance = distance
-        self.base = base
-        self._fields = ["field", "distance", "base"]
+    field: ast.AST
+    distance: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class FacingSpecifier(AST):
-    __match_args__ = ("heading",)
-
-    def __init__(self, heading: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.heading = heading
-        self._fields = ["heading"]
+    heading: ast.AST
 
 
 class FacingTowardSpecifier(AST):
-    __match_args__ = ("position",)
-
-    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self._fields = ["position"]
+    position: ast.AST
 
 
 class FacingAwayFromSpecifier(AST):
-    __match_args__ = ("position",)
-
-    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self._fields = ["position"]
+    position: ast.AST
 
 
 class FacingDirectlyTowardSpecifier(AST):
-    __match_args__ = ("position",)
-
-    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self._fields = ["position"]
+    position: ast.AST
 
 
 class FacingDirectlyAwayFromSpecifier(AST):
-    __match_args__ = ("position",)
-
-    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self._fields = ["position"]
+    position: ast.AST
 
 
 class ApparentlyFacingSpecifier(AST):
-    __match_args__ = ("heading", "base")
-
-    def __init__(
-        self, heading: ast.AST, base: Optional[ast.AST] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.heading = heading
-        self.base = base
-        self._fields = ["heading", "base"]
+    heading: ast.AST
+    base: Optional[ast.AST] = None
 
 
 # Operators
 
 
 class ImpliesOp(AST):
-    __match_args__ = ("hypothesis", "conclusion")
-
-    def __init__(
-        self, hypothesis: ast.AST, conclusion: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.hypothesis = hypothesis
-        self.conclusion = conclusion
-        self._fields = ["hypothesis", "conclusion"]
-
-    def __reduce__(self):
-        return (
-            type(self),
-            (self.hypothesis, self.conclusion),
-            {
-                "lineno": self.lineno,
-                "end_lineno": self.end_lineno,
-                "col_offset": self.col_offset,
-                "end_col_offset": self.end_col_offset,
-            },
-        )
+    hypothesis: ast.AST
+    conclusion: ast.AST
 
 
 class UntilOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
-
-    def __reduce__(self):
-        return (
-            type(self),
-            (self.left, self.right),
-            {
-                "lineno": self.lineno,
-                "end_lineno": self.end_lineno,
-                "col_offset": self.col_offset,
-                "end_col_offset": self.end_col_offset,
-            },
-        )
+    left: ast.AST
+    right: ast.AST
 
 
 class RelativePositionOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class RelativeHeadingOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class ApparentHeadingOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class DistanceFromOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self,
-        # because `to` and `from` are symmetric, the first operand will be `target` and the second will be `base`
-        target: ast.AST,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    # because `to` and `from` are symmetric, the first operand will be `target` and the second will be `base`
+    target: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class DistancePastOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self, target: ast.AST, base: Optional[ast.AST] = None, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: ast.AST
+    base: Optional[ast.AST] = None
 
 
 class AngleFromOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self,
-        target: Optional[ast.AST] = None,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: Optional[ast.AST] = None
+    base: Optional[ast.AST] = None
 
 
 class AltitudeFromOp(AST):
-    __match_args__ = ("target", "base")
-
-    def __init__(
-        self,
-        target: Optional[ast.AST] = None,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self._fields = ["target", "base"]
+    target: Optional[ast.AST] = None
+    base: Optional[ast.AST] = None
 
 
 class FollowOp(AST):
-    __match_args__ = ("target", "base", "distance")
-
-    def __init__(
-        self, target: ast.AST, base: ast.AST, distance: ast.AST, *args: any, **kwargs: any
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-        self.base = base
-        self.distance = distance
-        self._fields = ["target", "base", "distance"]
+    target: ast.AST
+    base: ast.AST
+    distance: ast.AST
 
 
 class VisibleOp(AST):
-    __match_args__ = ("region",)
-
-    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self._fields = ["region"]
+    region: ast.AST
 
 
 class NotVisibleOp(AST):
-    __match_args__ = ("region",)
-
-    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self._fields = ["region"]
+    region: ast.AST
 
 
 class VisibleFromOp(AST):
-    __match_args__ = ("region", "base")
-
-    def __init__(self, region: ast.AST, base: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self.base = base
-        self._fields = ["region", "base"]
+    region: ast.AST
+    base: ast.AST
 
 
 class NotVisibleFromOp(AST):
-    __match_args__ = ("region", "base")
-
-    def __init__(self, region: ast.AST, base: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.region = region
-        self.base = base
-        self._fields = ["region", "base"]
+    region: ast.AST
+    base: ast.AST
 
 
 class PositionOfOp(AST):
-    __match_args__ = ("position", "target")
-
-    def __init__(
-        self,
-        position: Union[
-            "Front",
-            "Back",
-            "Left",
-            "Right",
-            "Top",
-            "Bottom",
-            "FrontLeft",
-            "FrontRight",
-            "BackLeft",
-            "BackRight",
-            "TopFrontLeft",
-            "TopFrontRight",
-            "TopBackLeft",
-            "TopBackRight",
-            "BottomFrontLeft",
-            "BottomFrontRight",
-            "BottomBackLeft",
-            "BottomBackRight",
-        ],
-        target: ast.AST,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.position = position
-        self.target = target
-        self._fields = ["position", "target"]
+    position: Union[
+        "Front",
+        "Back",
+        "Left",
+        "Right",
+        "Top",
+        "Bottom",
+        "FrontLeft",
+        "FrontRight",
+        "BackLeft",
+        "BackRight",
+        "TopFrontLeft",
+        "TopFrontRight",
+        "TopBackLeft",
+        "TopBackRight",
+        "BottomFrontLeft",
+        "BottomFrontRight",
+        "BottomBackLeft",
+        "BottomBackRight",
+    ]
+    target: ast.AST
 
 
 class Front(AST):
-    "Represents position of :scenic:`front of` operator"
+    """Represents position of :scenic:`front of` operator"""
 
     functionName = "Front"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Back(AST):
-    "Represents position of :scenic:`back of` operator"
+    """Represents position of :scenic:`back of` operator"""
 
     functionName = "Back"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Left(AST):
-    "Represents position of :scenic:`left of` operator"
+    """Represents position of :scenic:`left of` operator"""
 
     functionName = "Left"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Right(AST):
-    "Represents position of :scenic:`right of` operator"
+    """Represents position of :scenic:`right of` operator"""
 
     functionName = "Right"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Top(AST):
-    "Represents position of :scenic:`top of` operator"
+    """Represents position of :scenic:`top of` operator"""
 
     functionName = "Top"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class Bottom(AST):
-    "Represents position of :scenic:`bottom of` operator"
+    """Represents position of :scenic:`bottom of` operator"""
 
     functionName = "Bottom"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class FrontLeft(AST):
-    "Represents position of :scenic:`front left of` operator"
+    """Represents position of :scenic:`front left of` operator"""
 
     functionName = "FrontLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class FrontRight(AST):
-    "Represents position of :scenic:`front right of` operator"
+    """Represents position of :scenic:`front right of` operator"""
 
     functionName = "FrontRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BackLeft(AST):
-    "Represents position of :scenic:`back left of` operator"
+    """Represents position of :scenic:`back left of` operator"""
 
     functionName = "BackLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BackRight(AST):
-    "Represents position of :scenic:`back right of` operator"
+    """Represents position of :scenic:`back right of` operator"""
 
     functionName = "BackRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class TopFrontLeft(AST):
-    "Represents position of :scenic:`top front left of` operator"
+    """Represents position of :scenic:`top front left of` operator"""
 
     functionName = "TopFrontLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class TopFrontRight(AST):
-    "Represents position of :scenic:`top front right of` operator"
+    """Represents position of :scenic:`top front right of` operator"""
 
     functionName = "TopFrontRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class TopBackLeft(AST):
-    "Represents position of :scenic:`top back left of` operator"
+    """Represents position of :scenic:`top back left of` operator"""
 
     functionName = "TopBackLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class TopBackRight(AST):
-    "Represents position of :scenic:`top back right of` operator"
+    """Represents position of :scenic:`top back right of` operator"""
 
     functionName = "TopBackRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BottomFrontLeft(AST):
-    "Represents position of :scenic:`bottom front left of` operator"
+    """Represents position of :scenic:`bottom front left of` operator"""
 
     functionName = "BottomFrontLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BottomFrontRight(AST):
-    "Represents position of :scenic:`bottom front right of` operator"
+    """Represents position of :scenic:`bottom front right of` operator"""
 
     functionName = "BottomFrontRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BottomBackLeft(AST):
-    "Represents position of :scenic:`bottom back left of` operator"
+    """Represents position of :scenic:`bottom back left of` operator"""
 
     functionName = "BottomBackLeft"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class BottomBackRight(AST):
-    "Represents position of :scenic:`bottom back right of` operator"
+    """Represents position of :scenic:`bottom back right of` operator"""
 
     functionName = "BottomBackRight"
 
-    def __init__(self, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class DegOp(AST):
-    __match_args__ = ("operand",)
-
-    def __init__(self, operand: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.operand = operand
-        self._fields = ["operand"]
+    operand: ast.AST
 
 
 class VectorOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
+    left: ast.AST
+    right: ast.AST
 
 
 class FieldAtOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
+    left: ast.AST
+    right: ast.AST
 
 
 class RelativeToOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
+    left: ast.AST
+    right: ast.AST
 
 
 class OffsetAlongOp(AST):
-    __match_args__ = ("base", "direction", "offset")
-
-    def __init__(
-        self,
-        base: ast.AST,
-        direction: ast.AST,
-        offset: ast.AST,
-        *args: any,
-        **kwargs: any,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.base = base
-        self.direction = direction
-        self.offset = offset
-        self._fields = ["base", "direction", "offset"]
+    base: ast.AST
+    direction: ast.AST
+    offset: ast.AST
 
 
 class CanSeeOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
+    left: ast.AST
+    right: ast.AST
 
 
 class IntersectsOp(AST):
-    __match_args__ = ("left", "right")
-
-    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
-        super().__init__(*args, **kwargs)
-        self.left = left
-        self.right = right
-        self._fields = ["left", "right"]
+    left: ast.AST
+    right: ast.AST
