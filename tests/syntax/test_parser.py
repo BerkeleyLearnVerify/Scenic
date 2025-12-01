@@ -168,6 +168,20 @@ class TestTrackedNames:
                 assert False
 
 
+class TestAssign:
+    def test_tuple_lhs_parses(self):
+        mod = parse_string_helper("a, b = 1, 2")
+        stmt = mod.body[0]
+        match stmt:
+            case Assign(
+                targets=[Tuple([Name("a"), Name("b")])],
+                value=Tuple([Constant(1), Constant(2)]),
+            ):
+                assert True
+            case _:
+                assert False
+
+
 class TestInitialScenario:
     def test_initial_scenario(self):
         mod = parse_string_helper("initial scenario")
