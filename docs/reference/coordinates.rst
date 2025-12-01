@@ -22,7 +22,7 @@ Specifically, :prop:`orientation` is obtained as follows:
 Below is an illustration of the global coordinate system
 
 .. image:: /images/global_coords.jpg
-	:width: 50%
+	:width: 75%
 
 By default, :prop:`parentOrientation` is aligned with the global coordinate system, so that :prop:`yaw` for example is just the angle by which to rotate the object around the Z axis.
 
