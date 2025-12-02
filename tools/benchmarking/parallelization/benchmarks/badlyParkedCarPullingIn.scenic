@@ -1,6 +1,6 @@
 param time_step = 1.0/10
 
-model scenic.domains.driving.model
+model scenic.simulators.metadrive.model
 
 behavior PullIntoRoad():
     while (distance from self to ego) > 15:

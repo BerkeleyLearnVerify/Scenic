@@ -7,6 +7,7 @@ import functools
 import io
 import itertools
 import math
+import multiprocessing
 import os
 import random
 import signal
@@ -400,35 +401,3 @@ else:
 def setSeed(seed):
     random.seed(seed)
     numpy.random.seed(seed)
-
-
-def generateInnerBatchHelper(
-    scenarioCreationData, seedQueue, sceneQueue, verbosity, mute
-):
-    if mute:
-        sys.stdout = open(os.devnull, "w")
-        sys.stderr = open(os.devnull, "w")
-
-    from scenic.syntax.translator import _scenarioFromStream
-
-    stream = io.BytesIO(scenarioCreationData["streamLines"])
-
-    scenario = _scenarioFromStream(
-        stream=stream,
-        compileOptions=scenarioCreationData["compileOptions"],
-        filename=scenarioCreationData["filename"],
-        scenario=scenarioCreationData["scenario"],
-        path=scenarioCreationData["path"],
-        _cacheImports=False,
-    )
-
-    while True:
-        seed = seedQueue.get()
-        setSeed(seed)
-
-        scene, iterations = scenario._generateInner(
-            maxIterations=float("inf"), verbosity=verbosity, feedback=None
-        )
-        sceneBytes = scenario.sceneToBytes(scene)
-
-        sceneQueue.put((sceneBytes, iterations, seed))

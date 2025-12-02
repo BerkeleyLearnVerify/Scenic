@@ -74,6 +74,7 @@ def test_generateBatch():
     )
     scenes, _ = scenario.generateBatch(2, numWorkers=2)
 
+    assert len(scenes) == 2
     assert all(isinstance(scene, Scene) for scene in scenes)
     assert all(0 <= scene.objects[0].heading <= 1 for scene in scenes)
     assert scenes[0].objects[0].heading != scenes[1].objects[0].heading
@@ -87,6 +88,7 @@ def test_generateBatch_serialized():
     """
     )
     scenesBytes, _ = scenario.generateBatch(2, numWorkers=2, serialized=True)
+    assert len(scenesBytes) == 2
     assert all(isinstance(b, bytes) for b in scenesBytes)
 
     scenes = [scenario.sceneFromBytes(b, verify=True) for b in scenesBytes]
@@ -108,6 +110,7 @@ def test_generateStream_deterministic():
     streamA = tuple(scenario.generateStream(8, numWorkers=2, serialized=True))
     setSeed(seed)
     streamB = tuple(scenario.generateStream(8, numWorkers=2, serialized=True))
+    assert len(streamA) == len(streamB) == 8
     bytesSetA = {result[0] for result in streamA}
     bytesSetB = {result[0] for result in streamB}
     assert bytesSetA == bytesSetB

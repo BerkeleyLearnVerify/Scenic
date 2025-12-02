@@ -52,28 +52,28 @@ def run_benchmark_parallel(path, params, *, numWorkers):
     scenario = scenic.scenarioFromFile(
         BENCHMARKS_BASE_PATH / path, params=params, mode2D=params.get("mode2D", False)
     )
-    scenario.generateBatch(NUM_SAMPLES, maxIterations=float("inf"), numWorkers=numWorkers)
+    scenario.generateBatch(NUM_SAMPLES, numWorkers=numWorkers)
 
 
 if __name__ == "__main__":
-    print("Base Performance (`generate`, numWorkers=0):")
-    for benchmark in BENCHMARKS:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            start = time.time()
-            run_benchmark(*benchmark)
-            trial_time = time.time() - start
-            print(f"{trial_time: 7.2f} | {benchmark}")
-    print()
-    print("Base + Overhead Performance (`generateBatch`, numWorkers=1):")
-    for benchmark in BENCHMARKS:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            start = time.time()
-            run_benchmark_parallel(*benchmark, numWorkers=1)
-            trial_time = time.time() - start
-            print(f"{trial_time: 7.2f} | {benchmark}")
-    print()
+    # print("Base Performance (`generate`, numWorkers=0):")
+    # for benchmark in BENCHMARKS:
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #         start = time.time()
+    #         run_benchmark(*benchmark)
+    #         trial_time = time.time() - start
+    #         print(f"{trial_time: 7.2f} | {benchmark}")
+    # print()
+    # print("Base + Overhead Performance (`generateBatch`, numWorkers=1):")
+    # for benchmark in BENCHMARKS:
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #         start = time.time()
+    #         run_benchmark_parallel(*benchmark, numWorkers=1)
+    #         trial_time = time.time() - start
+    #         print(f"{trial_time: 7.2f} | {benchmark}")
+    # print()
     print("Batch Performance (`generateBatch`, numWorkers=8):")
     for benchmark in BENCHMARKS:
         with warnings.catch_warnings():

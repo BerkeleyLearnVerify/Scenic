@@ -12,7 +12,7 @@ SOURCE: NHSTA, #16
 # MAP AND MODEL                 #
 #################################
 
-model scenic.simulators.carla.model
+model scenic.simulators.metadrive.model
 
 #################################
 # CONSTANTS                     #
@@ -104,3 +104,4 @@ require (distance from adversary to intersection) > INIT_DIST
 require (distance from lead to intersection) > INIT_DIST
 require always (adversary.laneSection._fasterLane is not None)
 terminate when (distance to egoSpawnPt) > TERM_DIST
+terminate after 60 seconds
