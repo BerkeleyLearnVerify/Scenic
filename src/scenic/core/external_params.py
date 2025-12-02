@@ -97,6 +97,7 @@ For more information on how to customize the sampler, see `VerifaiSampler`.
 """
 
 from abc import ABC, abstractmethod
+import warnings
 
 from dotmap import DotMap
 import numpy
@@ -184,7 +185,7 @@ class VerifaiSampler(ExternalSampler):
         import verifai.server
 
         # construct FeatureSpace
-        timeBound = globalParams.get("verifaiTimeBound", 0)
+        timeBound = globalParams.get("timeBound", 0)
         usingProbs = False
         self.params = tuple(params)
         for index, param in enumerate(self.params):
@@ -196,6 +197,13 @@ class VerifaiSampler(ExternalSampler):
             param.index = index
             if param.probs is not None:
                 usingProbs = True
+
+        if timeBound == 0 and any(param.timeSeries for param in self.params):
+            warnings.warn(
+                "TimeSeries external parameter used by no time bound specified "
+                "(Did you provide `maxSteps` when creating ScenicSampler?)."
+            )
+
         space = verifai.features.FeatureSpace(
             {
                 self.nameForParam(index): (
@@ -307,10 +315,10 @@ class VerifaiSampler(ExternalSampler):
 class ExternalParameter(Distribution, ABC):
     """A value determined by external code rather than Scenic's internal sampler."""
 
-    def __init__(self, timeSeries):
+    def __init__(self):
         super().__init__()
         self.sampler = None
-        self.timeSeries = timeSeries
+        self.timeSeries = False
         import scenic.syntax.veneer as veneer  # TODO improve?
 
         veneer.registerExternalParameter(self)
@@ -348,11 +356,19 @@ class TimeSeriesParameter:
         return self._callback()
 
 
+def TimeSeries(param):
+    if not isinstance(param, ExternalParameter):
+        raise ValueError("Cannot turn a non `ExternalParameter` into a time series")
+
+    param.timeSeries = True
+    return param
+
+
 class VerifaiParameter(ExternalParameter):
     """An external parameter sampled using one of VerifAI's samplers."""
 
-    def __init__(self, domain, timeSeries=False):
-        super().__init__(timeSeries=timeSeries)
+    def __init__(self, domain):
+        super().__init__()
         self.domain = domain
 
     @staticmethod
@@ -380,10 +396,10 @@ class VerifaiRange(VerifaiParameter):
 
     _defaultValueType = float
 
-    def __init__(self, low, high, buckets=None, weights=None, timeSeries=False):
+    def __init__(self, low, high, buckets=None, weights=None):
         import verifai.features
 
-        super().__init__(verifai.features.Box([low, high]), timeSeries=timeSeries)
+        super().__init__(verifai.features.Box([low, high]))
         if weights is not None:
             weights = tuple(weights)
             if buckets is not None and len(weights) != buckets:
@@ -409,10 +425,10 @@ class VerifaiDiscreteRange(VerifaiParameter):
 
     _defaultValueType = float
 
-    def __init__(self, low, high, weights=None, timeSeries=False):
+    def __init__(self, low, high, weights=None):
         import verifai.features
 
-        super().__init__(verifai.features.DiscreteBox([low, high]), timeSeries=timeSeries)
+        super().__init__(verifai.features.DiscreteBox([low, high]))
         if weights is not None:
             if len(weights) != (high - low + 1):
                 raise RuntimeError(
