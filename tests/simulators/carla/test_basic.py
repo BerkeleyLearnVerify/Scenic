@@ -35,12 +35,12 @@ def test_car_created(loadLocalScenario, use2DMap):
     
 # A test to ensure that cars cannot clip through each other without causing errors
 def test_car_clipping_3D(getAssetPath):
-    #pytest.importorskip("carla")
+    pytest.importorskip("carla")
     mapPath = getAssetPath("maps/CARLA/Town01.xodr")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = 'Town01'
-        model scenic.domains.driving.model
+        model scenic.simulators.carla.model
         ego = new Car at (100,0,1), with regionContainedIn everywhere 
         car2 = new Car at (100,0,1), with regionContainedIn everywhere
     """
