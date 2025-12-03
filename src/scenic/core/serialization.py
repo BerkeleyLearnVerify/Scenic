@@ -5,6 +5,7 @@ For high-level serialization APIs, see `Scenario.sceneToBytes`,
 `Scenario.simulationToBytes`, and `Scene.dumpAsScenicCode`.
 """
 
+import hashlib
 import io
 import math
 import pickle
@@ -13,6 +14,33 @@ import types
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.utils import DefaultIdentityDict
+
+
+def deterministicHash(mapping, *, digest_size=8):
+    """Compute a deterministic hash for a mapping of options.
+
+    Keys are sorted (by their string representation) and encoded with explicit
+    separators so that different key/value combinations do not collide under
+    simple concatenation.
+
+    Only int/float/str (and bool, as a subclass of int) values are encoded directly; any other value is replaced
+    by a generic placeholder byte, to avoid nondeterminism from reprs containing
+    memory addresses or other run-specific data.
+    """
+    hasher = hashlib.blake2b(digest_size=digest_size)
+    # Sort by stringified key so we can handle non-string keys deterministically.
+    for key in sorted(mapping.keys(), key=str):
+        hasher.update(b"\0K")
+        hasher.update(str(key).encode())
+        hasher.update(b"\0V")
+        value = mapping[key]
+        if isinstance(value, (int, float, str)):
+            hasher.update(str(value).encode())
+        else:
+            # Unsupported types just contribute a placeholder byte.
+            hasher.update(b"\0")
+    return hasher.digest()
+
 
 ## JSON
 
