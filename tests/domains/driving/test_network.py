@@ -226,3 +226,100 @@ def test_linkage(network):
                     assert rev is not maneuver
                     assert rev.startLane.road is maneuver.endLane.road
                     assert rev.endLane.road is maneuver.startLane.road
+
+
+# --- Tests for cached network pickles ---
+
+
+def _read_options_digest(pickled_path: Path) -> bytes:
+    """Return the optionsDigest bytes from a cached .snet header.
+
+    Header layout:
+      - 4 bytes: version
+      - 64 bytes: originalDigest
+      - 8 bytes: optionsDigest
+    """
+    with open(pickled_path, "rb") as f:
+        header = f.read(76)  # 4 + 64 + 8
+    return header[68:76]  # skip version (4) + originalDigest (64)
+
+
+def test_dump_pickle_from_pickle(tmp_path, network):
+    """dumpPickle/fromPickle should rebuild the Network when digests match"""
+    digest = b"x" * 64  # fake original map digest
+    options_digest = b"y" * 8  # fake map options digest
+    path = tmp_path / "net.snet"
+
+    # Write the cache using the new format.
+    network.dumpPickle(path, digest, options_digest)
+
+    # Read it back with matching digests.
+    loaded = Network.fromPickle(
+        path,
+        originalDigest=digest,
+        optionsDigest=options_digest,
+    )
+
+    # Sanity checks
+    assert isinstance(loaded, Network)
+    assert loaded.elements.keys() == network.elements.keys()
+
+
+def test_from_pickle_digest_mismatch(tmp_path, network):
+    """fromPickle should reject files whose digests don't match."""
+    digest = b"x" * 64
+    options_digest = b"y" * 8
+    path = tmp_path / "net.snet"
+
+    network.dumpPickle(path, digest, options_digest)
+
+    wrong_digest = b"z" * 64
+    wrong_options = b"w" * 8
+
+    # Wrong originalDigest -> DigestMismatchError.
+    with pytest.raises(Network.DigestMismatchError):
+        Network.fromPickle(
+            path,
+            originalDigest=wrong_digest,
+            optionsDigest=options_digest,
+        )
+
+    # Wrong optionsDigest -> DigestMismatchError.
+    with pytest.raises(Network.DigestMismatchError):
+        Network.fromPickle(
+            path,
+            originalDigest=digest,
+            optionsDigest=wrong_options,
+        )
+
+    # No digests supplied -> allowed (standalone .snet use case).
+    Network.fromPickle(path)
+
+
+def test_cache_regenerated_when_options_change(cached_maps):
+    """Changing map options should invalidate and rewrite the cached .snet file."""
+    # Get the temp copy of Town01 from cached_maps.
+    xodr_loc = cached_maps[str(mapFolder / "CARLA" / "Town01.xodr")]
+    xodr_path = Path(str(xodr_loc))
+    pickled_path = xodr_path.with_suffix(Network.pickledExt)
+
+    # First load: cache with one tolerance value
+    Network.fromFile(
+        xodr_path,
+        useCache=True,
+        writeCache=True,
+        tolerance=0.05,
+    )
+    options_digest1 = _read_options_digest(pickled_path)
+
+    # Second load: same map, different tolerance.
+    Network.fromFile(
+        xodr_path,
+        useCache=True,
+        writeCache=True,
+        tolerance=0.123,
+    )
+    options_digest2 = _read_options_digest(pickled_path)
+
+    # If the options changed, the cache header should also change.
+    assert options_digest1 != options_digest2
