@@ -1,7 +1,6 @@
-from scenic.core.distributions import InvalidScenarioError
 import pytest
 
-
+from scenic.core.distributions import InvalidScenarioError
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
@@ -20,11 +19,13 @@ def test_map_param_parse(getAssetPath):
     scenario = compileScenic(code, mode2D=True)
     assert scenario.params["carla_map"] == "Town01"
 
+
 # Note: This will used the current cached version of the map, during testing this does not work with a cached 3D map
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_basic(loadLocalScenario, use2DMap):
     scenario = loadLocalScenario("basic.scenic", mode2D=use2DMap)
     scenario.generate(maxIterations=1000)
+
 
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_car_created(loadLocalScenario, use2DMap):
@@ -32,7 +33,8 @@ def test_car_created(loadLocalScenario, use2DMap):
     scene = sampleScene(scenario, maxIterations=1000)
     car = scene.egoObject
     assert car
-    
+
+
 # A test to ensure that cars cannot clip through each other without causing errors
 def test_car_clipping_3D(getAssetPath):
     pytest.importorskip("carla")
@@ -46,6 +48,7 @@ def test_car_clipping_3D(getAssetPath):
     """
     with pytest.raises(InvalidScenarioError):
         compileScenic(code, mode2D=False)
+
 
 def test_simulator_import():
 
