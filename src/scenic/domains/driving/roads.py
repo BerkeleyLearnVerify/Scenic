@@ -1199,11 +1199,9 @@ class Network:
         data = pickle.dumps(self)
 
         with open(path, "wb") as f:
-            # Write a small uncompressed header (version + digests) so we can
-            # read it without knowing or decompressing the pickle payload.
-            f.write(version)
-            f.write(digest)  # digest of original map file (64 bytes)
-            f.write(optionsDigest)  # digest of map options (8 bytes)
+            f.write(version)  # uncompressed in case we change compression schemes later
+            f.write(digest)  # digest of original map file
+            f.write(optionsDigest)  # digest of map options
 
             # The rest of the file is a gzip-compressed pickle of the Network.
             with gzip.open(f, "wb") as gf:
