@@ -13,7 +13,7 @@ import sys
 import numpy
 import pytest
 
-from scenic.core.serialization import SerializationError, Serializer
+from scenic.core.serialization import SerializationError, Serializer, deterministicHash
 from scenic.core.simulators import DivergenceError, DummySimulator
 from tests.utils import (
     areEquivalent,
@@ -482,3 +482,16 @@ class TestSimulationReplay:
         data = scenario.simulationToBytes(sim1)
         sim2 = scenario.simulationFromBytes(data, simulator, maxSteps=1)
         assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)
+
+
+def test_deterministic_hash_non_scalar_values():
+    class Foo:
+        pass
+
+    mapping1 = {"a": Foo()}
+    mapping2 = {"a": Foo()}  # different instance, still non-scalar
+
+    digest1 = deterministicHash(mapping1)
+    digest2 = deterministicHash(mapping2)
+    # Non-scalar values should hash in a stable way, independent of identity.
+    assert digest1 == digest2
