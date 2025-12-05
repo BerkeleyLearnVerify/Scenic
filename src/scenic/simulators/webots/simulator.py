@@ -73,6 +73,7 @@ class WebotsSimulation(Simulation):
         self.mode2D = scene.compileOptions.mode2D
         self.nextAdHocObjectId = 1
         self.usedObjectNames = defaultdict(lambda: 0)
+        self.adhocs = []
 
         # directory to store proto files for adhoc webots objects
         self.tmpMeshDir = tempfile.mkdtemp()
@@ -110,7 +111,8 @@ class WebotsSimulation(Simulation):
             """
             FIXME, this does not work with our scheme of OBSTACLES...
             """
-            name = self._getAdhocObjectName(self.nextAdHocObjectId)
+            # name = self._getAdhocObjectName(self.nextAdHocObjectId)
+            name = obj.webotsName
             protoName = (
                 "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
             )
@@ -125,7 +127,8 @@ class WebotsSimulation(Simulation):
             rootNode = self.supervisor.getRoot()
             rootChildrenField = rootNode.getField("children")
             rootChildrenField.importMFNodeFromString(-1, protoDef)
-            self.nextAdHocObjectId += 1
+            self.adhocs.append(obj)
+            # self.nextAdHocObjectId += 1
         else:
             if obj.webotsName:
                 name = obj.webotsName
@@ -214,9 +217,9 @@ class WebotsSimulation(Simulation):
                 webotsObj.restartController()
 
     def step(self):
-        ms = round(1000 * self.timestep)
+        # ms = round(1000 * self.timestep)
         # self.supervisor.step(ms)
-        self.supervisor.step(self.actions)
+        self.observations, self.reward, self.done, self.info = self.supervisor.step(self.actions)
 
     def getProperties(self, obj, properties):
         webotsObj = getattr(obj, "webotsObject", None)
@@ -261,8 +264,12 @@ class WebotsSimulation(Simulation):
 
     def destroy(self):
         # Destroy adhoc objects generated at the beginning of the simulation
-        for i in range(1, self.nextAdHocObjectId):
-            name = self._getAdhocObjectName(i)
+        # for i in range(1, self.nextAdHocObjectId):
+            # name = self._getAdhocObjectName(i)
+            # node = self.supervisor.getFromDef(name)
+            # node.remove()
+        for ah in self.adhocs:
+            name = ah.webotsName
             node = self.supervisor.getFromDef(name)
             node.remove()
 
