@@ -24,7 +24,7 @@ from textwrap import dedent
 import trimesh
 
 from scenic.core.regions import MeshVolumeRegion
-from scenic.core.simulators import Simulation, Simulator
+from scenic.core.simulators import Simulation, Simulator, SimulationCreationError
 from scenic.core.type_support import toOrientation
 from scenic.core.vectors import Vector
 from scenic.simulators.webots.utils import ENU, WebotsCoordinateSystem
@@ -76,8 +76,13 @@ class WebotsSimulation(Simulation):
 
         # directory to store proto files for adhoc webots objects
         self.tmpMeshDir = tempfile.mkdtemp()
+        self.actions = None
 
         timestep = supervisor.getBasicTimeStep() / 1000 if timestep is None else timestep
+        self.observations = None
+        self.reward = None
+        self.done = None
+        self.info = None
 
         super().__init__(scene, timestep=timestep, **kwargs)
 
@@ -102,7 +107,9 @@ class WebotsSimulation(Simulation):
             ).mesh
             objFilePath = path.join(self.tmpMeshDir, f"{self.nextAdHocObjectId}.obj")
             trimesh.exchange.export.export_mesh(objectScaledMesh, objFilePath)
-
+            """
+            FIXME, this does not work with our scheme of OBSTACLES...
+            """
             name = self._getAdhocObjectName(self.nextAdHocObjectId)
             protoName = (
                 "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
@@ -135,6 +142,7 @@ class WebotsSimulation(Simulation):
 
         # Get handle to Webots node.
         webotsObj = self.supervisor.getFromDef(name)
+        # print("")
         if webotsObj is None:
             raise SimulationCreationError(f"Webots object {name} does not exist in world")
         obj.webotsObject = webotsObj
@@ -207,7 +215,8 @@ class WebotsSimulation(Simulation):
 
     def step(self):
         ms = round(1000 * self.timestep)
-        self.supervisor.step(ms)
+        # self.supervisor.step(ms)
+        self.supervisor.step(self.actions)
 
     def getProperties(self, obj, properties):
         webotsObj = getattr(obj, "webotsObject", None)
@@ -245,6 +254,9 @@ class WebotsSimulation(Simulation):
             val = (field.getMFFloat(0), obj.battery[1], obj.battery[2])
             values["battery"] = val
 
+        if hasattr(obj, "done"):
+            obj.done = self.done
+
         return values
 
     def destroy(self):
@@ -257,6 +269,14 @@ class WebotsSimulation(Simulation):
     def _getAdhocObjectName(self, i: int) -> str:
         return f"SCENIC_ADHOC_{i}"
 
+    def get_obs(self):
+        return self.observations
+
+    def get_reward(self):
+        return self.reward
+
+    def get_info(self):
+        return self.info
 
 def getFieldSafe(webotsObject, fieldName):
     """Get field from webots object. Return null if no such field exists.
