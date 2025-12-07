@@ -106,11 +106,9 @@ class WebotsSimulation(Simulation):
                 mesh=objectRawMesh,
                 dimensions=(obj.width, obj.length, obj.height),
             ).mesh
-            objFilePath = path.join(self.tmpMeshDir, f"{self.nextAdHocObjectId}.obj")
+            # objFilePath = path.join(self.tmpMeshDir, f"{self.nextAdHocObjectId}.obj")
+            objFilePath = path.join(self.tmpMeshDir, f"{name}.obj")
             trimesh.exchange.export.export_mesh(objectScaledMesh, objFilePath)
-            """
-            FIXME, this does not work with our scheme of OBSTACLES...
-            """
             # name = self._getAdhocObjectName(self.nextAdHocObjectId)
             name = obj.webotsName
             protoName = (
