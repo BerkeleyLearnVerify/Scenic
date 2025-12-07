@@ -150,6 +150,12 @@ class WebotsSimulation(Simulation):
         print(f"Created Object name: {name}")
         obj.webotsObject = webotsObj
         obj.webotsName = name
+        if hasattr(obj, "webots_type"):
+            if obj.webots_type == 'OBSTACLE':
+                self.supervisor.obstacles[obj.webotsName] = webotsObj
+
+            elif obj.webots_type == 'TARGET':
+                self.supervisor.target = webotsObj
 
         # Set the fields of the Webots object:
 
