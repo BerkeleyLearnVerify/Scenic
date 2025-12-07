@@ -145,9 +145,9 @@ class WebotsSimulation(Simulation):
 
         # Get handle to Webots node.
         webotsObj = self.supervisor.getFromDef(name)
-        # print("")
         if webotsObj is None:
             raise SimulationCreationError(f"Webots object {name} does not exist in world")
+        print(f"Created Object name: {name}")
         obj.webotsObject = webotsObj
         obj.webotsName = name
 
