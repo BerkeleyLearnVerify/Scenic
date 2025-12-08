@@ -114,13 +114,29 @@ class WebotsSimulation(Simulation):
             protoName = (
                 "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
             )
-            protoDef = dedent(
-                f"""
-                DEF {name} {protoName} {{
-                    url "{objFilePath}"
-                }}
-                """
-            )
+            if obj.color:
+                print("setting target color")
+                protoDef = dedent(
+                    f"""
+                    DEF {name} {protoName} {{
+                        url "{objFilePath}"
+                        children [
+                            Color {{
+                                MFColor color [{obj.color[0]} {obj.color[1]}, {obj.color[2]}]
+                            }}
+                        ]
+                    }}
+                    """
+                )
+            else:
+                protoDef = dedent(
+                    f"""
+                    DEF {name} {protoName} {{
+                        url "{objFilePath}"
+                    }}
+                    """
+                )
+
 
             rootNode = self.supervisor.getRoot()
             rootChildrenField = rootNode.getField("children")
@@ -288,6 +304,9 @@ class WebotsSimulation(Simulation):
 
     def get_info(self):
         return self.info
+
+    def solved(self):
+        return self.supervisor.solved()
 
 def getFieldSafe(webotsObject, fieldName):
     """Get field from webots object. Return null if no such field exists.
