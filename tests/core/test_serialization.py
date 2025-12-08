@@ -260,6 +260,18 @@ class TestExportToBytes:
         with pytest.raises(SerializationError):
             sc2.sceneFromBytes(data)
 
+    def test_scene_inconsistent_params(self):
+        code = """
+            ego = new Object
+            param x = 1
+        """
+        sc1 = compileScenic(code, params={"x": 1})
+        sc2 = compileScenic(code, params={"x": 2})
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        with pytest.raises(SerializationError):
+            sc2.sceneFromBytes(data)
+
     def test_scene_behavior(self):
         scenario = compileScenic(
             """

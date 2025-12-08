@@ -154,7 +154,7 @@ class Serializer:
         Must be incremented if the `writeScene` method or any of its helper
         methods (e.g. `writeValue`) change, or if a new codec is added.
         """
-        return 2
+        return 3
 
     @classmethod
     def replayFormatVersion(cls):
