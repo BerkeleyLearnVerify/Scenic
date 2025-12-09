@@ -91,7 +91,7 @@ def test_throttle(getCarlaSimulator):
 
 
 def test_brake(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town01")
+    simulator, town, mapPath = getCarlaSimulator("Town04")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -122,3 +122,56 @@ def test_brake(getCarlaSimulator):
     simulation = simulator.simulate(scene)
     finalSpeed = simulation.result.records["CarSpeed"]
     assert finalSpeed == pytest.approx(0.0, abs=1e-1)
+
+
+def test_cars_at_underpass():
+    simulator, town, mapPath = getCarlaSimulator("Town04")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        scenario = compileDrivingScenario(
+        cached_maps3D,
+
+        ego = new Car on road, 
+        at (-60, -6, 1),
+        with regionContainedIn everywhere,
+        with behavior FollowLaneBehavior(target_speed = 20)
+
+        record final ego.z as finalZ
+        terminate after 8 steps
+        """,
+    scenario = compileScenic(code, mode2D=False)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    finalZ = simulation.result.records["finalZ"]
+    assert finalZ < 5
+
+def test_cars_at_overpass():
+    simulator, town, mapPath = getCarlaSimulator("Town04")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        scenario = compileDrivingScenario(
+        cached_maps3D,
+
+        ego = new Car on road, 
+        at (-60, -6, 10),
+        with regionContainedIn everywhere,
+        with behavior FollowLaneBehavior(target_speed = 20)
+
+        record final ego.z as finalZ
+        terminate after 8 steps
+        """,
+    scenario = compileScenic(code, mode2D=False)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    finalZ = simulation.result.records["finalZ"]
+    assert finalZ < 5

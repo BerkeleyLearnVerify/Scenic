@@ -278,6 +278,7 @@ def test_cars_at_underpass(cached_maps3D):
         ego.orientation.roll == pytest.approx(direction.roll) for direction in directions
     )
 
+def test_cars_at_overpass(cached_maps3D):
     scenario = compileDrivingScenario(
         # (10, -12, 100) projects car down to map
         cached_maps3D,
