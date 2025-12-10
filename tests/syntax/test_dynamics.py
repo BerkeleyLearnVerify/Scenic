@@ -1792,6 +1792,27 @@ def test_interrupt_except_else():
     assert tuple(actions) == (1, 2, 3, 1, 1, 5, None)
 
 
+def test_interrupt_invariant_after_actions():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            invariant: ego.bar == 0
+            try:
+                for i in range(3):
+                    take 1
+            interrupt when simulation().currentTime == 1:
+                take 2
+                ego.bar = 1
+            except InvariantViolation:
+                ego.bar = 0
+                take 4
+        ego = new Object with bar 0, with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 2, 4, None)
+
+
 # Nesting
 
 
