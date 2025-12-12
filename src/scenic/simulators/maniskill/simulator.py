@@ -8,6 +8,7 @@ from typing import Optional
 import numpy as np
 
 from scenic.core.simulators import Simulation, Simulator
+from scenic.core.utils import buildingScenicDocumentation
 from scenic.core.vectors import Orientation, Vector
 
 try:
@@ -33,12 +34,8 @@ DEFAULT_CAMERA_TARGET = [0.0, 0.0, 0.0]
 DEFAULT_ROBOT_POSITION = [0.0, 0.0, 0.0]
 
 
-@register_env("ScenicEnv")
 class ScenicEnv(BaseEnv):
-    """Custom ManiSkill environment for Scenic scenarios.
-
-    :meta private:
-    """
+    """Custom ManiSkill environment for Scenic scenarios."""
 
     def __init__(
         self,
@@ -200,6 +197,11 @@ class ScenicEnv(BaseEnv):
 
     def compute_normalized_dense_reward(self, obs, action, info: dict):
         return 1.0
+
+
+# Register the ManiSkill environment in normal runs, but skip this during doc builds.
+if not buildingScenicDocumentation():
+    ScenicEnv = register_env("ScenicEnv")(ScenicEnv)
 
 
 class ManiSkillSimulator(Simulator):
