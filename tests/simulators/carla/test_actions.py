@@ -1,3 +1,4 @@
+import math
 import os
 from pathlib import Path
 import signal
@@ -122,3 +123,61 @@ def test_brake(getCarlaSimulator):
     simulation = simulator.simulate(scene)
     finalSpeed = simulation.result.records["CarSpeed"]
     assert finalSpeed == pytest.approx(0.0, abs=1e-1)
+
+
+def test_reverse(getCarlaSimulator):
+    simulator, town, mapPath = getCarlaSimulator("Town01")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior DriveInReverse():
+            while True:
+                take SetReverseAction(True), SetThrottleAction(1)
+
+        ego = new Car at (369, -326), with behavior DriveInReverse
+        record initial ego.heading as Heading
+        record final ego.velocity as Vel
+        terminate after 5 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    h = simulation.result.records["Heading"]
+    fwd_x, fwd_y = -math.sin(h), math.cos(h)
+    vx, vy, _ = simulation.result.records["Vel"]
+    proj = vx * fwd_x + vy * fwd_y
+    assert proj < -0.02, f"Expected reverse velocity (negative proj), got {proj}"
+
+
+def test_steer(getCarlaSimulator):
+    simulator, town, mapPath = getCarlaSimulator("Town01")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior TurnRight():
+            while True:
+                take SetThrottleAction(0.5), SetSteerAction(1)
+
+        # Ego facing west
+        ego = new Car at (300, -55), with behavior TurnRight
+
+        record initial ego.heading as InitialHeading
+        record final ego.heading as FinalHeading
+        terminate after 3 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    sim = simulator.simulate(scene)
+    initial_heading = sim.result.records["InitialHeading"]
+    final_heading = sim.result.records["FinalHeading"]
+    assert (
+        initial_heading > final_heading
+    ), "Positive steer should turn right (heading must decrease)."

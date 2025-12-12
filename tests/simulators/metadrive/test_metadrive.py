@@ -1,11 +1,23 @@
 import math
 import os
+from urllib.error import URLError
 
 import numpy as np
 import pytest
 
 try:
     import metadrive
+    from metadrive.pull_asset import pull_asset
+
+    # Make sure MetaDrive assets are available.
+    # On CI, if the asset server is down or unreachable, skip this whole file.
+    try:
+        pull_asset(update=False)
+    except URLError as e:
+        pytest.skip(
+            f"MetaDrive assets could not be pulled ({e}); skipping MetaDrive tests",
+            allow_module_level=True,
+        )
 
     from scenic.simulators.metadrive import MetaDriveSimulator
 except ModuleNotFoundError:
@@ -340,6 +352,62 @@ def test_duplicate_sensor_names(getMetadriveSimulator):
     assert img0.shape == (64, 64, 3)
     assert img1.shape == (64, 64, 3)
     assert not np.array_equal(img0, img1)
+
+
+def test_steer(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+        model scenic.simulators.metadrive.model
+
+        behavior TurnRight():
+            while True:
+                take SetThrottleAction(0.5), SetSteerAction(1)
+
+        # Ego facing west
+        ego = new Car at (300, -55), with behavior TurnRight
+
+        record initial ego.heading as InitialHeading
+        record final ego.heading as FinalHeading
+        terminate after 3 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    sim = simulator.simulate(scene)
+    initial_heading = sim.result.records["InitialHeading"]
+    final_heading = sim.result.records["FinalHeading"]
+    assert (
+        initial_heading > final_heading
+    ), "Positive steer should turn right (heading must decrease)."
+
+
+def test_composed_scenario(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+        model scenic.simulators.metadrive.model
+
+        scenario Sub():
+            setup:
+                follower = new Car with behavior FollowLaneBehavior()
+                terminate after 3 steps
+
+        scenario Main():
+            setup:
+                ego = new Car with behavior FollowLaneBehavior()
+            compose:
+                do Sub()
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    traj = simulation.result.trajectory
+
+    assert len(traj[0]) == 2, f"expected 2 objects, got {len(traj[0])}"
+    assert traj[0][0] != traj[-1][0], f"ego car did not move."
+    assert traj[0][1] != traj[-1][1], f"subscenario car did not move."
 
 
 def test_render_2D_saves_gif(getMetadriveSimulator, tmp_path):

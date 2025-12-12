@@ -143,7 +143,7 @@ class SetSteerAction(SteeringAction):
     The steering setting will remain constant until this action is taken again.
 
     Arguments:
-        steer: Steering 'angle' between -1 and 1.
+        steer: Steering 'angle' between -1 and 1. Positive values steer to the right.
     """
 
     def __init__(self, steer: float):

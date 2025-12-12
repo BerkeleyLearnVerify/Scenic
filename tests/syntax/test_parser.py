@@ -871,6 +871,47 @@ class TestWait:
             case _:
                 assert False
 
+    def test_wait_for_seconds(self):
+        mod = parse_string_helper("wait for 3 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Seconds(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_for_steps(self):
+        mod = parse_string_helper("wait for 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_for_unitless(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper("wait for 3")
+        assert "duration must specify a unit" in e.value.msg
+
+    def test_wait_for_expression(self):
+        mod = parse_string_helper("wait for 3 + 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Steps(BinOp(Constant(3), Add(), Constant(3)))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_until(self):
+        mod = parse_string_helper("wait until condition")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitUntil(Name("condition")):
+                assert True
+            case _:
+                assert False
+
 
 class TestTerminate:
     def test_basic(self):
@@ -1021,6 +1062,15 @@ class TestRequire:
         stmt = mod.body[0]
         match stmt:
             case Require(Name("X"), None, None):
+                assert True
+            case _:
+                assert False
+
+    def test_chained_comparison(self):
+        mod = parse_string_helper("require a < b < c")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Compare(Name("a"), [Lt(), Lt()], [Name("b"), Name("c")])):
                 assert True
             case _:
                 assert False

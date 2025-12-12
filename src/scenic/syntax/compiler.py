@@ -1208,6 +1208,28 @@ class ScenicToPythonTransformer(Transformer):
         return self.generateInvocation(node, ast.Constant(()))
 
     @context(Context.DYNAMIC)
+    def visit_WaitFor(self, node: s.WaitFor):
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[
+                ast.Constant("for"),
+                self.visit(node.duration.value),
+                ast.Constant(node.duration.unitStr),
+            ],
+            keywords=[],
+        )
+        return self.makeDoLike(node, [], modifier=modifier)
+
+    @context(Context.DYNAMIC)
+    def visit_WaitUntil(self, node: s.WaitUntil):
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[ast.Constant("until"), ast.Lambda(noArgs, self.visit(node.cond))],
+            keywords=[],
+        )
+        return self.makeDoLike(node, [], modifier=modifier)
+
+    @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):
         termination = ast.Call(
             ast.Name("_makeTerminationAction", loadCtx),
