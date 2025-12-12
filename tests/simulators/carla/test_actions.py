@@ -124,11 +124,9 @@ def test_brake(getCarlaSimulator):
     assert finalSpeed == pytest.approx(0.0, abs=1e-1)
 
 
-# Note: Have not been able to test in CARLA SIM Yet
-def test_cars_at_underpass():
+def test_cars_at_underpass(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town04")
-    code = (
-        f"""
+    code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
         param time_step = 1.0/10
@@ -136,26 +134,24 @@ def test_cars_at_underpass():
         model scenic.simulators.carla.model
 
         ego = new Car on road, 
-        at (-60, -6, 1),
-        with regionContainedIn everywhere,
-        with behavior FollowLaneBehavior(target_speed = 20)
+        	at (10, 25, 0),
+        	with regionContainedIn everywhere,
+        	with behavior FollowLaneBehavior(target_speed = 20)
 
         record final ego.z as finalZ
-        terminate after 8 steps
-        """,
-    )
+        terminate after 100 steps
+        """
+
     scenario = compileScenic(code, mode2D=False)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     finalZ = simulation.result.records["finalZ"]
-    assert finalZ < 3
+    assert finalZ < 5
 
 
-# Note: Have not been able to test in CARLA SIM yet
-def test_cars_at_overpass():
+def test_cars_at_overpass(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town04")
-    code = (
-        f"""
+    code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
         param time_step = 1.0/10
@@ -163,16 +159,16 @@ def test_cars_at_overpass():
         model scenic.simulators.carla.model
 
         ego = new Car on road, 
-        at (-60, -6, 10),
-        with regionContainedIn everywhere,
-        with behavior FollowLaneBehavior(target_speed = 20)
+        	at (-60, -6, 1),
+        	with regionContainedIn everywhere,
+        	with behavior FollowLaneBehavior(target_speed = 20)
 
         record final ego.z as finalZ
-        terminate after 8 steps
-        """,
-    )
+        terminate after 100 steps
+        """
+
     scenario = compileScenic(code, mode2D=False)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     finalZ = simulation.result.records["finalZ"]
-    assert finalZ > 3
+    assert finalZ > 5
