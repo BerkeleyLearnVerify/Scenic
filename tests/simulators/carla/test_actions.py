@@ -91,7 +91,7 @@ def test_throttle(getCarlaSimulator):
 
 
 def test_brake(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town04")
+    simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
