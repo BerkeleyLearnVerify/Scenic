@@ -23,7 +23,8 @@ def test_network_invalid():
 def test_show2D(network):
     import matplotlib.pyplot as plt
 
-    network.show(labelIncomingLanes=True)
+    network.show(labelIncomingLanes=True, showCurbArrows=True)
+
     plt.show(block=False)
     plt.close()
 
@@ -34,7 +35,12 @@ def test_element_tolerance(cached_maps, pytestconfig):
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
-    toofar_noint = toofar.difference(network.intersectionRegion)
+    top_level_region = drivable.union(network.shoulderRegion).union(
+        network.sidewalkRegion
+    )
+    outside_top_level = top_level_region.buffer(2 * tol).difference(
+        top_level_region.buffer(1.5 * tol)
+    )
     road = network.roads[0]
     nearby = road.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
@@ -48,9 +54,10 @@ def test_element_tolerance(cached_maps, pytestconfig):
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
             network.roadAt(pt, reject=True)
-        pt = toofar_noint.uniformPointInner()
+        pt = outside_top_level.uniformPointInner()
         assert network.elementAt(pt) is None
-        assert not network.nominalDirectionsAt(pt)
+        with pytest.raises(RejectionException):
+            network.elementAt(pt, reject=True)
 
 
 def test_orientation_consistency(network):
@@ -226,6 +233,28 @@ def test_linkage(network):
                     assert rev is not maneuver
                     assert rev.startLane.road is maneuver.endLane.road
                     assert rev.endLane.road is maneuver.startLane.road
+
+
+def test_shoulder(network):
+    sh = network.shoulders[0]
+    for _ in range(30):
+        pt = sh.uniformPointInner()
+        assert network.shoulderAt(pt) is sh
+        assert network.elementAt(pt) is sh
+        so_yaw = sh.orientation[pt].yaw
+        rd_yaw = network.roadDirection[pt].yaw
+        assert rd_yaw == pytest.approx(so_yaw)
+        dirs = network.nominalDirectionsAt(pt)
+        assert len(dirs) == 1
+        assert dirs[0].yaw == pytest.approx(so_yaw)
+
+
+def test_sidewalk(network):
+    sw = network.sidewalks[0]
+    for _ in range(30):
+        pt = sw.uniformPointInner()
+        assert network.sidewalkAt(pt) is sw
+        assert network.elementAt(pt) is sw
 
 
 # --- Tests for cached network pickles ---
