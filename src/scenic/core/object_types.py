@@ -1081,7 +1081,11 @@ class Object(OrientedPoint):
         "showVisibleRegion": False,
         "color": None,
         "render": True,
-        "velocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
+        "velocity": PropertyDefault(
+            ("speed", "orientation"),
+            {"dynamic"},
+            lambda self: Vector(0, self.speed, 0).rotatedBy(self.orientation),
+        ),
         "speed": PropertyDefault((), {"dynamic"}, lambda self: 0),
         "angularVelocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
         "angularSpeed": PropertyDefault((), {"dynamic"}, lambda self: 0),
