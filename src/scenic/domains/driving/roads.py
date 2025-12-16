@@ -1051,7 +1051,7 @@ class Network:
         digest = hashlib.blake2b(data).digest()
 
         # Hash the map options as well so changing them invalidates the cache.
-        optionsDigest = deterministicHash(kwargs)
+        optionsDigest = deterministicHash(kwargs, digest_size=8)
 
         # By default, use the pickled version if it exists and is not outdated
         pickledPath = path.with_suffix(cls.pickledExt)
