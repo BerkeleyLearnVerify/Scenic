@@ -134,6 +134,10 @@ class DrivingObject:
         return False
 
     @property
+    def isPedestrian(self):
+        return False
+
+    @property
     def isCar(self):
         return False
 
@@ -324,6 +328,10 @@ class Pedestrian(DrivingObject):
     width: 0.75
     length: 0.75
     color: [0, 0.5, 1]
+
+    @property
+    def isPedestrian(self):
+        return True
 
 ## Utility functions
 

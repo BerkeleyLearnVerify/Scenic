@@ -385,6 +385,7 @@ def toOpenScenario(
     maxSpeed=69,
     maxAcceleration=10,
     maxDeceleration=10,
+    pedestrianMass=65,
 ):
     # Create catalog
     xosc_catalog = xosc.Catalog()
@@ -401,46 +402,65 @@ def toOpenScenario(
     entities = xosc.Entities()
     xosc_objects = {}
     for obj_i, obj in enumerate(scene.objects):
-        if not hasattr(obj, "isVehicle") or not obj.isVehicle:
-            warnings.warn("Non-vehicle object {} is ignored.")
+        if hasattr(obj, "isVehicle") and obj.isVehicle:
+            obj_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
+            veh_bb = xosc.BoundingBox(
+                obj.width,
+                obj.length,
+                obj.height,
+                0,
+                0,
+                0,
+            )
+            veh_fa = xosc.Axle(
+                maxSteeringAngle,
+                wheelDiameter,
+                trackWidth,
+                wheelbaseRatio * obj.length,
+                groundClearance,
+            )
+            veh_ra = xosc.Axle(
+                maxSteeringAngle, wheelDiameter, trackWidth, 0, groundClearance
+            )
+            xosc_obj = xosc.Vehicle(
+                name=obj_name,
+                vehicle_type=xosc.VehicleCategory.car,
+                boundingbox=veh_bb,
+                frontaxle=veh_fa,
+                rearaxle=veh_ra,
+                max_speed=maxSpeed,
+                max_acceleration=maxAcceleration,
+                max_deceleration=maxDeceleration,
+                mass=None,
+                model3d=None,
+                max_acceleration_rate=None,
+                max_deceleration_rate=None,
+                role=None,
+            )
+        elif hasattr(obj, "isPedestrian") and obj.isPedestrian:
+            obj_name = obj.name if hasattr(obj, "name") else f"Pedestrian{obj_i}"
+            ped_bb = xosc.BoundingBox(
+                obj.width,
+                obj.length,
+                obj.height,
+                0,
+                0,
+                0,
+            )
+            xosc_obj = xosc.Pedestrian(
+                name=obj_name,
+                mass=pedestrianMass,
+                boundingbox=ped_bb,
+                category=xosc.PedestrianCategory.pedestrian,
+                model=None,
+                role=None,
+            )
+        else:
+            warnings.warn(f"Unknown object {obj} is ignored.")
             continue
 
-        veh_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
-        veh_bb = xosc.BoundingBox(
-            obj.width,
-            obj.length,
-            obj.height,
-            0,
-            0,
-            0,
-        )
-        veh_fa = xosc.Axle(
-            maxSteeringAngle,
-            wheelDiameter,
-            trackWidth,
-            wheelbaseRatio * obj.length,
-            groundClearance,
-        )
-        veh_ra = xosc.Axle(
-            maxSteeringAngle, wheelDiameter, trackWidth, 0, groundClearance
-        )
-        xosc_veh = xosc.Vehicle(
-            name=veh_name,
-            vehicle_type=xosc.VehicleCategory.car,
-            boundingbox=veh_bb,
-            frontaxle=veh_fa,
-            rearaxle=veh_ra,
-            max_speed=maxSpeed,
-            max_acceleration=maxAcceleration,
-            max_deceleration=maxDeceleration,
-            mass=None,
-            model3d=None,
-            max_acceleration_rate=None,
-            max_deceleration_rate=None,
-            role=None,
-        )
-        xosc_objects[obj] = xosc_veh
-        entities.add_scenario_object(veh_name, xosc_veh)
+        xosc_objects[obj] = xosc_obj
+        entities.add_scenario_object(obj_name, xosc_obj)
 
     # Create init
     init = xosc.Init()
