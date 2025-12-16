@@ -1721,18 +1721,23 @@ scenic_specifiers: ss=','.scenic_specifier+ { ss }
 scenic_specifier:
     | scenic_valid_specifier
     | invalid_scenic_specifier
+# Split into non-operator-like vs operator-like instance specifiers.
 scenic_valid_specifier:
-    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
+    | scenic_instance_specifier_nonoperator
+    | scenic_instance_specifier_operator_like
+scenic_instance_specifier_operator_like:
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | "offset" 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
     | "offset" "along" d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
+scenic_instance_specifier_nonoperator:
+    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
         s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
     | "beyond" v=expression 'by' o=expression b=['from' a=expression {a}] { s.BeyondSpecifier(position=v, offset=o, base=b) }
     | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
-    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
     | 'on' r=expression { s.OnSpecifier(region=r, LOCATIONS) }
     | "contained" 'in' r=expression { s.ContainedInSpecifier(region=r, LOCATIONS) }
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
@@ -2492,7 +2497,7 @@ invalid_kwarg[NoReturn]:
      }
 
 invalid_scenic_instance_creation[NoReturn]:
-    | n=NAME s=scenic_valid_specifier {
+    | n=NAME s=scenic_instance_specifier_nonoperator {
         self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot 'new'?", n, s)
     }
 invalid_scenic_specifier[NoReturn]:
