@@ -41,6 +41,7 @@ import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, PythonCompileError
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.pruning as pruning
+from scenic.core.serialization import deterministicHash
 from scenic.core.utils import cached_property
 from scenic.syntax.compiler import compileScenicAST
 from scenic.syntax.parser import parse_string
@@ -53,7 +54,7 @@ import scenic.syntax.veneer as veneer
 class CompileOptions:
     """Internal class for capturing options used when compiling a scenario."""
 
-    # N.B. update `hash` below when adding a new field
+    # N.B. update `_hashMapping` below when adding a new field
 
     #: Whether or not the scenario uses `2D compatibility mode`.
     mode2D: bool = False
@@ -64,25 +65,20 @@ class CompileOptions:
     #: Selected modular scenario, if any.
     scenario: Optional[str] = None
 
+    def _hashMapping(self):
+        mapping = {"mode2D": self.mode2D}
+        if self.modelOverride:
+            mapping["modelOverride"] = self.modelOverride
+        if self.scenario:
+            mapping["scenario"] = self.scenario
+        for k, v in self.paramOverrides.items():
+            mapping[f"param:{k}"] = v
+        return mapping
+
     @cached_property
     def hash(self):
         """Deterministic hash saved in serialized scenes to catch option mismatches."""
-        stream = io.BytesIO()
-        stream.write(bytes([self.mode2D]))
-        if self.modelOverride:
-            stream.write(self.modelOverride.encode())
-        for key in sorted(self.paramOverrides.keys()):
-            stream.write(key.encode())
-            value = self.paramOverrides[key]
-            if isinstance(value, (int, float, str)):
-                stream.write(str(value).encode())
-            else:
-                stream.write([0])
-        if self.scenario:
-            stream.write(self.scenario.encode())
-        # We can't use `hash` because it is not deterministic
-        # (e.g. the hashes of strings are randomized)
-        return hashlib.blake2b(stream.getvalue(), digest_size=4).digest()
+        return deterministicHash(self._hashMapping(), digest_size=4)
 
 
 def scenarioFromString(
