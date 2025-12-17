@@ -1045,6 +1045,8 @@ class Object(OrientedPoint):
           An optional color (with optional alpha) property that is used by the internal
           visualizer, or possibly simulators. All values should be between 0 and 1.
           Default value ``None``
+        render (bool): Whether this object is drawn in Scenic's internal visualizer.
+          Default value ``True``. Set to ``False`` to hide the object.
         velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
           the velocity determined by :prop:`speed` and :prop:`orientation`.
         speed (float; dynamic): Speed in dynamic simulations. Default value 0.

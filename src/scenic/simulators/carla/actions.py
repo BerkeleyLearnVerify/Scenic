@@ -108,21 +108,21 @@ class SetTrafficLightAction(VehicleAction):
 
 
 class SetAutopilotAction(VehicleAction):
+    """Enable or disable CARLA autopilot with optional Traffic Manager settings.
+
+    Arguments:
+        enabled: Enable or disable autopilot (bool)
+        kwargs: Additional autopilot options such as:
+            speed: Target speed of the car in m/s (default: None). Mutually exclusive with vehicle_percentage_speed_difference.
+            vehicle_percentage_speed_difference: Percentage difference between intended speed and the current speed limit. Can be negative to exceed the speed limit.
+            path: Route for the vehicle to follow (default: None)
+            ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
+            ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
+            ignore_walkers_percentage: Percentage of ignored pedestrians (default: 0)
+            auto_lane_change: Whether to allow automatic lane changes (default: False)
+    """
+
     def __init__(self, enabled, **kwargs):
-        """
-        :param enabled: Enable or disable autopilot (bool)
-        :param kwargs: Additional autopilot options such as:
-            - speed: Target speed of the car in m/s (default: None). Mutually
-              exclusive with vehicle_percentage_speed_difference.
-            - vehicle_percentage_speed_difference: Percentage difference between
-              intended speed and the current speed limit. Can be negative to
-              exceed the speed limit.
-            - path: Route for the vehicle to follow (default: None)
-            - ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
-            - ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
-            - ignore_walkers_percentage: Percentage of ignored pedestrians (default: 0)
-            - auto_lane_change: Whether to allow automatic lane changes (default: False)
-        """
         if not isinstance(enabled, bool):
             raise TypeError("Enabled must be a boolean.")
 
