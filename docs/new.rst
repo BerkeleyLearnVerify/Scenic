@@ -20,23 +20,23 @@ Scenic 3.1.0
 
 Major new features:
 
-	* New MetaDrive simulator interface for running Scenic scenarios in MetaDrive (see :mod:`scenic.simulators.metadrive`).
+	* Added an :ref:`interface <metadrive_simulator>` to the MetaDrive driving simulator.
 
 	* Added a new experimental sensors API with support for CARLA and MetaDrive (see :ref:`Sensors Reference <sensors>`).
 
-	* Extended the :keyword:`record` statement to support saving time-series data directly to files via the ``to`` clause, see :ref:`recordFolder` for details.
+	* Extended the :keyword:`record` statement to support saving time-series data directly to files via the ``to`` clause; see the :ref:`Language Reference <recordFolder>` for details.
 
 	* Introduced :ref:`wait for <wait for {scalar} (seconds | steps)>` and :ref:`wait until <wait until {boolean}>`, which work like :ref:`do ... for <do {behavior/scenario}, {...} for {scalar} (seconds | steps)>` and :ref:`do ... until <do {behavior/scenario}, {...} until {boolean}>` but advance the scenario without taking any actions.
 
 Minor new features:
+
+	* Added support for Python 3.13.
 
 	* Improved Scenic support for ``str``/``int``/``float`` conversions and type checking; these names are now reserved and can't be reassigned.
 
 	* Added a :prop:`render` property to :class:`~scenic.core.object_types.Object` to let objects opt out of the internal visualizer, and fixed handling of face colors for object meshes.
 
 	* Improved visual accuracy in the Newtonian physics simulator and added a ``debugRender`` visualization option (see :mod:`scenic.simulators.newtonian.driving_model`).
-
-	* Added support for Python 3.13.
 
 	* :class:`~scenic.simulators.carla.actions.SetAutopilotAction` now accepts optional CARLA Traffic Manager settings (ignoring signs/lights/walkers, automatic lane changes, target speed/route, and speed-limit offsets).
 

@@ -16,6 +16,8 @@ See the individual entries for details on each interface's capabilities and how 
 Currently Supported
 ===================
 
+.. _metadrive_simulator:
+
 MetaDrive
 ----------------------------
 
