@@ -811,7 +811,19 @@ class Simulation(abc.ABC):
 
         The default implementation returns a tuple of the positions of all objects.
         """
-        return tuple(obj.position for obj in self.objects)
+
+        class SimulationState(tuple):
+            def __new__(cls, positions, orientations):
+                return super().__new__(cls, positions)
+
+            def __init__(self, positions, orientations):
+                self.positions = positions
+                self.orientations = orientations
+
+        positions = tuple(obj.position for obj in self.objects)
+        orientation = tuple(obj.orientation for obj in self.objects)
+
+        return SimulationState(positions, orientation)
 
     @property
     def currentRealTime(self):
