@@ -198,17 +198,17 @@ class VerifaiSampler(ExternalSampler):
             if param.probs is not None:
                 usingProbs = True
 
-        if timeBound == 0 and any(param.timeSeries for param in self.params):
+        if timeBound == 0 and any(param.isTimeSeries for param in self.params):
             warnings.warn(
-                "TimeSeries external parameter used but no time bound specified "
-                "(Did you provide `maxSteps` when creating ScenicSampler?)."
+                "TimeSeries external parameter used but no global parameter `timeBound` is specified. "
+                "(If using VerifAI’s ScenicSampler, set its maxSteps option)."
             )
 
         space = verifai.features.FeatureSpace(
             {
                 self.nameForParam(index): (
                     verifai.features.Feature(param.domain)
-                    if not param.timeSeries
+                    if not param.isTimeSeries
                     else verifai.features.TimeSeriesFeature(param.domain)
                 )
                 for index, param in enumerate(self.params)
@@ -293,7 +293,7 @@ class VerifaiSampler(ExternalSampler):
         return self._lastDynamicSample
 
     def valueFor(self, param):
-        if not param.timeSeries:
+        if not param.isTimeSeries:
             return param.extractOutput(
                 getattr(self.cachedSample.staticSample, self.nameForParam(param.index))
             )
@@ -312,13 +312,13 @@ class VerifaiSampler(ExternalSampler):
         return f"param{i}"
 
 
-class ExternalParameter(Distribution, ABC):
+class ExternalParameter(Distribution):
     """A value determined by external code rather than Scenic's internal sampler."""
 
     def __init__(self):
         super().__init__()
         self.sampler = None
-        self.timeSeries = False
+        self.isTimeSeries = False
         import scenic.syntax.veneer as veneer  # TODO improve?
 
         veneer.registerExternalParameter(self)
@@ -332,9 +332,13 @@ class ExternalParameter(Distribution, ABC):
         assert self.sampler is not None
         return self.sampler.valueFor(self)
 
-    @abstractmethod
     def extractOutput(self, value):
-        pass
+        """
+        Given a raw sampled value for a parameter, optionally extract the actual desired value.
+
+        By default just passes the value through unchanged.
+        """
+        return value
 
 
 class TimeSeriesParameter:
@@ -349,7 +353,7 @@ class TimeSeriesParameter:
 
         if veneer.currentSimulation.currentTime <= self._lastTime:
             raise RuntimeError(
-                "Attempted `getSample` for a timeSeries property twice in one timestep."
+                "Attempted `getSample` for a TimeSeries external parameter twice in one timestep."
             )
 
         self._lastTime = veneer.currentSimulation.currentTime
@@ -360,7 +364,7 @@ def TimeSeries(param):
     if not isinstance(param, ExternalParameter):
         raise TypeError("Cannot turn a non `ExternalParameter` into a time series")
 
-    param.timeSeries = True
+    param.isTimeSeries = True
     return param
 
 
