@@ -1,3 +1,5 @@
+from importlib.metadata import PackageNotFoundError, distribution, version
+import json
 import math
 import os
 from urllib.error import URLError
@@ -26,6 +28,29 @@ except ModuleNotFoundError:
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 WINDOW_ERR = "Could not open window"
+
+
+def metadrive_installed_from_git():
+    # Git installs still report version "0.4.3"; PEP 610 direct_url.json lets us tell PyPI vs GitHub.
+    try:
+        direct = distribution("metadrive-simulator").read_text("direct_url.json")
+    except PackageNotFoundError:
+        return False
+    if not direct:
+        return False
+    try:
+        return "vcs_info" in json.loads(direct)
+    except json.JSONDecodeError:
+        return False
+
+
+metadrive_pkg_version = version("metadrive-simulator")
+
+xfail_md_brake_bug = pytest.mark.xfail(
+    metadrive_pkg_version == "0.4.3" and not metadrive_installed_from_git(),
+    reason="Known MetaDrive 0.4.3 (PyPI) braking/handbrake bug; install MetaDrive from GitHub for the fix.",
+    strict=False,
+)
 
 
 # Helper to run a simulation but skip cleanly on CI.
@@ -96,6 +121,7 @@ def test_throttle(getMetadriveSimulator):
     assert speeds[len(speeds) // 2][1] < speeds[-1][1]
 
 
+@xfail_md_brake_bug
 def test_brake(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
@@ -170,6 +196,7 @@ def test_reverse_and_brake(getMetadriveSimulator):
     assert finalSpeed == pytest.approx(0.0, abs=0.5)
 
 
+@xfail_md_brake_bug
 def test_handbrake(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
