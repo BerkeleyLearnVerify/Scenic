@@ -200,7 +200,7 @@ class VerifaiSampler(ExternalSampler):
 
         if timeBound == 0 and any(param.timeSeries for param in self.params):
             warnings.warn(
-                "TimeSeries external parameter used by no time bound specified "
+                "TimeSeries external parameter used but no time bound specified "
                 "(Did you provide `maxSteps` when creating ScenicSampler?)."
             )
 
@@ -358,7 +358,7 @@ class TimeSeriesParameter:
 
 def TimeSeries(param):
     if not isinstance(param, ExternalParameter):
-        raise ValueError("Cannot turn a non `ExternalParameter` into a time series")
+        raise TypeError("Cannot turn a non `ExternalParameter` into a time series")
 
     param.timeSeries = True
     return param
