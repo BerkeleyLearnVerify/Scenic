@@ -29,8 +29,6 @@ You can install it with:
 
     python -m pip install scenic[metadrive]
 
-Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
-
 .. note::
 
    MetaDrive **0.4.3** (the current PyPI release) does **not** support Python 3.12/3.13.
@@ -43,6 +41,9 @@ Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
    .. code-block:: console
 
       python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
+      python -m pip install "sumolib >= 1.21.0"
+
+Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
 Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html>`_ tool.
