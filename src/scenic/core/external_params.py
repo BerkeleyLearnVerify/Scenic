@@ -270,6 +270,7 @@ class VerifaiSampler(ExternalSampler):
 
         self._lastSample = None
         self._lastDynamicSample = None
+        self._lastSimulation = None
         self._lastTime = -1
 
     def nextSample(self, feedback):
@@ -284,6 +285,10 @@ class VerifaiSampler(ExternalSampler):
         import scenic.syntax.veneer as veneer
 
         assert veneer.currentSimulation is not None
+
+        if self._lastSimulation is not veneer.currentSimulation:
+            self._lastSimulation = veneer.currentSimulation
+            self._lastTime = -1
 
         if veneer.currentSimulation.currentTime > self._lastTime:
             feedback = veneer.currentSimulation
