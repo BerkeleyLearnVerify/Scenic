@@ -480,19 +480,19 @@ class Scenario(_ScenarioPickleMixin):
         """Sample a stream of `Scene` objects from this scenario.
 
         For a description of how scene generation is done, see `scene generation`. This function can produce
-        both finite and infinite streams (depending on the value of `numScenes`).
+        both finite and infinite streams (depending on the value of ``numScenes``).
 
         .. note::
-            NOTE: The deterministic parameter is by default set to True, meaning that scenes
+            NOTE: The ``deterministic`` parameter is by default set to True, meaning that scenes
             will be returned in a fixed order for a given Scenic seed. Setting this to False
             means scenes will be returned in a possibly non-deterministic order, but with possibly
-            decreased latency. When deterministic is set to False, the ordering of the returned scenes
+            decreased latency. When ``deterministic`` is set to ``False``, the ordering of the returned scenes
             is not fully random, with scenes that are easier to generate being more likely to be returned
             earlier in the stream. Despite this, the overall distribution of the returned scenes still
-            matches the scenario. When generating an infinite stream, `deterministic` must be set to True.
+            matches the scenario. When generating an infinite stream, ``deterministic`` must be set to ``True``.
 
         Args:
-            numScenes (int): Number of scenes to generate, or `float('inf')` to sample an infinite stream
+            numScenes (int): Number of scenes to generate, or ``float('inf')`` to sample an infinite stream
                 of Scenes.
             maxIterations (int): Maximum number of rejection sampling iterations (over all scenes).
             verbosity (int): Verbosity level.
@@ -501,9 +501,9 @@ class Scenario(_ScenarioPickleMixin):
             numWorkers (int): The number of workers to be used when generating scenes. If numWorkers
                 is 0, scenes will be generated in the main process.
             bufferSize (int): The number of scenes to have available at any given time, or `None` to
-                use default values. If set to `None` and `numScenes` is finite, all scenes are generated
-                in a greedy fashon. If set to `None and `numScenes` is infinite, set to a default
-                value of `2*numWorkers`.
+                use default values. If set to ``None`` and ``numScenes`` is finite, all scenes are generated
+                in a greedy fashon. If set to ``None`` and ``numScenes`` is infinite, set to a default
+                value of ``2*numWorkers``.
             mute (bool): Whether or not to mute stdOut and stdErr in the worker processes.
             serialized (bool): Whether or not to return scenes in a serialized format.
             deterministic (bool): Whether or not scenes will be returned in a deterministic order. This
@@ -536,11 +536,15 @@ class Scenario(_ScenarioPickleMixin):
             while returnedResultCount < numScenes:
                 try:
                     remainingIts = maxIterations - totalIterations
-                    scene, iterations = self._generateInner(
+                    rawScene, iterations = self._generateInner(
                         remainingIts, verbosity, feedback
                     )
+                    scene = self.sceneToBytes(rawScene) if serialized else rawScene
                     totalIterations += iterations
-                    yield (scene, iterations)
+                    if iterationCount:
+                        yield (scene, iterations)
+                    else:
+                        yield scene
                     returnedResultCount += 1
                 except RejectionException:
                     raise RejectionException(

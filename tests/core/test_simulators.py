@@ -1,6 +1,15 @@
+import itertools
+import random
+
 import pytest
 
-from scenic.core.simulators import DummySimulation, DummySimulator, Simulation
+import scenic
+from scenic.core.simulators import (
+    DummySimulation,
+    DummySimulator,
+    Simulation,
+    SimulatorGroup,
+)
 from tests.utils import compileScenic, sampleResultFromScene, sampleSceneFrom
 
 
@@ -94,3 +103,97 @@ def test_simulator_bad_scheduler():
     simulator = TestSimulator()
     with pytest.raises(RuntimeError):
         result = simulator.simulate(scene, maxSteps=2)
+
+
+@pytest.mark.slow
+def test_simulator_group():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            while True:
+                require Range(0,1) < 0.99
+                wait
+
+        new Object with behavior Foo()
+        """
+    )
+
+    for numWorkers, serialized, scene_stream, sim_stream in itertools.product(
+        [1, 2], [True, False], [True, False], [True, False]
+    ):
+        if scene_stream:
+            scenes = scenario.generateStream(
+                200, numWorkers=numWorkers, serialized=serialized, iterationCount=False
+            )
+        else:
+            scenes, _ = scenario.generateBatch(
+                200, numWorkers=numWorkers, serialized=serialized
+            )
+
+        sim_group = SimulatorGroup(
+            numWorkers=2, simulatorClass=DummySimulator, mute=False
+        )
+
+        simulate_params = {"maxSteps": 10}
+
+        if sim_stream:
+            results = tuple(
+                result
+                for _, result in sim_group.simulateStream(
+                    scenario,
+                    scenes,
+                    simulateParams=simulate_params,
+                    serialized=serialized,
+                )
+            )
+        else:
+            results = sim_group.simulateBatch(
+                scenario, scenes, simulateParams=simulate_params, serialized=serialized
+            )
+
+        assert any(val is None for val in results)
+        assert any(val is not None for val in results)
+
+
+def test_simulator_group_deterministic():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            while True:
+                require Range(0,1) < 0.99
+                wait
+
+        new Object with behavior Foo()
+        """
+    )
+
+    seed = random.getrandbits(32)
+
+    scenic.setSeed(seed)
+    scenes, _ = scenario.generateBatch(200, serialized=True)
+
+    sim_group = SimulatorGroup(numWorkers=4, simulatorClass=DummySimulator, mute=False)
+    simulate_params = {"maxSteps": 10}
+
+    results1 = tuple(
+        result
+        for _, result in sim_group.simulateStream(
+            scenario, scenes, simulateParams=simulate_params, deterministic=True
+        )
+    )
+
+    scenic.setSeed(seed)
+    scenes, _ = scenario.generateBatch(200, serialized=True)
+
+    sim_group = SimulatorGroup(numWorkers=4, simulatorClass=DummySimulator, mute=False)
+    simulate_params = {"maxSteps": 10}
+
+    results2 = tuple(
+        result
+        for _, result in sim_group.simulateStream(
+            scenario, scenes, simulateParams=simulate_params, deterministic=True
+        )
+    )
+
+    assert len(results1) == len(results2)
+    assert all((v1 is None) == (v2 is None) for v1, v2 in zip(results1, results2))

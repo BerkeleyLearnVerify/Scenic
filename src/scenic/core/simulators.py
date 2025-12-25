@@ -959,6 +959,23 @@ class SimulationResult:
 
 
 class SimulatorGroup:
+    """A group of simulators for running parallel simulations.
+
+    Args:
+        numWorkers: Number of workers in this group.
+        simulatorClass: The simulator class this group is composed of.
+        simulatorParams: An optional single or list of kwarg dictionaries to be passed as parameters
+            when creating the simulators in this group. If simulatorParams is a list of dicts,
+            ``len(simulatorParams)`` should equal ``numWorkers``.
+        bufferSize: An optional integer indicating the size of the job buffer. If ``None``, the value is
+            set to ``2 * numWorkers``.
+        mute: Whether or not to mute stdOut and stdErr in the worker processes.
+        returnFinalState: Whether or not returned `SimulationResult` objects should contain the ``finalState``
+            property. Set to ``False`` by default to minimize overhead.
+        returnTrajectory: Whether or not returned `SimulationResult` objects should contain the ``trajectry``
+            property. Set to ``False`` by default to minimize overhead.
+    """
+
     def __init__(
         self,
         numWorkers,
@@ -1008,7 +1025,7 @@ class SimulatorGroup:
                 raise ValueError(
                     f"Scene provided has type `{type(scene)}` instead of type `Scene`, but serialized was set to False."
                 )
-            return scenario.sceneFromBytes(scene, verify=True)
+            return scenario.sceneToBytes(scene)
 
     def _prepareJob(
         self, scene, simulateParams, jobId, scenario, serialized, rand_generator
@@ -1028,6 +1045,14 @@ class SimulatorGroup:
         return (jobId, serializedScene, jobParams, seed)
 
     def simulateBatch(self, scenario, scenes, simulateParams=None, serialized=True):
+        """Simulate and return a batch of `SimulationResult` objects.
+
+        Args:
+            scenario: The scenario that the scenes are sampled from.
+            scenes: An iterator of `Scene` objects sampled from ``scenario``.
+            simulateParams: An optional dictionary of params to be passed to simulate internally.
+            serialized: Whether or not ``scenes`` contains serialized scenes.
+        """
         return tuple(
             v[1]
             for v in self.simulateStream(
@@ -1038,6 +1063,18 @@ class SimulatorGroup:
     def simulateStream(
         self, scenario, scenes, simulateParams=None, serialized=True, deterministic=False
     ):
+        """Generate a stream of `SimulationResult` objects.
+
+        Args:
+            scenario: The scenario that the scenes are sampled from.
+            scenes: An iterator of `Scene` objects sampled from ``scenario``.
+            simulateParams: An optional dictionary of params to be passed to simulate internally.
+            serialized: Whether or not ``scenes`` contains serialized scenes.
+            deterministic: Whether or not results should be returned in a deterministic order. Setting
+                this to ``False`` can result in decreased latency when accessing results, but the order
+                will not be fixed.
+        """
+        scenes = iter(scenes)
         simulateParams = simulateParams if simulateParams else dict()
 
         # Create helper parameters
