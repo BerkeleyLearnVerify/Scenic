@@ -399,5 +399,6 @@ else:
 
 
 def setSeed(seed):
+    """Set the random seed used by Scenic"""
     random.seed(seed)
     numpy.random.seed(seed)
