@@ -13,7 +13,7 @@ import sys
 import numpy
 import pytest
 
-from scenic.core.serialization import SerializationError, Serializer
+from scenic.core.serialization import SerializationError, Serializer, deterministicHash
 from scenic.core.simulators import DivergenceError, DummySimulator
 from tests.utils import (
     areEquivalent,
@@ -54,6 +54,7 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProp
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
     for obj in scene1.objects + scene2.objects:
+        del obj._sampleParent
         if ignoreConstProps:
             del obj._constProps
         if ignoreDynamics:
@@ -159,7 +160,7 @@ class TestExportToBytes:
     def test_bytes(self):
         checkValueEncoding(b"", bytes)
         checkValueEncoding(b"\x00", bytes)
-        checkValueEncoding(b"\xFF", bytes)
+        checkValueEncoding(b"\xff", bytes)
         checkValueEncoding(b"\x00123456", bytes)
 
     def test_str(self):
@@ -254,6 +255,18 @@ class TestExportToBytes:
     def test_scene_inconsistent_mode(self):
         sc1 = compileScenic(simpleScenario)
         sc2 = compileScenic(simpleScenario, mode2D=True)
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        with pytest.raises(SerializationError):
+            sc2.sceneFromBytes(data)
+
+    def test_scene_inconsistent_params(self):
+        code = """
+            ego = new Object
+            param x = 1
+        """
+        sc1 = compileScenic(code, params={"x": 1})
+        sc2 = compileScenic(code, params={"x": 2})
         scene1 = sampleScene(sc1)
         data = sc1.sceneToBytes(scene1)
         with pytest.raises(SerializationError):
@@ -481,3 +494,16 @@ class TestSimulationReplay:
         data = scenario.simulationToBytes(sim1)
         sim2 = scenario.simulationFromBytes(data, simulator, maxSteps=1)
         assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)
+
+
+def test_deterministic_hash_non_scalar_values():
+    class Foo:
+        pass
+
+    mapping1 = {"a": Foo()}
+    mapping2 = {"a": Foo()}  # different instance, still non-scalar
+
+    digest1 = deterministicHash(mapping1)
+    digest2 = deterministicHash(mapping2)
+    # Non-scalar values should hash in a stable way, independent of identity.
+    assert digest1 == digest2

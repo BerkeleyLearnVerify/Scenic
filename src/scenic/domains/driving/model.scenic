@@ -43,6 +43,7 @@ from scenic.domains.driving.roads import (ManeuverType, Network, Road, Lane, Lan
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.behaviors import *
 
+from scenic.core.sensors import Sensor
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
@@ -325,6 +326,22 @@ class Pedestrian(DrivingObject):
     length: 0.75
     color: [0, 0.5, 1]
 
+## Stub sensor implementations
+
+class SSSensor(Sensor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def getObservation(self):
+        raise RuntimeError("This simulator does not support SSSensor")
+
+class RGBSensor(Sensor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def getObservation(self):
+        raise RuntimeError("This simulator does not support RGBSensor")
+
 ## Utility functions
 
 def withinDistanceToAnyCars(car, thresholdDistance):
@@ -348,6 +365,18 @@ def withinDistanceToAnyObjs(vehicle, thresholdDistance):
             # this means obj==vehicle
             pass
         elif (distance from vehicle.position to obj.position) < thresholdDistance:
+            return True
+    return False
+
+def withinDistanceToAnyPedestrians(vehicle, thresholdDistance):
+    """Returns True if any visible pedestrian is within thresholdDistance of the given vehicle."""
+    objects = simulation().objects
+    for obj in objects:
+        if obj is vehicle or not isinstance(obj, Pedestrian):
+            continue
+        if not (vehicle can see obj):
+            continue
+        if (distance from obj to front of vehicle) < thresholdDistance:
             return True
     return False
 

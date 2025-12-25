@@ -6,6 +6,8 @@ from functools import reduce
 import inspect
 import itertools
 
+import fcl
+import numpy
 import rv_ltl
 import trimesh
 
@@ -37,12 +39,13 @@ class RequirementType(enum.Enum):
 
 
 class PendingRequirement:
-    def __init__(self, ty, condition, line, prob, name, ego):
+    def __init__(self, ty, condition, line, prob, name, ego, recConfig):
         self.ty = ty
         self.condition = condition
         self.line = line
         self.prob = prob
         self.name = name
+        self.recConfig = recConfig
 
         # the translator wrapped the requirement in a lambda to prevent evaluation,
         # so we need to save the current values of all referenced names; we save
@@ -50,16 +53,21 @@ class PendingRequirement:
 
         # condition is an instance of Proposition. Flatten to get a list of atomic propositions.
         atoms = condition.atomics()
-        bindings = {}
+        self.globalBindings = {}  # bindings to global/builtin names
+        self.closureBindings = {}  # bindings to top-level closure variables
+        self.cells = []  # cells used in referenced closures
         atomGlobals = None
         for atom in atoms:
-            bindings.update(getAllGlobals(atom.closure))
+            gbindings, cbindings, closures = getNameBindings(atom.closure)
+            self.globalBindings.update(gbindings)
+            self.closureBindings.update(cbindings)
+            for closure in closures:
+                self.cells.extend(closure.__closure__)
             globs = atom.closure.__globals__
             if atomGlobals is not None:
                 assert globs is atomGlobals
             else:
                 atomGlobals = globs
-        self.bindings = bindings
         self.egoObject = ego
 
     def compile(self, namespace, scenario, syntax=None):
@@ -68,21 +76,28 @@ class PendingRequirement:
         While we're at it, determine whether the requirement implies any relations
         we can use for pruning, and gather all of its dependencies.
         """
-        bindings, ego, line = self.bindings, self.egoObject, self.line
+        globalBindings, closureBindings = self.globalBindings, self.closureBindings
+        cells, ego, line = self.cells, self.egoObject, self.line
         condition, ty = self.condition, self.ty
 
         # Convert bound values to distributions as needed
-        for name, value in bindings.items():
-            bindings[name] = toDistribution(value)
+        for name, value in globalBindings.items():
+            globalBindings[name] = toDistribution(value)
+        for name, value in closureBindings.items():
+            closureBindings[name] = toDistribution(value)
+        cells = tuple((cell, toDistribution(cell.cell_contents)) for cell in cells)
+        allBindings = dict(globalBindings)
+        allBindings.update(closureBindings)
 
         # Check whether requirement implies any relations used for pruning
         canPrune = condition.check_constrains_sampling()
         if canPrune:
-            relations.inferRelationsFrom(syntax, bindings, ego, line)
+            relations.inferRelationsFrom(syntax, allBindings, ego, line)
 
         # Gather dependencies of the requirement
         deps = set()
-        for value in bindings.values():
+        cellVals = (value for cell, value in cells)
+        for value in itertools.chain(allBindings.values(), cellVals):
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
@@ -93,7 +108,7 @@ class PendingRequirement:
 
         # If this requirement contains the CanSee specifier, we will need to sample all objects
         # to meet the dependencies.
-        if "CanSee" in bindings:
+        if "CanSee" in globalBindings:
             deps.update(scenario.objects)
 
         if ego is not None:
@@ -102,13 +117,18 @@ class PendingRequirement:
 
         # Construct closure
         def closure(values, monitor=None):
-            # rebind any names referring to sampled objects
+            # rebind any names referring to sampled objects (for require statements,
+            # rebind all names, since we want their values at the time the requirement
+            # was created)
             # note: need to extract namespace here rather than close over value
             # from above because of https://github.com/uqfoundation/dill/issues/532
             namespace = condition.atomics()[0].closure.__globals__
-            for name, value in bindings.items():
-                if value in values:
+            for name, value in globalBindings.items():
+                if ty == RequirementType.require or value in values:
                     namespace[name] = values[value]
+            for cell, value in cells:
+                cell.cell_contents = values[value]
+
             # rebind ego object, which can be referred to implicitly
             boundEgo = None if ego is None else values[ego]
             # evaluate requirement condition, reporting errors on the correct line
@@ -132,24 +152,34 @@ class PendingRequirement:
         return CompiledRequirement(self, closure, deps, condition)
 
 
-def getAllGlobals(req, restrictTo=None):
+def getNameBindings(req, restrictTo=None):
     """Find all names the given lambda depends on, along with their current bindings."""
     namespace = req.__globals__
     if restrictTo is not None and restrictTo is not namespace:
-        return {}
+        return {}, {}, ()
     externals = inspect.getclosurevars(req)
-    assert not externals.nonlocals  # TODO handle these
-    globs = dict(externals.builtins)
-    for name, value in externals.globals.items():
-        globs[name] = value
-        if inspect.isfunction(value):
-            subglobs = getAllGlobals(value, restrictTo=namespace)
-            for name, value in subglobs.items():
-                if name in globs:
-                    assert value is globs[name]
-                else:
-                    globs[name] = value
-    return globs
+    globalBindings = externals.builtins
+
+    closures = set()
+    if externals.nonlocals:
+        closures.add(req)
+
+    def handleFunctions(bindings):
+        for value in bindings.values():
+            if inspect.isfunction(value):
+                if value.__closure__ is not None:
+                    closures.add(value)
+                subglobs, _, _ = getNameBindings(value, restrictTo=namespace)
+                for name, value in subglobs.items():
+                    if name in globalBindings:
+                        assert value is globalBindings[name]
+                    else:
+                        globalBindings[name] = value
+
+    globalBindings.update(externals.globals)
+    handleFunctions(externals.globals)
+    handleFunctions(externals.nonlocals)
+    return globalBindings, externals.nonlocals, closures
 
 
 class BoundRequirement:
@@ -158,6 +188,7 @@ class BoundRequirement:
         self.closure = compiledReq.closure
         self.line = compiledReq.line
         self.name = compiledReq.name
+        self.recConfig = compiledReq.recConfig
         self.sample = sample
         self.compiledReq = compiledReq
         self.proposition = proposition
@@ -292,6 +323,8 @@ class SamplingRequirement(ABC):
 
 
 class IntersectionRequirement(SamplingRequirement):
+    """Requirement that a pair of objects do not intersect."""
+
     def __init__(self, objA, objB, optional=False):
         super().__init__(optional=optional)
         self.objA = objA
@@ -310,6 +343,16 @@ class IntersectionRequirement(SamplingRequirement):
 
 
 class BlanketCollisionRequirement(SamplingRequirement):
+    """Requirement that the surfaces of a given set of objects do not intersect.
+
+    We can check for such intersections more quickly than full objects using FCL,
+    but since FCL checks for surface intersections rather than volume intersections
+    (in general), this requirement being satisfied does not imply that the objects
+    do not intersect (one might still be contained in another). Therefore, this
+    requirement is intended to quickly check for intersections in the common case
+    rather than completely determine whether any objects collide.
+    """
+
     def __init__(self, objects, optional=True):
         super().__init__(optional=optional)
         self.objects = objects
@@ -317,23 +360,32 @@ class BlanketCollisionRequirement(SamplingRequirement):
 
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
-        cm = trimesh.collision.CollisionManager()
+        manager = fcl.DynamicAABBTreeCollisionManager()
+        objForGeom = {}
         for i, obj in enumerate(objects):
-            if not obj.allowCollisions:
-                cm.add_object(str(i), obj.occupiedSpace.mesh)
-        collision, names = cm.in_collision_internal(return_names=True)
+            if obj.allowCollisions:
+                continue
+            geom, trans = obj.occupiedSpace._fclData
+            collisionObject = fcl.CollisionObject(geom, trans)
+            objForGeom[geom] = obj
+            manager.registerObject(collisionObject)
+
+        manager.setup()
+        cdata = fcl.CollisionData()
+        manager.collide(cdata, fcl.defaultCollisionCallback)
+        collision = cdata.result.is_collision
 
         if collision:
-            self._collidingObjects = tuple(sorted(names))
+            contact = cdata.result.contacts[0]
+            self._collidingObjects = (objForGeom[contact.o1], objForGeom[contact.o2])
 
         return collision
 
     @property
     def violationMsg(self):
         assert self._collidingObjects is not None
-        objA_index, objB_index = map(int, self._collidingObjects[0])
-        objA, objB = self.objects[objA_index], self.objects[objB_index]
-        return f"Intersection violation: {objA} intersects {objB}"
+        objA, objB = self._collidingObjects
+        return f"Blanket Intersection violation: {objA} intersects {objB}"
 
 
 class ContainmentRequirement(SamplingRequirement):
@@ -390,6 +442,7 @@ class CompiledRequirement(SamplingRequirement):
         self.line = pendingReq.line
         self.name = pendingReq.name
         self.prob = pendingReq.prob
+        self.recConfig = pendingReq.recConfig
         self.dependencies = dependencies
         self.proposition = proposition
 

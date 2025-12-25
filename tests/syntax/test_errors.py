@@ -1,7 +1,6 @@
 import os.path
 import subprocess
 import sys
-from tokenize import TokenError
 
 import pytest
 
@@ -131,9 +130,9 @@ def test_undefined_specifier():
 
 
 def test_unmatched_parentheses():
-    with pytest.raises(TokenError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic("(")
-    with pytest.raises(TokenError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic("x = (3 + 4")
     with pytest.raises(ScenicSyntaxError):
         compileScenic(")")
@@ -142,15 +141,37 @@ def test_unmatched_parentheses():
 
 
 def test_incomplete_multiline_string():
-    with pytest.raises(TokenError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic('"""foobar')
-    with pytest.raises(TokenError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic(
             '''
             x = """foobar
             wog
             '''
         )
+
+
+def test_bad_indentation():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic(
+            """
+            behavior foo():
+                x = 1
+               y = 2
+            ego = new Object with behavior foo
+            """
+        )
+
+
+def test_fstring_error_uses_filename(tmpdir):
+    path = os.path.join(tmpdir, "bad_fstring.scenic")
+    with open(path, "w") as f:
+        f.write('x = f"{foo"\n')
+
+    with pytest.raises(ScenicSyntaxError) as excinfo:
+        scenic.scenarioFromFile(path)
+    assert excinfo.value.filename == path
 
 
 def test_incomplete_infix_operator():
@@ -374,7 +395,10 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     chained = bool(e.__cause__ or (e.__context__ and not e.__suppress_context__))
     assert bool(remainingLines) == chained
     if remainingLines:
-        mid = loc - 5 if topLevel else loc - 2
+        if topLevel:
+            mid = loc - 6 if sys.version_info >= (3, 13) else loc - 5
+        else:
+            mid = loc - 2
         assert len(output) >= -(mid - 1)
     if e.__cause__:
         assert (

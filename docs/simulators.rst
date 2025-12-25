@@ -16,6 +16,44 @@ See the individual entries for details on each interface's capabilities and how 
 Currently Supported
 ===================
 
+.. _metadrive_simulator:
+
+MetaDrive
+----------------------------
+
+Scenic supports integration with the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as an optional dependency,
+enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios.
+You can install it with:
+
+.. code-block:: console
+
+    python -m pip install scenic[metadrive]
+
+.. note::
+
+   MetaDrive **0.4.3** (the current PyPI release) does **not** support Python 3.12/3.13.
+   It also has known issues on macOS Apple Silicon (M-series) with 3D rendering and a
+   braking issue where vehicles may not come to a complete stop.
+
+   To use Python 3.12+ **and** get the fixes for the macOS/braking issues, install
+   MetaDrive from the GitHub repo:
+
+   .. code-block:: console
+
+      python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
+      python -m pip install "sumolib >= 1.21.0"
+
+Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
+
+Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
+Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html>`_ tool.
+To avoid setting the SUMO map manually, name it the same as your OpenDRIVE file and place it in the same directory.
+Otherwise, you can specify it explicitly using the ``sumo_map`` global parameter.
+
+The simulator is compatible with scenarios written using Scenic's :ref:`driving_domain`.
+For more information, refer to the documentation of the `scenic.simulators.metadrive` module.
+
+
 Built-in Newtonian Simulator
 ----------------------------
 
@@ -31,7 +69,7 @@ Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Sceni
 The interface supports dynamic scenarios written using the CARLA world model (:obj:`scenic.simulators.carla.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
 To use the interface, please follow these instructions:
 
-1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.14) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
+1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.16) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
    Note that CARLA currently only supports Linux and Windows.
 2. Install Scenic in your Python virtual environment as instructed in :ref:`quickstart`.
 3. Within the same virtual environment, install CARLA's Python API.
@@ -93,6 +131,8 @@ Webots
 We have several interfaces to the `Webots robotics simulator <https://cyberbotics.com/>`_, for different use cases.
 Our main interface provides a generic world model that can be used with any Webots world and supports dynamic scenarios.
 See the :file:`examples/webots` folder for example Scenic scenarios and Webots worlds using this interface, and `scenic.simulators.webots` for documentation.
+
+Scenic currently interfaces with Webots versions greater than or equal to 2023a.
 
 Scenic also includes more specialized world models for use with Webots:
 
