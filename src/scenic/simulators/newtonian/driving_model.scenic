@@ -6,6 +6,10 @@ Vehicles support the basic actions and behaviors from the driving domain.
 
 A path to a map file for the scenario should be provided as the ``map`` global parameter;
 see the driving domain's documentation for details.
+
+Global Parameters:
+    debugRender (bool): If ``True``, enables a debug view that draws simple
+        polygons for objects in the Newtonian window. Default is ``False``.
 """
 
 from scenic.simulators.newtonian.model import *
@@ -73,4 +77,3 @@ class Debris:
     """Abstract class for debris scattered randomly in the workspace."""
     position: new Point in workspace
     yaw: Range(0, 360) deg
-

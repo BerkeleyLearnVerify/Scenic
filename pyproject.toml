@@ -1,6 +1,6 @@
 [project]
 name = "scenic"
-version = "3.1.0a1"
+version = "3.1.0"
 description = "The Scenic scenario description language."
 authors = [
 	{ name = "Daniel Fremont" },
@@ -56,7 +56,7 @@ guideways = [
 	'pyproj ~= 3.3; python_version >= "3.10"',
 ]
 metadrive = [
-	"metadrive-simulator@git+https://github.com/metadriverse/metadrive.git@85e5dadc6c7436d324348f6e3d8f8e680c06b4db",
+	"metadrive-simulator >= 0.4.3",
 	"sumolib >= 1.21.0",
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
@@ -67,7 +67,7 @@ test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
-	"scenic[metadrive]",
+	'scenic[metadrive]; python_version < "3.12"',  # MetaDrive not on PyPI for Py3.12+ yet; use GitHub (see docs)
 	"astor >= 0.8.1",
 	'carla >= 0.9.12; python_version <= "3.10" and (platform_system == "Linux" or platform_system == "Windows")',
 	"dill",

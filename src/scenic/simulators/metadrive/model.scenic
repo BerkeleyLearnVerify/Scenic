@@ -44,7 +44,7 @@ from scenic.simulators.metadrive.sensors import MetaDriveSSSensor as SSSensor
 
 try:
     from scenic.simulators.metadrive.simulator import MetaDriveSimulator
-    from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
+    from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading, scenicToMetaDrivePosition
 except ModuleNotFoundError:
     # for convenience when testing without the metadrive package
     from scenic.core.simulators import SimulatorInterfaceWarning
@@ -117,30 +117,55 @@ class MetaDriveActor(DrivingObject):
     """
     metaDriveActor: None
 
+    def setPosition(self, pos, elevation):
+        position = scenicToMetaDrivePosition(pos, simulation().scenic_offset)
+        self.metaDriveActor.set_position(position)
+
+    def setVelocity(self, vel):
+        self.metaDriveActor.set_velocity(vel)
+
+
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._control = {"steering": 0, "throttle": 0, "brake": 0}
-
-    def _reset_control(self):
-        self._control = {"steering": 0, "throttle": 0, "brake": 0}
+        self._control = {"steer": 0.0, "throttle": 0.0, "brake": 0.0}
+        self._reverse = False
+        self._handbrake = False
 
     def setThrottle(self, throttle):
         self._control["throttle"] = throttle
 
     def setSteering(self, steering):
-        self._control["steering"] = steering
+        self._control["steer"] = steering
 
     def setBraking(self, braking):
         self._control["brake"] = braking
 
-    def _collect_action(self):
-        steering = -self._control["steering"]  # Invert the steering to match MetaDrive's convention
-        action = [
-            steering,
-            self._control["throttle"] - self._control["brake"],
-        ]
-        return action
+    def setReverse(self, reverse):
+        self._reverse = reverse
+
+    def setHandbrake(self, handbrake):
+        self._handbrake = handbrake
+
+    def _prepare_action(self):
+        # MetaDrive uses the opposite convention: positive steer turns left
+        steer = -self._control["steer"]
+
+        # Handbrake overrides everything: disable reverse, full brake.
+        if self._handbrake:
+            self.metaDriveActor.enable_reverse = False
+            return [steer, -1.0]
+
+        # MetaDrive uses a single combined throttle/brake value
+        throttle_brake = self._control["throttle"] - self._control["brake"]
+
+        # Enable reverse only if requested AND there’s forward drive effort.
+        enable_reverse = self._reverse and (throttle_brake > 0.0)
+        self.metaDriveActor.enable_reverse = enable_reverse
+        if enable_reverse:
+            throttle_brake = -throttle_brake  # negative drives backward
+        return [steer, throttle_brake]
+
 
 class Car(Vehicle):
     @property
