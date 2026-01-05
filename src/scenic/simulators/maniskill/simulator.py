@@ -5,18 +5,28 @@ import os
 import tempfile
 from typing import Optional
 
+import numpy as np
+
+from scenic.core.simulators import Simulation, Simulator
+from scenic.core.utils import buildingScenicDocumentation
+from scenic.core.vectors import Orientation, Vector
+
+try:
+    import mani_skill
+except ImportError as e:
+    raise ModuleNotFoundError(
+        "ManiSkill scenarios require the optional ManiSkill dependencies. "
+        "Install with `pip install scenic[maniskill]`."
+    ) from e
+
 import gymnasium as gym
 from mani_skill.envs.sapien_env import BaseEnv
 from mani_skill.sensors.camera import CameraConfig
 from mani_skill.utils import sapien_utils
 from mani_skill.utils.building.ground import build_ground
 from mani_skill.utils.registration import register_env
-import numpy as np
 import sapien
 import torch
-
-from scenic.core.simulators import Simulation, Simulator
-from scenic.core.vectors import Orientation, Vector
 
 # Default camera configuration
 DEFAULT_CAMERA_EYE = [0.0, -1.0, 1.0]
@@ -24,7 +34,6 @@ DEFAULT_CAMERA_TARGET = [0.0, 0.0, 0.0]
 DEFAULT_ROBOT_POSITION = [0.0, 0.0, 0.0]
 
 
-@register_env("ScenicEnv")
 class ScenicEnv(BaseEnv):
     """Custom ManiSkill environment for Scenic scenarios."""
 
@@ -52,9 +61,7 @@ class ScenicEnv(BaseEnv):
             return self.scene_camera_configs
 
         # Fallback to default camera configuration
-        pose = sapien_utils.look_at(
-            eye=DEFAULT_CAMERA_EYE, target=DEFAULT_CAMERA_TARGET
-        )
+        pose = sapien_utils.look_at(eye=DEFAULT_CAMERA_EYE, target=DEFAULT_CAMERA_TARGET)
         return [
             CameraConfig(
                 "base_camera",
@@ -68,9 +75,7 @@ class ScenicEnv(BaseEnv):
             )
         ]
 
-    def _load_agent(
-        self, options: dict, initial_agent_poses=None, build_separate=False
-    ):
+    def _load_agent(self, options: dict, initial_agent_poses=None, build_separate=False):
         """Load the robot agent into the scene."""
         super()._load_agent(options, sapien.Pose(p=DEFAULT_ROBOT_POSITION))
 
@@ -192,6 +197,11 @@ class ScenicEnv(BaseEnv):
 
     def compute_normalized_dense_reward(self, obs, action, info: dict):
         return 1.0
+
+
+# Register the ManiSkill environment in normal runs, but skip this during doc builds.
+if not buildingScenicDocumentation():
+    ScenicEnv = register_env("ScenicEnv")(ScenicEnv)
 
 
 class ManiSkillSimulator(Simulator):

@@ -19,6 +19,19 @@ import trimesh
 
 sqrt2 = math.sqrt(2)
 
+
+def buildingScenicDocumentation():
+    """Return True if Scenic's Sphinx docs are currently being built.
+
+    This relies on docs/conf.py setting ``sphinx._buildingScenicDocs = True``
+    before importing Scenic, and avoids importing Sphinx here.
+    """
+    sphinx = sys.modules.get("sphinx")
+    if sphinx is None:
+        return False
+    return bool(getattr(sphinx, "_buildingScenicDocs", False))
+
+
 if sys.version_info >= (3, 12):
     from itertools import batched
 else:
