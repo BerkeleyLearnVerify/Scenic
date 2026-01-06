@@ -101,6 +101,10 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
      - Take the action(s) specified.
    * - :sampref:`wait`
      - Take no actions this time step.
+   * - :sampref:`wait until {boolean}`
+     - Take no actions until a condition is met.
+   * - :sampref:`wait for {scalar} (seconds | steps)`
+     - Take no actions for a specified period of time.
    * - :sampref:`terminate`
      - Immediately end the scenario.
    * - :sampref:`terminate simulation`

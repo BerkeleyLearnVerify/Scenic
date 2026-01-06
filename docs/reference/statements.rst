@@ -80,7 +80,7 @@ For examples of monitors, see our tutorial on :ref:`dynamics`.
 .. _setup:
 .. _compose:
 
-Modular Scenario Definition 
+Modular Scenario Definition
 ---------------------------
 
 .. code-block:: scenic-grammar
@@ -327,6 +327,18 @@ Unlike :keyword:`wait`, this statement may not be used in monitors or :term:`mod
 wait
 ----
 Take no actions this time step.
+
+.. _wait for {scalar} (seconds | steps):
+
+wait for *scalar* (seconds | steps)
+-----------------------------------
+Take no actions for a set number of simulation seconds/time steps.
+
+.. _wait until {boolean}:
+
+wait until *boolean*
+--------------------
+Take no actions until the given condition becomes true.
 
 .. _terminate:
 
