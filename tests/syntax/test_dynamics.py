@@ -162,6 +162,32 @@ def test_behavior_list_actions():
     assert tuple(actions) == ((1, 4, 9), (5,))
 
 
+def test_behavior_take_none():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take None
+            take 7
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 7)
+
+
+def test_behavior_take_empty_tuple():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take ()
+            take 7
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 7)
+
+
 # Various errors
 
 
