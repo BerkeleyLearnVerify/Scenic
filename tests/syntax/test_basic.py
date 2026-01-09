@@ -65,6 +65,13 @@ def test_no_ego():
     compileScenic("new Object")
 
 
+def test_new_in_list_expression():
+    compileScenic(
+        "objs = [new Object with allowCollisions True]\n"
+        "ego = new Object with allowCollisions True"
+    )
+
+
 def test_ego_complex_assignment():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("(ego, thing1), thing2 = ((new Object at 1@1), 2), 3")
