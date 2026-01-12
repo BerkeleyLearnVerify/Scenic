@@ -55,20 +55,18 @@ def test_driving_2D_map(cached_maps):
     )
 
 
-def test_driving_3D(cached_maps3D):
-    compileDrivingScenario(
-        cached_maps3D, code=basicScenario, useCache=False, mode2D=False
-    )
+def test_driving_3D(cached_maps):
+    compileDrivingScenario(cached_maps, code=basicScenario, useCache=False, mode2D=False)
 
 
 @pytest.mark.slow
 @pytest.mark.parametrize("path", map_params)
 @pytest.mark.parametrize("use2DMap", [False, True])
-def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
+def test_opendrive(path, cached_maps, use2DMap):
     try:
         # First, try the original .xodr file
         scenario = compileDrivingScenario(
-            cached_maps if use2DMap else cached_maps3D,
+            cached_maps,
             path=path,
             code=basicScenario,
             useCache=False,
@@ -77,7 +75,7 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
         sampleScene(scenario, maxIterations=1000)
         # Second, try the cached version of the network
         scenario = compileDrivingScenario(
-            cached_maps if use2DMap else cached_maps3D,
+            cached_maps,
             path=path,
             code=basicScenario,
             useCache=True,
@@ -89,9 +87,9 @@ def test_opendrive(path, cached_maps, cached_maps3D, use2DMap):
 
 
 @pytest.mark.parametrize("use2DMap", [True, False])
-def test_elements_at(cached_maps, cached_maps3D, use2DMap):
+def test_elements_at(cached_maps, use2DMap):
     scenario = compileDrivingScenario(
-        cached_maps if use2DMap else cached_maps3D,
+        cached_maps,
         """
         ego = new Car
         posTuple = (ego.position.x, ego.position.y)
@@ -127,9 +125,9 @@ def test_elements_at(cached_maps, cached_maps3D, use2DMap):
 
 
 @pytest.mark.parametrize("use2DMap", [True, False])
-def test_intersection(cached_maps, cached_maps3D, use2DMap):
+def test_intersection(cached_maps, use2DMap):
     scenario = compileDrivingScenario(
-        cached_maps if use2DMap else cached_maps3D,
+        cached_maps,
         """
         intersection = Uniform(*network.intersections)
         lane = Uniform(*intersection.incomingLanes)
@@ -160,10 +158,10 @@ def test_intersection(cached_maps, cached_maps3D, use2DMap):
 
 # Tests end here
 @pytest.mark.parametrize("use2DMap", [True, False])
-def test_curb(cached_maps, cached_maps3D, use2DMap):
+def test_curb(cached_maps, use2DMap):
 
     scenario = compileDrivingScenario(
-        cached_maps if use2DMap else cached_maps3D,
+        cached_maps,
         """
         ego = new Car
         spot = new OrientedPoint on visible curb
@@ -215,9 +213,9 @@ def test_caching(tmpdir, use2DMap):
 @pickle_test
 @pytest.mark.slow
 @pytest.mark.parametrize("use2DMap", [True, False])
-def test_pickle(cached_maps, cached_maps3D, use2DMap):
+def test_pickle(cached_maps, use2DMap):
     scenario = compileDrivingScenario(
-        cached_maps if use2DMap else cached_maps3D,
+        cached_maps,
         """
         ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
         new Pedestrian on visible sidewalk
@@ -230,10 +228,10 @@ def test_pickle(cached_maps, cached_maps3D, use2DMap):
 
 
 @pytest.mark.parametrize("use2DMap", [True, False])
-def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
+def test_invalid_road_scenario(cached_maps, use2DMap):
     with pytest.raises(InvalidScenarioError):
         scenario = compileDrivingScenario(
-            cached_maps if use2DMap else cached_maps3D,
+            cached_maps,
             """
             ego = new Car at 80.6354425964952@-327.5431187869811
             param foo = ego.oppositeLaneGroup.sidewalk
@@ -245,7 +243,7 @@ def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
         # Set regionContainedIn to everywhere to hit driving domain specific code
         # instead of high level not contained in workspace rejection.
         scenario = compileDrivingScenario(
-            cached_maps if use2DMap else cached_maps3D,
+            cached_maps,
             """
             ego = new Car at 10000@10000, with regionContainedIn everywhere
             param foo = ego.lane
@@ -254,9 +252,9 @@ def test_invalid_road_scenario(cached_maps, cached_maps3D, use2DMap):
         )
 
 
-def test_cars_at_underpass(cached_maps3D):
+def test_cars_at_underpass(cached_maps):
     scenario = compileDrivingScenario(
-        cached_maps3D,
+        cached_maps,
         """
         ego = new Car on road, at (10, -12, 0), with regionContainedIn everywhere
         """,
@@ -279,10 +277,10 @@ def test_cars_at_underpass(cached_maps3D):
     )
 
 
-def test_cars_at_overpass(cached_maps3D):
+def test_cars_at_overpass(cached_maps):
     scenario = compileDrivingScenario(
         # (10, -12, 100) projects car down to map
-        cached_maps3D,
+        cached_maps,
         """
         ego = new Car on road, at (10, -12, 100), with regionContainedIn everywhere
         """,
@@ -305,9 +303,9 @@ def test_cars_at_overpass(cached_maps3D):
     )
 
 
-def test_car_on_slope(cached_maps3D):
+def test_car_on_slope(cached_maps):
     scenario = compileDrivingScenario(
-        cached_maps3D,
+        cached_maps,
         """
         ego = new Car on road, at (200, -12, 0), with regionContainedIn everywhere
         """,

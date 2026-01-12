@@ -20,7 +20,6 @@ def test_map_param_parse(getAssetPath):
     assert scenario.params["carla_map"] == "Town01"
 
 
-# Note: This will used the current cached version of the map, during testing this does not work with a cached 3D map
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_basic(loadLocalScenario, use2DMap):
     scenario = loadLocalScenario("basic.scenic", mode2D=use2DMap)
@@ -43,7 +42,7 @@ def test_car_clipping_3D(getAssetPath):
         param map = r'{mapPath}'
         param carla_map = 'Town01'
         model scenic.simulators.carla.model
-        ego = new Car at (100,0,1), with regionContainedIn everywhere 
+        ego = new Car at (100,0,1), with regionContainedIn everywhere
         car2 = new Car at (100,0,1), with regionContainedIn everywhere
     """
     with pytest.raises(InvalidScenarioError):
