@@ -843,43 +843,93 @@ class Road:
         for id_ in shoulderSections:
             (forwardShoulders if id_ < 0 else backwardShoulders).append(id_)
 
-        def combineSections(laneIDs, sections, name):
-            leftmost, rightmost = max(laneIDs), min(laneIDs)
-            if len(laneIDs) != leftmost - rightmost + 1:
-                warn(f"ignoring {name} in the middle of road {self.id_}")
-            leftPoints, rightPoints = [], []
-            if leftmost < 0:
-                leftmost = rightmost
-                while leftmost + 1 in laneIDs:
-                    leftmost = leftmost + 1
-                leftSecs, rightSecs = sections[leftmost], sections[rightmost]
-                for leftSec, rightSec in zip(leftSecs, rightSecs):
-                    leftPoints.extend(leftSec.left_bounds)
-                    rightPoints.extend(rightSec.right_bounds)
-            else:
-                rightmost = leftmost
-                while rightmost - 1 in laneIDs:
-                    rightmost = rightmost - 1
-                leftSecs = reversed(sections[leftmost])
-                rightSecs = reversed(sections[rightmost])
-                for leftSec, rightSec in zip(leftSecs, rightSecs):
-                    leftPoints.extend(reversed(rightSec.right_bounds))
-                    rightPoints.extend(reversed(leftSec.left_bounds))
-            leftEdge = PolylineRegion(cleanChain(leftPoints))
-            rightEdge = PolylineRegion(cleanChain(rightPoints))
-            centerline = nowhere if self.drivable_region.is_empty else self.create_center_line(leftEdge, rightEdge) #nowhere for now
+
+        def combineSections(sections, name, forward): 
+            left_chain = []
+            right_chain = []
+            all_polys = []
+            
+            #need these to detect if lane changes lateral position across sections
+            prev_leftmost_id = None 
+            prev_rightmost_id = None
+
+            lane_secs_iter = self.lane_secs if forward else reversed(self.lane_secs) #follow old logic for reversing for backward lanes
+
+            for sec in lane_secs_iter: #get relevant lanes from section i.e. sidewalks and shoulders
+                if name == "sidewalk":
+                    lane_dict = sec.sidewalk_lanes
+                elif name == "shoulder":
+                    lane_dict = sec.shoulder_lanes
+                else:
+                    continue
+                
+                if not lane_dict:
+                    continue
+                
+                #if forward is true, we want negative IDs, if forward is false, we want positive IDs
+                lanes_on_side = [lane for id_, lane in lane_dict.items() if (id_ < 0) == forward]
+                
+                if not lanes_on_side:
+                    continue
+                
+                #since some roads have non-contiguous lanes, we need t start by sorting them by ID to find contiguous groups
+                sorted_lanes = sorted(lanes_on_side, key=lambda lane: lane.id_, reverse=True)
+                
+                #now, we can find the actual contiguous group of lanes i.e. if road had IDs [7, 6, 3, 1] we get just [7, 6]
+                contiguous_group = [sorted_lanes[0]]    
+                for i in range(1, len(sorted_lanes)):
+                    if abs(sorted_lanes[i].id_ - sorted_lanes[i-1].id_) == 1:
+                        contiguous_group.append(sorted_lanes[i])
+                    else:
+                        break
+                
+                if len(contiguous_group) < len(sorted_lanes):
+                    warn(f"road {self.id_} has non-contiguous {name} lanes; only using outermost group") #warn if we have to skip some lanes
+                
+                #find the leftmost and rightmost lanes in the contiguous group
+                left_most_lane = max(contiguous_group, key=lambda lane: lane.id_) #leftmost is largest ID
+                right_most_lane = min(contiguous_group, key=lambda lane: lane.id_) #rightmost is smallest ID
+                
+                #check if lane positions are consistent across sections 
+                if prev_leftmost_id is not None:
+                    #for the edges to connect properly, we need the lane positions to be consistent
+                    #the IDs can change, but the relative position should be the same
+                    #if the outermost lane ID changes in a way that suggests lateral position change, warn
+                    if forward:
+                        #for forward (negative IDs): higher ID = closer to reference
+                        position_changed = (left_most_lane.id_ != prev_leftmost_id and right_most_lane.id_ != prev_rightmost_id)
+                    else:
+                        #for backward (positive IDs): lower ID = closer to reference
+                        position_changed = (left_most_lane.id_ != prev_leftmost_id and right_most_lane.id_ != prev_rightmost_id)
+                    
+                    if position_changed:
+                        warn(f"road {self.id_} {name} lanes change lateral position across sections; skipping") #warn if we have to skip some lanes again
+                        return None
+                
+                prev_leftmost_id = left_most_lane.id_
+                prev_rightmost_id = right_most_lane.id_
+                
+                if forward:
+                    left_chain.extend(left_most_lane.left_bounds)
+                    right_chain.extend(right_most_lane.right_bounds)
+                else:
+                    left_chain.extend(reversed(left_most_lane.left_bounds))
+                    right_chain.extend(reversed(right_most_lane.right_bounds))
+                
+                for lane in contiguous_group:
+                    if lane.poly:
+                        all_polys.append(lane.poly)
+            
+            if not all_polys:
+                return None
+                
+            leftEdge = PolylineRegion(cleanChain(left_chain))
+            rightEdge = PolylineRegion(cleanChain(right_chain))
             centerline = self.create_center_line(leftEdge, rightEdge)
-            allPolys = (
-                sec.poly
-                for id_ in range(rightmost, leftmost + 1)
-                for sec in sections[id_]
-            )
-            union = buffer_union(allPolys, tolerance=tolerance)
-            if not union.buffer(tolerance).covers(centerline.lineString): #If the centerline isn't fully in the polygon
-                print(f"road{self.id_}")
-                centerline = nowhere #remove this
-            id_ = f"road{self.id_}_{name}({leftmost},{rightmost})"
-            return id_, union, centerline, leftEdge, rightEdge
+            union = buffer_union(all_polys, tolerance=tolerance)
+            
+            sid = f"road{self.id_}_{name}_{'fwd' if forward else 'bwd'}"
+            return sid, union, centerline, leftEdge, rightEdge
         
         def makeCrosswalk():
             pedestrian_crossings = []
@@ -901,12 +951,14 @@ class Road:
         
         pedestrian_crossings = makeCrosswalk()
 
-        def makeSidewalk(laneIDs):
+        def makeSidewalk(laneIDs, forward):
             if not laneIDs:
                 return None
-            id_, union, centerline, leftEdge, rightEdge = combineSections(
-                laneIDs, sidewalkSections, "sidewalk"
-            )
+            result = combineSections(sidewalkSections, "sidewalk", forward)
+            if result is None:
+                print("Returning None for sidewalk")
+                return None
+            id_, union, centerline, leftEdge, rightEdge = result
             sidewalk = roadDomain.Sidewalk(
                 id=id_,
                 polygon=union,
@@ -919,15 +971,17 @@ class Road:
             allElements.append(sidewalk)
             return sidewalk
 
-        forwardSidewalk = makeSidewalk(forwardSidewalks)
-        backwardSidewalk = makeSidewalk(backwardSidewalks)
+        forwardSidewalk = makeSidewalk(forwardSidewalks, forward=True)
+        backwardSidewalk = makeSidewalk(backwardSidewalks, forward=False)
 
-        def makeShoulder(laneIDs):
+        def makeShoulder(laneIDs, forward):
             if not laneIDs:
                 return None
-            id_, union, centerline, leftEdge, rightEdge = combineSections(
-                laneIDs, shoulderSections, "shoulder"
-            )
+            result = combineSections(shoulderSections, "shoulder", forward)
+            if result is None:
+                print("Returning None for shoulder")
+                return None
+            id_, union, centerline, leftEdge, rightEdge = result
             shoulder = roadDomain.Shoulder(
                 id=id_,
                 polygon=union,
@@ -939,8 +993,8 @@ class Road:
             allElements.append(shoulder)
             return shoulder
 
-        forwardShoulder = makeShoulder(forwardShoulders)
-        backwardShoulder = makeShoulder(backwardShoulders)
+        forwardShoulder = makeShoulder(forwardShoulders, forward=True)
+        backwardShoulder = makeShoulder(backwardShoulders, forward=False)
 
         # Connect sections to their successors
         next_section = None
@@ -1074,6 +1128,10 @@ class Road:
             else:
                 sec = roadSections[-1]
                 startLanes = sec.backwardLanes
+            
+            return abstract_getEdges(startLanes, forward)
+        
+        def abstract_getEdges(startLanes, forward):
             leftPoints = []
             current = startLanes[-1]  # get leftmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
@@ -1092,6 +1150,7 @@ class Road:
             rightEdge = PolylineRegion(cleanChain(rightPoints))
             middleLane = startLanes[len(startLanes) // 2].lane  # rather arbitrary
             return leftEdge, middleLane.centerline, rightEdge
+
 
         if forwardLanes or forwardShoulder or forwardSidewalk:
             leftEdge, centerline, rightEdge = getEdges(forward=True) #fix get edges to handle no lanes case - return nowehere
@@ -1150,6 +1209,9 @@ class Road:
             roadSignals.append(signal)
 
         # Create road
+        if not (forwardGroup or backwardGroup):
+            warn(f"road {self.id_} has no lane groups; skipping")
+            return None, []
         assert forwardGroup or backwardGroup #At least one LaneGroup required for Road creation
         if forwardGroup:
             rightEdge = forwardGroup.rightEdge
@@ -2018,7 +2080,10 @@ class RoadMap:
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
-            newRoad, elts = road.toScenicRoad(tolerance=self.tolerance)
+            result = road.toScenicRoad(tolerance=self.tolerance)
+            if result[0] is None:
+                continue
+            newRoad, elts = result
             registerAll(elts)
             (connectingRoads if road.junction else mainRoads)[id_] = newRoad
             roads[id_] = newRoad

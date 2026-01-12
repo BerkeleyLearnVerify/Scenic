@@ -29,17 +29,7 @@ def create_center_line(leftEdge, rightEdge):
 
         return centerline
 
-def construct_crosswalk_polys(points, tolerance): #changed from cw to points to test
-    # points = []
-    # for outline in cw.outlines:
-    #     for corner_local in outline:
-    #         u = corner_local['u']
-    #         v = corner_local['v']
-    #         z_local = corner_local['z']
-
-    #         x, y, z = self.uv_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset), u, v, z_local, float(cw.hdg), float(cw.pitch), float(cw.roll))
-    #         points.append((x,y))
-    
+def construct_crosswalk_polys(points, tolerance):
     crosswalk_polygon = cleanPolygon(Polygon(points), tolerance)
     crosswalk_polygon_coords = list(crosswalk_polygon.exterior.coords[:-1])
 
@@ -128,14 +118,15 @@ def construct_crosswalk_polys(points, tolerance): #changed from cw to points to 
     left_edge = [crosswalk_polygon_coords[i] for i in left_indices]
     right_edge = [crosswalk_polygon_coords[i] for i in right_indices]
 
-    print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge}")
-    print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge}") 
+    # print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge}")
+    # print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge}") 
 
     leftEdge = PolylineRegion(cleanChain(left_edge))
     rightEdge = PolylineRegion(cleanChain(right_edge))
     centerLine = create_center_line(leftEdge, rightEdge)
-    for point in centerLine.lineString.coords:
-        print(f"Center line point: {point}")
+    # for point in centerLine.lineString.coords:
+    #     print(f"Center line point: {point}")
+
 
     return crosswalk_polygon, centerLine, leftEdge, rightEdge
 
@@ -150,10 +141,8 @@ if __name__ == "__main__":
     shape2 = l_shaped()
     n = len(shape2)
 
-    for k in range(1, n):
-        rotated = []
-        for i in range(n):
-            rotated.append(shape2[(i+k) % n])
+    for k in range(n):
+        rotated = shape2[k:] + shape2[:k]
         #print(f"Rotated: {rotated}")
         crosswalk_polygon, centerLine, leftEdge, rightEdge = construct_crosswalk_polys(rotated, 0.05)
         
