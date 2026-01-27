@@ -19,8 +19,8 @@ Global Parameters:
         interrupts CARLA to run behaviors, check requirements, etc.), in seconds. Default
         is 0.1 seconds.
     snapToGroundDefault (bool): Default value for :prop:`snapToGround` on `CarlaActor` objects.
-        Default is True if :ref:`2D compatibility mode` is enabled and False otherwise. 
-
+        Default is ``bool(use2DMap)`` (True when using 2D maps, False when using 3D maps). 
+        
     weather (str or dict): Weather to use for the simulation. Can be either a
         string identifying one of the CARLA weather presets (e.g. 'ClearSunset') or a
         dictionary specifying all the weather parameters (see `carla.WeatherParameters`_).
@@ -102,7 +102,8 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
-param snapToGroundDefault = is2DMode()
+param snapToGroundDefault = bool(globalParameters.use2DMap)
+
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
