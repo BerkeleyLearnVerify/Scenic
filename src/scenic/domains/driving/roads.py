@@ -399,7 +399,13 @@ class LinearElement(NetworkElement):
         return _rejectIfNonexistent(self._predecessor, "predecessor")
 
     def __attrs_post_init__(self):
+        # 1) Ensure element orientation exists BEFORE NetworkElement initializes self.region
+        if self.orientation is None:
+            self.orientation = VectorField(self.name, self._defaultHeadingAt)
+
+        # 2) Now build/init the underlying region using that orientation
         super().__attrs_post_init__()
+
         # Check that left and right edges lie inside the element.
         # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
@@ -420,8 +426,6 @@ class LinearElement(NetworkElement):
             ),
             tolerance=0.5,
         )
-        if self.orientation is None:
-            self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
     def _defaultHeadingAt(self, point):
         """Default orientation for this LinearElement.
@@ -855,15 +859,18 @@ class Intersection(NetworkElement):
     crossings: Tuple[PedestrianCrossing]  # also ordered to preserve adjacency
 
     def __attrs_post_init__(self):
+        # 1) Ensure element orientation exists BEFORE NetworkElement initializes self.region
+        if self.orientation is None:
+            self.orientation = VectorField(self.name, self._defaultHeadingAt)
+
+        # 2) Now build/init the underlying region using that orientation
         super().__attrs_post_init__()
+
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
             assert self.region.boundingPolygon.containsRegion(
                 maneuver.connectingLane.region.boundingPolygon, tolerance=0.5
             )
-
-        if self.orientation is None:
-            self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
     def _defaultHeadingAt(self, point):
         """Default orientation for this Intersection.
