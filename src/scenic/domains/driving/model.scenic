@@ -53,6 +53,8 @@ from scenic.core.sensors import Sensor
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
+from scenic.core.vectors import Vector
+
 ## 2D mode flag & checks
 
 def is2DMode():
@@ -103,6 +105,26 @@ intersection : Region = network.intersectionRegion
 #: traffic directions, the choice is arbitrary. At such points, the function
 #: `Network.nominalDirectionsAt` can be used to get all nominal directions.
 roadDirection : VectorField = network.roadDirection
+
+# --- Placement helper ---
+
+def centerOnSurface(surfaceRegion, baseOffset, contactTolerance):
+    """Return an object-center position resting on a surface region.
+
+    Samples a contact point on the surface, then offsets to the object's center using
+    baseOffset/contactTolerance. The offset is rotated by the surface orientation so it
+    behaves correctly on sloped surfaces.
+
+    In 2D compatibility mode (`mode2D`), everything is treated as flat, so we return the
+    sampled contact point.
+    """
+    contactPoint = Region.uniformPointIn(surfaceRegion)  
+    if is2DMode():
+        return contactPoint
+
+    offset = Vector(0, 0, contactTolerance / 2) - baseOffset
+    surfaceOrientation = surfaceRegion.orientation[contactPoint]
+    return contactPoint + offset.rotatedBy(surfaceOrientation)
 
 ## Standard object types
 
@@ -285,7 +307,7 @@ class Vehicle(DrivingObject):
             :obj:`Color.defaultCarColor`.
     """
     regionContainedIn: roadOrShoulder.boundingPolygon # Change region to bounding polygon region
-    position: new Point on road
+    position: centerOnSurface(road, self.baseOffset, self.contactTolerance)
     parentOrientation: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
@@ -321,7 +343,7 @@ class Pedestrian(DrivingObject):
             used by simulators, but do appear in the debugging diagram.
     """
     regionContainedIn: network.walkableRegion
-    position: new Point on network.walkableRegion
+    position: centerOnSurface(network.walkableRegion, self.baseOffset, self.contactTolerance)
     parentOrientation: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
