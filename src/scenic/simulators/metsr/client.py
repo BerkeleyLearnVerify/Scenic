@@ -134,6 +134,7 @@ class METSRClient:
     # QUERY: inspect the state of the simulator
     # By default query public vehicles
     def query_vehicle(self, id = None, private_veh = False, transform_coords = False):
+        # transform coords arguments denotes transformation True: METSR -> SUMO , False just METSR
         msg = {"TYPE": "QUERY_vehicle"}
         if id is not None:
             msg["DATA"] = []
@@ -298,7 +299,7 @@ class METSRClient:
     # release the road for co-simulation
     def release_cosim_road(self, roadID):
         msg = {
-                "TYPE": "CTRL_releaseCoSimRoad",
+                "TYPE": "CTRL_releaseCosimRoad",
                 "DATA": [] 
               }
         if not isinstance(roadID, list):
@@ -306,7 +307,7 @@ class METSRClient:
         for i in roadID:
             msg['DATA'].append(i)
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
-        assert res["TYPE"] == "CTRL_releaseCoSimRoad", res["TYPE"]
+        assert res["TYPE"] == "CTRL_releaseCosimRoad", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
         
