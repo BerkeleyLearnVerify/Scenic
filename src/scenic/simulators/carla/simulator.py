@@ -41,8 +41,7 @@ class CarlaSimulator(DrivingSimulator):
     ):
         super().__init__()
         verbosePrint(f"Connecting to CARLA on port {port}")
-        self.client = carla
-        carla.Client(address, port)
+        self.client = carla.Client(address, port)
         self.client.set_timeout(timeout)  # limits networking operations (seconds)
         if carla_map is not None:
             try:
