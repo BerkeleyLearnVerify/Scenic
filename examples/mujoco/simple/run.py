@@ -1,6 +1,6 @@
 import scenic
-from scenic.simulators.mujoco.__archive__.simulator3 import MujocoSimulator
 from scenic.core.scenarios import Scene
+from scenic.simulators.mujoco.__archive__.simulator3 import MujocoSimulator
 
 if __name__ == "__main__":
     SAMPLES = 1

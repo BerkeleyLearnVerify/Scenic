@@ -1,7 +1,6 @@
 import scenic
-from scenic.simulators.mujoco.__archive__.simulator3 import MujocoSimulator
 from scenic.core.scenarios import Scene
-
+from scenic.simulators.mujoco.__archive__.simulator3 import MujocoSimulator
 
 if __name__ == "__main__":
     SAMPLES = 100
@@ -18,11 +17,11 @@ if __name__ == "__main__":
 
         result = simulation.result
 
-        #final_state = result.finalState
-        #if final_state[0].x < 0.0:
+        # final_state = result.finalState
+        # if final_state[0].x < 0.0:
         #    left_falls += 1
-        #elif final_state[0].x > 0.0:
-        #    right_falls += 1 
+        # elif final_state[0].x > 0.0:
+        #    right_falls += 1
 
     print("Left falls: ", left_falls)
     print("Right falls: ", right_falls)

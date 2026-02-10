@@ -1,11 +1,14 @@
 import os
+from pathlib import Path
+
 import numpy as np
 import pytest
+
 import scenic
-from pathlib import Path
 
 try:
     import mujoco
+
     from scenic.simulators.mujoco.simulator import MujocoSimulator
 except ModuleNotFoundError:
     pytest.skip("MuJoCo package not installed.", allow_module_level=True)
@@ -13,6 +16,7 @@ except ModuleNotFoundError:
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 WINDOW_ERR = "Could not open window."
+
 
 # Helper to run a simulation but skip cleanly on CI.
 def simulate_or_skip(simulator, scene):
@@ -24,14 +28,17 @@ def simulate_or_skip(simulator, scene):
         else:
             raise
 
+
 @pytest.fixture(scope="package")
 def getMujocoSimulator():
     """Factory for creating MuJoCo simulators with/without viewer."""
+
     def _getMujocoSimulator(use_viewer=False):
         simulator = MujocoSimulator(use_viewer=use_viewer)
         return simulator
-    
+
     yield _getMujocoSimulator
+
 
 def test_basic_ground(getMujocoSimulator):
     """Test that a basic scene with ground can be created."""
@@ -50,6 +57,7 @@ def test_basic_ground(getMujocoSimulator):
     simulation = simulator.simulate(scene)
     assert simulation is not None
     assert len(simulation.result.trajectory) > 0
+
 
 def test_ground_with_terrain(getMujocoSimulator):
     """Test ground with hills (terrain)."""
@@ -75,6 +83,7 @@ def test_ground_with_terrain(getMujocoSimulator):
     # Verify ground was created.
     assert len(scene.objects) == 3  # 2 hills + 1 ground.
 
+
 @pickle_test
 def test_pickle(getMujocoSimulator):
     """Test that scenarios and scenes can be pickled."""
@@ -88,6 +97,7 @@ def test_pickle(getMujocoSimulator):
     """
     scenario = tryPickling(compileScenic(code))
     tryPickling(sampleScene(scenario))
+
 
 def test_headless_execution(getMujocoSimulator):
     """Test that simulator can run completely headless without viewer."""
@@ -106,37 +116,37 @@ def test_headless_execution(getMujocoSimulator):
     """
     scenario = compileScenic(code)
     scene = sampleScene(scenario)
-    
+
     # This should NOT try to open a viewer window.
     simulation = simulator.simulate(scene)
-    
+
     assert simulation is not None
     assert len(simulation.result.trajectory) == 6  # 5 steps + initial state.
-    
+
+
 def test_amiga_robot_integration(getMujocoSimulator):
     """Integration test: Loads the full Amiga example to verify robot XML assets."""
-    
+
     current_dir = Path(__file__).parent
     repo_root = current_dir.parents[2]
-    
-    example_path = repo_root / "examples" / "mujoco" / "farm-ng" / "example_simulation.scenic"
-    
+
+    example_path = (
+        repo_root / "examples" / "mujoco" / "farm-ng" / "example_simulation.scenic"
+    )
+
     if not example_path.exists():
         pytest.skip(f"Amiga example not found at {example_path}")
 
     # Load the scenario using the 'scenic' library directly.
     # Override use_viewer=False to ensure it runs on CI/Headless.
-    scenario = scenic.scenarioFromFile(
-        str(example_path), 
-        params={"use_viewer": False} 
-    )
-    
+    scenario = scenic.scenarioFromFile(str(example_path), params={"use_viewer": False})
+
     # Generate a scene (this verifies 'amiga.scenic' parses correctly).
     scene, _ = scenario.generate()
-    
+
     # Simulate for a few steps (this verifies 'amiga_base.xml' and physics load correctly).
     simulator = getMujocoSimulator(use_viewer=False)
     simulation = simulator.simulate(scene, maxSteps=5)
-    
+
     assert simulation is not None
-    assert len(simulation.result.trajectory) >= 6 # Initial state + 5 steps.
+    assert len(simulation.result.trajectory) >= 6  # Initial state + 5 steps.
