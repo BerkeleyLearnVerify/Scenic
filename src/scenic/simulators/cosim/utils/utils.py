@@ -51,14 +51,13 @@ def test_mapping(map, test_pairs):
 def within_threshold_to(object, cars) -> bool:
     # print(f"checking distance between obj: {object} and cars {[car.name for car in cars]}")
     object_pos = np.array(object.position)
-    obj_distances = []
+    # obj_distances = []
     for car in cars:
         threshold = 1.2 * object.length
         dist = np.linalg.norm(np.array(car.position) - object_pos)
         if dist < threshold:
             return True
-        obj_distances.append(dist)
-    print(f"Object distances for obj: {object.name}: {obj_distances}")
+        # obj_distances.append(dist)
     return False
 
 
