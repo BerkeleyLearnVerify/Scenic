@@ -205,14 +205,11 @@ class CarlaSimulation(DrivingSimulation):
             blueprint.set_attribute("is_invincible", "False")
 
         # Set up transform
-        loc = utils.scenicToCarlaLocation(
-            obj.position,
+        transform = utils.scenicToCarlaTransform(
+            obj,
             world=self.world,
-            blueprint=obj.blueprint,
             snapToGround=obj.snapToGround,
         )
-        rot = utils.scenicToCarlaRotation(obj.orientation)
-        transform = carla.Transform(loc, rot)
 
         # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:

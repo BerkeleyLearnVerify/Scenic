@@ -20,7 +20,6 @@ Global Parameters:
         is 0.1 seconds.
     snapToGroundDefault (bool): Default value for :prop:`snapToGround` on `CarlaActor` objects.
         Default is ``bool(use2DMap)`` (True when using 2D maps, False when using 3D maps). 
-        
     weather (str or dict): Weather to use for the simulation. Can be either a
         string identifying one of the CARLA weather presets (e.g. 'ClearSunset') or a
         dictionary specifying all the weather parameters (see `carla.WeatherParameters`_).
@@ -147,7 +146,17 @@ class CarlaActor(DrivingObject):
         return self._control
 
     def setPosition(self, pos, elevation):
-        self.carlaActor.set_location(_utils.scenicToCarlaLocation(pos, elevation))
+        """Teleport an agent to the given position without changing heading.
+        Use `SetTransformAction` if you also want to set a new heading.
+        """
+        world = simulation().world
+        transform = _utils.scenicToCarlaTransform(
+            self,
+            world=world,
+            snapToGround=self.snapToGround,
+            pos=pos,
+        )
+        self.carlaActor.set_transform(transform)
 
     def setVelocity(self, vel):
         cvel = _utils.scenicToCarlaVector3D(*vel)

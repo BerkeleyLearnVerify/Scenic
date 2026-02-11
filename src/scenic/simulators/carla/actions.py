@@ -25,15 +25,19 @@ class SetAngularVelocityAction(Action):
         obj.carlaActor.set_angular_velocity(newAngularVel)
 
 
-class SetTransformAction(Action):  # TODO eliminate
+class SetTransformAction(Action):
     def __init__(self, pos, heading):
         self.pos = pos
         self.heading = heading
 
     def applyTo(self, obj, sim):
-        loc = _utils.scenicToCarlaLocation(self.pos, z=obj.elevation)
-        rot = _utils.scenicToCarlaRotation(self.heading)
-        transform = _carla.Transform(loc, rot)
+        transform = _utils.scenicToCarlaTransform(
+            obj,
+            world=sim.world,
+            snapToGround=obj.snapToGround,
+            pos=self.pos,
+        )
+        transform.rotation.yaw = -_math.degrees(self.heading) - 90
         obj.carlaActor.set_transform(transform)
 
 
