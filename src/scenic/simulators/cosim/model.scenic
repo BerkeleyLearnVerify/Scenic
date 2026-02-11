@@ -61,8 +61,10 @@ class NPCCar(Car):
     An NPC car
     """
     carla_actor_flag: False
+    trajectory: None
+    behavior: DriveAvoidingCollisions(target_speed=15, avoidance_threshold=12)
     # Default Carla Behavior
-    behavior: DriveAvoidingCollisions(target_speed=10, avoidance_threshold=12)
+    # behavior: FollowLaneBehavior(self.trajectory)
 
 
     
