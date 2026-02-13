@@ -123,7 +123,8 @@ def centerOnSurface(surfaceRegion, baseOffset, contactTolerance):
         return contactPoint
 
     offset = Vector(0, 0, contactTolerance / 2) - baseOffset
-    surfaceOrientation = surfaceRegion.orientation[contactPoint]
+    elem = network.elementAt(contactPoint) 
+    surfaceOrientation = elem.orientation[contactPoint]    
     return contactPoint + offset.rotatedBy(surfaceOrientation)
 
 ## Standard object types
