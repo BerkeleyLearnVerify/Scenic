@@ -20,9 +20,14 @@ MIN_VECTOR_LENGTH = 0.001
 
 class MujocoSimulator(Simulator):
     """
-    Class that serves as the interface between Scenic and the MuJoCo physics engine.
-    Configures the simulation environment (loading the base XML and setting the viewer preferences).
-    Spawns the individual `MujocoSimulation` instances for each scenario run.
+    Interface between Scenic and the MuJoCo physics engine.
+
+    Configures the simulation environment by loading the base XML and setting viewer parameters.
+    Spawns individual `MujocoSimulation` instances for each scenario run.
+
+    Args:
+        base_xml_file (str): Path to the base MuJoCo XML configuration file.
+        use_viewer (bool, optional): Render or don't render the simulation with the MuJoCo viewer.
     """
 
     def __init__(self, base_xml_file=None, actual=False, use_viewer=True):
@@ -39,18 +44,19 @@ class MujocoSimulator(Simulator):
 
 class MujocoSimulation(Simulation):
     """
-    Manages a single execution of a Scenic scenario within MuJoCo.
-    Handles the lifecycle of a simulation run which includes
-        - Scene Geneeration
-        - XML Injection
-        - Sensor Management
-        - Physics Stepping
-    Uses string manipulation and regex to inject object XML into the
-    base model. Assumes target bodies for cameras/sensors are "leaf"
-    nodes or strictly defined containers. Complex nesting in `get_mujoco_xml`
-    may require careful structure to avoid regex misplacement.
-    """
+    A single simulation run in the MuJoCo physics engine.
 
+    Handles executing a single episode of a generated Scenic scene. 
+    Manages MuJoCo physics state, the optional passive viewer, and 
+    shared renderers for cameras to prevent memory leaks.
+
+    Args:
+        scene (Scene): The generated Scenic scene to simulate.
+        base_xml_file (str, optional): Path to the base MuJoCo XML configuration file. Defaults to None.
+        actual (bool, optional): Whether this simulation is running in actual/real mode. Defaults to False.
+        use_viewer (bool, optional): Whether to render the simulation with the MuJoCo viewer. Defaults to True.
+        **kwargs: Additional keyword arguments passed to the base Simulation class (e.g., maxSteps, name).
+    """
     def __init__(
         self, scene, base_xml_file=None, actual=False, use_viewer=True, **kwargs
     ):
@@ -66,12 +72,7 @@ class MujocoSimulation(Simulation):
         self.shared_renderers = {}
         self.camera_counter = 0
 
-        kwargs.pop("timestep")
-
-        # Default timestep.
-        self.timestep = 0.01
-        if scene.params.get("timestep"):
-            self.timestep = scene.params.get("timestep")
+        self.timestep = kwargs.pop("timestep", None) or scene.params.get("timestep", 0.01)
 
         # Set defaults.
         if "maxSteps" not in kwargs:
@@ -83,7 +84,11 @@ class MujocoSimulation(Simulation):
 
     def createObjectInSimulator(self, obj):
         # Objects are created in setup() through XML templates.
-        pass
+        if hasattr(self, 'model'):
+            raise NotImplementedError(
+                "Dynamic object creation is not currently supported in the MuJoCo simulator. "
+                "All objects must be defined before the simulation starts."
+            )
 
     def setup(self):
         super().setup()
@@ -506,9 +511,20 @@ class MujocoSimulation(Simulation):
             # Orientation
             try:
                 orientation_matrix = body_data.ximat.reshape(3, 3)
-                r = Rotation.from_matrix(orientation_matrix)
-                yaw, pitch, roll = r.as_euler("zyx")
-            except:
+                global_r = Rotation.from_matrix(orientation_matrix)
+
+                parent_orient = getattr(obj, "parentOrientation", None)
+                if parent_orient is not None:
+                    pq = parent_orient.q
+                    parent_r = Rotation.from_quat([pq[1], pq[2], pq[3], pq[0]])
+                    
+                    # Calculate local rotation with local = parent^-1 * global.
+                    local_r = parent_r.inv() * global_r
+                    yaw, pitch, roll = local_r.as_euler("zyx")
+                else:
+                    yaw, pitch, roll = global_r.as_euler("zyx")
+            except Exception as e:
+                print(f"WARNING: Failed to calculate orientation for {obj}: {e}")
                 yaw = pitch = roll = 0.0
 
             return {
