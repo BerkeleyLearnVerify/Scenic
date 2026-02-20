@@ -25,6 +25,9 @@ on:
         default: --no-graphics
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   check-format:
     uses: ./.github/workflows/check-formatting.yml
@@ -34,7 +37,7 @@ jobs:
       fail-fast: true
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15-intel, macos-latest]
         include:
           # Only run slow tests on the latest version of Python
           - python-version: "3.13"
@@ -43,21 +46,21 @@ jobs:
 
     steps:
     - name: Checkout given ref
-      uses: actions/checkout@v3
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
       if: inputs.ref != ''
       with:
         ref: ${{ inputs.ref }}
         persist-credentials: false
 
     - name: Checkout current branch
-      uses: actions/checkout@v3
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
       if: inputs.ref == ''
       with:
         ref: ${{ github.ref }}
         persist-credentials: false
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'

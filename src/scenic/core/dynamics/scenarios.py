@@ -5,6 +5,7 @@ from collections import defaultdict
 import dataclasses
 import functools
 import inspect
+import types
 import weakref
 
 import rv_ltl
@@ -183,8 +184,9 @@ class DynamicScenario(Invocable):
         # Compute time limit now that we know the simulation timestep
         self._elapsedTime = 0
         self._timeLimitInSteps = self._timeLimit
+        timestep = veneer.currentSimulation.timestep
         if self._timeLimitIsInSeconds:
-            self._timeLimitInSteps /= veneer.currentSimulation.timestep
+            self._timeLimitInSteps /= timestep
 
         # create monitors for each requirement used for this simulation
         self._requirementMonitors = [r.toMonitor() for r in self._temporalRequirements]
@@ -209,6 +211,13 @@ class DynamicScenario(Invocable):
             # Initialize monitor coroutines
             for monitor in self._monitors:
                 monitor._start()
+
+        # Prepare recorders
+        simName = veneer.currentSimulation.name
+        globalParams = types.MappingProxyType(veneer._globalParameters)
+        for req in self._recordedExprs:
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
+                recorder.beginRecording(recConfig, simName, timestep, globalParams)
 
     def _step(self):
         """Execute the (already-started) scenario for one time step.
@@ -301,12 +310,24 @@ class DynamicScenario(Invocable):
         veneer.endScenario(self, reason, quiet=quiet)
         super()._stop(reason)
 
-        # Reject if a temporal requirement was not satisfied.
+        # Check if a temporal requirement was not satisfied.
+        rejection = None
         if not quiet:
             for req in self._requirementMonitors:
                 if req.lastValue.is_falsy:
-                    raise RejectSimulationException(str(req))
+                    rejection = str(req)
+                    break
         self._requirementMonitors = None
+
+        # Stop recorders.
+        cancelRecordings = quiet or rejection is not None
+        for req in self._recordedExprs:
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
+                recorder.endRecording(canceled=cancelRecordings)
+
+        # If a temporal requirement was violated, reject (now that we're cleaned up).
+        if rejection is not None:
+            raise RejectSimulationException(rejection)
 
         return reason
 
@@ -333,7 +354,7 @@ class DynamicScenario(Invocable):
             # Check if any sub-scenarios stopped during action execution
             self._subScenarios = [sub for sub in self._subScenarios if sub._isRunning]
 
-    def _evaluateRecordedExprs(self, ty):
+    def _evaluateRecordedExprs(self, ty, step):
         if ty is RequirementType.record:
             place = "_recordedExprs"
         elif ty is RequirementType.recordInitial:
@@ -342,14 +363,17 @@ class DynamicScenario(Invocable):
             place = "_recordedFinalExprs"
         else:
             assert False, "invalid record type requested"
-        return self._evaluateRecordedExprsAt(place)
+        return self._evaluateRecordedExprsAt(place, step)
 
-    def _evaluateRecordedExprsAt(self, place):
+    def _evaluateRecordedExprsAt(self, place, step):
         values = {}
         for rec in getattr(self, place):
-            values[rec.name] = rec.evaluate()
+            value = rec.evaluate()
+            values[rec.name] = value
+            if (recConfig := rec.recConfig) and (recorder := recConfig.recorder):
+                recorder._record(value, step)
         for sub in self._subScenarios:
-            subvals = sub._evaluateRecordedExprsAt(place)
+            subvals = sub._evaluateRecordedExprsAt(place, step)
             values.update(subvals)
         return values
 
@@ -407,9 +431,9 @@ class DynamicScenario(Invocable):
 
         obj._parentScenario = weakref.ref(self)
 
-    def _addRequirement(self, ty, reqID, req, line, name, prob):
+    def _addRequirement(self, ty, reqID, req, line, name, prob, recConfig=None):
         """Save a requirement defined at compile-time for later processing."""
-        preq = PendingRequirement(ty, req, line, prob, name, self._ego)
+        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig)
         self._pendingRequirements.append((reqID, preq))
 
     def _addDynamicRequirement(self, ty, req, line, name):

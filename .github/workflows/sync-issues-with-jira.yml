@@ -3,13 +3,15 @@ on:
   issues:
     types: [opened]
 
+permissions: {}
+
 jobs:
     generate-issue-link:
         runs-on: ubuntu-latest
         steps:
           - name: Get issue details
             id: get_issue_details
-            uses: actions/github-script@v4
+            uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
             with:
               github-token: ${{ secrets.GH_ACCESS_TOKEN }}
               script: |
@@ -17,9 +19,9 @@ jobs:
                 const issueNumber = context.payload.issue.number;
                 const issueTitle = context.payload.issue.title;
                 const issueLink = `https://github.com/${repoName}/issues/${issueNumber}`;
-                console.log(`::set-output name=issueTitle::${issueTitle}`);
-                console.log(`::set-output name=issueLink::${issueLink}`);
-        
+                core.setOutput('issueTitle', issueTitle);
+                core.setOutput('issueLink', issueLink);
+
           - name: Create Jira Ticket
             env:
                 JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
@@ -30,7 +32,7 @@ jobs:
             run: |
                 echo "Issue Title: $ISSUE_TITLE"
                 echo "Issue Link: $ISSUE_LINK"
-            
+
                 curl --request POST \
                 --url "https://$JIRA_DOMAIN.atlassian.net/rest/api/3/issue" \
                 --user "$JIRA_EMAIL:$JIRA_API_TOKEN" \

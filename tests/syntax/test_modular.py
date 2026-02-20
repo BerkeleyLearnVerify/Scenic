@@ -333,6 +333,69 @@ def test_subscenario_until():
     assert tuple(trajectory[3][1]) == (5, 0, 0)
 
 
+def test_subscenario_wait_for_steps():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                wait for 2 steps
+                do Sub(5)
+        scenario Sub(x):
+            ego = new Object at x @ 0
+            terminate after 3 steps
+        """,
+        scenario="Main",
+    )
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 0
+    assert len(trajectory[2]) == len(trajectory[3]) == 1
+    for i in range(2, 4):
+        assert tuple(trajectory[i][0]) == (5, 0, 0)
+
+
+def test_subscenario_wait_for_time():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                wait for 1 seconds
+                do Sub(5)
+        scenario Sub(x):
+            ego = new Object at x @ 0
+            terminate after 3 steps
+        """,
+        scenario="Main",
+    )
+    trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 0
+    assert len(trajectory[2]) == len(trajectory[3]) == 1
+    for i in range(2, 4):
+        assert tuple(trajectory[i][0]) == (5, 0, 0)
+
+
+def test_subscenario_wait_until():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                wait until simulation().currentTime == 2
+                do Sub(5)
+        scenario Sub(x):
+            ego = new Object at x @ 0
+            terminate after 3 steps
+        """,
+        scenario="Main",
+    )
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 0
+    assert len(trajectory[2]) == len(trajectory[3]) == 1
+    for i in range(2, 4):
+        assert tuple(trajectory[i][0]) == (5, 0, 0)
+
+
 def test_subscenario_require_eventually():
     """Test that 'require eventually' must be satisfied before the scenario ends.
 
