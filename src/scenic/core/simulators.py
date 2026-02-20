@@ -573,7 +573,7 @@ class Simulation(abc.ABC):
             scenario._stop("simulation terminated")
 
         # Record finally-recorded values.
-        values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
+        values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal, self.currentTime)
         for name, val in values.items():
             self.records[name] = val
 
@@ -587,7 +587,7 @@ class Simulation(abc.ABC):
         )
         self.result = result
 
-        # self.cleanup()
+        self.cleanup()
 
     def cleanup(self):
         # No need to repeat cleanup if we've already done it
