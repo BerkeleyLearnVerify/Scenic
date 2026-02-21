@@ -185,8 +185,7 @@ if args.seed is not None:
     if args.verbosity >= 1:
         print(f"Using random seed = {args.seed}")
 
-    random.seed(args.seed)
-    numpy.random.seed(args.seed)
+    scenic.setSeed(args.seed)
 
 # Load scenario from file
 if args.verbosity >= 1:

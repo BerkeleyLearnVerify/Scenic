@@ -14,10 +14,18 @@ import abc
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 import enum
+import io
 import math
+import multiprocessing
 import numbers
+import os
+import random
+import sys
 import time
 import types
+import warnings
+
+import numpy
 
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
@@ -32,6 +40,7 @@ from scenic.core.object_types import (
 )
 from scenic.core.requirements import RequirementType
 from scenic.core.serialization import Serializer
+from scenic.core.utils import setSeed
 from scenic.core.vectors import Vector
 
 
@@ -451,8 +460,6 @@ class Simulation(abc.ABC):
         if self.verbosity >= 3:
             print(f"    Time step {self.currentTime}:")
 
-# <<<<<<< HEAD
-
         # Run compose blocks of compositional scenarios
         # (and check if any requirements defined therein fail)
         # N.B. if the top-level scenario completes, we don't immediately end
@@ -573,12 +580,15 @@ class Simulation(abc.ABC):
             scenario._stop("simulation terminated")
 
         # Record finally-recorded values.
-        values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal, self.currentTime)
+        values = self.dynamicScenario._evaluateRecordedExprs(
+            RequirementType.recordFinal, self.currentTime
+        )
         for name, val in values.items():
             self.records[name] = val
 
         # Package up simulation results into a compact object.
         result = SimulationResult(
+            self.name,
             self.trajectory,
             self.actionSequence,
             terminationType,
@@ -1005,6 +1015,7 @@ class SimulationResult:
     """Result of running a simulation.
 
     Attributes:
+        name: Name of the simulation, if any
         trajectory: A tuple giving for each time step the simulation's 'state': by
             default the positions of every object. See `Simulation.currentState`.
         finalState: The last 'state' of the simulation, as above.
@@ -1017,7 +1028,10 @@ class SimulationResult:
             values its expression took during the simulation.
     """
 
-    def __init__(self, trajectory, actions, terminationType, terminationReason, records):
+    def __init__(
+        self, name, trajectory, actions, terminationType, terminationReason, records
+    ):
+        self.name = name
         self.trajectory = tuple(trajectory)
         assert self.trajectory
         self.finalState = self.trajectory[-1]
@@ -1029,3 +1043,260 @@ class SimulationResult:
 
 class TerminatedSimulationException(Exception):
     pass
+
+
+class SimulatorGroup:
+    """A group of simulators for running parallel simulations.
+
+    Args:
+        numWorkers: Number of workers in this group.
+        simulatorClass: The simulator class this group is composed of.
+        simulatorParams: An optional single or list of kwarg dictionaries to be passed as parameters
+            when creating the simulators in this group. If simulatorParams is a list of dicts,
+            ``len(simulatorParams)`` should equal ``numWorkers``.
+        bufferSize: An optional integer indicating the size of the job buffer. If ``None``, the value is
+            set to ``2 * numWorkers``.
+        mute: Whether or not to mute stdOut and stdErr in the worker processes.
+        returnFinalState: Whether or not returned `SimulationResult` objects should contain the ``finalState``
+            property. Set to ``False`` by default to minimize overhead.
+        returnTrajectory: Whether or not returned `SimulationResult` objects should contain the ``trajectry``
+            property. Set to ``False`` by default to minimize overhead.
+    """
+
+    def __init__(
+        self,
+        numWorkers,
+        simulatorClass,
+        simulatorParams=None,
+        bufferSize=None,
+        mute=True,
+        returnFinalState=False,
+        returnTrajectory=False,
+    ):
+        if numWorkers <= 0:
+            raise ValueError("`numWorkers` must be at least 1.")
+        self.numWorkers = numWorkers
+        self.simulatorClass = simulatorClass
+        simulatorParams = simulatorParams if simulatorParams else dict()
+        if isinstance(simulatorParams, dict):
+            self.simulatorParams = [simulatorParams for _ in range(numWorkers)]
+        elif isinstance(simulatorParams, collections.abc.Iterable):
+            if len(simulatorParams) != numWorkers:
+                raise ValueError(
+                    "Length of `simulatorParams` does not match `numWorkers`."
+                )
+            self.simulatorParams = tuple(simulatorParams)
+        else:
+            raise ValueError("`simulatorParams` is not a dict or iterable of dicts.")
+        self.bufferSize = 2 * numWorkers if bufferSize is None else bufferSize
+        if self.bufferSize <= 1:
+            raise ValueError("`bufferSize` must be at least 1.")
+        self.mute = mute
+        self.returnFinalState = returnFinalState
+        self.returnTrajectory = returnTrajectory
+
+    def _jobName(self, jobId):
+        return f"Scene{jobId}"
+
+    def _serializeScene(self, scene, scenario, serialized):
+        from scenic.core.scenarios import Scene
+
+        if serialized:
+            if not isinstance(scene, bytes):
+                raise ValueError(
+                    f"Scene provided has type `{type(scene)}` instead of type `bytes`, but serialized was set to True."
+                )
+            return scene
+        else:
+            if not isinstance(scene, Scene):
+                raise ValueError(
+                    f"Scene provided has type `{type(scene)}` instead of type `Scene`, but serialized was set to False."
+                )
+            return scenario.sceneToBytes(scene)
+
+    def _prepareJob(
+        self, scene, simulateParams, jobId, scenario, serialized, rand_generator
+    ):
+        serializedScene = self._serializeScene(scene, scenario, serialized)
+        jobParams = simulateParams.copy()
+
+        if "name" in jobParams:
+            warnings.warn(
+                "`name` in `simulateParams` is ignored and overwritten by custom name when using `SimulatorGroup`."
+            )
+        jobName = self._jobName(jobId)
+        jobParams["name"] = jobName
+
+        seed = int(rand_generator.integers(2**32))
+
+        return (jobId, serializedScene, jobParams, seed)
+
+    def simulateBatch(self, scenario, scenes, simulateParams=None, serialized=True):
+        """Simulate and return a batch of `SimulationResult` objects.
+
+        Args:
+            scenario: The scenario that the scenes are sampled from.
+            scenes: An iterator of `Scene` objects sampled from ``scenario``.
+            simulateParams: An optional dictionary of params to be passed to simulate internally.
+            serialized: Whether or not ``scenes`` contains serialized scenes.
+        """
+        return tuple(
+            v[1]
+            for v in self.simulateStream(
+                scenario, scenes, simulateParams, serialized, deterministic=True
+            )
+        )
+
+    def simulateStream(
+        self, scenario, scenes, simulateParams=None, serialized=True, deterministic=False
+    ):
+        """Generate a stream of `SimulationResult` objects.
+
+        Args:
+            scenario: The scenario that the scenes are sampled from.
+            scenes: An iterator of `Scene` objects sampled from ``scenario``.
+            simulateParams: An optional dictionary of params to be passed to simulate internally.
+            serialized: Whether or not ``scenes`` contains serialized scenes.
+            deterministic: Whether or not results should be returned in a deterministic order. Setting
+                this to ``False`` can result in decreased latency when accessing results, but the order
+                will not be fixed.
+        """
+        scenes = iter(scenes)
+        simulateParams = simulateParams if simulateParams else dict()
+
+        # Create helper parameters
+        scenarioCreationData = scenario._scenarioCreationData
+        jobQueue = multiprocessing.Queue()
+        resultQueue = multiprocessing.Queue()
+
+        # Initialize random generator
+        rand_generator = numpy.random.default_rng(random.getrandbits(32))
+
+        # Initialize processes
+        processes = []
+        for simulatorParams in self.simulatorParams:
+            params = (
+                scenarioCreationData,
+                self.simulatorClass,
+                simulatorParams,
+                jobQueue,
+                resultQueue,
+                self.mute,
+                self.returnFinalState,
+                self.returnTrajectory,
+            )
+            processes.append(
+                multiprocessing.Process(target=simulatorGroupHelper, args=params)
+            )
+
+        # Job creation utilities
+        remainingJobs = 0
+        jobId = 0
+
+        def putJob(scene):
+            nonlocal jobId
+            nonlocal remainingJobs
+            preparedJob = self._prepareJob(
+                scene,
+                simulateParams,
+                jobId,
+                scenario,
+                serialized,
+                rand_generator=rand_generator,
+            )
+            jobQueue.put(preparedJob)
+            jobId += 1
+            remainingJobs += 1
+
+        # Initialized result management functions
+        lastReturnedJob = 0
+        resultsDict = {}
+
+        def getNextResult():
+            if not deterministic:
+                return resultQueue.get()
+
+            nonlocal lastReturnedJob
+            while True:
+                if lastReturnedJob in resultsDict:
+                    returnResult = (lastReturnedJob, resultsDict.pop(lastReturnedJob))
+                    lastReturnedJob += 1
+                    return returnResult
+
+                jobId, nextResult = resultQueue.get()
+                resultsDict[jobId] = nextResult
+
+        try:
+            # Start processes
+            for process in processes:
+                process.start()
+
+            # Initially saturate job buffer
+            for _ in range(self.bufferSize):
+                if scene := next(scenes, None):
+                    putJob(scene)
+
+            # Retrieve results and replenish buffer
+            while remainingJobs:
+                simulationResult = getNextResult()
+                remainingJobs -= 1
+
+                if scene := next(scenes, None):
+                    putJob(scene)
+
+                yield simulationResult
+
+        finally:
+            # Close processes and queues
+            for process in processes:
+                process.terminate()
+
+            jobQueue.close()
+            resultQueue.close()
+
+
+def simulatorGroupHelper(
+    scenarioCreationData,
+    simulatorClass,
+    simulatorParams,
+    jobQueue,
+    resultQueue,
+    mute,
+    returnFinalState,
+    returnTrajectory,
+):
+    if mute:
+        sys.stdout = open(os.devnull, "w")
+        sys.stderr = open(os.devnull, "w")
+
+    from scenic.syntax.translator import _scenarioFromStream
+
+    scenario = _scenarioFromStream(
+        stream=io.BytesIO(scenarioCreationData["streamLines"]),
+        compileOptions=scenarioCreationData["compileOptions"],
+        filename=scenarioCreationData["filename"],
+        scenario=scenarioCreationData["scenario"],
+        path=scenarioCreationData["path"],
+        _cacheImports=False,
+    )
+
+    simulator = simulatorClass(**simulatorParams)
+
+    while True:
+        jobId, serializedScene, simulateParams, seed = jobQueue.get()
+        setSeed(seed)
+
+        scene = scenario.sceneFromBytes(serializedScene, verify=False)
+        simulation = simulator.simulate(scene, **simulateParams)
+
+        if simulation:
+            simulationResult = simulation.result
+            simulationResult.actions = None
+            if not returnFinalState:
+                simulationResult.finalState = None
+            if not returnTrajectory:
+                simulationResult.trajectory = None
+        else:
+            simulationResult = None
+
+        resultQueue.put((jobId, simulationResult))

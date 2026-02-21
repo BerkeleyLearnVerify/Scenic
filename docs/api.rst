@@ -40,6 +40,13 @@ the sampled values for all the global parameters and objects in the scene from t
 
 	ego has foo = 2.083099362726706
 
+Utilities
+---------
+
+Scenic provides top level utility functions for functions like setting Scenic's random seed.
+
+.. autofunction:: scenic.setSeed
+
 Running Dynamic Simulations
 ---------------------------
 
