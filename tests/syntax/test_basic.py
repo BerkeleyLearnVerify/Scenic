@@ -172,6 +172,17 @@ def test_mutate_nonobject():
         )
 
 
+def test_mutate_occupiedSpace():
+    scenario = compileScenic(
+        """
+        ego = new Object at (0, 0, 0)
+        mutate ego
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert tuple(ego.position) == tuple(ego.occupiedSpace.mesh.center_mass)
+
+
 def test_verbose():
     for verb in range(4):
         setDebuggingOptions(verbosity=verb)
