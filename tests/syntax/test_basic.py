@@ -175,7 +175,7 @@ def test_mutate_nonobject():
 def test_mutate_occupiedSpace():
     scenario = compileScenic(
         """
-        ego = new Object at (0, 0, 0)
+        ego = new Object at (1,2,3), with foo Range(1,2)
         mutate ego
         """
     )

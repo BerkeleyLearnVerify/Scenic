@@ -1398,8 +1398,9 @@ class Object(OrientedPoint):
             self.width,
             self.length,
             self.height,
+            self.mutationScale,
         )
-        return not any(needsSampling(v) for v in deps) and not self.mutator
+        return not any(needsSampling(v) for v in deps) and self.mutationScale == 0
 
     @cached_property
     def boundingBox(self):
