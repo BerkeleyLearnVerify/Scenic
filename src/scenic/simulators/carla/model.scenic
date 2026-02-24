@@ -147,9 +147,10 @@ class CarlaActor(DrivingObject):
 
     def setPosition(self, pos, elevation):
         """Teleport an agent to the given position without changing heading.
-        Use `SetTransformAction` if you also want to set a new heading.
+        Use ``SetTransformAction`` if you also want to set a new heading.
         """
         world = simulation().world
+
         transform = _utils.scenicToCarlaTransform(
             self,
             world=world,
