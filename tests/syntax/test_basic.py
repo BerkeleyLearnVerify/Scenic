@@ -67,8 +67,10 @@ def test_no_ego():
 
 def test_new_in_list_expression():
     compileScenic(
-        "objs = [new Object with allowCollisions True]\n"
-        "ego = new Object with allowCollisions True"
+        """
+        objs = [new Object with allowCollisions True]
+        ego = new Object with allowCollisions True
+        """
     )
 
 
