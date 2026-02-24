@@ -156,7 +156,6 @@ def test_intersection(cached_maps, use2DMap):
         assert any(man.connectingLane is lane for man in maneuvers)
 
 
-# Tests end here
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_curb(cached_maps, use2DMap):
 
