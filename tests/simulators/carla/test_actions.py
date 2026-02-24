@@ -82,7 +82,7 @@ def test_throttle(getCarlaSimulator):
 
         ego = new Car at (369, -326), with behavior DriveWithThrottle
         record ego.speed as CarSpeed
-        terminate after 5 steps
+        terminate after 8 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
