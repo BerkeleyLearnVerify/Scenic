@@ -349,7 +349,7 @@ class Pedestrian(DrivingObject):
     viewAngle: 90 deg
     width: 0.75
     length: 0.75
-    height: 1.8
+    height: 2.0
     color: [0, 0.5, 1]
 
 ## Stub sensor implementations
