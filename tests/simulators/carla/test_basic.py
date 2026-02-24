@@ -22,13 +22,15 @@ def test_map_param_parse(getAssetPath):
 
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_basic(loadLocalScenario, use2DMap):
-    scenario = loadLocalScenario("basic.scenic", mode2D=use2DMap)
+    name = "basic.scenic" if use2DMap else "basic_3d.scenic"
+    scenario = loadLocalScenario(name, mode2D=use2DMap)
     scenario.generate(maxIterations=1000)
 
 
 @pytest.mark.parametrize("use2DMap", [True, False])
 def test_car_created(loadLocalScenario, use2DMap):
-    scenario = loadLocalScenario("basic.scenic", mode2D=use2DMap)
+    name = "basic.scenic" if use2DMap else "basic_3d.scenic"
+    scenario = loadLocalScenario(name, mode2D=use2DMap)
     scene = sampleScene(scenario, maxIterations=1000)
     car = scene.egoObject
     assert car
