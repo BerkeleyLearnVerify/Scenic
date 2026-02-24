@@ -1399,7 +1399,7 @@ class Object(OrientedPoint):
             self.length,
             self.height,
         )
-        return not any(needsSampling(v) for v in deps)
+        return not any(needsSampling(v) for v in deps) and not self.mutator
 
     @cached_property
     def boundingBox(self):

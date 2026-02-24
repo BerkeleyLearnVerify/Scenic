@@ -180,7 +180,7 @@ def test_mutate_occupiedSpace():
         """
     )
     ego = sampleEgo(scenario)
-    assert tuple(ego.position) == tuple(ego.occupiedSpace.mesh.center_mass)
+    assert tuple(ego.position) == pytest.approx(tuple(ego.occupiedSpace.mesh.center_mass))
 
 
 def test_verbose():
