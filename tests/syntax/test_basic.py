@@ -56,6 +56,28 @@ def test_ego_nonobject():
         compileScenic("ego = dict()")
 
 
+def test_ego_subclass_point():
+    with pytest.raises(TypeError):
+        compileScenic(
+            """
+            class Foo(Point):
+                pass
+            ego = new Foo
+        """
+        )
+
+
+def test_ego_subclass_orientedpoint():
+    with pytest.raises(TypeError):
+        compileScenic(
+            """
+            class Bar(OrientedPoint):
+                pass
+            ego = new Bar
+        """
+        )
+
+
 def test_ego_undefined():
     with pytest.raises(InvalidScenarioError):
         compileScenic("x = ego\n" "ego = new Object")
