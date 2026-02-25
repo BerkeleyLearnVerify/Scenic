@@ -92,7 +92,7 @@ def test_elements_at(cached_maps, use2DMap):
         cached_maps,
         """
         ego = new Car
-        posTuple = (ego.position.x, ego.position.y)
+        posTuple = (ego.position.x, ego.position.y, ego.position.z)  # include z for 3D maps
         # functions should accept Points, Vectors, and tuples
         for spot in (ego, ego.position, posTuple):
             param element = network.elementAt(spot)
