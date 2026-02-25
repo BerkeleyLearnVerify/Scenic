@@ -162,6 +162,32 @@ def test_behavior_list_actions():
     assert tuple(actions) == ((1, 4, 9), (5,))
 
 
+def test_behavior_take_none():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take None
+            take 7
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 7)
+
+
+def test_behavior_take_empty_tuple():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take ()
+            take 7
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 7)
+
+
 # Various errors
 
 
@@ -758,6 +784,22 @@ def test_behavior_invoke_multiple():
         )
 
 
+def test_behavior_tuple_invalid():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take 1
+        behavior Bar():
+            take 2
+        behavior Baz():
+            do (Foo(), Bar())
+        ego = new Object with behavior Baz
+        """
+    )
+    with pytest.raises(TypeError):
+        sampleEgoActions(scenario, maxSteps=1)
+
+
 def test_behavior_calls():
     """Ordinary function calls inside behaviors should still work."""
     scenario = compileScenic(
@@ -1046,6 +1088,42 @@ def test_invariant_rejection_shuffle():
         result = sampleResultFromScene(scene, maxSteps=1)
         assert result is not None
         assert result.records["test_val"] == (1, 0)
+
+
+def test_precondition_multiline():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            precondition: (
+                self.position.x > 0
+                and self.position.y == 0
+            )
+            take self.position.x
+        ego = new Object at Range(-1, 1) @ 0, with behavior Foo
+        """
+    )
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=1, maxScenes=50)
+        assert actions[0] > 0
+
+
+def test_invariant_multiline():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            invariant: (
+                self.position.x > 0
+                and self.position.y == 0
+            )
+            while True:
+                take self.position.x
+                self.position -= Range(0, 2) @ 0
+        ego = new Object at 1 @ 0, with behavior Foo
+        """
+    )
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
+        assert actions[1] > 0
 
 
 # Random selection of sub-behaviors
@@ -1790,6 +1868,27 @@ def test_interrupt_except_else():
     )
     actions = sampleEgoActions(scenario, maxSteps=7)
     assert tuple(actions) == (1, 2, 3, 1, 1, 5, None)
+
+
+def test_interrupt_invariant_after_actions():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            invariant: ego.bar == 0
+            try:
+                for i in range(3):
+                    take 1
+            interrupt when simulation().currentTime == 1:
+                take 2
+                ego.bar = 1
+            except InvariantViolation:
+                ego.bar = 0
+                take 4
+        ego = new Object with bar 0, with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 2, 4, None)
 
 
 # Nesting
