@@ -9,5 +9,6 @@ ego = new Car on ego.lane.predecessor
 
 new Pedestrian on visible sidewalk
 
-third = new Car on visible ego.road
+# Use oppositeLaneGroup to avoid flaky rejection sampling for the apparent-heading check in 3D.
+third = new Car on visible ego.oppositeLaneGroup
 require abs((apparent heading of third) - 180 deg) <= 30 deg
