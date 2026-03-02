@@ -16,14 +16,11 @@ from collections import deque
 import math
 
 import numpy as np
+from shapely.geometry import LineString, MultiPoint, Point as ShapelyPoint
 
+from scenic.core.regions import CircularRegion, PolylineRegion
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.roads import ManeuverType
-from shapely.geometry import Point as ShapelyPoint
-from shapely.geometry import LineString
-from shapely.geometry import MultiPoint
-from scenic.core.regions import PolylineRegion
-from scenic.core.regions import CircularRegion
 
 
 class PIDLongitudinalController:
@@ -105,7 +102,7 @@ class PIDLateralController:
 
         if opposite_traffic:
             cte = -1 * cte
-        
+
         error = cte
         delta_error = error - self.last_error
         self.PTerm = self.Kp * error
@@ -124,7 +121,8 @@ class PIDLateralController:
         self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
 
         return np.clip(self.output, -1, 1)
-    
+
+
 class PurePursuitLateralController:
     """
     Pure Pursuit Controller
@@ -137,14 +135,14 @@ class PurePursuitLateralController:
         clwbr: car length to wheel base ratio
     """
 
-    def __init__(self, cl, ld = 7, dt = 0.1, clwbr = 0.65):
+    def __init__(self, cl, ld=7, dt=0.1, clwbr=0.65):
         """
         Todo:
             find the actual wheelbase and update the default number
                 - it says car length is 4.5 meters, but im not sure if thats wheelbase
             experiment with the lookahead distance to see what works the best
         """
-        self.dt = dt 
+        self.dt = dt
         self.wb = cl * clwbr
         self.clwbr = clwbr
         self.ld = ld
@@ -166,23 +164,26 @@ class PurePursuitLateralController:
                 -It is not listed in the documentation
 
 
-            #takes current position and the path 
-            #add plot 
+            #takes current position and the path
+            #add plot
         """
         # Define variables
         lookahead_distance = self.ld
-        circlular_region = CircularRegion(ego.position, lookahead_distance, resolution = 64)
+        circlular_region = CircularRegion(ego.position, lookahead_distance, resolution=64)
         polyline_circle = circlular_region.boundary
-        shapely_boundary = polyline_circle.lineString # extract shapely circle and shapely path
+        shapely_boundary = (
+            polyline_circle.lineString
+        )  # extract shapely circle and shapely path
         line = input_trajectory.lineString
-        distance = input_trajectory.lineString.project(ShapelyPoint(ego.position.coordinates[0], ego.position.coordinates[1]))
+        distance = input_trajectory.lineString.project(
+            ShapelyPoint(ego.position.coordinates[0], ego.position.coordinates[1])
+        )
         coords = []
-        try: 
-            coords = list(line.coords) # lineString case
+        try:
+            coords = list(line.coords)  # lineString case
         except NotImplementedError:
-            for geom in line.geoms: # multilinestring case
+            for geom in line.geoms:  # multilinestring case
                 coords.extend(list(geom.coords))
-        
 
         # Splitting the path into two parts, the part in front of the ego and behind it
 
@@ -191,16 +192,39 @@ class PurePursuitLateralController:
             pd = line.project(ShapelyPoint(p[0], p[1]))
             if pd == distance:
                 split_trajectory = [
-                    LineString(coords[:j+1]),
-                    LineString(coords[j:])]
+                    LineString(coords[: j + 1]),
+                    LineString(coords[j:]),
+                ]  # shapely.errors.GEOSException: IllegalArgumentException: point array must contain 0 or >1 elements
                 break
             if pd > distance:
                 cp = line.interpolate(distance)
                 split_trajectory = [
                     LineString(coords[:j] + [(cp.x, cp.y, 0)]),
-                    LineString([(cp.x, cp.y, 0)] + coords[j:])]
+                    LineString([(cp.x, cp.y, 0)] + coords[j:]),
+                ]
                 break
 
+        # try:
+        #     split_trajectory = []
+        #     for j, p in enumerate(coords):
+        #         pd = line.project(ShapelyPoint(p[0], p[1]))
+        #         if pd == distance:
+        #             split_trajectory = [
+        #                 LineString(coords[:j+1]),
+        #                 LineString(coords[j:])]
+        #             break
+        #         if pd > distance:
+        #             cp = line.interpolate(distance)
+        #             split_trajectory = [
+        #                 LineString(coords[:j] + [(cp.x, cp.y, 0)]),
+        #                 LineString([(cp.x, cp.y, 0)] + coords[j:])]
+        #             break
+        # except Exception  as e:  # ValueError is the closest built-in to "illegal argument" in Python
+        #     print(f"Illegal argument encountered while splitting trajectory: {e}")
+        #     steering_angle = np.arctan((2 * self.wb * math.sin(self.past_cte)) / self.ld)
+        #     rv = np.clip((steering_angle / np.radians(35)), -1, 1)
+
+        #     return rv
 
         # Get intersection points of the circle with the second half of the path
 
@@ -214,31 +238,36 @@ class PurePursuitLateralController:
             candidate_points = []
         assert all(isinstance(p, ShapelyPoint) for p in candidate_points)
 
-
         # Find lookahead point by traversing the path
 
         if len(candidate_points) == 0:
-            # print("No candidate point found") 
+            # print("No candidate point found")
             # Sometimes no point is found, this is an error
             # In that case, dont touch steering wheel
             # Pure Pursuit is a self correcting algorithm so it should be fine
             cte = self.past_cte
         else:
-            candidate_points.sort(key=lambda point: split_trajectory[1].project(ShapelyPoint(point.x, point.y)))
+            candidate_points.sort(
+                key=lambda point: split_trajectory[1].project(
+                    ShapelyPoint(point.x, point.y)
+                )
+            )
             lookahead_point = candidate_points[0]
 
-
             # Find the theta value/cte to feed to the pure pursuit algorithm
-            
-            theta = math.atan2(lookahead_point.y - ego.position.coordinates[1], lookahead_point.x - ego.position.coordinates[0])
-            cte = (ego.heading + math.pi/2) - theta
+
+            theta = math.atan2(
+                lookahead_point.y - ego.position.coordinates[1],
+                lookahead_point.x - ego.position.coordinates[0],
+            )
+            cte = (ego.heading + math.pi / 2) - theta
             self.past_cte = cte
-        
+
         if opposite_traffic:
             cte = -1 * cte
 
         # perform pure pursuit calculation and normalize it from -1 to 1
         steering_angle = np.arctan((2 * self.wb * math.sin(cte)) / self.ld)
-        rv = steering_angle / self.max_steering_angle
+        rv = np.clip((steering_angle / np.radians(35)), -1, 1)
 
         return rv
