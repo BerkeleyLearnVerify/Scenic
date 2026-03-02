@@ -4,6 +4,7 @@ from scenic.core.simulators import Simulation, Simulator
 from scenic.domains.driving.controllers import (
     PIDLateralController,
     PIDLongitudinalController,
+    PurePursuitLateralController,
 )
 
 
@@ -42,6 +43,16 @@ class DrivingSimulation(Simulation):
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
             )
             lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getPurePursuitControllers(self, agent, cl=4.5, ld=7, clwbr=0.65):
+        dt = self.timestep
+
+        lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = PurePursuitLateralController(
+            cl=agent.length, ld=7, dt=dt, clwbr=0.65
+        )
+
         return lon_controller, lat_controller
 
     def getTurningControllers(self, agent):

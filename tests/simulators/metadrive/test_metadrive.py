@@ -9,6 +9,7 @@ try:
 except ModuleNotFoundError:
     pytest.skip("MetaDrive package not installed", allow_module_level=True)
 
+from scenic.core.regions import PolylineRegion
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
@@ -58,6 +59,33 @@ def test_throttle(getMetadriveSimulator):
     simulation = simulator.simulate(scene)
     speeds = simulation.result.records["CarSpeed"]
     assert speeds[len(speeds) // 2][1] < speeds[-1][1]
+
+
+def test_steering(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town05")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        #place at a certain point
+
+        ego = new Car with behavior FollowLaneBehavior(target_speed = 10),
+            at -195 @ -110
+       
+        record distance from ego to ego.lane.centerline as laneError
+        terminate after 30 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    carPositions = simulation.result.records["laneError"]
+    laneOffset = []
+    for carPosition in carPositions:
+        laneOffset.append(carPosition[1])
+
+    assert max(laneOffset) < 2
 
 
 @pytest.mark.xfail(
@@ -128,6 +156,57 @@ def test_pedestrian_movement(getMetadriveSimulator):
     initialPos = simulation.result.records["InitialPos"]
     finalPos = simulation.result.records["FinalPos"]
     assert initialPos != finalPos
+
+
+def test_follow_trajectory(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town05")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        behavior FollowCurrentTrajectory():
+            do FollowTrajectoryBehavior(target_speed=10, trajectory=[self.lane])
+
+        ego = new Car with behavior FollowCurrentTrajectory(),
+            at -195 @ -110
+
+        record distance from ego to ego.lane.centerline as laneError
+        terminate after 20 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    laneErrors = simulation.result.records["laneError"]
+    laneOffset = [err[1] for err in laneErrors]
+    assert max(laneOffset) < 2
+
+
+def test_pid_lane_following(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town05")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        behavior PIDFollowLane():
+            lon_controller, lat_controller = simulation().getLaneFollowingControllers(self)
+            do FollowLaneBehavior(target_speed=10, lon_controller=lon_controller, lat_controller=lat_controller)
+
+        ego = new Car with behavior PIDFollowLane(),
+            at -195 @ -110
+
+        record distance from ego to ego.lane.centerline as laneError
+        terminate after 30 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    laneErrors = simulation.result.records["laneError"]
+    laneOffset = [err[1] for err in laneErrors]
+    assert max(laneOffset) < 2
 
 
 def test_initial_velocity_movement(getMetadriveSimulator):
