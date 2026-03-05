@@ -4,14 +4,15 @@
 - Measures dimensions for all ``vehicle.*``, ``walker.pedestrian.*``, and
   ``static.prop.*`` blueprints.
 - Categorizes blueprints for Scenic.
-- Writes snapshots/blueprints_<server_version>.json with:
+- Writes snapshots/blueprints_<server_version>.json.gz with:
   {"server_version", "ids" (by category), "dims" (per blueprint id)}.
 
 Requires: CARLA_ROOT, HOST/PORT reachable.
-Usage: python tools/carla/make_snapshot.py
-Output: tools/carla/snapshots/blueprints_<ver>.json
+Usage: python tools/carla/Snapshot_blueprints.py
+Output: tools/carla/snapshots/blueprints_<server_version>.json.gz
 """
 
+import gzip
 import json
 import os
 from pathlib import Path
@@ -262,8 +263,8 @@ def main():
             "ids": ids,
             "dims": dims,
         }
-        out_path = SNAPSHOT_DIR / f"blueprints_{server_version}.json"
-        with open(out_path, "w", encoding="utf-8") as f:
+        out_path = SNAPSHOT_DIR / f"blueprints_{server_version}.json.gz"
+        with gzip.open(out_path, "wt", encoding="utf-8") as f:
             json.dump(out_obj, f, indent=2)
         print(f"[OK] Wrote {out_path}")
 
