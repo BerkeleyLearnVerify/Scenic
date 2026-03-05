@@ -13,17 +13,32 @@ from metadrive.obs.observation_base import DummyObservation
 from scenic.core.vectors import Vector
 
 
-def calculateFilmSize(sumo_map_boundary, scaling=5, margin_factor=1.1):
-    """Calculates the film size for rendering based on the map's boundary."""
-    # Calculate the width and height based on the sumo_map_boundary
+def calculateFilmSize(
+    sumo_map_boundary,
+    scaling=5,
+    margin_factor=1.1,
+    min_extent=200.0,
+):
+    """Compute film_size (width, height) in pixels for MetaDrive's top-down renderer.
+
+    The SUMO convBoundary gives the map extent (xmin, ymin, xmax, ymax) in meters.
+    If one dimension is zero (e.g. a single straight road), clamp it to min_extent
+    to avoid a zero-width/height film size.
+    """
     xmin, ymin, xmax, ymax = sumo_map_boundary
     width = xmax - xmin
     height = ymax - ymin
 
-    # Apply margin and convert to pixels
+    # Clamp zero-width/height maps (e.g. straight roads) to a reasonable minimum.
+    width = max(width, min_extent)
+    height = max(height, min_extent)
+
     adjusted_width = width * margin_factor
     adjusted_height = height * margin_factor
-    return int(adjusted_width * scaling), int(adjusted_height * scaling)
+
+    film_w = int(adjusted_width * scaling)
+    film_h = int(adjusted_height * scaling)
+    return film_w, film_h
 
 
 def extractNetOffsetAndBoundary(sumo_map_path):

@@ -37,6 +37,7 @@ from scenic.core.distributions import (
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.serialization import deterministicHash
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
@@ -956,6 +957,11 @@ class Network:
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+        self._nominalDirElems = self.intersections + self.roads + self.shoulders
+        self._topLevelElements = (
+            self.intersections + self.roads + self.shoulders + self.sidewalks
+        )
+        # NOTE: Order matters here; elementAt resolves in this sequence.
 
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
@@ -963,8 +969,8 @@ class Network:
         :meta private:
         """
         point = _toVector(point)
-        road = self.roadAt(point)
-        return 0 if road is None else road.orientation[point]
+        elem = self.findPointIn(point, self._nominalDirElems, reject=False)
+        return elem.orientation[point] if elem is not None else 0
 
     #: File extension for cached versions of processed networks.
     pickledExt = ".snet"
@@ -981,7 +987,7 @@ class Network:
 
         :meta private:
         """
-        return 33
+        return 34
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1049,21 +1055,34 @@ class Network:
             data = f.read()
         digest = hashlib.blake2b(data).digest()
 
+        # Hash the map options as well so changing them invalidates the cache.
+        optionsDigest = deterministicHash(kwargs, digest_size=8)
+
         # By default, use the pickled version if it exists and is not outdated
         pickledPath = path.with_suffix(cls.pickledExt)
         if useCache and pickledPath.exists():
             try:
-                return cls.fromPickle(pickledPath, originalDigest=digest)
+                return cls.fromPickle(
+                    pickledPath,
+                    originalDigest=digest,
+                    optionsDigest=optionsDigest,
+                )
             except pickle.UnpicklingError:
                 verbosePrint("Unable to load cached network (old format or corrupted).")
             except cls.DigestMismatchError:
-                verbosePrint("Cached network does not match original file; ignoring it.")
+                verbosePrint(
+                    "Cached network does not match original file or map options; ignoring it."
+                )
 
         # Not using the pickled version; parse the original file based on its extension
         network = handlers[ext](path, **kwargs)
         if writeCache:
             verbosePrint(f"Caching road network in {cls.pickledExt} file.")
-            network.dumpPickle(path.with_suffix(cls.pickledExt), digest)
+            network.dumpPickle(
+                path.with_suffix(cls.pickledExt),
+                digest,
+                optionsDigest=optionsDigest,
+            )
         return network
 
     @classmethod
@@ -1107,11 +1126,12 @@ class Network:
         return network
 
     @classmethod
-    def fromPickle(cls, path, originalDigest=None):
+    def fromPickle(cls, path, originalDigest=None, optionsDigest=None):
         startTime = time.time()
         verbosePrint("Loading cached version of road network...")
 
         with open(path, "rb") as f:
+            # Version field
             versionField = f.read(4)
             if len(versionField) != 4:
                 raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
@@ -1121,6 +1141,8 @@ class Network:
                     f"{cls.pickledExt} file is too old; "
                     "regenerate it from the original map"
                 )
+
+            # Digest of the original map file
             digest = f.read(64)
             if len(digest) != 64:
                 raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
@@ -1129,6 +1151,18 @@ class Network:
                     f"{cls.pickledExt} file does not correspond to the original map; "
                     " regenerate it"
                 )
+
+            # Digest of the map options used to generate this cache
+            cachedOptionsDigest = f.read(8)
+            if len(cachedOptionsDigest) != 8:
+                raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
+            if optionsDigest and optionsDigest != cachedOptionsDigest:
+                raise cls.DigestMismatchError(
+                    f"{cls.pickledExt} file does not correspond to the current "
+                    "map options; regenerate it"
+                )
+
+            # Remaining bytes are the compressed pickle of the Network
             with gzip.open(f) as gf:
                 try:
                     network = pickle.load(gf)  # invokes __setstate__ below
@@ -1162,15 +1196,19 @@ class Network:
             for maneuver in elem.maneuvers:
                 reconnect(maneuver)
 
-    def dumpPickle(self, path, digest):
+    def dumpPickle(self, path, digest, optionsDigest):
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
         version = struct.pack("<I", self._currentFormatVersion())
         data = pickle.dumps(self)
+
         with open(path, "wb") as f:
             f.write(version)  # uncompressed in case we change compression schemes later
-            f.write(digest)  # uncompressed for quick lookup
+            f.write(digest)  # digest of original map file
+            f.write(optionsDigest)  # digest of map options
+
+            # The rest of the file is a gzip-compressed pickle of the Network.
             with gzip.open(f, "wb") as gf:
                 gf.write(data)
 
@@ -1230,15 +1268,13 @@ class Network:
     def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
         """Get the highest-level `NetworkElement` at a given point, if any.
 
-        If the point lies in an `Intersection`, we return that; otherwise if the point
-        lies in a `Road`, we return that; otherwise we return :obj:`None`, or reject the
-        simulation if **reject** is true (default false).
+        If the point lies in an element, return it.
+        Otherwise, if the point lies within ``self.tolerance`` of an element, return the first
+        match using this priority order: Intersection → Road → Shoulder → Sidewalk.
+        If nothing matches, return `None` (or reject if ``reject=True``).
         """
         point = _toVector(point)
-        intersection = self.intersectionAt(point)
-        if intersection is not None:
-            return intersection
-        return self.roadAt(point, reject=reject)
+        return self.findPointIn(point, self._topLevelElements, reject)
 
     @distributionMethod
     def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
@@ -1281,21 +1317,26 @@ class Network:
         return self.findPointIn(point, self.intersections, reject)
 
     @distributionMethod
+    def sidewalkAt(self, point: Vectorlike, reject=False) -> Union[Sidewalk, None]:
+        """Get the `Sidewalk` at a given point."""
+        return self.findPointIn(point, self.sidewalks, reject)
+
+    @distributionMethod
+    def shoulderAt(self, point: Vectorlike, reject=False) -> Union[Shoulder, None]:
+        """Get the `Shoulder` at a given point."""
+        return self.findPointIn(point, self.shoulders, reject)
+
+    @distributionMethod
     def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[Orientation]:
         """Get the nominal traffic direction(s) at a given point, if any.
 
         There can be more than one such direction in an intersection, for example: a car
         at a given point could be going straight, turning left, etc.
         """
-        inter = self.intersectionAt(point)
-        if inter is not None:
-            return inter.nominalDirectionsAt(point)
-        road = self.roadAt(point, reject=reject)
-        if road is not None:
-            return road.nominalDirectionsAt(point)
-        return ()
+        elem = self.findPointIn(point, self._nominalDirElems, reject)
+        return elem.nominalDirectionsAt(point) if elem is not None else ()
 
-    def show(self, labelIncomingLanes=False):
+    def show(self, labelIncomingLanes=False, showCurbArrows=False):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
@@ -1304,6 +1345,7 @@ class Network:
         Args:
             labelIncomingLanes (bool): Whether to label the incoming lanes of
                 intersections with their indices in ``incomingLanes``.
+            showCurbArrows (bool): Whether to draw arrows along the curb to show orientation
         """
         import matplotlib.pyplot as plt
 
@@ -1335,6 +1377,30 @@ class Network:
                     units="dots",
                     color="#A0A0A0",
                 )
+
+            if showCurbArrows:
+                for lg in road.laneGroups:
+                    curb = lg.curb
+                    if curb.length >= 40:
+                        cpts = curb.pointsSeparatedBy(20)
+                    else:
+                        cpts = [curb.pointAlongBy(0.5, normalized=True)]
+                    chs = [curb.orientation[pt].yaw for pt in cpts]
+                    cx, cy, _ = zip(*cpts)
+                    cu = [math.cos(h + (math.pi / 2)) for h in chs]
+                    cv = [math.sin(h + (math.pi / 2)) for h in chs]
+                    plt.quiver(
+                        cx,
+                        cy,
+                        cu,
+                        cv,
+                        pivot="middle",
+                        headlength=4.5,
+                        scale=0.06,
+                        units="dots",
+                        color="#606060",
+                    )
+
         for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=":", color="#A0A0A0")
         self.intersectionRegion.show(plt, style="g")
