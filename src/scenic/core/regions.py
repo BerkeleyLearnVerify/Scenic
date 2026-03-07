@@ -13,7 +13,7 @@ import math
 import random
 import warnings
 
-import fcl
+import coal
 import numpy
 import scipy
 import shapely
@@ -758,16 +758,26 @@ class UndefinedSamplingException(Exception):
 ###################################################################################################
 
 
-class SurfaceCollisionTrimesh(trimesh.Trimesh):
-    """A Trimesh object that always returns non-convex.
+def _meshBVH(mesh):
+    """Build a Coal BVH collision geometry from a trimesh mesh."""
+    bvh = coal.BVHModelOBBRSS()
+    faces = numpy.asarray(mesh.faces, dtype=numpy.int64)
+    bvh.beginModel(len(faces), len(mesh.vertices))
+    bvh.addVertices(numpy.asarray(mesh.vertices, dtype=numpy.float64))
+    bvh.addTriangles(faces)
+    bvh.endModel()
+    return bvh
 
-    Used so that fcl doesn't find collision without an actual surface
-    intersection.
-    """
 
-    @property
-    def is_convex(self):
-        return False
+def _meshesCollide(mesh_a, mesh_b):
+    """Check if two trimesh meshes have colliding surfaces using Coal."""
+    bvh_a = _meshBVH(mesh_a)
+    bvh_b = _meshBVH(mesh_b)
+    t = coal.Transform3s()
+    req = coal.CollisionRequest()
+    res = coal.CollisionResult()
+    coal.collide(bvh_a, t, bvh_b, t, req, res)
+    return res.isCollision()
 
 
 class MeshRegion(Region):
@@ -1217,21 +1227,25 @@ class MeshVolumeRegion(MeshRegion):
                     return False
 
             # PASS 3
-            # Use FCL to check for intersection between the surfaces.
+            # Use Coal to check for intersection between the surfaces.
             # If the surfaces collide, that implies a collision of the volumes.
             # Cheaper than computing volumes immediately.
             # (N.B. Does not require explicitly building the mesh, if we have a
             # precomputed _scaledShape available.)
 
-            selfObj = fcl.CollisionObject(*self._fclData)
-            otherObj = fcl.CollisionObject(*other._fclData)
-            surface_collision = fcl.collide(selfObj, otherObj)
+            selfObj = coal.CollisionObject(*self._collisionData)
+            otherObj = coal.CollisionObject(*other._collisionData)
+            col_req = coal.CollisionRequest()
+            col_res = coal.CollisionResult()
+            surface_collision = coal.collide(
+                selfObj, otherObj, col_req, col_res
+            )
 
             if surface_collision:
                 return True
 
             if self.isConvex and other.isConvex:
-                # For convex shapes, FCL detects containment as well as
+                # For convex shapes, Coal detects containment as well as
                 # surface intersections, so we can just return the result
                 return surface_collision
 
@@ -1266,22 +1280,12 @@ class MeshVolumeRegion(MeshRegion):
                 return False
 
             # PASS 2
-            # Use Trimesh's collision manager to check for intersection.
+            # Use Coal to check for surface intersection.
             # If the surfaces collide (or surface is contained in the mesh),
             # that implies a collision of the volumes. Cheaper than computing
-            # intersection. Must use a SurfaceCollisionTrimesh object for the surface
-            # mesh to ensure that a collision implies surfaces touching.
-            collision_manager = trimesh.collision.CollisionManager()
-
-            collision_manager.add_object("SelfRegion", self.mesh)
-            collision_manager.add_object(
-                "OtherRegion",
-                SurfaceCollisionTrimesh(
-                    faces=other.mesh.faces, vertices=other.mesh.vertices
-                ),
-            )
-
-            surface_collision = collision_manager.in_collision_internal()
+            # intersection. Always use BVH (not convex) so that only actual
+            # surface intersections are detected.
+            surface_collision = _meshesCollide(self.mesh, other.mesh)
 
             if surface_collision:
                 return True
@@ -1924,29 +1928,43 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.body_count
 
     @cached_property
-    def _fclData(self):
+    def _collisionData(self):
         # Use precomputed geometry if available
         if self._scaledShape:
-            geom = self._scaledShape._fclData[0]
-            trans = fcl.Transform(self.rotation.r.as_matrix(), numpy.array(self.position))
+            geom = self._scaledShape._collisionData[0]
+            trans = coal.Transform3s(
+                self.rotation.r.as_matrix(),
+                numpy.array(self.position),
+            )
             return geom, trans
 
         mesh = self.mesh
         if self.isConvex:
-            vertCounts = 3 * numpy.ones((len(mesh.faces), 1), dtype=numpy.int64)
-            faces = numpy.concatenate((vertCounts, mesh.faces), axis=1)
-            geom = fcl.Convex(mesh.vertices, len(faces), faces.flatten())
+            bvh = coal.BVHModelOBBRSS()
+            faces = numpy.asarray(mesh.faces, dtype=numpy.int64)
+            bvh.beginModel(len(faces), len(mesh.vertices))
+            bvh.addVertices(
+                numpy.asarray(mesh.vertices, dtype=numpy.float64)
+            )
+            bvh.addTriangles(faces)
+            bvh.endModel()
+            bvh.buildConvexRepresentation(False)
+            geom = bvh.convex
         else:
-            geom = fcl.BVHModel()
-            geom.beginModel(num_tris_=len(mesh.faces), num_vertices_=len(mesh.vertices))
-            geom.addSubModel(mesh.vertices, mesh.faces)
+            geom = coal.BVHModelOBBRSS()
+            faces = numpy.asarray(mesh.faces, dtype=numpy.int64)
+            geom.beginModel(len(faces), len(mesh.vertices))
+            geom.addVertices(
+                numpy.asarray(mesh.vertices, dtype=numpy.float64)
+            )
+            geom.addTriangles(faces)
             geom.endModel()
-        trans = fcl.Transform()
+        trans = coal.Transform3s()
         return geom, trans
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state.pop("_cached__fclData", None)  # remove non-picklable FCL objects
+        state.pop("_cached__collisionData", None)  # remove non-picklable Coal objects
         return state
 
 
@@ -2005,27 +2023,10 @@ class MeshSurfaceRegion(MeshRegion):
         * `PolygonalFootprintRegion`
         """
         if isinstance(other, MeshSurfaceRegion):
-            # Uses Trimesh's collision manager to check for intersection of the
-            # surfaces. Use SurfaceCollisionTrimesh objects to ensure collisions
-            # actually imply a surface collision.
-            collision_manager = trimesh.collision.CollisionManager()
-
-            collision_manager.add_object(
-                "SelfRegion",
-                SurfaceCollisionTrimesh(
-                    faces=self.mesh.faces, vertices=self.mesh.vertices
-                ),
-            )
-            collision_manager.add_object(
-                "OtherRegion",
-                SurfaceCollisionTrimesh(
-                    faces=other.mesh.faces, vertices=other.mesh.vertices
-                ),
-            )
-
-            surface_collision = collision_manager.in_collision_internal()
-
-            return surface_collision
+            # Use Coal to check for intersection of the surfaces.
+            # Always use BVH (not convex) so that only actual surface
+            # intersections are detected.
+            return _meshesCollide(self.mesh, other.mesh)
 
         if isinstance(other, PolygonalFootprintRegion):
             # Determine the mesh's vertical bounds (adding a little extra to avoid mesh errors) and

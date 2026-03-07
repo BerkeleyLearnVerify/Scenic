@@ -78,19 +78,6 @@ You can test that this process has worked correctly by going back to the VerifAI
 MacOS
 -----
 
-.. _pythonfcl:
-
-Installing python-fcl on Apple silicon
-++++++++++++++++++++++++++++++++++++++
-
-If on an Apple-silicon machine you get an error related to pip being unable to install ``python-fcl``, it can be installed manually using the following steps:
-
-1. Clone the `python-fcl <https://github.com/BerkeleyAutomation/python-fcl>`_ repository.
-2. Navigate to the repository.
-3. Install dependencies using `Homebrew <https://brew.sh>`__ with the following command: :command:`brew install fcl eigen octomap`
-4. Activate your virtual environment if you haven't already.
-5. Install the package using pip with the following command: :command:`CPATH=$(brew --prefix)/include:$(brew --prefix)/include/eigen3 LD_LIBRARY_PATH=$(brew --prefix)/lib python -m pip install .`
-
 Windows
 -------
 
