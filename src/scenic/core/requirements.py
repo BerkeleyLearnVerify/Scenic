@@ -6,7 +6,7 @@ from functools import reduce
 import inspect
 import itertools
 
-import fcl
+import coal
 import numpy
 import rv_ltl
 import trimesh
@@ -360,24 +360,30 @@ class BlanketCollisionRequirement(SamplingRequirement):
 
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
-        manager = fcl.DynamicAABBTreeCollisionManager()
-        objForGeom = {}
+        manager = coal.DynamicAABBTreeCollisionManager()
+        colPairs = []  # (CollisionObject, scenic_obj)
         for i, obj in enumerate(objects):
             if obj.allowCollisions:
                 continue
-            geom, trans = obj.occupiedSpace._fclData
-            collisionObject = fcl.CollisionObject(geom, trans)
-            objForGeom[geom] = obj
+            geom, trans = obj.occupiedSpace._collisionData
+            collisionObject = coal.CollisionObject(geom, trans)
+            colPairs.append((collisionObject, obj))
             manager.registerObject(collisionObject)
 
         manager.setup()
-        cdata = fcl.CollisionData()
-        manager.collide(cdata, fcl.defaultCollisionCallback)
-        collision = cdata.result.is_collision
+        callback = coal.CollisionCallBackDefault()
+        manager.collide(callback)
+        collision = callback.data.result.isCollision()
 
         if collision:
-            contact = cdata.result.contacts[0]
-            self._collidingObjects = (objForGeom[contact.o1], objForGeom[contact.o2])
+            # Identify the specific colliding pair via pairwise checks.
+            for i, (co_i, obj_i) in enumerate(colPairs):
+                for co_j, obj_j in colPairs[i + 1 :]:
+                    req = coal.CollisionRequest()
+                    res = coal.CollisionResult()
+                    if coal.collide(co_i, co_j, req, res):
+                        self._collidingObjects = (obj_i, obj_j)
+                        return True
 
         return collision
 
