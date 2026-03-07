@@ -6,14 +6,10 @@ from functools import reduce
 import inspect
 import itertools
 
+import fcl
 import numpy
 import rv_ltl
 import trimesh
-
-try:
-    import fcl
-except ImportError:
-    fcl = None
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
@@ -363,12 +359,6 @@ class BlanketCollisionRequirement(SamplingRequirement):
         self._collidingObjects = None
 
     def falsifiedByInner(self, sample):
-        if fcl is None:
-            # FCL is not available (e.g. on aarch64 Linux); skip the
-            # broad-phase surface check.  This requirement is optional,
-            # so skipping it is safe — full intersection checks will
-            # still be performed by IntersectionRequirement.
-            return False
         objects = tuple(sample[obj] for obj in self.objects)
         manager = fcl.DynamicAABBTreeCollisionManager()
         objForGeom = {}

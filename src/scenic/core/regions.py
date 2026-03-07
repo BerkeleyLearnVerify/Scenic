@@ -13,13 +13,9 @@ import math
 import random
 import warnings
 
+import fcl
 import numpy
 import scipy
-
-try:
-    import fcl
-except ImportError:
-    fcl = None
 import shapely
 import shapely.geometry
 from shapely.geometry import MultiPolygon
@@ -1227,18 +1223,17 @@ class MeshVolumeRegion(MeshRegion):
             # (N.B. Does not require explicitly building the mesh, if we have a
             # precomputed _scaledShape available.)
 
-            if fcl is not None:
-                selfObj = fcl.CollisionObject(*self._fclData)
-                otherObj = fcl.CollisionObject(*other._fclData)
-                surface_collision = fcl.collide(selfObj, otherObj)
+            selfObj = fcl.CollisionObject(*self._fclData)
+            otherObj = fcl.CollisionObject(*other._fclData)
+            surface_collision = fcl.collide(selfObj, otherObj)
 
-                if surface_collision:
-                    return True
+            if surface_collision:
+                return True
 
-                if self.isConvex and other.isConvex:
-                    # For convex shapes, FCL detects containment as well as
-                    # surface intersections, so we can just return the result
-                    return surface_collision
+            if self.isConvex and other.isConvex:
+                # For convex shapes, FCL detects containment as well as
+                # surface intersections, so we can just return the result
+                return surface_collision
 
             # PASS 4
             # If both regions have only one body, we can just check if either region
@@ -1930,11 +1925,6 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def _fclData(self):
-        if fcl is None:
-            raise RuntimeError(
-                "python-fcl is required for FCL collision data but is not "
-                "installed. Install it with: pip install python-fcl"
-            )
         # Use precomputed geometry if available
         if self._scaledShape:
             geom = self._scaledShape._fclData[0]
