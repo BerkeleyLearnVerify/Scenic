@@ -933,7 +933,7 @@ class CosimSimulation(DrivingSimulation):
                         if obj not in self.bubble_spawn_queue:
                             print(f"No valid trajectory found for vehicle data: {[data_entry['route'] for data_entry in cosim_data['DATA'] if data_entry['ID'] == VehID]} ")
                             print(f"Skipping spawn for obj: {obj.name} at {lane.road.id}_{lane.id} with intersection {obj._intersection}: due to failed trajectory generation")
-                            print(f"Obj location was: :{obj.x, obj.y} default lane was: {obj._lane.id if obj.lane != None else None} selected lane was: {lane}")
+                            print(f"Obj location was: :{obj.x, obj.y} default road was: {obj._lane.road.id if obj.lane != None else None} selected road was: {lane.road.id}")
                             self.bubble_spawn_queue.add(obj)
                         continue # Do not spawn vehicle if no trajectory can be created
 
