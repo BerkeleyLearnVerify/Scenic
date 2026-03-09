@@ -120,6 +120,7 @@ env.bak/
 venv.bak/
 scenic.venv/
 3_10_venv/
+scenic_venv/
 
 # Spyder project settings
 .spyderproject
