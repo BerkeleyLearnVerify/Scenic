@@ -1237,9 +1237,7 @@ class MeshVolumeRegion(MeshRegion):
             otherObj = coal.CollisionObject(*other._collisionData)
             col_req = coal.CollisionRequest()
             col_res = coal.CollisionResult()
-            surface_collision = coal.collide(
-                selfObj, otherObj, col_req, col_res
-            )
+            surface_collision = coal.collide(selfObj, otherObj, col_req, col_res)
 
             if surface_collision:
                 return True
@@ -1943,9 +1941,7 @@ class MeshVolumeRegion(MeshRegion):
             bvh = coal.BVHModelOBBRSS()
             faces = numpy.asarray(mesh.faces, dtype=numpy.int64)
             bvh.beginModel(len(faces), len(mesh.vertices))
-            bvh.addVertices(
-                numpy.asarray(mesh.vertices, dtype=numpy.float64)
-            )
+            bvh.addVertices(numpy.asarray(mesh.vertices, dtype=numpy.float64))
             bvh.addTriangles(faces)
             bvh.endModel()
             bvh.buildConvexRepresentation(False)
@@ -1954,9 +1950,7 @@ class MeshVolumeRegion(MeshRegion):
             geom = coal.BVHModelOBBRSS()
             faces = numpy.asarray(mesh.faces, dtype=numpy.int64)
             geom.beginModel(len(faces), len(mesh.vertices))
-            geom.addVertices(
-                numpy.asarray(mesh.vertices, dtype=numpy.float64)
-            )
+            geom.addVertices(numpy.asarray(mesh.vertices, dtype=numpy.float64))
             geom.addTriangles(faces)
             geom.endModel()
         trans = coal.Transform3s()

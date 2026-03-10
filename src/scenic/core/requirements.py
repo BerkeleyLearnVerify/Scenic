@@ -9,7 +9,6 @@ import itertools
 import coal
 import numpy
 import rv_ltl
-import trimesh
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
@@ -376,10 +375,15 @@ class BlanketCollisionRequirement(SamplingRequirement):
         collision = callback.data.result.isCollision()
 
         if collision:
-            # Identify the specific colliding pair via pairwise checks.
+            # Coal's Python bindings do not expose which specific objects
+            # collided from the broadphase callback (contact geometry
+            # references lack stable Python identity). We fall back to
+            # pairwise narrow-phase checks to identify the pair, but only
+            # here in the already-failing rejection path. Typical Scenic
+            # scenes have O(10) objects, so this remains fast in practice.
+            req = coal.CollisionRequest()
             for i, (co_i, obj_i) in enumerate(colPairs):
                 for co_j, obj_j in colPairs[i + 1 :]:
-                    req = coal.CollisionRequest()
                     res = coal.CollisionResult()
                     if coal.collide(co_i, co_j, req, res):
                         self._collidingObjects = (obj_i, obj_j)
