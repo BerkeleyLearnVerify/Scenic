@@ -360,34 +360,29 @@ class BlanketCollisionRequirement(SamplingRequirement):
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
         manager = coal.DynamicAABBTreeCollisionManager()
-        colPairs = []  # (CollisionObject, scenic_obj)
+        geomIdToObj = {}
         for i, obj in enumerate(objects):
             if obj.allowCollisions:
                 continue
             geom, trans = obj.occupiedSpace._collisionData
             collisionObject = coal.CollisionObject(geom, trans)
-            colPairs.append((collisionObject, obj))
+            # collisionGeometry().id() returns the stable C++ address of the
+            # geometry, matching contact.o1.id() / contact.o2.id() in results.
+            geomIdToObj[collisionObject.collisionGeometry().id()] = obj
             manager.registerObject(collisionObject)
 
         manager.setup()
         callback = coal.CollisionCallBackDefault()
+        callback.data.request.num_max_contacts = 1
         manager.collide(callback)
         collision = callback.data.result.isCollision()
 
         if collision:
-            # Coal's Python bindings do not expose which specific objects
-            # collided from the broadphase callback (contact geometry
-            # references lack stable Python identity). We fall back to
-            # pairwise narrow-phase checks to identify the pair, but only
-            # here in the already-failing rejection path. Typical Scenic
-            # scenes have O(10) objects, so this remains fast in practice.
-            req = coal.CollisionRequest()
-            for i, (co_i, obj_i) in enumerate(colPairs):
-                for co_j, obj_j in colPairs[i + 1 :]:
-                    res = coal.CollisionResult()
-                    if coal.collide(co_i, co_j, req, res):
-                        self._collidingObjects = (obj_i, obj_j)
-                        return True
+            contact = callback.data.result.getContact(0)
+            self._collidingObjects = (
+                geomIdToObj[contact.o1.id()],
+                geomIdToObj[contact.o2.id()],
+            )
 
         return collision
 
