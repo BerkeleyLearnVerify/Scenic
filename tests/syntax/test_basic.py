@@ -377,3 +377,20 @@ def test_simulator_name_binding_executes():
     )
     ego = sampleEgo(scenario)
     assert ego.foo == 7
+
+
+def test_compositional_external_param():
+    scenario = compileScenic(
+        """
+        param bar = 1
+
+        class Foo:
+            fizz: globalParameters.bar + Range(0,1)
+
+        scenario Main():
+            setup:
+                ego = new Foo
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert 1 <= ego.fizz <= 2
