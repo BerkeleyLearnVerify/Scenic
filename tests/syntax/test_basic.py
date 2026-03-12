@@ -66,12 +66,15 @@ def test_no_ego():
 
 
 def test_new_in_list_expression():
-    compileScenic(
+    scenario = compileScenic(
         """
         objs = [new Object with allowCollisions True]
         ego = new Object with allowCollisions True
         """
     )
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
 
 
 def test_ego_complex_assignment():
