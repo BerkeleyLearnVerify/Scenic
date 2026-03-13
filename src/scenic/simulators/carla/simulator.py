@@ -104,6 +104,7 @@ class CarlaSimulation(DrivingSimulation):
     def __init__(self, scene, client, tm, render, record, scenario_number, **kwargs):
         self.client = client
         self.world = self.client.get_world()
+        self.current_frame = None
         self.map = self.world.get_map()
         self.blueprintLib = self.world.get_blueprint_library()
         self.tm = tm
@@ -164,7 +165,7 @@ class CarlaSimulation(DrivingSimulation):
                     carla.VehicleControl(manual_gear_shift=False)
                 )
 
-        self.world.tick()
+        self.current_frame = self.world.tick()
 
         for obj in self.objects:
             if obj.speed is not None and obj.speed != 0:
@@ -216,7 +217,7 @@ class CarlaSimulation(DrivingSimulation):
         # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:
             c = obj.color
-            c_str = f"{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}"
+            c_str = f"{int(c.r * 255)},{int(c.g * 255)},{int(c.b * 255)}"
             blueprint.set_attribute("color", c_str)
 
         # Create Carla actor
@@ -248,6 +249,42 @@ class CarlaSimulation(DrivingSimulation):
                     f"Unable to spawn carla controller for object {obj}"
                 )
             obj.carlaController = controller
+
+        # Adding sensors if available
+        if obj.sensors:
+            for sensor_key, sensor in obj.sensors.items():
+                sensor_bp = self.blueprintLib.find(sensor.blueprint)
+                for key, val in sensor.attributes.items():
+                    if sensor_bp.has_attribute(key):
+                        sensor_bp.set_attribute(key, str(val))
+
+                if isinstance(sensor.convert, str):
+                    try:
+                        sensor.convert = carla.ColorConverter.names[sensor.convert]
+                    except KeyError:
+                        raise ValueError(
+                            f"Unknown CARLA ColorConverter '{sensor.convert}'"
+                        )
+
+                transform = carla.Transform(
+                    carla.Location(
+                        x=sensor.offset[1],  # forward (Scenic +Y) -> CARLA +X
+                        y=sensor.offset[0],  # right   (Scenic +X) -> CARLA +Y
+                        z=sensor.offset[2],  # up      (same)
+                    ),
+                    carla.Rotation(
+                        pitch=sensor.rotation[1],
+                        yaw=-sensor.rotation[0],  # CARLA yaw is clockwise
+                        roll=sensor.rotation[2],
+                    ),
+                )
+
+                carla_sensor = self.world.spawn_actor(
+                    sensor_bp, transform, attach_to=obj.carlaActor
+                )
+                carla_sensor.listen(sensor.onData)
+                sensor.carla_sensor = carla_sensor
+
         return carlaActor
 
     def executeActions(self, allActions):
@@ -262,7 +299,14 @@ class CarlaSimulation(DrivingSimulation):
 
     def step(self):
         # Run simulation for one timestep
-        self.world.tick()
+        self.current_frame = self.world.tick()
+
+        # Wait for sensors to get updates
+        for obj in self.objects:
+            if obj.sensors:
+                for sensor in obj.sensors.values():
+                    while sensor.frame != self.current_frame:
+                        pass
 
         # Render simulation
         if self.render:
@@ -303,6 +347,11 @@ class CarlaSimulation(DrivingSimulation):
 
     def destroy(self):
         for obj in self.objects:
+            if obj.sensors:
+                for sensor in obj.sensors.values():
+                    if sensor.carla_sensor is not None and sensor.carla_sensor.is_alive:
+                        sensor.carla_sensor.stop()
+                        sensor.carla_sensor.destroy()
             if obj.carlaActor is not None:
                 if isinstance(obj.carlaActor, carla.Vehicle):
                     obj.carlaActor.set_autopilot(False, self.tm.get_port())

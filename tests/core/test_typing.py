@@ -5,7 +5,13 @@ from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple, Union
 import numpy
 import pytest
 
-from scenic.core.distributions import DiscreteRange, Options, Range, distributionFunction
+from scenic.core.distributions import (
+    DiscreteRange,
+    Options,
+    Range,
+    TupleDistribution,
+    distributionFunction,
+)
 from scenic.core.object_types import Object
 from scenic.core.type_support import (
     CoercionFailure,
@@ -149,6 +155,33 @@ def test_coerce_distribution_vector():
     check([Vector(1, 2), 42], fail=True)
     check([(1, 2), (3, 4)])
     check([(1, 2), (1, 2, 3, 4)], fail=True)
+
+
+def test_coerce_tupledist_vector():
+    # 2D and 3D TupleDistribution should be coercible to Vector.
+    td2 = TupleDistribution(Range(0, 1), Range(0, 1))
+    td3 = TupleDistribution(Range(0, 1), Range(0, 1), Range(0, 1))
+
+    # Can be treated as Vector-compatible random values.
+    assert canCoerce(td2, Vector)
+
+    v2 = coerce(td2, Vector)
+    v3 = coerce(td3, Vector)
+    # Special-case in coerce() should produce Vectors, not wrapper distributions.
+    assert isinstance(v2, Vector)
+    assert isinstance(v3, Vector)
+
+
+def test_coerce_tupledist_vector_bad_len():
+    # Length-1 and length-4 TupleDistributions should be rejected.
+    td1 = TupleDistribution(Range(0, 1))
+    td4 = TupleDistribution(Range(0, 1), Range(0, 1), Range(0, 1), Range(0, 1))
+
+    with pytest.raises(TypeError, match="expected vector, got tuple of length 1"):
+        coerce(td1, Vector)
+
+    with pytest.raises(TypeError, match="expected vector, got tuple of length 4"):
+        coerce(td4, Vector)
 
 
 def test_coerce_distribution_tuple():

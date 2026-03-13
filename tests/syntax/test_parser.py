@@ -871,6 +871,47 @@ class TestWait:
             case _:
                 assert False
 
+    def test_wait_for_seconds(self):
+        mod = parse_string_helper("wait for 3 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Seconds(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_for_steps(self):
+        mod = parse_string_helper("wait for 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_for_unitless(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper("wait for 3")
+        assert "duration must specify a unit" in e.value.msg
+
+    def test_wait_for_expression(self):
+        mod = parse_string_helper("wait for 3 + 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitFor(Steps(BinOp(Constant(3), Add(), Constant(3)))):
+                assert True
+            case _:
+                assert False
+
+    def test_wait_until(self):
+        mod = parse_string_helper("wait until condition")
+        stmt = mod.body[0]
+        match stmt:
+            case WaitUntil(Name("condition")):
+                assert True
+            case _:
+                assert False
+
 
 class TestTerminate:
     def test_basic(self):
@@ -1025,6 +1066,15 @@ class TestRequire:
             case _:
                 assert False
 
+    def test_chained_comparison(self):
+        mod = parse_string_helper("require a < b < c")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Compare(Name("a"), [Lt(), Lt()], [Name("b"), Name("c")])):
+                assert True
+            case _:
+                assert False
+
     def test_comparison(self):
         mod = parse_string_helper("require X > Y")
         stmt = mod.body[0]
@@ -1140,6 +1190,63 @@ class TestRecord:
         stmt = mod.body[0]
         match stmt:
             case Record(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_recorder(self):
+        mod = parse_string_helper("record x to file")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), recorder=Name("file")):
+                assert True
+            case _:
+                assert False
+
+    def test_record_delay(self):
+        mod = parse_string_helper("record x after 5 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), delay=Seconds(Constant(5))):
+                assert True
+            case _:
+                assert False
+
+        mod = parse_string_helper("record x after 5 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), delay=Steps(Constant(5))):
+                assert True
+            case _:
+                assert False
+
+    def test_record_period(self):
+        mod = parse_string_helper("record x every 0.2 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), period=Seconds(Constant(0.2))):
+                assert True
+            case _:
+                assert False
+
+        mod = parse_string_helper("record x every 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), period=Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_record_combined(self):
+        mod = parse_string_helper("record x every 0.2 seconds after 5 seconds to file")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(
+                Name("x"),
+                period=Seconds(Constant(0.2)),
+                delay=Seconds(Constant(5)),
+                recorder=Name("file"),
+            ):
                 assert True
             case _:
                 assert False
@@ -1410,6 +1517,44 @@ class TestNew:
         with pytest.raises(ScenicSyntaxError) as e:
             parse_string_helper("Object facing x")
         assert "forgot 'new'" in e.value.msg
+
+    def test_in_operator_not_missing_new(self):
+        # Regression test for issue #356: "in" is also a specifier keyword, but
+        # `x in [0]` must not trigger the "forgot 'new'" error message.
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                x = 0
+                x in [0]
+                =
+                """
+            )
+        err = e.value
+        assert "forgot 'new'" not in err.msg
+        assert "invalid syntax" in err.msg
+        assert err.lineno == 3
+
+    def test_invalid_specifier_line_number(self):
+        # Regression test for issue #345: a malformed position specifier like
+        # `offset left` should not trigger the "forgot 'new'" error or be attributed
+        # to an earlier valid `... until self in ...` expression.
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                behavior AdvBehavior():
+                    do CrossingBehavior(ego) until self in ego.lane
+                    while True:
+                        take SetWalkingSpeedAction(0)
+
+                SHIFT = Vector(1, 2)
+                AdvAgent = new Pedestrian at Truck offset left Truck.heading by SHIFT,
+                    with heading Truck.heading
+                """
+            )
+        err = e.value
+        assert "forgot 'new'" not in err.msg
+        assert "invalid syntax" in err.msg
+        assert err.lineno == 7
 
     def test_invalid_specifier(self):
         with pytest.raises(ScenicSyntaxError) as e:

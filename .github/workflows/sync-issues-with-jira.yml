@@ -19,8 +19,8 @@ jobs:
                 const issueNumber = context.payload.issue.number;
                 const issueTitle = context.payload.issue.title;
                 const issueLink = `https://github.com/${repoName}/issues/${issueNumber}`;
-                console.log(`::set-output name=issueTitle::${issueTitle}`);
-                console.log(`::set-output name=issueLink::${issueLink}`);
+                core.setOutput('issueTitle', issueTitle);
+                core.setOutput('issueLink', issueLink);
 
           - name: Create Jira Ticket
             env:
