@@ -13,6 +13,7 @@ from tests.utils import (
     sampleEgo,
     sampleEgoActions,
     sampleEgoFrom,
+    sampleParamPFrom,
     sampleResult,
     sampleResultOnce,
     sampleScene,
@@ -84,6 +85,34 @@ def test_soft_requirement():
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(350)]
     count = sum(w >= 2 for w in ws)
     assert 255 <= count < 350
+
+
+def test_param():
+    p = sampleParamPFrom(
+        """
+        scenario Main():
+            setup:
+                param p = Range(3, 5)
+        """
+    )
+    assert 3 <= p <= 5
+
+
+def test_param_top_level():
+    scenario = compileScenic(
+        """
+        param bar = 1
+
+        class Foo:
+            fizz: globalParameters.bar + Range(0,1)
+
+        scenario Main():
+            setup:
+                ego = new Foo
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert 1 <= ego.fizz <= 2
 
 
 def test_invalid_scenario_name():
@@ -524,6 +553,34 @@ def test_subscenario_terminate_compose():
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
     assert len(trajectory[2]) == 1
+
+
+def test_subscenario_global_param():
+    scenario = compileScenic(
+        """
+        param foo = 10
+
+        scenario Main():
+            setup:
+                param bar = 20
+
+            compose:
+                do Sub1() for 1 steps
+                do Sub2() for 1 steps
+
+        scenario Sub1():
+            new Object at (globalParameters.foo, 0)
+
+        scenario Sub2():
+            new Object at (globalParameters.bar, 0)
+        """
+    )
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 3
+    assert len(trajectory[0]) == 1
+    assert trajectory[0][0][0] == 10
+    assert len(trajectory[1]) == 2
+    assert trajectory[1][1][0] == 20
 
 
 def test_initial_scenario_basic():
