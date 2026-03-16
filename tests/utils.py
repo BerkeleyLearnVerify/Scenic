@@ -504,7 +504,14 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
             cache,
             debug,
             ignoreCacheAttrs=True,
-            extraIgnores=("__module__",),
+            extraIgnores=(
+                "__module__",
+                "_abc_impl",
+                "_abc_registry",
+                "_abc_cache",
+                "_abc_negative_cache",
+                "_abc_negative_cache_version",
+            ),
         ):
             fail()
             return False

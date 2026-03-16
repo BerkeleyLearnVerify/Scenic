@@ -181,3 +181,42 @@ def test_steer(getCarlaSimulator):
     assert (
         initial_heading > final_heading
     ), "Positive steer should turn right (heading must decrease)."
+
+
+def test_track_waypoints(getCarlaSimulator):
+    simulator, town, mapPath = getCarlaSimulator("Town01")
+    target_speed = 6.0
+
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        # Short straight segment, starting from a known-good spawn point.
+        waypoints = [(-2, -13), (-2, -23), (-2, -33)]
+
+        behavior FollowPath():
+            while True:
+                take TrackWaypointsAction(waypoints, cruising_speed={target_speed})
+
+        ego = new Car at waypoints[0],
+            with behavior FollowPath
+
+        record initial (distance from ego to waypoints[-1]) as InitialDist
+        record final (distance from ego to waypoints[-1]) as FinalDist
+        record final ego.speed as FinalSpeed
+
+        terminate after 20 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    sim = simulator.simulate(scene)
+
+    initial_dist = sim.result.records["InitialDist"]
+    final_dist = sim.result.records["FinalDist"]
+    final_speed = sim.result.records["FinalSpeed"]
+
+    assert final_dist < initial_dist
+    assert final_speed == pytest.approx(target_speed, abs=2.0)
