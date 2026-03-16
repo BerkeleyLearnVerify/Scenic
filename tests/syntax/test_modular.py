@@ -1,9 +1,11 @@
 """Tests for modular scenarios."""
 
 import inspect
+import signal
 
 import pytest
 
+import scenic.core.dynamics as dynamics
 from scenic.core.dynamics import InvariantViolation, PreconditionViolation
 from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, SpecifierError
 from scenic.core.simulators import DummySimulator, TerminationType
@@ -113,6 +115,23 @@ def test_param_top_level():
     )
     ego = sampleEgo(scenario)
     assert 1 <= ego.fizz <= 2
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="need SIGALRM")
+@pytest.mark.slow
+def test_scenario_stuck(monkeypatch):
+    scenario = compileScenic(
+        """
+        import time
+        scenario Main():
+            compose:
+                time.sleep(1.5)
+                wait
+        """
+    )
+    monkeypatch.setattr(dynamics, "stuckBehaviorWarningTimeout", 1)
+    with pytest.warns(dynamics.StuckBehaviorWarning):
+        sampleResultOnce(scenario)
 
 
 def test_invalid_scenario_name():
