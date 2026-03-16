@@ -89,7 +89,7 @@ def within_threshold_to(object, cars, verbose=False) -> bool:
             dist = np.linalg.norm(np.array(car.position) - object_pos)
             if dist < threshold:
                 is_close=True
-            obj_distances.append(dist)
+            obj_distances.append([car.name, dist])
     if verbose:
         print(f"Distances were: {obj_distances}")
     return is_close
