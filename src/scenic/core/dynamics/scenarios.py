@@ -410,6 +410,8 @@ class DynamicScenario(Invocable):
         return agents
 
     def _inherit(self, other):
+        if not self._ego:
+            self._ego = other._ego
         if not self._workspace:
             self._workspace = other._workspace
         self._instances.extend(other._instances)
