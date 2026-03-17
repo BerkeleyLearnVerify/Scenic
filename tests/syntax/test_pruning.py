@@ -1,10 +1,8 @@
-import math
-import random
-
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from scenic.core.vectors import Vector
+from scenic.core.regions import PointInRegionDistribution
+from scenic.core.vectors import Vector, VectorOperatorDistribution
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
 
@@ -174,11 +172,31 @@ def test_visibility_pruning():
 
     We also want to confirm that we aren't pruning too much, i.e. placing the position
     in the viewRegion instead of at any point where the object intersects the view region.
-    Because of this, we want to see at least one sample where the position is outside
-    the viewRegion but the object intersects the viewRegion. The chance of this happening
-    per sample is ((1 / 2)**2), so by repeating the process 30 times we have
-    ~1e-19 chance of not getting a single point in this zone.
+    To check this deterministically, we verify that the pruned region still extends beyond
+    distance 1 from ego while remaining within distance 2, so the outer band where the
+    object intersects the view region is still available.
     """
+
+    def assert_pruned_region_reaches_outer_band(scenario):
+        foo = scenario.objects[1]
+        conditioned = foo.position._conditioned
+
+        if isinstance(conditioned, PointInRegionDistribution):
+            base = conditioned.region
+            offset = Vector(0, 0, 0)
+        else:
+            assert isinstance(conditioned, VectorOperatorDistribution)
+            base = conditioned.object.region
+            offset = conditioned.operands[0]
+
+        max_dist = max(
+            (Vector(x, y, base.z) + offset).distanceTo(Vector(0, 0, 0))
+            for poly in base.polygons.geoms
+            for x, y in poly.exterior.coords
+        )
+        assert max_dist <= 2 + 1e-6
+        assert max_dist > 1 + 1e-6
+
     # requireVisible
     scenario = compileScenic(
         """
@@ -193,7 +211,7 @@ def test_visibility_pruning():
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
-    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert_pruned_region_reaches_outer_band(scenario)
 
     # visible
     scenario = compileScenic(
@@ -208,7 +226,7 @@ def test_visibility_pruning():
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
-    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert_pruned_region_reaches_outer_band(scenario)
 
     # requireVisible with offset
     baseOffsetVal = 0.0001
@@ -226,7 +244,7 @@ def test_visibility_pruning():
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
-    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert_pruned_region_reaches_outer_band(scenario)
     assert all(pos.z == -baseOffsetVal for pos in positions)
 
     # visible with offset
@@ -243,7 +261,7 @@ def test_visibility_pruning():
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
-    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert_pruned_region_reaches_outer_band(scenario)
     assert all(pos.z == -baseOffsetVal for pos in positions)
 
 
