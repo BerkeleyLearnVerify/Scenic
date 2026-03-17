@@ -177,6 +177,7 @@ class CosimSimulation(DrivingSimulation):
         self.bubble_spawn_queue = set({})
         self.frozen_scenic_lanes = []
         self.xml_to_xodr_intersections = xml_to_xodr_intersections
+        self.intersection_road_links = []
 
         super().__init__(scene, timestep=sim_timestep, **kwargs)
 
@@ -189,6 +190,16 @@ class CosimSimulation(DrivingSimulation):
         Setup the simulation instance 
         """
         self.metsr_client.reset() # Updated version takes no arguements
+
+        valid_metsr_roads = self.metsr_client.query_road()
+        generated_roads = [value.split('_')[0] for value in self.scenic_to_metsr_map.values()]
+
+        # print(generated_mappings)
+        # print(valid_roads['orig_id'])
+
+        for mapping in generated_roads:
+            if mapping not in valid_metsr_roads["orig_id"]:
+                self.intersection_road_links.append(mapping)
 
         weather = self.scene.params.get("weather")
         if weather is not None:
@@ -235,6 +246,7 @@ class CosimSimulation(DrivingSimulation):
         
         _, new_lanes, _ = self.update_carla_lanes() # TODO bad function name
         self.freeze_lanes(new_lanes)
+        print(f"Ticking Metsr")
         self.metsr_client.tick()
         
         for obj in self.objects:
@@ -278,6 +290,7 @@ class CosimSimulation(DrivingSimulation):
 
         Creates vehicle inside the METSR simulator
         """
+        print(f"Creating obj {obj.name if hasattr(obj,'name') else 'NPC'} in metsr")
         assert obj.origin,  "Metsr objects must have a defined origin"
         assert obj.destination, "Metsr objects must have a defined destination"
 
@@ -302,6 +315,7 @@ class CosimSimulation(DrivingSimulation):
         :type update_orientation: bool
 
         """
+        print(f"Creating obj {obj.name if hasattr(obj,'name') else 'NPC'} in Carla")
         try:
             blueprint = self.blueprintLib.find(obj.blueprint)
         except IndexError as e:
@@ -596,7 +610,11 @@ class CosimSimulation(DrivingSimulation):
         if self.count % 100 == 0: # just removing for now
             print(".", end="", flush=True)
     
+        print(f"Ticking METSR")
         self.metsr_client.tick()
+
+        cosim_data = self.metsr_client.query_coSimVehicle()
+        print(f"Displaying CoSim data at step: {self.count}: {cosim_data}")
 
         # Generate bubble region based on ego objects TODO update logic for multiple high-fidelity zones
         self.objects[0].bubble = CircularRegion(center=[self.objects[0].x,
@@ -809,14 +827,23 @@ class CosimSimulation(DrivingSimulation):
             lane = self._nearest_lane(obj)
             roadID = self.map_scenic_to_metsr(lane)
             veh_data = self.metsr_client.query_vehicle(self.getMetsrPrivateVehId(obj), True, True) 
+
             # Update METSR road 
             if hasattr(obj, "previous_road"): 
-                if roadID != obj.previous_road:
+                if roadID != obj.previous_road and roadID not in self.intersection_road_links: # Entering new road within metsr network
                     print(f"obj: {obj.name} leaving road: {obj.previous_road} moving to : {roadID}")
+                    # cosim_data = self.metsr_client.query_coSimVehicle()
+                    # # print(f"Cosim data is: {cosim_data}")
+                    # # for data_entry in cosim_data['DATA']:
+                    # #     if data_entry['ID'] == vehID:
+                    # #        route_data = data_entry['route']
+                    # #        print(f"Displaying vehicle route data for {obj.name}: {route_data}")
                     # Find the corresponding METSR keys
                     carla_lane_ids = set([self.map_scenic_to_metsr(lane) for lane in self.frozen_scenic_lanes])
                     if roadID not in carla_lane_ids:
                         print(f"{obj.name} leaving the bubble region")
+                    else:
+                        print(f"{obj.name} entering lane: {roadID}")
                     self.metsr_client.enter_next_road(vehID, roadID=roadID, private_veh = True)
                     if obj.previous_road == obj.final_road:
                         obj.finished_route = True
@@ -983,8 +1010,10 @@ class CosimSimulation(DrivingSimulation):
         keys = set(keys)
         for key in keys:
             assert key not in self.carla_control_roads, "Attempted to freeze already frozen lane"
-            self.carla_control_roads[key] = True    # Keep track of frozen lanes
-            self.metsr_client.set_cosim_road(key)
+            if key not in self.intersection_road_links: # Skip roads not recognized by metsr
+                self.carla_control_roads[key] = True    # Keep track of frozen lanes
+                self.metsr_client.set_cosim_road(key)
+                print(f"Freezing: {key}")
 
 
     def release_lanes(self,keys: list[str]) -> None:
@@ -999,8 +1028,10 @@ class CosimSimulation(DrivingSimulation):
         keys = set(keys) 
         for key in keys:
             assert key in self.carla_control_roads, "Attempted to release non frozen lane"
-            del self.carla_control_roads[key] # Remove frozen lane from record
-            self.metsr_client.release_cosim_road(key)
+            if key not in self.intersection_road_links: # Skip roads not recognized by metsr
+                del self.carla_control_roads[key] # Remove frozen lane from record
+                self.metsr_client.release_cosim_road(key)
+                print(f"Releasing: {key}")
 
 
     def destroy_carla_obj(self,obj) -> None:
@@ -1050,6 +1081,10 @@ class CosimSimulation(DrivingSimulation):
             metsr_key = self.scenic_to_metsr_map[query_key]
         
         metsr_key = metsr_key.split("_")[0]
+
+        # if metsr_key[0] == ":":
+        #     print(f"Original key: {metsr_key}, resultant key: {metsr_key[1:]}")
+        #     metsr_key = metsr_key[1:]
 
         # There must be a valid mapping 
         assert metsr_key is not None, f"Error identifying associated ID for {query_key}"    
@@ -1288,3 +1323,10 @@ class CosimSimulation(DrivingSimulation):
             else:
                 assert True, f"Failed to find corresponding intersection for METSR light: {light_id}"
 
+    def _save_metsr_state(self, file_name=None) -> None:
+        """
+        docstring for _save_metsr_state
+
+        Saves metsr state to a file to allow for reproducible replay
+        """
+        pass
