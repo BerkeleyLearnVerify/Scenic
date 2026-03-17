@@ -251,7 +251,8 @@ class DynamicScenario(Invocable):
         else:
 
             def alarmHandler(signum, frame):
-                if sys.gettrace():
+                # NOTE: if using pytest-cov, sys.gettrace() may be set by coverage, but we still want timeout warnings enabled
+                if sys.gettrace() and "coverage" not in str(type(sys.gettrace())):
                     return  # skip the warning if we're in the debugger
                 warnings.warn(
                     f"the compose block of scenario {self} is taking a long time; "
