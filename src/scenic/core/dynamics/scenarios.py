@@ -5,7 +5,9 @@ from collections import defaultdict
 import dataclasses
 import functools
 import inspect
+import sys
 import types
+import warnings
 import weakref
 
 import rv_ltl
@@ -196,10 +198,8 @@ class DynamicScenario(Invocable):
             # Start compose block
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
-                    from scenic.syntax.translator import composeBlock
-
                     raise InvalidScenarioError(
-                        f'"{composeBlock}" does not invoke any scenarios'
+                        '"compose" block does not invoke any scenarios'
                     )
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
