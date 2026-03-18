@@ -1,6 +1,7 @@
 import pathlib
 from scenic.simulators.carla.model import Vehicle, is2DMode
 
+
 import scenic.simulators.carla.blueprints as blueprints
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
@@ -33,6 +34,11 @@ simulator CosimSimulator(
     bubble_size = 100
     )
 
+param startTime = 6*60*60
+param timestep = 1
+param simTimestep = 0.1
+param verbose=False
+
 """
 What kind of behaviors:
     Sensor Data
@@ -43,7 +49,7 @@ What kind of behaviors:
     Helpers for measuring traffic metrics
 
 """
-
+_DAY_MOD = 24*60*60
 
 class Car(Vehicle):
     """A car.
@@ -69,6 +75,7 @@ class EgoCar(Car):
     behavior: DriveAvoidingCollisions(target_speed=15, avoidance_threshold=12)
     interrupt: False
 
+
 behavior EgoAttack():
     condition = True # overwrite this with some condition to initiate attack
     while True:
@@ -88,9 +95,15 @@ class NPCCar(Car):
     origin: -1
     carla_actor_flag: False
 
+def currentTOD():
+    return (simulation().currentTime * simulation().timestep + globalParameters.startTime)%_DAY_MOD
 
-scenario GeneratePrivateTrip(origin,destination):
-    new NPCCar with origin origin, with destination destination
+
+scenario GeneratePrivateTrip(origin,destination, name=None):
+    if name != None:
+        new NPCCar with origin origin, with destination destination, with name name
+    else:
+        new NPCCar with origin origin, with destination destination
     terminate after 1 steps
 
 scenario TrafficStream(origin, destination, traffic_flow):
