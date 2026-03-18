@@ -452,7 +452,7 @@ class METSRClient:
         return res
         
     # teleport vehicle to a target location specified by road and coordiantes, only work when the road is a cosim road
-    def teleport_cosim_vehicle(self, vehID, x, y, bearing, private_veh = False, transform_coords = False):
+    def teleport_cosim_vehicle(self, vehID, x, y, bearing, speed = 0, private_veh = False, transform_coords = False):
         msg = {
                 "TYPE": "CTRL_teleportCoSimVeh",
                 "DATA": []
@@ -461,15 +461,18 @@ class METSRClient:
             vehID = [vehID]
             x = [x]
             y = [y]
+            speed = [speed]
             bearing = [bearing]
         if not isinstance(bearing, list):
             bearing = [bearing] * len(vehID)
+        if not isinstance(speed, list):
+            speed = [speed] * len(vehID)
         if not isinstance(private_veh, list):
             private_veh = [private_veh] * len(vehID)
         if not isinstance(transform_coords, list):
             transform_coords = [transform_coords] * len(vehID)
-        for vehID, x, y, bearing, private_veh, transform_coords in zip(vehID, x, y, bearing, private_veh, transform_coords):
-            msg["DATA"].append({"vehID": vehID, "x": x, "y": y, "bearing": bearing, "vehType": private_veh, "transformCoord": transform_coords})
+        for vehID, x, y, bearing, speed, private_veh, transform_coords in zip(vehID, x, y, bearing, speed, private_veh, transform_coords):
+            msg["DATA"].append({"vehID": vehID, "x": x, "y": y, "bearing": bearing, "speed": speed, "vehType": private_veh, "transformCoord": transform_coords})
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_teleportCoSimVeh", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
