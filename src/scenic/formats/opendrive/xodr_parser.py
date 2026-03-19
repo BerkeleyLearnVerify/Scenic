@@ -1033,7 +1033,7 @@ class Road:
                     leftEdge=leftEdge,
                     rightEdge=rightEdge,
                     road=None,
-                    crossings=(pedestrian_crossings),  # TODO add crosswalks - ADDED CROSSWALKS. CURRENTLY TESTING
+                    crossings=(),
                 )
                 allElements.append(sidewalk)
                 return sidewalk
@@ -1310,7 +1310,7 @@ class Road:
             backwardLanes=backwardGroup,
             sections=roadSections,
             signals=tuple(roadSignals),
-            crossings=(pedestrian_crossings),  # TODO add these! ADDED CROSSWALKS. CURRENTLY TESTING
+            crossings=tuple(pedestrian_crossings),
         )
         allElements.append(road)
 
@@ -1345,6 +1345,8 @@ class Road:
                 sec.group = backwardGroup
                 sec.road = road
                 del sec._original_lane
+        for crossing in pedestrian_crossings:
+            crossing.parent = road
 
         return road, allElements
 
@@ -2451,7 +2453,7 @@ class RoadMap:
                 groups.append(road.backwardLanes)
         lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
-        crossings = [cr for road in allRoads for cr in road.crossings]  # TODO add these - ADDED CROSSWALKS. CURRENTLY TESTING
+        crossings = [cr for road in allRoads for cr in road.crossings]
         sidewalks, shoulders = [], []
         for group in groups:
             sidewalk = group._sidewalk
@@ -2481,7 +2483,7 @@ class RoadMap:
             laneGroups=tuple(groups),
             lanes=lanes,
             intersections=intersections,
-            crossings=crossings,
+            crossings=tuple(crossings),
             sidewalks=tuple(sidewalks),
             shoulders=tuple(shoulders),
             tolerance=self.tolerance,
