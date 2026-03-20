@@ -37,6 +37,7 @@ from scenic.core.distributions import (
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.serialization import deterministicHash
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
@@ -1054,21 +1055,34 @@ class Network:
             data = f.read()
         digest = hashlib.blake2b(data).digest()
 
+        # Hash the map options as well so changing them invalidates the cache.
+        optionsDigest = deterministicHash(kwargs, digest_size=8)
+
         # By default, use the pickled version if it exists and is not outdated
         pickledPath = path.with_suffix(cls.pickledExt)
         if useCache and pickledPath.exists():
             try:
-                return cls.fromPickle(pickledPath, originalDigest=digest)
+                return cls.fromPickle(
+                    pickledPath,
+                    originalDigest=digest,
+                    optionsDigest=optionsDigest,
+                )
             except pickle.UnpicklingError:
                 verbosePrint("Unable to load cached network (old format or corrupted).")
             except cls.DigestMismatchError:
-                verbosePrint("Cached network does not match original file; ignoring it.")
+                verbosePrint(
+                    "Cached network does not match original file or map options; ignoring it."
+                )
 
         # Not using the pickled version; parse the original file based on its extension
         network = handlers[ext](path, **kwargs)
         if writeCache:
             verbosePrint(f"Caching road network in {cls.pickledExt} file.")
-            network.dumpPickle(path.with_suffix(cls.pickledExt), digest)
+            network.dumpPickle(
+                path.with_suffix(cls.pickledExt),
+                digest,
+                optionsDigest=optionsDigest,
+            )
         return network
 
     @classmethod
@@ -1112,11 +1126,12 @@ class Network:
         return network
 
     @classmethod
-    def fromPickle(cls, path, originalDigest=None):
+    def fromPickle(cls, path, originalDigest=None, optionsDigest=None):
         startTime = time.time()
         verbosePrint("Loading cached version of road network...")
 
         with open(path, "rb") as f:
+            # Version field
             versionField = f.read(4)
             if len(versionField) != 4:
                 raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
@@ -1126,6 +1141,8 @@ class Network:
                     f"{cls.pickledExt} file is too old; "
                     "regenerate it from the original map"
                 )
+
+            # Digest of the original map file
             digest = f.read(64)
             if len(digest) != 64:
                 raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
@@ -1134,6 +1151,18 @@ class Network:
                     f"{cls.pickledExt} file does not correspond to the original map; "
                     " regenerate it"
                 )
+
+            # Digest of the map options used to generate this cache
+            cachedOptionsDigest = f.read(8)
+            if len(cachedOptionsDigest) != 8:
+                raise pickle.UnpicklingError(f"{cls.pickledExt} file is corrupted")
+            if optionsDigest and optionsDigest != cachedOptionsDigest:
+                raise cls.DigestMismatchError(
+                    f"{cls.pickledExt} file does not correspond to the current "
+                    "map options; regenerate it"
+                )
+
+            # Remaining bytes are the compressed pickle of the Network
             with gzip.open(f) as gf:
                 try:
                     network = pickle.load(gf)  # invokes __setstate__ below
@@ -1167,15 +1196,19 @@ class Network:
             for maneuver in elem.maneuvers:
                 reconnect(maneuver)
 
-    def dumpPickle(self, path, digest):
+    def dumpPickle(self, path, digest, optionsDigest):
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
         version = struct.pack("<I", self._currentFormatVersion())
         data = pickle.dumps(self)
+
         with open(path, "wb") as f:
             f.write(version)  # uncompressed in case we change compression schemes later
-            f.write(digest)  # uncompressed for quick lookup
+            f.write(digest)  # digest of original map file
+            f.write(optionsDigest)  # digest of map options
+
+            # The rest of the file is a gzip-compressed pickle of the Network.
             with gzip.open(f, "wb") as gf:
                 gf.write(data)
 

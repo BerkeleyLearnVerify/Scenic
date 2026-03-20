@@ -1518,6 +1518,44 @@ class TestNew:
             parse_string_helper("Object facing x")
         assert "forgot 'new'" in e.value.msg
 
+    def test_in_operator_not_missing_new(self):
+        # Regression test for issue #356: "in" is also a specifier keyword, but
+        # `x in [0]` must not trigger the "forgot 'new'" error message.
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                x = 0
+                x in [0]
+                =
+                """
+            )
+        err = e.value
+        assert "forgot 'new'" not in err.msg
+        assert "invalid syntax" in err.msg
+        assert err.lineno == 3
+
+    def test_invalid_specifier_line_number(self):
+        # Regression test for issue #345: a malformed position specifier like
+        # `offset left` should not trigger the "forgot 'new'" error or be attributed
+        # to an earlier valid `... until self in ...` expression.
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                behavior AdvBehavior():
+                    do CrossingBehavior(ego) until self in ego.lane
+                    while True:
+                        take SetWalkingSpeedAction(0)
+
+                SHIFT = Vector(1, 2)
+                AdvAgent = new Pedestrian at Truck offset left Truck.heading by SHIFT,
+                    with heading Truck.heading
+                """
+            )
+        err = e.value
+        assert "forgot 'new'" not in err.msg
+        assert "invalid syntax" in err.msg
+        assert err.lineno == 7
+
     def test_invalid_specifier(self):
         with pytest.raises(ScenicSyntaxError) as e:
             parse_string_helper("new Object blobbing")

@@ -16,6 +16,8 @@ See the individual entries for details on each interface's capabilities and how 
 Currently Supported
 ===================
 
+.. _metadrive_simulator:
+
 MetaDrive
 ----------------------------
 
@@ -26,6 +28,20 @@ You can install it with:
 .. code-block:: console
 
     python -m pip install scenic[metadrive]
+
+.. note::
+
+   MetaDrive **0.4.3** (the current PyPI release) does **not** support Python 3.12/3.13.
+   It also has known issues on macOS Apple Silicon (M-series) with 3D rendering and a
+   braking issue where vehicles may not come to a complete stop.
+
+   To use Python 3.12+ **and** get the fixes for the macOS/braking issues, install
+   MetaDrive from the GitHub repo:
+
+   .. code-block:: console
+
+      python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
+      python -m pip install "sumolib >= 1.21.0"
 
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
 
