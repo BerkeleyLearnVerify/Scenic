@@ -13,7 +13,13 @@ from scenic.core.errors import (
     setDebuggingOptions,
 )
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleEgo, sampleParamPFrom, sampleScene
+from tests.utils import (
+    compileScenic,
+    sampleEgo,
+    sampleEgoFrom,
+    sampleParamPFrom,
+    sampleScene,
+)
 
 
 def test_minimal():
@@ -59,9 +65,46 @@ def test_no_ego():
     compileScenic("new Object")
 
 
+def test_new_in_list_expression():
+    scenario = compileScenic(
+        """
+        objs = [new Object with allowCollisions True]
+        ego = new Object with allowCollisions True
+        """
+    )
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
+
+
 def test_ego_complex_assignment():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("(ego, thing1), thing2 = ((new Object at 1@1), 2), 3")
+
+
+def test_list_new():
+    scenario = compileScenic("objs = [new Object at 10@10, new Object at 20@20]")
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
+    pos = [obj.position.x for obj in scene.objects]
+    assert pos == [10, 20]
+
+
+def test_dict_new():
+    scenario = compileScenic(
+        """
+        objs = {
+            'a': new Object at 10@10,
+            'b': new Object at 20@20
+        }
+        """
+    )
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
+    pos = [obj.position.x for obj in scene.objects]
+    assert pos == [10, 20]
 
 
 def test_noninterference():
@@ -111,7 +154,10 @@ def test_param_write():
 def test_mutate():
     scenario = compileScenic(
         """
-        ego = new Object at 3@1, facing 0
+        class Thing:
+            foo: self.heading
+
+        ego = new Thing at 3@1, facing 0
         mutate
         """
     )
@@ -119,6 +165,7 @@ def test_mutate():
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+    assert ego1.foo == 0
 
 
 def test_mutate_object():
@@ -158,8 +205,19 @@ def test_mutate_nonobject():
             """
             ego = new Object
             mutate sin
-        """
+            """
         )
+
+
+def test_mutate_occupiedSpace():
+    scenario = compileScenic(
+        """
+        ego = new Object at (1,2,3), with foo Range(1,2)
+        mutate ego
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert tuple(ego.position) == pytest.approx(tuple(ego.occupiedSpace.mesh.center_mass))
 
 
 def test_verbose():
@@ -292,3 +350,42 @@ def test_mode2D_interference():
         scene, _ = scenario.generate()
 
         assert any(obj.position[2] != 0 for obj in scene.objects)
+
+
+def test_mode2D_heading_parentOrientation():
+    program = """
+            class Foo:
+                heading: 0.56
+
+            class Bar(Foo):
+                parentOrientation: 1.2
+
+            ego = new Bar
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 1.2
+
+    program = """
+            class Bar:
+                parentOrientation: 1.2
+
+            class Foo(Bar):
+                heading: 0.56
+
+            ego = new Foo
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 0.56
+
+
+def test_simulator_name_binding_executes():
+    scenario = compileScenic(
+        """
+        simulator = 7
+        ego = new Object with foo simulator
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert ego.foo == 7

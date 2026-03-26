@@ -5,6 +5,7 @@ import shutil
 import pytest
 
 from scenic.core.distributions import RejectionException
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.geometry import TriangulationError
 from scenic.domains.driving.roads import Network
 from tests.utils import compileScenic, pickle_test, sampleEgo, sampleScene, tryPickling
@@ -33,13 +34,32 @@ basicScenario = inspect.cleandoc(
 from tests.domains.driving.conftest import map_params, mapFolder
 
 
-def compileDrivingScenario(cached_maps, code="", useCache=True, path=None):
+def compileDrivingScenario(
+    cached_maps, code="", useCache=True, path=None, mode2D=True, params={}
+):
     if not path:
         path = mapFolder / "CARLA" / "Town01.xodr"
     path = cached_maps[str(path)]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + "\n" + inspect.cleandoc(code)
-    return compileScenic(whole, mode2D=True)
+    return compileScenic(whole, mode2D=mode2D, params=params)
+
+
+def test_driving_2D_map(cached_maps):
+    compileDrivingScenario(
+        cached_maps,
+        code=basicScenario,
+        useCache=False,
+        mode2D=False,
+        params={"use2DMap": True},
+    )
+
+
+def test_driving_3D(cached_maps):
+    with pytest.raises(RuntimeError):
+        compileDrivingScenario(
+            cached_maps, code=basicScenario, useCache=False, mode2D=False
+        )
 
 
 @pytest.mark.slow
@@ -187,3 +207,25 @@ def test_pickle(cached_maps):
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
     tryPickling(scene)
+
+
+def test_invalid_road_scenario(cached_maps):
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileDrivingScenario(
+            cached_maps,
+            """
+            ego = new Car at 80.6354425964952@-327.5431187869811
+            param foo = ego.oppositeLaneGroup.sidewalk
+            """,
+        )
+
+    with pytest.raises(InvalidScenarioError):
+        # Set regionContainedIn to everywhere to hit driving domain specific code
+        # instead of high level not contained in workspace rejection.
+        scenario = compileDrivingScenario(
+            cached_maps,
+            """
+            ego = new Car at 10000@10000, with regionContainedIn everywhere
+            param foo = ego.lane
+            """,
+        )

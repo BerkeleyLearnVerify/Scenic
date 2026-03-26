@@ -36,10 +36,10 @@ __all__ = (
     "hypot",
     "max",
     "min",
+    "_toStrScenic",
+    "_toFloatScenic",
+    "_toIntScenic",
     "filter",
-    "str",
-    "float",
-    "int",
     "round",
     "len",
     "range",
@@ -120,6 +120,8 @@ __all__ = (
     "VerifaiRange",
     "VerifaiDiscreteRange",
     "VerifaiOptions",
+    "File",
+    "Files",
     # Constructible types
     "Point",
     "OrientedPoint",
@@ -222,6 +224,7 @@ from scenic.core.regions import (
     everywhere,
     nowhere,
 )
+from scenic.core.sensors import File, Files
 from scenic.core.shapes import (
     BoxShape,
     ConeShape,
@@ -249,6 +252,7 @@ from pathlib import Path
 import sys
 import traceback
 import typing
+import warnings
 
 from scenic.core.distributions import (
     Distribution,
@@ -278,6 +282,7 @@ from scenic.core.object_types import Constructible, Object2D, OrientedPoint2D, P
 import scenic.core.propositions as propositions
 from scenic.core.regions import convertToFootprint
 import scenic.core.requirements as requirements
+from scenic.core.sensors import Recorder, RecordingConfiguration
 from scenic.core.simulators import RejectSimulationException
 from scenic.core.specifiers import ModifyingSpecifier, Specifier
 from scenic.core.type_support import (
@@ -315,6 +320,7 @@ simulatorFactory = None
 evaluatingGuard = False
 mode2D = False
 _originalConstructibles = (Point, OrientedPoint, Object)
+BUFFERING_PITCH = 0.1
 
 ## APIs used internally by the rest of Scenic
 
@@ -557,11 +563,13 @@ def registerDynamicScenarioClass(cls):
 
 @contextmanager
 def executeInScenario(scenario, inheritEgo=False):
-    global currentScenario
+    global currentScenario, _globalParameters
     oldScenario = currentScenario
     if inheritEgo and oldScenario is not None:
         scenario._ego = oldScenario._ego  # inherit ego from parent
     currentScenario = scenario
+    oldParams = _globalParameters
+    _globalParameters = scenario._globalParameters
     try:
         yield
     except AttributeError as e:
@@ -576,6 +584,7 @@ def executeInScenario(scenario, inheritEgo=False):
             raise
     finally:
         currentScenario = oldScenario
+        _globalParameters = oldParams
 
 
 def prepareScenario(scenario):
@@ -763,10 +772,52 @@ def require_monitor(reqID, value, line, name):
         )
 
 
-def record(reqID, value, line, name):
+def record(reqID, value, line, name, recorder=None, period=None, delay=None):
     if not name:
         name = f"record{line}"
-    makeRequirement(requirements.RequirementType.record, reqID, value, line, name)
+    if recorder is not None:
+        if isinstance(recorder, str):
+            recorder = Recorder._forPattern(recorder)
+        if not isinstance(recorder, Recorder):
+            raise TypeError(
+                f'"record X to Y" on line {line} with Y not a str or Recorder'
+            )
+    if period is not None:
+        val, unit = period
+        if not isinstance(val, numbers.Real):
+            raise TypeError(
+                f'period of "record" statement on line {line} must be a number'
+            )
+        if val <= 0:
+            raise ValueError(
+                f'period of "record" statement on line {line} must be positive'
+            )
+        if unit == "steps" and not isinstance(val, int):
+            raise TypeError(
+                f'"record every X steps" on line {line} with X not an integer'
+            )
+    else:
+        period = (1, "steps")
+    if delay is not None:
+        val, unit = delay
+        if not isinstance(val, numbers.Real):
+            raise TypeError(
+                f'delay of "record" statement on line {line} must be a number'
+            )
+        if val < 0:
+            raise ValueError(
+                f'delay of "record" statement on line {line} must be nonnegative'
+            )
+        if unit == "steps" and not isinstance(val, int):
+            raise TypeError(
+                f'"record after X steps" on line {line} with X not an integer'
+            )
+    else:
+        delay = (0, "steps")
+    config = RecordingConfiguration(
+        name=name, recorder=recorder, period=period, delay=delay
+    )
+    makeRequirement(requirements.RequirementType.record, reqID, value, line, name, config)
 
 
 def record_initial(reqID, value, line, name):
@@ -813,7 +864,7 @@ def terminate_simulation_when(reqID, req, line, name):
     )
 
 
-def makeRequirement(ty, reqID, req, line, name):
+def makeRequirement(ty, reqID, req, line, name, recConfig=None):
     if evaluatingRequirement:
         raise InvalidScenarioError(f'tried to use "{ty.value}" inside a requirement')
     elif currentBehavior is not None:
@@ -821,7 +872,7 @@ def makeRequirement(ty, reqID, req, line, name):
     elif currentSimulation is not None:
         currentScenario._addDynamicRequirement(ty, req, line, name)
     else:  # requirement being defined at compile time
-        currentScenario._addRequirement(ty, reqID, req, line, name, 1)
+        currentScenario._addRequirement(ty, reqID, req, line, name, 1, recConfig)
 
 
 def terminate_after(timeLimit, terminator=None):
@@ -1520,6 +1571,11 @@ def alwaysProvidesOrientation(region):
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
             return False
+        except Exception as e:
+            warnings.warn(
+                f"While sampling internally to determine if a random region provides an orientation, the following exception was raised: {repr(e)}"
+            )
+            return False
 
 
 def OffsetBy(offset):
@@ -1612,10 +1668,28 @@ def VisibleFrom(base):
     if not isA(base, Point):
         raise TypeError('specifier "visible from O" with O not a Point')
 
+    def helper(self):
+        if mode2D:
+            position = Region.uniformPointIn(base.visibleRegion)
+        else:
+            containing_region = (
+                currentScenario._workspace.region
+                if self.regionContainedIn is None
+                and currentScenario._workspace is not None
+                else self.regionContainedIn
+            )
+            position = (
+                Region.uniformPointIn(everywhere, tag="visible")
+                if containing_region is None
+                else Region.uniformPointIn(containing_region)
+            )
+
+        return {"position": position, "_observingEntity": base}
+
     return Specifier(
         "Visible/VisibleFrom",
         {"position": 3, "_observingEntity": 1},
-        {"position": Region.uniformPointIn(base.visibleRegion), "_observingEntity": base},
+        DelayedArgument({"regionContainedIn"}, helper),
     )
 
 
@@ -1649,9 +1723,8 @@ def NotVisibleFrom(base):
         if mode2D:
             position = Region.uniformPointIn(region.difference(base.visibleRegion))
         else:
-            position = Region.uniformPointIn(
-                convertToFootprint(region).difference(base.visibleRegion)
-            )
+            # We can't limit the available region since any spot could potentially be occluded.
+            position = Region.uniformPointIn(convertToFootprint(region))
 
         return {"position": position, "_nonObservingEntity": base}
 
@@ -2050,6 +2123,24 @@ def ApparentlyFacing(heading, fromPt=None):
     )
 
 
+### Primitive internal functions, utilized after compiler conversion
+
+
+@distributionFunction
+def _toStrScenic(*args, **kwargs) -> str:
+    return builtins.str(*args, **kwargs)
+
+
+@distributionFunction
+def _toFloatScenic(*args, **kwargs) -> float:
+    return builtins.float(*args, **kwargs)
+
+
+@distributionFunction
+def _toIntScenic(*args, **kwargs) -> int:
+    return builtins.int(*args, **kwargs)
+
+
 ### Primitive functions overriding Python builtins
 
 # N.B. applying functools.wraps to preserve the metadata of the original
@@ -2059,21 +2150,6 @@ def ApparentlyFacing(heading, fromPt=None):
 @distributionFunction
 def filter(function, iterable):
     return list(builtins.filter(function, iterable))
-
-
-@distributionFunction
-def str(*args, **kwargs):
-    return builtins.str(*args, **kwargs)
-
-
-@distributionFunction
-def float(*args, **kwargs):
-    return builtins.float(*args, **kwargs)
-
-
-@distributionFunction
-def int(*args, **kwargs):
-    return builtins.int(*args, **kwargs)
 
 
 @distributionFunction

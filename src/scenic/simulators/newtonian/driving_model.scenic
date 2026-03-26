@@ -6,6 +6,10 @@ Vehicles support the basic actions and behaviors from the driving domain.
 
 A path to a map file for the scenario should be provided as the ``map`` global parameter;
 see the driving domain's documentation for details.
+
+Global Parameters:
+    debugRender (bool): If ``True``, enables a debug view that draws simple
+        polygons for objects in the Newtonian window. Default is ``False``.
 """
 
 from scenic.simulators.newtonian.model import *
@@ -14,7 +18,9 @@ from scenic.domains.driving.model import *  # includes basic actions and behavio
 
 from scenic.simulators.utils.colors import Color
 
-simulator NewtonianSimulator(network, render=render)
+param debugRender = False
+
+simulator NewtonianSimulator(network, render=render, debug_render=globalParameters.debugRender)
 
 class NewtonianActor(DrivingObject):
     throttle: 0
@@ -57,7 +63,15 @@ class Car(Vehicle, Steers):
         return True
 
 class Pedestrian(Pedestrian, NewtonianActor, Walks):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.control = {'heading': None, 'speed': None}
+
+    def setWalkingDirection(self, heading):
+        self.control['heading'] = heading
+
+    def setWalkingSpeed(self, speed):
+        self.control['speed'] = speed
 
 class Debris:
     """Abstract class for debris scattered randomly in the workspace."""

@@ -64,3 +64,33 @@ def test_simulator_set_property():
     assert result is not None
     assert result.records["test_val_1"] == [(0, "bar"), (1, "bar"), (2, "bar")]
     assert result.records["test_val_2"] == result.records["test_val_3"] == "bar"
+
+
+def test_simulator_bad_scheduler():
+    class TestSimulation(DummySimulation):
+        def scheduleForAgents(self):
+            # Don't include the last agent
+            return self.agents[:-1]
+
+    class TestSimulator(DummySimulator):
+        def createSimulation(self, scene, **kwargs):
+            return TestSimulation(scene, **kwargs)
+
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            take 1
+
+        class TestObj:
+            allowCollisions: True
+            behavior: Foo
+
+        for _ in range(5):
+            new TestObj
+        """
+    )
+
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = TestSimulator()
+    with pytest.raises(RuntimeError):
+        result = simulator.simulate(scene, maxSteps=2)

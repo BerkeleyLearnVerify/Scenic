@@ -262,7 +262,7 @@ def needsLazyEvaluation(thing):
 
 def dependencies(thing):
     """Dependencies which must be sampled before this value."""
-    return getattr(thing, "_dependencies", ())
+    return getattr(getattr(thing, "_conditioned", thing), "_dependencies", ())
 
 
 def needsSampling(thing):

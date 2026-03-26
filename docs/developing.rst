@@ -58,6 +58,21 @@ If you're running the test suite on a headless server or just want to stop windo
 popping up during testing, use the :command:`--no-graphics` option to skip graphical
 tests.
 
+Prior to finalizing a PR or other substantial changes, it's a good idea to run the test suite under all major versions of Python that Scenic supports, in fresh virtual environments.
+You can do this automatically with the command :command:`tox`, which by default will test all supported major versions both with and without optional dependencies (this will take a long time).
+Some variations:
+
+* :command:`tox -p` will run the various combinations in parallel.
+
+* :command:`tox -m basic` skips testing installations with the optional dependencies.
+
+* :command:`tox -- --fast` only runs the "fast" tests. In general, any arguments after the :command:`--` will get passed to ``pytest``. For example,
+
+* :command:`tox -- tests/syntax/test_specifiers.py` only runs the tests in the given file.
+
+See the `Tox <https://tox.wiki/>`_ website for more information about the available options and how to configure Tox.
+
+
 .. _debugging:
 
 Debugging

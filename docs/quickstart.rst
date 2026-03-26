@@ -171,3 +171,5 @@ Depending on what you'd like to do with Scenic, different parts of the documenta
 	* If you want to control Scenic from Python rather than using the command-line tool (for example if you want to collect data from the generated scenarios), see :doc:`api`.
 
 	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our pages on :doc:`developing` and :ref:`internals`.
+
+If you can't find something in the documentation, or have any question about Scenic, feel free to post on our `community forum <https://forum.scenic-lang.org/>`_.

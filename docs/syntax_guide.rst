@@ -18,6 +18,7 @@ Primitive Data Types
 `Vector Fields <VectorField>` associating an orientation to each point in space
 `Regions <Region>`            representing sets of points in space
 `Shapes <Shape>`              representing shapes (regions modulo similarity)
+`Sensors <Sensor>`            representing sensors mounted on objects
 ============================= ==================================================================
 
 
@@ -83,8 +84,8 @@ Simple Statements
      - Set the scenario to terminate after a given amount of time.
    * - :sampref:`mutate {identifier}, {...} [by {number}]`
      - Enable mutation of the given list of objects.
-   * - :sampref:`record [initial | final] {value} as {name}`
-     - Save a value at every time step or only at the start/end of the simulation.
+   * - :sampref:`record [initial | final] {value} {...}`
+     - Save initial, final, or time series data from simulations.
 
 Dynamic Statements
 ++++++++++++++++++
@@ -100,6 +101,10 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
      - Take the action(s) specified.
    * - :sampref:`wait`
      - Take no actions this time step.
+   * - :sampref:`wait until {boolean}`
+     - Take no actions until a condition is met.
+   * - :sampref:`wait for {scalar} (seconds | steps)`
+     - Take no actions for a specified period of time.
    * - :sampref:`terminate`
      - Immediately end the scenario.
    * - :sampref:`terminate simulation`
@@ -168,6 +173,7 @@ Properties added by `Object`:
  contactTolerance        1e-4                     max distance to be considered on a surface
  sideComponentThresholds (-0.5, 0.5) per side     thresholds to determine side surfaces
  cameraOffset            (0, 0, 0)                position of camera for :keyword:`can see`
+ visionSensorOffset      (0, self.length/2, 0)    offset of default vision sensor mount point
  requireVisible          `False`                  whether object must be visible from ego
  occluding               `True`                   whether object occludes visibility
  showVisibleRegion       `False`                  whether to display the visible region
@@ -178,6 +184,7 @@ Properties added by `Object`:
  angularSpeed [1]_       0                        angular speed (change in :prop:`heading`/time)
  behavior                `None`                   :term:`dynamic behavior`, if any
  lastActions             `None`                   tuple of actions taken in last timestamp
+ sensors                 {}                       dict of :ref:`sensors <sensors>` the object has
 ======================== ======================= ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
@@ -219,9 +226,9 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
    * - :sampref:`beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]`
      - Positions the object with respect to the line of sight from a point or the ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
-     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be in the appropriate visible region.
+     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be uniformly random over all positions that result in a visible object.
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
-     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be outside the appropriate visible region.
+     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be uniformly random over all positions that result in a non-visible object.
    * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
      - Positions the object to the left/right by the given scalar distance.
    * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`

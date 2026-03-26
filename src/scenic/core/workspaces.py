@@ -60,7 +60,7 @@ class Workspace(Region):
             aabb = self.region.AABB
         except (NotImplementedError, TypeError):  # unbounded Regions don't support this
             return
-        ((xmin, ymin), (xmax, ymax), _) = aabb
+        ((xmin, ymin, _), (xmax, ymax, _)) = aabb
         plt.xlim(xmin, xmax)
         plt.ylim(ymin, ymax)
 

@@ -106,7 +106,7 @@ class WeightedAcceptanceChecker(SampleChecker):
         """Return the list of requirements in sorted order"""
         # Extract and sort active requirements
         reqs = [req for req in self.requirements if req.active]
-        reqs.sort(key=self.getWeightedAcceptanceProb)
+        reqs.sort(key=self.getRequirementCost)
 
         # Remove any optional requirements at the end of the list, since they're useless
         while reqs and reqs[-1].optional:
@@ -131,6 +131,13 @@ class WeightedAcceptanceChecker(SampleChecker):
         sum_time += new_time - old_time
         self.bufferSums[req] = (sum_acc, sum_time)
 
-    def getWeightedAcceptanceProb(self, req):
+    def getRequirementCost(self, req):
+        # Expected cost of a requirement is average runtime divided by rejection probability;
+        # if estimated rejection probability is zero, break ties using runtime.
         sum_acc, sum_time = self.bufferSums[req]
-        return (sum_acc / self.bufferSize) * (sum_time / self.bufferSize)
+        runtime = sum_time / self.bufferSize
+        rej_prob = 1 - (sum_acc / self.bufferSize)
+        if rej_prob > 0:
+            return (runtime / rej_prob, 0)
+        else:
+            return (float("inf"), runtime)

@@ -56,31 +56,6 @@ EXPR_NAME_MAPPING = {
 }
 
 
-def parse_file(
-    path: str,
-    py_version: Optional[tuple]=None,
-    token_stream_factory: Optional[
-        Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    ] = None,
-    verbose:bool = False,
-) -> ast.Module:
-    """Parse a file."""
-    with open(path) as f:
-        tok_stream = (
-            token_stream_factory(f.readline)
-            if token_stream_factory else
-            tokenize.generate_tokens(f.readline)
-        )
-        tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
-        parser = ScenicParser(
-            tokenizer,
-            verbose=verbose,
-            filename=os.path.basename(path),
-            py_version=py_version
-        )
-        return parser.parse("file")
-
-
 def parse_string(
     source: str,
     mode: Union[Literal["eval"], Literal["exec"]],
@@ -99,7 +74,24 @@ def parse_string(
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
-    return parser.parse(mode if mode == "eval" else "file")
+
+    # Tokenization / early indentation errors are raised before ScenicParser
+    # runs; wrap them in ScenicParseError so they use Scenic's normal syntax
+    # error reporting (correct filename, consistent formatting).
+    try:
+        return parser.parse(mode if mode == "eval" else "file")
+    except tokenize.TokenError as e:
+        msg, (lineno, offset) = e.args
+        syn = SyntaxError(msg)
+        syn.filename = filename
+        syn.lineno = lineno
+        syn.offset = offset
+        raise ScenicParseError(syn) from None
+
+    except IndentationError as e:
+        e.filename = filename
+        raise ScenicParseError(e) from None
+
 
 
 class Target(enum.Enum):
@@ -337,7 +329,8 @@ class Parser(Parser):
             line, col_offset = t.end
         source += "\\n)"
         try:
-            m = ast.parse(source)
+            # Use the Scenic parser's filename so f-string errors report the right file.
+            m = ast.parse(source, filename=self.filename)
         except SyntaxError as err:
             args = (err.filename, err.lineno + line_offset - 2, err.offset, err.text)
             if sys.version_info >= (3, 10):
@@ -637,6 +630,8 @@ scenic_stmt:
     | scenic_terminate_when_stmt
     | scenic_terminate_after_stmt
     | scenic_take_stmt
+    | scenic_wait_for_stmt
+    | scenic_wait_until_stmt
     | scenic_wait_stmt
     | scenic_terminate_simulation_stmt
     | scenic_terminate_stmt
@@ -856,7 +851,7 @@ scenic_class_statement[list]:
 
 scenic_class_property_stmt:
     # not a simple statement; reads NEWLINE
-    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE { 
+    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE {
         s.PropertyDef(
             property=a.string,
             attributes=b if b is not None else [],
@@ -930,10 +925,10 @@ scenic_behavior_statement[list]:
 
 scenic_invalid_behavior_statement:
     | a="invariant" ':' a=expression {
-        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a) 
+        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a)
      }
     | a="precondition" ':' a=expression {
-        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a) 
+        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a)
      }
 
 scenic_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
@@ -1408,7 +1403,7 @@ pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
 wildcard_pattern["ast.MatchAs"]:
-    | "_" { ast.MatchAs(pattern=None, target=None, LOCATIONS) }
+    | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
 
 value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
@@ -1726,18 +1721,23 @@ scenic_specifiers: ss=','.scenic_specifier+ { ss }
 scenic_specifier:
     | scenic_valid_specifier
     | invalid_scenic_specifier
+# Split into non-operator-like vs operator-like instance specifiers.
 scenic_valid_specifier:
-    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
+    | scenic_instance_specifier_nonoperator
+    | scenic_instance_specifier_operator_like
+scenic_instance_specifier_operator_like:
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | "offset" 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
     | "offset" "along" d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
+scenic_instance_specifier_nonoperator:
+    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
         s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
     | "beyond" v=expression 'by' o=expression b=['from' a=expression {a}] { s.BeyondSpecifier(position=v, offset=o, base=b) }
     | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
-    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
     | 'on' r=expression { s.OnSpecifier(region=r, LOCATIONS) }
     | "contained" 'in' r=expression { s.ContainedInSpecifier(region=r, LOCATIONS) }
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
@@ -2125,8 +2125,12 @@ scenic_require_stmt_name:
     | a=STRING { a.string[1:-1] }
 
 scenic_record_stmt:
-    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
-        s.Record(value=e, name=n, LOCATIONS)
+    | "record" e=expression \
+        p=["every" a=scenic_dynamic_duration { a }] \
+        d=["after" a=scenic_dynamic_duration { a }] \
+        n=['as' a=scenic_require_stmt_name { a }] \
+        r=['to' a=expression { a }] {
+        s.Record(value=e, name=n, recorder=r, delay=d, period=p, LOCATIONS)
      }
 
 scenic_record_initial_stmt:
@@ -2148,6 +2152,10 @@ scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 
 scenic_take_stmt: "take" elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
+
+scenic_wait_for_stmt: "wait" 'for' u=scenic_dynamic_duration { s.WaitFor(duration=u, LOCATIONS) }
+
+scenic_wait_until_stmt: "wait" 'until' cond=expression { s.WaitUntil(cond=cond, LOCATIONS) }
 
 scenic_wait_stmt: "wait" { s.Wait(LOCATIONS) }
 
@@ -2489,7 +2497,7 @@ invalid_kwarg[NoReturn]:
      }
 
 invalid_scenic_instance_creation[NoReturn]:
-    | n=NAME s=scenic_valid_specifier {
+    | n=NAME s=scenic_instance_specifier_nonoperator {
         self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot 'new'?", n, s)
     }
 invalid_scenic_specifier[NoReturn]:
@@ -2891,7 +2899,7 @@ invalid_while_stmt[NoReturn]:
         )
      }
 invalid_for_stmt[NoReturn]:
-    | [ASYNC] 'for' star_targets 'in' star_expressions NEWLINE { self.raise_syntax_error("expected ':'") }
+    | ['async'] 'for' star_targets 'in' star_expressions NEWLINE { self.raise_syntax_error("expected ':'") }
     | ['async'] a='for' star_targets 'in' star_expressions ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after 'for' statement on line {a.start[0]}"

@@ -12,6 +12,12 @@ pre {tab-size: 4;}
 .wy-table-responsive table td, .wy-table-responsive table th {white-space: normal;}
 /* Increase maximum body width to support 100-character lines */
 .wy-nav-content {max-width:900px;}
+/* Make SVG logo render at the correct size */
+.wy-side-nav-search .wy-dropdown > a img.logo, .wy-side-nav-search > a img.logo {
+    width: 100%;
+}
+/* Modify background color behind logo to make it more readable */
+.wy-side-nav-search {background-color:#48ac92}
 /* Shrink the sidebar to 270 pixels wide */
 .wy-tray-container li, .wy-menu-vertical, .wy-side-nav-search, .wy-nav-side,
 .rst-versions {width:270px;}

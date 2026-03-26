@@ -70,6 +70,10 @@ localPath
 ---------
 The `localPath` function takes a relative path with respect to the directory containing the ``.scenic`` file where it is used, and converts it to an absolute path. Note that the path is returned as a `pathlib.Path` object.
 
+.. versionchanged:: 3.0
+
+    This function now returns a `pathlib.Path` object instead of a string.
+
 .. _verbosePrint_func:
 
 verbosePrint

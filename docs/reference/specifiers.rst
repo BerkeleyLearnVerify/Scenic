@@ -188,12 +188,19 @@ visible [from (*Point* | *OrientedPoint*)]
 	* :prop:`position` with priority 3
 	* also adds a requirement (see below)
 
-**Dependencies**: None
+**Dependencies**: :prop:`regionContainedIn`
 
 Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`. See the :ref:`Visibility System <visibility>` reference for a discussion of the visibility model.
 
-Also optionally specifies :prop:`position` to be a uniformly random point in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
-Note that the position set by this specifier is slightly stricter than simply adding a requirement that the ego :keyword:`can see` the object: the specifier makes the *center* of the object (its :prop:`position`) visible, while the :keyword:`can see` condition will be satisfied even if the center is not visible as long as some other part of the object is visible.
+Also optionally specifies :prop:`position` to be uniformly random over all points that could result in a visible object (note that the above requirement will ensure the object is in fact visible).
+
+.. versionchanged:: 3.0
+
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a visible object. This allows for objects whose :prop:`position` might be out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would never be generated because the *center* of the object was required to be visible.
+
+.. note::
+	
+	As an implementation detail, :prop:`position` is initially set to be sampled from `everywhere` (or the :term:`workspace` if one has been set). Scenic will then attempt to further restrict the sample region via various pruning techniques, but sometimes this is not possible. If this occurs and Scenic has not been able to further restrict the sampled region from `everywhere`, an error will be raised at compile time. The simplest way to remedy this is by setting a workspace or specifying :prop:`position` with a higher priority using a different specifier.
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
@@ -209,8 +216,11 @@ not visible [from (*Point* | *OrientedPoint*)]
 
 Requires that this object is *not* visible from the ego or the given `Point`/`OrientedPoint`.
 
-Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can position the object uniformly at random in the *non-visible* region of the ego.
-However, it depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
+Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not visible).
+
+.. versionchanged:: 3.0
+
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a non-visible object. This disallows objects whose :prop:`position` is out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would sometimes be generated because only the *center* of the object was required to be non-visible.
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:

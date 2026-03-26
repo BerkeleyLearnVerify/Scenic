@@ -1,3 +1,5 @@
+import pytest
+
 from scenic.core.distributions import Options, underlyingFunction
 from scenic.core.lazy_eval import (
     DelayedArgument,
@@ -31,6 +33,23 @@ def test_orientation_equality():
     assert o1 == o1 and o1.approxEq(o1)
     assert o1.approxEq(o2)
     assert o1 != o3 and not o1.approxEq(o3)
+
+
+def test_orientation_localAnglesFor():
+    parent = Orientation.fromEuler(math.pi / 4, math.pi / 4, 0)
+    target = Orientation.fromEuler(-3 * math.pi / 4, math.pi / 4, math.pi / 4)
+    angles = parent.localAnglesFor(target)
+    assert angles == pytest.approx((-3 * math.pi / 4, math.pi / 2, 0))
+
+    for i in range(100):
+        parent = Orientation.fromEuler(
+            *[random.uniform(-math.pi, math.pi) for _ in range(3)]
+        )
+        target = Orientation.fromEuler(
+            *[random.uniform(-math.pi, math.pi) for _ in range(3)]
+        )
+        local = Orientation.fromEuler(*parent.localAnglesFor(target))
+        assert target.approxEq(parent * local)
 
 
 def test_distribution_method_encapsulation():

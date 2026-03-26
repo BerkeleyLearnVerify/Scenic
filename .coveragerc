@@ -1,7 +1,12 @@
 # .coveragerc to control coverage.py
 [run]
+branch = True
 omit =
-    src/scenic/simulators/webots/WBT*.py
+    src/scenic/simulators/carla/*
+    src/scenic/simulators/gta/*
+    src/scenic/simulators/lgsvl/*
+    src/scenic/simulators/webots/*
+    src/scenic/simulators/xplane/*
 
 [report]
 # Regexes for lines to exclude from consideration
@@ -20,3 +25,5 @@ exclude_lines =
     @(abc\.)?abstractmethod
 
 ignore_errors = True
+show_missing = True
+precision = 2

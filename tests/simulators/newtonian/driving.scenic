@@ -21,3 +21,5 @@ third = new Car on visible ego.road, with behavior Potpourri
 require abs((apparent heading of third) - 180 deg) <= 30 deg
 
 new Object visible, with width 0.1, with length 0.1
+
+terminate after 2 steps

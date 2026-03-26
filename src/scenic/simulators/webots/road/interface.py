@@ -64,11 +64,11 @@ class Road(OSMObject):
         ]
         self.waypoints = tuple(cleanChain(pts, 0.05))
         assert len(self.waypoints) > 1, pts
-        self.width = float(attrs.get("width", 7))
-        self.lanes = int(attrs.get("numberOfLanes", 2))
+        self.width = float(attrs.get("width", (7,))[0])
+        self.lanes = int(attrs.get("numberOfLanes", (2,))[0])
         if self.lanes < 1:
             raise RuntimeError(f"Road {self.osmID} has fewer than 1 lane!")
-        self.forwardLanes = int(attrs.get("numberOfForwardLanes", 1))
+        self.forwardLanes = int(attrs.get("numberOfForwardLanes", (1,))[0])
         # if self.forwardLanes < 1:
         #   raise RuntimeError(f'Road {self.osmID} has fewer than 1 forward lane!')
         self.backwardLanes = self.lanes - self.forwardLanes
@@ -210,13 +210,13 @@ class Road(OSMObject):
 
     def show(self, plt):
         if self.hasLeftSidewalk:
-            x, y = zip(*self.leftSidewalk.points)
+            x, y = zip(*[p[:2] for p in self.leftSidewalk.boundary.points])
             plt.fill(x, y, "#A0A0FF")
         if self.hasRightSidewalk:
-            x, y = zip(*self.rightSidewalk.points)
+            x, y = zip(*[p[:2] for p in self.rightSidewalk.boundary.points])
             plt.fill(x, y, "#A0A0FF")
         self.region.show(plt, style="r:")
-        x, y = zip(*self.lanes[0].points)
+        x, y = zip(*[p[:2] for p in self.lanes[0].boundary.points])
         plt.fill(x, y, color=(0.8, 1.0, 0.8))
         for lane, markers in enumerate(self.laneMarkers):
             x, y = zip(*markers)
@@ -296,7 +296,10 @@ class WebotsWorkspace(Workspace):
         allCells = []
         drivableAreas = []
         for road in self.roads:
-            assert road.region.polygons.is_valid, (road.waypoints, road.region.points)
+            assert road.region.polygons.is_valid, (
+                road.waypoints,
+                road.region.boundary.points,
+            )
             allCells.extend(road.cells)
         for crossroad in self.crossroads:
             if crossroad.region is not None:

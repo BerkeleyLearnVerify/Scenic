@@ -29,3 +29,10 @@ To avoid confusion, we recommend not using ``distance``, ``angle``, ``offset``, 
 
 .. literalinclude:: /_build/keywords_soft.txt
     :language: text
+
+.. rubric:: Builtin Names
+
+The following names are built into Scenic and can be used but not overwritten .
+
+.. literalinclude:: /_build/builtin_names.txt
+    :language: text

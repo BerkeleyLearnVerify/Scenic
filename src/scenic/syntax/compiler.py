@@ -2,7 +2,7 @@ import ast
 from copy import copy
 from enum import IntFlag, auto
 import itertools
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 from scenic.core.errors import ScenicParseError, getText
 import scenic.syntax.ast as s
@@ -58,7 +58,7 @@ finishedFlag = ast.Attribute(
 
 trackedNames = {"ego", "workspace"}
 globalParametersName = "globalParameters"
-builtinNames = {globalParametersName}
+builtinNames = {globalParametersName, "str", "int", "float"}
 
 
 # shorthands for convenience
@@ -236,6 +236,16 @@ TEMPORAL_PREFIX_OPS = {
 }
 
 
+class AtomicCheckTransformer(Transformer):
+    def visit_Call(self, node: ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
+            self.makeSyntaxError(
+                f'malformed use of the "{func.id}" temporal operator', node
+            )
+        return self.generic_visit(node)
+
+
 class PropositionTransformer(Transformer):
     def __init__(self, filename="<unknown>") -> None:
         super().__init__(filename)
@@ -259,6 +269,11 @@ class PropositionTransformer(Transformer):
             return wrapped, self.nextSyntaxId
         newNode = self._create_atomic_proposition_factory(node)
         return newNode, self.nextSyntaxId
+
+    def generic_visit(self, node):
+        acv = AtomicCheckTransformer(self.filename)
+        acv.visit(node)
+        return node
 
     def _register_requirement_syntax(self, syntax):
         """register requirement syntax for later use
@@ -357,14 +372,6 @@ class PropositionTransformer(Transformer):
             keywords=[],
         )
         return ast.copy_location(newNode, node)
-
-    def visit_Call(self, node: ast.Call):
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
-            self.makeSyntaxError(
-                f'malformed use of the "{func.id}" temporal operator', node
-            )
-        return self.generic_visit(node)
 
     def visit_Always(self, node: s.Always):
         value = self.visit(node.value)
@@ -540,7 +547,11 @@ class ScenicToPythonTransformer(Transformer):
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(f'unexpected keyword "{node.id}"', node)
-            node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
+            # Convert global parameters name to a call
+            if node.id == globalParametersName:
+                node = ast.copy_location(
+                    ast.Call(ast.Name(node.id, loadCtx), [], []), node
+                )
         elif node.id in trackedNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(
@@ -1078,6 +1089,16 @@ class ScenicToPythonTransformer(Transformer):
                 newArgs.append(self.visit(arg))
         newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
         newFunc = self.visit(node.func)
+
+        # Convert primitive type conversions to their Scenic equivalents
+        if isinstance(newFunc, ast.Name):
+            if newFunc.id == "str":
+                newFunc.id = "_toStrScenic"
+            elif newFunc.id == "float":
+                newFunc.id = "_toFloatScenic"
+            elif newFunc.id == "int":
+                newFunc.id = "_toIntScenic"
+
         if wrappedStar:
             newNode = ast.Call(
                 ast.Name("callWithStarArgs", ast.Load()),
@@ -1142,10 +1163,15 @@ class ScenicToPythonTransformer(Transformer):
 
     def visit_Require(self, node: s.Require):
         prob = node.prob
-        if prob is not None and not 0 <= prob <= 1:
-            raise self.makeSyntaxError("probability must be between 0 and 1", node)
+        if prob is not None:
+            if not 0 <= prob <= 1:
+                raise self.makeSyntaxError("probability must be between 0 and 1", node)
+            kwargs = {"prob": ast.Constant(prob)}
+        else:
+            kwargs = {}
+
         return self.createRequirementLike(
-            "require", node.cond, node.lineno, node.name, prob
+            "require", node.cond, node.lineno, node.name, kwargs
         )
 
     def visit_RequireMonitor(self, node: s.RequireMonitor):
@@ -1180,6 +1206,28 @@ class ScenicToPythonTransformer(Transformer):
     @context(Context.DYNAMIC)
     def visit_Wait(self, node: s.Wait):
         return self.generateInvocation(node, ast.Constant(()))
+
+    @context(Context.DYNAMIC)
+    def visit_WaitFor(self, node: s.WaitFor):
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[
+                ast.Constant("for"),
+                self.visit(node.duration.value),
+                ast.Constant(node.duration.unitStr),
+            ],
+            keywords=[],
+        )
+        return self.makeDoLike(node, [], modifier=modifier)
+
+    @context(Context.DYNAMIC)
+    def visit_WaitUntil(self, node: s.WaitUntil):
+        modifier = ast.Call(
+            func=ast.Name("Modifier", loadCtx),
+            args=[ast.Constant("until"), ast.Lambda(noArgs, self.visit(node.cond))],
+            keywords=[],
+        )
+        return self.makeDoLike(node, [], modifier=modifier)
 
     @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):
@@ -1301,7 +1349,23 @@ class ScenicToPythonTransformer(Transformer):
 
     @context(Context.TOP_LEVEL)
     def visit_Record(self, node: s.Record):
-        return self.createRequirementLike("record", node.value, node.lineno, node.name)
+        if node.name and node.recorder:
+            raise self.makeSyntaxError(
+                'cannot use both "as" and "to" in "record" statement', node
+            )
+        kwargs = {}
+        if node.recorder:
+            kwargs["recorder"] = self.visit(node.recorder)
+        if node.period:
+            elts = [self.visit(node.period.value), ast.Constant(node.period.unitStr)]
+            kwargs["period"] = ast.Tuple(elts, loadCtx)
+        if node.delay:
+            elts = [self.visit(node.delay.value), ast.Constant(node.delay.unitStr)]
+            kwargs["delay"] = ast.Tuple(elts, loadCtx)
+
+        return self.createRequirementLike(
+            "record", node.value, node.lineno, node.name, kwargs
+        )
 
     @context(Context.TOP_LEVEL)
     def visit_RecordInitial(self, node: s.RecordInitial):
@@ -1333,36 +1397,39 @@ class ScenicToPythonTransformer(Transformer):
         body: ast.AST,
         lineno: int,
         name: Optional[str] = None,
-        prob: Optional[float] = None,
+        kwargs: Dict[str, Union[Tuple[ast.AST, ...], ast.AST]] = {},
     ):
         """Create a call to a function that implements requirement-like features, such as `record` and `terminate when`.
 
         Args:
-            functionName (str): Name of the requirement-like function to call. Its signature must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
+            functionName (str): Name of the requirement-like function to call. Its signature
+                must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
             body (ast.AST): AST node to evaluate for checking the condition
             lineno (int): Line number in the source code
             name (Optional[str], optional): Optional name for requirements. Defaults to None.
-            prob (Optional[float], optional): Optional probability for requirements. Defaults to None.
+            kwargs: Optional keyword arguments.
         """
         propTransformer = PropositionTransformer(self.filename)
         newBody, self.nextSyntaxId = propTransformer.transform(body, self.nextSyntaxId)
         newBody = self.visit(newBody)
         requirementId = self._register_requirement_syntax(body)
 
+        keywords = []
+        for datum, node in kwargs.items():
+            if isinstance(node, tuple):
+                node = ast.Tuple(*node)
+            keywords.append(ast.keyword(arg=datum, value=node))
+
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(functionName, loadCtx),
                 args=[
-                    ast.Constant(requirementId),  # requirement IDre
+                    ast.Constant(requirementId),  # requirement ID
                     newBody,  # body
                     ast.Constant(lineno),  # line number
                     ast.Constant(name),  # requirement name
                 ],
-                keywords=(
-                    [ast.keyword(arg="prob", value=ast.Constant(prob))]
-                    if prob is not None
-                    else []
-                ),
+                keywords=keywords,
             )
         )
 

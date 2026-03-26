@@ -688,6 +688,21 @@ def test_orientation_relative_to_orientation():
     assert ego.orientation.approxEq(Orientation.fromEuler(math.pi / 2, math.pi / 2, 0))
 
 
+def test_orientation_relative_to_orientation2():
+    ego = sampleEgoFrom(
+        """
+        ego = new Object facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
+            relative to Orientation.fromEuler(90 deg, 0, 0))
+        """
+    )
+    assert ego.yaw == pytest.approx(math.radians(-45))
+    assert ego.pitch == pytest.approx(math.radians(45))
+    assert ego.roll == pytest.approx(0)
+    assert ego.orientation.approxEq(
+        Orientation.fromEuler(math.radians(-45), math.radians(45), 0)
+    )
+
+
 def test_heading_relative_to_orientation():
     ego = sampleEgoFrom(
         """
