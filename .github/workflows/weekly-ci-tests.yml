@@ -1,12 +1,12 @@
 name: Weekly CI tests
 
-# No permissions needed
-permissions: {}
-
 # Trigger every Thursday at 9:15 AM Pacific Time (16:15 UTC)
 on:
   schedule:
     - cron: '15 16 * * 4'
+
+permissions:
+  contents: read
 
 jobs:
   run-tests:

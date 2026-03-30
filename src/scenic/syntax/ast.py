@@ -179,6 +179,9 @@ class Next(AST):
 class Record(AST):
     value: ast.AST
     name: Optional[str] = None
+    recorder: Optional[Any] = None
+    period: Optional[Union["Seconds", "Steps"]] = None
+    delay: Optional[Union["Seconds", "Steps"]] = None
 
 
 class RecordInitial(AST):
@@ -211,6 +214,14 @@ class Take(AST):
 
 class Wait(AST):
     pass
+
+
+class WaitFor(AST):
+    duration: Union["Seconds", "Steps"]
+
+
+class WaitUntil(AST):
+    cond: ast.AST
 
 
 class Terminate(AST):
