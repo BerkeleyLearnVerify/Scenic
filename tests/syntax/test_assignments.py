@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.utils import sampleParamPFrom
+from tests.utils import compileScenic, sampleParamP, sampleParamPFrom
 
 
 def test_multiple_assignment_swap():
@@ -28,16 +28,18 @@ def test_lhs_tuple_unpack():
 
 
 def test_unpack_from_distribution_pair():
-    code = """
+    scenario = compileScenic(
+        """
         pair = (Uniform(0, 1), Uniform(0, 1))
         x, y = pair
         param p = (x, y)
-    """
-    outs = [sampleParamPFrom(code) for _ in range(20)]
+        """
+    )
+    outs = [sampleParamP(scenario) for _ in range(30)]
     assert len(set(outs)) > 1
     for x, y in outs:
-        assert 0 <= x <= 1
-        assert 0 <= y <= 1
+        assert x == 0 or x == 1
+        assert y == 0 or y == 1
 
 
 @pytest.mark.parametrize(
