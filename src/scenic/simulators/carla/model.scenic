@@ -122,6 +122,18 @@ class CarlaActor(DrivingObject):
         carlaActor (dynamic): Set during simulations to the ``carla.Actor`` representing this
             object.
         blueprint (str): Identifier of the CARLA blueprint specifying the type of object.
+        defaultWidth (float): Default width to use if Scenic has no recorded dimensions for
+            this blueprint. 
+        defaultLength (float): Default length to use if Scenic has no recorded dimensions for 
+            this blueprint. 
+        defaultHeight (float): Default height to use if Scenic has no recorded dimensions for
+            this blueprint. 
+        width (float): Width for this object; uses the value from ``blueprint`` when available,
+            otherwise ``defaultWidth``. 
+        length (float): Length for this object; uses the value from ``blueprint`` when available,
+            otherwise ``defaultLength``. 
+        height (float): Height for this object; uses the value from ``blueprint`` when available,
+            otherwise ``defaultHeight``.
         rolename (str): Can be used to differentiate specific actors during runtime. Default
             value ``None``.
         physics (bool): Whether physics is enabled for this object in CARLA. Default true.
@@ -130,8 +142,13 @@ class CarlaActor(DrivingObject):
     """
     carlaActor: None
     blueprint: None
+    defaultWidth: 1 
+    defaultLength: 1 
+    defaultHeight: 1 
+    width: blueprints.width(self.blueprint, self.defaultWidth) 
+    length: blueprints.length(self.blueprint, self.defaultLength) 
+    height: blueprints.height(self.blueprint, self.defaultHeight)
     rolename: None
-    color: None
     physics: True
     snapToGround: globalParameters.snapToGroundDefault
 
@@ -155,7 +172,7 @@ class CarlaActor(DrivingObject):
         else:
             self.carlaActor.set_velocity(cvel)
 
-class Vehicle(Vehicle, CarlaActor, Steers, _CarlaVehicle):
+class Vehicle(CarlaActor, Vehicle, Steers, _CarlaVehicle):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
@@ -179,10 +196,16 @@ class Vehicle(Vehicle, CarlaActor, Steers, _CarlaVehicle):
 class Car(Vehicle):
     """A car.
 
-    The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
+    The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the 
+    car blueprints recorded for the installed CARLA version (or the closest recorded
+    version), obtained via
+    :func:`scenic.simulators.carla.blueprints.blueprintsInCategory` with category
+    ``"car"``.
     """
-    blueprint: Uniform(*blueprints.carModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("car"))
+    defaultWidth: 2 
+    defaultLength: 4.5 
+    defaultHeight: 1.5
 
     @property
     def isCar(self):
@@ -192,32 +215,48 @@ class NPCCar(Car):  # no distinction between these in CARLA
     pass
 
 class Bicycle(Vehicle):
-    width: 1
-    length: 2
-    blueprint: Uniform(*blueprints.bicycleModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("bicycle"))
+    defaultWidth: 1 
+    defaultLength: 2 
+    defaultHeight: 1.5
 
 class Motorcycle(Vehicle):
-    width: 1
-    length:2
-    blueprint: Uniform(*blueprints.motorcycleModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("motorcycle"))
+    defaultWidth: 1
+    defaultLength: 2 
+    defaultHeight: 1.5
 
 class Truck(Vehicle):
-    width: 3
-    length: 7
-    blueprint: Uniform(*blueprints.truckModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("truck"))
+    defaultWidth: 2.5
+    defaultLength: 7.5
+    defaultHeight: 3
 
+class Van(Vehicle):
+    blueprint: Uniform(*blueprints.blueprintsInCategory("van"))
+    defaultWidth: 2 
+    defaultLength: 5 
+    defaultHeight: 2
 
-class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
+class Bus(Vehicle):
+    blueprint: Uniform(*blueprints.blueprintsInCategory("bus"))
+    defaultWidth: 4 
+    defaultLength: 10
+    defaultHeight: 4
+
+class Pedestrian(CarlaActor, Pedestrian, Walks, _CarlaPedestrian):
     """A pedestrian.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in :obj:`scenic.simulators.carla.blueprints.walkerModels`.
+    pedestrian blueprints recorded for the installed CARLA version (or the closest
+    recorded version), obtained via
+    :func:`scenic.simulators.carla.blueprints.blueprintsInCategory` with category
+    ``"walker"``.
     """
-    width: 0.5
-    length: 0.5
-    blueprint: Uniform(*blueprints.walkerModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("walker"))
+    defaultWidth: 0.5 
+    defaultLength: 0.5 
+    defaultHeight: 1.5
     carlaController: None
 
     def setWalkingDirection(self, heading):
@@ -238,100 +277,99 @@ class Prop(CarlaActor):
     regionContainedIn: road
     position: new Point on road
     parentOrientation: Range(0, 360) deg
-    width: 0.5
-    length: 0.5
+    defaultWidth: 0.5
+    defaultLength: 0.5 
+    defaultHeight: 0.5
     physics: False
 
 class Trash(Prop):
-    blueprint: Uniform(*blueprints.trashModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("trash"))
 
 
 class Cone(Prop):
-    blueprint: Uniform(*blueprints.coneModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("cone"))
 
 
 class Debris(Prop):
-    blueprint: Uniform(*blueprints.debrisModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("debris"))
 
 
 class VendingMachine(Prop):
-    blueprint: Uniform(*blueprints.vendingMachineModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("vendingMachine"))
+ 
 
 class Chair(Prop):
-    blueprint: Uniform(*blueprints.chairModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("chair"))
+ 
 
 class BusStop(Prop):
-    blueprint: Uniform(*blueprints.busStopModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("busStop"))
 
 
 class Advertisement(Prop):
-    blueprint: Uniform(*blueprints.advertisementModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("advertisement"))
 
 
 class Garbage(Prop):
-    blueprint: Uniform(*blueprints.garbageModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("garbage"))
 
 class Container(Prop):
-    blueprint: Uniform(*blueprints.containerModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("container"))
 
 
 class Table(Prop):
-    blueprint: Uniform(*blueprints.tableModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("table"))
 
 
 class Barrier(Prop):
-    blueprint: Uniform(*blueprints.barrierModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("barrier"))
 
 
 class PlantPot(Prop):
-    blueprint: Uniform(*blueprints.plantpotModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("plantpot"))
 
 
 class Mailbox(Prop):
-    blueprint: Uniform(*blueprints.mailboxModels)
-
+    blueprint: Uniform(*blueprints.blueprintsInCategory("mailbox"))
 
 class Gnome(Prop):
-    blueprint: Uniform(*blueprints.gnomeModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("gnome"))
 
 
 class CreasedBox(Prop):
-    blueprint: Uniform(*blueprints.creasedboxModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("creasedbox"))
 
 
 class Case(Prop):
-    blueprint: Uniform(*blueprints.caseModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("case"))
 
 
 class Box(Prop):
-    blueprint: Uniform(*blueprints.boxModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("box"))
 
 
 class Bench(Prop):
-    blueprint: Uniform(*blueprints.benchModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("bench"))
 
 
 class Barrel(Prop):
-    blueprint: Uniform(*blueprints.barrelModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("barrel"))
 
 
 class ATM(Prop):
-    blueprint: Uniform(*blueprints.atmModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("atm"))
 
 
 class Kiosk(Prop):
-    blueprint: Uniform(*blueprints.kioskModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("kiosk"))
 
 
 class IronPlate(Prop):
-    blueprint: Uniform(*blueprints.ironplateModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("ironplate"))
 
 
 class TrafficWarning(Prop):
-    blueprint: Uniform(*blueprints.trafficwarningModels)
+    blueprint: Uniform(*blueprints.blueprintsInCategory("trafficwarning"))
 
 
 ## Utility functions
