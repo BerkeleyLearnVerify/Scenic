@@ -63,7 +63,7 @@ def test_ego_subclass_point():
             class Foo(Point):
                 pass
             ego = new Foo
-        """
+            """
         )
 
 
@@ -74,7 +74,7 @@ def test_ego_subclass_orientedpoint():
             class Bar(OrientedPoint):
                 pass
             ego = new Bar
-        """
+            """
         )
 
 
