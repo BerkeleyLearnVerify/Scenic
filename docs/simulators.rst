@@ -125,6 +125,28 @@ See the paper and `scenic.simulators.gta` for documentation.
 Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`__.
 
 
+ManiSkill
+---------
+
+Scenic supports integration with the `ManiSkill <https://maniskill.readthedocs.io/>`_
+simulator as an optional dependency, enabling users to describe robotic scenarios.
+
+You can install it with:
+
+.. code-block:: console
+
+    python -m pip install scenic[maniskill]
+
+.. note::
+
+   ManiSkill currently best supports Linux systems. On Windows and macOS, ManiSkill has
+   limited support. On macOS, additional setup may be required. See the
+   `ManiSkill installation instructions <https://maniskill.readthedocs.io/en/latest/user_guide/getting_started/installation.html>`_.
+
+For more information, refer to the documentation of the
+`scenic.simulators.maniskill` module.
+
+
 Webots
 ------
 
