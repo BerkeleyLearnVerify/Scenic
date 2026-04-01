@@ -40,7 +40,7 @@ class ScenicEnv(BaseEnv):
     def __init__(
         self,
         *args,
-        robot_uids="panda",
+        robot_uids="none",
         objects_to_create=[],
         camera_configs=None,
         **kwargs,
@@ -78,6 +78,26 @@ class ScenicEnv(BaseEnv):
     def _load_agent(self, options: dict, initial_agent_poses=None, build_separate=False):
         """Load the robot agent into the scene."""
         super()._load_agent(options, sapien.Pose(p=DEFAULT_ROBOT_POSITION))
+
+    def _get_obs_agent(self):
+        """Return agent observation data.
+
+        For scenes without a robot, return an empty dict instead of
+        trying to read proprioception from a nonexistent agent.
+        """
+        if self.agent is None:
+            return {}
+        return super()._get_obs_agent()
+
+    def get_state_dict(self):
+        """Return environment state.
+
+        For scenes without a robot, return only the scene simulation state
+        instead of trying to read controller state from a nonexistent agent.
+        """
+        if self.agent is None:
+            return self.scene.get_sim_state()
+        return super().get_state_dict()
 
     def build_actor_from_trimesh(self, scene, obj, mesh):
         """Build a SAPIEN actor from a trimesh object."""
@@ -158,6 +178,10 @@ class ScenicEnv(BaseEnv):
         Sets the robot's joint angles from the Scenic scene if provided,
         otherwise uses the robot's default configuration.
         """
+        # No robots in the scene
+        if self.agent is None:
+            return
+
         # Find the robot object in the scene
         robot_objects = [
             obj
@@ -242,6 +266,19 @@ class ManiSkillSimulation(Simulation):
 
         super().__init__(scene, timestep=(timestep or 1 / 60), **kwargs)
 
+    def extract_robot_uid(self):
+        robot_objects = [
+            obj for obj in self.maniskill_scene.objects if hasattr(obj, "uuid")
+        ]
+
+        if len(robot_objects) > 1:
+            raise RuntimeError("Multiple robots are not supported yet.")
+
+        if not robot_objects:
+            return "none"
+
+        return robot_objects[0].uuid
+
     def setup(self):
         # Calls the createObjectInSimulator method for each object in the scene
         super().setup()
@@ -250,11 +287,15 @@ class ManiSkillSimulation(Simulation):
 
         render_mode = "human" if self.render else None
 
+        robot_uid = self.extract_robot_uid()
+        control_mode = "pd_ee_delta_pose" if robot_uid != "none" else None
+
         self.env = gym.make(
             "ScenicEnv",
             num_envs=1,
             obs_mode="rgb",
-            control_mode="pd_ee_delta_pose",
+            control_mode=control_mode,
+            robot_uids=robot_uid,
             render_mode=render_mode,
             objects_to_create=self.objects_to_create,
             camera_configs=self.camera_configs,
@@ -315,7 +356,10 @@ class ManiSkillSimulation(Simulation):
             raise RuntimeError("Environment not set up. Call setup() first.")
 
         if self.action is None:
-            self.action = self.env.action_space.sample() * 0.0
+            if self.env.action_space is None:
+                self.action = None
+            else:
+                self.action = self.env.action_space.sample() * 0.0
 
         obs, reward, term, trunc, info = self.env.step(self.action)
         self._obs = obs
@@ -337,6 +381,8 @@ class ManiSkillSimulation(Simulation):
 
     def get_action_from_observation(self, obs):
         """Override this method to implement custom action selection."""
+        if self.env.action_space is None:
+            return None
         return self.env.action_space.sample() * 0.0
 
     def should_terminate(self):
