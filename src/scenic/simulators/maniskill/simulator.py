@@ -373,6 +373,13 @@ class ManiSkillSimulation(Simulation):
         self.stride_idx = (self.stride_idx + 1) % self.stride
 
         if self.render:
+            viewer = self.env.unwrapped.viewer
+
+            # If the GUI window has already been closed, stop the Scenic simulation cleanly.
+            if viewer is not None and viewer.closed:
+                self.screen = "Dead"
+                return
+
             self.env.render()
 
         # Check for termination condition
