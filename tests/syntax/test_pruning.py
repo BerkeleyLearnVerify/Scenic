@@ -162,19 +162,16 @@ def test_visibility_pruning():
     """Test visibility pruning in general.
 
     The following scenarios are equivalent except for how they specify that foo
-    must be visible from ego. The size of the workspace and the visibleDistance
-    of ego are chosen such that without pruning the chance of sampling a valid
-    scene over 100 tries is 1-(1-(3.14*2**2)/(1e10**2))**100 = ~1e-18.
-    Assuming the approximately buffered volume of the viewRegion has a 50% chance of
-    rejecting (i.e. it is twice as large as the true buffered viewRegion, which testing
-    indicates in this case has about a 10% increase in volume for this case), the chance
-    of not finding a sample in 100 iterations is 1e-31.
+    must be visible from ego. Without visibility pruning, sampling a valid scene
+    would be extremely unlikely because the workspace is enormous compared to ego's
+    visible region.
 
-    We also want to confirm that we aren't pruning too much, i.e. placing the position
-    in the viewRegion instead of at any point where the object intersects the view region.
-    To check this deterministically, we verify that the pruned region still extends beyond
-    distance 1 from ego while remaining within distance 2, so the outer band where the
-    object intersects the view region is still available.
+    We check two things. First, sampled positions must remain within distance 2 of
+    ego, which is the maximum distance at which the spheroid can still intersect
+    ego's visible region. Second, to ensure pruning is not too aggressive, we check
+    the conditioned/pruned region directly and verify that it still extends beyond
+    distance 1 from ego, so the outer band where the object intersects the view
+    region is still available.
     """
 
     def assert_pruned_region_reaches_outer_band(scenario):
