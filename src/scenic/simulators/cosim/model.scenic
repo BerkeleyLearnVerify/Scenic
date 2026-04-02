@@ -19,6 +19,7 @@ param carla_port = 2000
 param metsr_map = "Data.properties.CARLA"
 param timestep = 0.1
 param snapToGroundDefault = is2DMode()
+param bubble_size = 50
 
 
 simulator CosimSimulator(
@@ -31,7 +32,7 @@ simulator CosimSimulator(
     xml_map = globalParameters.xml_path,
     map_path = globalParameters.map,
     timestep = globalParameters.timestep,
-    bubble_size = 100
+    bubble_size = globalParameters.bubble_size
     )
 
 param startTime = 6*60*60
@@ -99,7 +100,7 @@ def currentTOD():
     return (simulation().currentTime * simulation().timestep + globalParameters.startTime)%_DAY_MOD
 
 
-scenario GeneratePrivateTrip(origin,destination, name=None):
+scenario GeneratePrivateTrip(origin, destination, name=None):
     if name != None:
         new NPCCar with origin origin, with destination destination, with name name
     else:
