@@ -1,8 +1,5 @@
 model scenic.simulators.maniskill.model
 
-import math
-pi = math.pi
-
 # Create ground plane
 ground = new Ground with position (0, 0, -0.920)
 
@@ -10,7 +7,7 @@ ground = new Ground with position (0, 0, -0.920)
 # Joint angles: [joint1, joint2, joint3, joint4, joint5, joint6, joint7, gripper_left, gripper_right]
 panda = new Robot,
     with uuid "panda",
-    with jointAngles [0.0, pi/8, 0.0, -pi/2, 0.0, pi*5/8, pi/4, 0.04, 0.04]
+    with jointAngles [0.0, 22.5 deg, 0.0, -90 deg, 0.0, 112.5 deg, 45 deg, 0.04, 0.04]
 
 # Create camera positioned to view the robot and cube
 camera = new Camera,
