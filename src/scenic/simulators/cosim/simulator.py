@@ -178,6 +178,10 @@ class CosimSimulation(DrivingSimulation):
         self.frozen_scenic_lanes = []
         self.xml_to_xodr_intersections = xml_to_xodr_intersections
         self.intersection_road_links = []
+        self.network_lanes = []
+        self.metsr_actors = []
+        self.carla_actors = []
+        self.bubble_sizes = []
 
         super().__init__(scene, timestep=sim_timestep, **kwargs)
 
@@ -228,14 +232,6 @@ class CosimSimulation(DrivingSimulation):
 
         # Create objects.
         super().setup()
-
-        self.objects[0].bubble = CircularRegion(center=[self.objects[0].x,
-                                                        self.objects[0].y],
-                                                        radius=self.bubble_size)
-        
-        _, new_lanes, _ = self.update_carla_lanes() # TODO bad function name
-        self.freeze_lanes(new_lanes)
-        self.metsr_client.tick()
         
         for obj in self.objects:
             if isinstance(obj.carlaActor, carla.Vehicle):
@@ -265,6 +261,8 @@ class CosimSimulation(DrivingSimulation):
                     )
                 
         self.synchronize_clients()
+
+        self.network_lanes = [*self.workspace.network.lanes]
         # TODO Waiting for map update
         # self._synchronize_signals()
 
@@ -340,7 +338,6 @@ class CosimSimulation(DrivingSimulation):
             blueprint=obj.blueprint,
             snapToGround=obj.snapToGround,
         )
-        lane = self._nearest_lane(obj)
         if update_orientation:
             lane = self._nearest_lane(obj)
             rot = utils.scenicToCarlaRotation(lane.orientation[obj.position])
@@ -348,7 +345,7 @@ class CosimSimulation(DrivingSimulation):
             rot = utils.scenicToCarlaRotation(obj.orientation)
 
         transform = carla.Transform(loc, rot)
-        print(f"Attempting to spawn obj {obj.name} in location: {transform.location}")
+        # print(f"Attempting to spawn obj {obj.name} in location: {transform.location}")
         # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:
             c = obj.color
@@ -436,30 +433,73 @@ class CosimSimulation(DrivingSimulation):
         
         assert hasattr(obj, "carla_actor_flag"), "All objects must have attribute: carla_actor_flag"
         if obj == self.objects[0]: # Special handling for ego 
-            trajectory = None
-            if hasattr(obj, "trajectory"):
-                if obj.trajectory is not None:
-                    trajectory = self.scenic_trajectory_to_carla(trajectory)
-            lane = self._nearest_lane(obj)
-            origin_str = self.map_scenic_to_metsr(lane)
-            self.createObjectInMetsr(obj,origin=origin_str) # Set the METSR vehicle origin to match ego spawn
-            car_data = self.metsr_client.query_vehicle(self.getMetsrPrivateVehId(obj), True, True)["DATA"][0]
-            obj.position = Vector(car_data["x"], car_data["y"], 0)
-            obj.final_road = None  
-            self.createObjectInCarla(obj, update_orientation=True, trajectory=trajectory) # spawn ego in updated location and update orientation
-        
-        elif obj.carla_actor_flag:
-            self.createObjectInCarla(obj)
-            self.synchronize_clients(obj)
-            obj.finished_route = False
+            self.spawn_ego(obj)
+            self.carla_actors.append(obj)
+            self.metsr_actors.append(obj)
         else:
             self.createObjectInMetsr(obj)
+            self.metsr_actors.append(obj)
             obj.finished_route = False
             if self.count == 0:
                 self.metsr_client.tick()
             obj.carla_actor_flag = False
             obj.spawn_guard = 0
 
+    def spawn_ego(self,obj: Object) -> None:
+        """
+        docstring for spawn_ego
+
+        :param ego: Simulation ego object
+        :type ego: EgoCar 
+
+        Special handling for spawning the Ego vehicle
+            (1) First spawn ego in METSR on the appropriate lane (set by Scenic)
+            (2) Collect exact spawn location to define bubbble region
+            (3) Freeze CoSimulated regions inside METSR
+            (4) Set the appropriate Ego behavior
+                (i) Predefined trajectory
+                (ii)User defined behavior
+                (iii) Default CARLA autopilot over METSR proposed route
+            (5) Spawn ego inside CARLA with updated loc and trajectory
+        """
+        trajectory = None
+        lane = self._nearest_lane(obj)
+        origin_str = self.map_scenic_to_metsr(lane)
+        self.createObjectInMetsr(obj,origin=origin_str) # Set the METSR vehicle origin to match ego spawn
+        self.metsr_client.tick() # Allow the vehicle to spawn
+        car_data = self.metsr_client.query_vehicle(self.getMetsrPrivateVehId(obj), True, True)["DATA"][0]
+        obj.position = Vector(car_data["x"], car_data["y"], 0)
+        obj.final_road = None  
+
+        obj.bubble = CircularRegion(center=[car_data["x"],
+                                            car_data["y"]],
+                                            radius=self.bubble_size)
+
+        _, new_lanes, _ = self.update_carla_lanes(bubble_regions=[obj.bubble]) # TODO bad function name
+        self.freeze_lanes(new_lanes) # Freeze lanes according to Ego Spawn
+        for _ in range(1): # Allow ego to enger 
+            self.metsr_client.tick()
+
+        if hasattr(obj, "trajectory"):
+            if obj.trajectory is not None:
+                trajectory = self.scenic_trajectory_to_carla(trajectory)
+
+            elif not hasattr(obj, "behavior"): 
+                cosim_data = self.metsr_client.query_coSimVehicle()
+                # print(f"Attemping to find ego data in : {cosim_data}")
+                VehID = self.getMetsrPrivateVehId(obj)
+                for entry in cosim_data["DATA"]:
+                    if entry['ID'] == VehID:
+                        route_data = entry['route']
+                        trajectory = self.generate_scenic_trajectory(lane, route_data, obj._intersection)
+                        if trajectory != None:
+                            obj.final_road = None
+                            trajectory = self.scenic_trajectory_to_carla(trajectory)
+                            break # Once the trajectory is found continue
+            
+        # print(f"Spawning ego with trajectory: {trajectory}")
+        self.createObjectInCarla(obj, update_orientation=True, trajectory=trajectory) # spawn ego in updated location and update orientation
+           
 
     def getCarlaProperties(self, obj : Object, properties : dict) -> dict[str, float | Vector | int]:
         """
@@ -600,11 +640,12 @@ class CosimSimulation(DrivingSimulation):
             pygame.display.flip()
        
        # Metsr step
+        self.bubble_sizes.append(len(self.carla_actors))
         self.count += 1
-        if self.count % 100 == 0: 
+        if self.count % 50 == 0: 
             print(f"Step: {self.count}")
-            total_bubble_vehicles = len([1 for obj in self.objects if obj.carla_actor_flag])
-            print(f"Total objects in bubble region is: {total_bubble_vehicles}")
+            print(f"Total actors in simulation: {len(self.objects)}")
+            print(f"Average bubble actors is: {np.mean(self.bubble_sizes)}")
 
         self.metsr_client.tick()
         # Generate bubble region based on ego objects TODO update logic for multiple high-fidelity zones
@@ -618,7 +659,7 @@ class CosimSimulation(DrivingSimulation):
         #     self._check_traffic_light_consistency()
         
 
-    def get_carla_lanes(self) -> list[Lane]:
+    def get_carla_lanes(self,bubble_region=None) -> list[Lane]:
         """
         docstring for get_carla_lanes
 
@@ -626,12 +667,14 @@ class CosimSimulation(DrivingSimulation):
         :rtype: list[Lane]
         """
         # Set ego, lane, bubble
-        ego = self.objects[0]
-        ego_lane = self._nearest_lane(ego)
-        bubble_region = ego.bubble 
+        if bubble_region == None:
+            ego = self.objects[0]
+            bubble_region = ego.bubble 
+        else:
+            bubble_region = bubble_region
 
         # Collect lanes which intersect bubble
-        carla_lanes = [ego_lane]
+        carla_lanes = []
         for lane in self.workspace.network.lanes:
             if lane.intersects(bubble_region):
                 carla_lanes.append(lane) 
@@ -806,10 +849,14 @@ class CosimSimulation(DrivingSimulation):
         elif obj != None and isinstance(obj, list):
             carla_actors = obj
         else:
-            carla_actors = [obj for obj in self.objects if obj.carla_actor_flag]
-            carla_actors.append(self.objects[0])
+            carla_actors = self.carla_actors
         
+        all_veh_data = self._collect_metsr_vehicle_data(self.carla_actors)
+
         for obj in carla_actors:
+            if obj.carlaActor is None:
+                print(f"Failure identifying carlaActor for obj: {obj.name} at step {self.count}")
+                continue
             loc = obj.carlaActor.get_location()
             if loc == carla.Location(0,0,0): # Carla object still in the process of spawning
                 # print(f'Passing sychronization while object spawn is processing')
@@ -817,23 +864,10 @@ class CosimSimulation(DrivingSimulation):
             vehID = self.getMetsrPrivateVehId(obj)
             lane = self._nearest_lane(obj)
             roadID = self.map_scenic_to_metsr(lane)
-            veh_data = self.metsr_client.query_vehicle(self.getMetsrPrivateVehId(obj), True, True) 
-
+            veh_data = all_veh_data[obj]
             # Update METSR road 
             if hasattr(obj, "previous_road"): 
                 if roadID != obj.previous_road and roadID not in self.intersection_road_links: # Entering new road within metsr network
-                    cosim_data = self.metsr_client.query_coSimVehicle()
-                    for data_entry in cosim_data['DATA']:
-                        if data_entry['ID'] == vehID:
-                            route_data = data_entry['route']
-                    # print(f"obj: {obj.name} leaving road: {obj.previous_road} moving to : {roadID}")
-                    # print(f"route data: {route_data}")
-                    # print(f"vehicle has data: {veh_data}")
-                    carla_lane_ids = set([self.map_scenic_to_metsr(lane) for lane in self.frozen_scenic_lanes])
-                    # if roadID not in carla_lane_ids:
-                    #     print(f"{obj.name} leaving the bubble region")
-                    # else:
-                    #     print(f"{obj.name} entering lane: {roadID}")
                     self.metsr_client.enter_next_road(vehID, roadID=roadID, private_veh = True)
                     if obj.previous_road == obj.final_road:
                         obj.finished_route = True
@@ -843,8 +877,8 @@ class CosimSimulation(DrivingSimulation):
             obj.previous_road = roadID
             bearing = get_metsr_rotation(obj.carlaActor.get_transform().rotation.yaw)
             # Check if objects are desynchronized
-            if not math.isclose(loc.x, veh_data["DATA"][0]['x']) or not math.isclose(-loc.y, veh_data["DATA"][0]['y']):
-                self.metsr_client.teleport_cosim_vehicle(vehID, loc.x, -loc.y, bearing=bearing,private_veh = True, transform_coords = True)
+            if not math.isclose(loc.x, veh_data['x']) or not math.isclose(-loc.y, veh_data['y']):
+                self.metsr_client.teleport_cosim_vehicle(vehID, loc.x, -loc.y, bearing=bearing, private_veh = True, transform_coords = True)
 
 
 
@@ -861,19 +895,26 @@ class CosimSimulation(DrivingSimulation):
         if bubble_regions is None:
             # Collect lanes intersecting the bubble
             lanes = self.get_carla_lanes() 
-            self.frozen_scenic_lanes = lanes
-            # Find the corresponding METSR keys
-            carla_lane_ids = [self.map_scenic_to_metsr(lane) for lane in lanes] 
-            # scenic_lane_ids = [lane.road for lane in lanes]
-            carla_lane_ids = set(carla_lane_ids) 
-            # Lanes which are already set
-            curr_frozen_ids = list(self.carla_control_roads.keys())
-        
-            # Collect new and old lanes 
-            new_lanes = [id for id in carla_lane_ids if id not in curr_frozen_ids]
-            old_lanes = [id for id in list(self.carla_control_roads.keys()) if id not in carla_lane_ids]
-            
-            # Update object existance based on bubble changes
+        else:
+            lanes = []
+            for region in bubble_regions:
+                region_lanes = self.get_carla_lanes(bubble_region=region)
+                lanes.extend(region_lanes)
+
+        self.frozen_scenic_lanes = lanes
+        # Find the corresponding METSR keys
+        carla_lane_ids = [self.map_scenic_to_metsr(lane) for lane in lanes] 
+        # scenic_lane_ids = [lane.road for lane in lanes]
+        carla_lane_ids = set(carla_lane_ids) 
+        # Lanes which are already set
+        curr_frozen_ids = list(self.carla_control_roads.keys())
+    
+        # Collect new and old lanes 
+        new_lanes = [id for id in carla_lane_ids if id not in curr_frozen_ids]
+        old_lanes = [id for id in list(self.carla_control_roads.keys()) if id not in carla_lane_ids]
+    
+    
+        # Update object existance based on bubble changes
         return lanes, new_lanes, old_lanes
     
     
@@ -897,36 +938,38 @@ class CosimSimulation(DrivingSimulation):
             (iii) an equivalent Scenic trajectory can be constructed from the metsr proposed route
                 
         """
-        carla_actors = [obj for obj in self.objects if obj.carla_actor_flag] # TODO might need to consider a more efficient data structure here
+        
         cosim_data = self.metsr_client.query_coSimVehicle()
+
+        # Query all vehicles --excluding the ego-- at once 
+        all_veh_data = self._collect_metsr_vehicle_data(self.objects[1:])
         
         for obj in self.objects[1:]: 
-            veh_data = self.metsr_client.query_vehicle(self.getMetsrPrivateVehId(obj), True, True) #
+            veh_data = all_veh_data[obj]
+
+            if not obj.carla_actor_flag: # Check this before collecting lane data to avoid slowdown
+                if 'dist' not in veh_data or obj.finished_route:
+                    continue
+            
             lane = self._nearest_lane(obj)
-            intersection = obj._intersection
-            # Remove objects if they have completed their route or left the bubble region
+            intersection = obj._intersection    
+
             if obj.carla_actor_flag:
                 if obj.finished_route:
-                    carla_actors.remove(obj)
                     self.remove_bubble_object(obj)
                 
                 elif (lane not in carla_lanes) and (intersection not in intersections):
                     if obj.spawn_guard == 0:
                         self.remove_bubble_object(obj)
-                        carla_actors.remove(obj)
 
             # Skip spawning objects if there is not enough space or they are currently in a spawn queue           
-            elif not obj.carla_actor_flag and (lane in carla_lanes or intersection in intersections):
-                if 'dist' not in veh_data["DATA"][0] or obj.finished_route: 
-                    continue
-                
-                not_enough_space = _utils.within_threshold_to(obj, carla_actors)
+            elif not obj.carla_actor_flag and (lane in carla_lanes or intersection in intersections):                
+                not_enough_space = _utils.within_threshold_to(obj, self.carla_actors)
 
                 if not_enough_space:
                     if obj not in self.bubble_spawn_queue:
-                        _utils.within_threshold_to(obj,carla_actors, verbose=True)
+                        _utils.within_threshold_to(obj,self.carla_actors, verbose=True)
                         self.bubble_spawn_queue.add(obj)
-                        # self.check_world_state_consistency()
                     continue
         
 
@@ -951,7 +994,8 @@ class CosimSimulation(DrivingSimulation):
                     self.createObjectInCarla(obj,update_orientation=True, trajectory=carla_trajectory)                    
                     if obj in self.bubble_spawn_queue:
                         self.bubble_spawn_queue.remove(obj)
-                    carla_actors.append(obj)
+                    self.carla_actors.append(obj)
+                    self.metsr_actors.remove(obj)
 
 
             
@@ -985,14 +1029,12 @@ class CosimSimulation(DrivingSimulation):
         :type keys: list[str]
         
         Query Metsr to freeze simulation and control of given lanes
-
         """
         keys = set(keys)
         for key in keys:
             assert key not in self.carla_control_roads, "Attempted to freeze already frozen lane"
             if key not in self.intersection_road_links: # Skip roads not recognized by metsr
                 self.carla_control_roads[key] = True    # Keep track of frozen lanes
-                # print(f"Freezing: {key}")
                 self.metsr_client.set_cosim_road(key)
 
 
@@ -1011,7 +1053,6 @@ class CosimSimulation(DrivingSimulation):
             if key not in self.intersection_road_links: # Skip roads not recognized by metsr
                 del self.carla_control_roads[key] # Remove frozen lane from record
                 self.metsr_client.release_cosim_road(key)
-                # print(f"Releasing: {key}")
 
 
     def destroy_carla_obj(self,obj) -> None:
@@ -1041,6 +1082,8 @@ class CosimSimulation(DrivingSimulation):
         obj.carla_actor_flag = False
         self.destroy_carla_obj(obj)
         obj.trajectory = None
+        self.carla_actors.remove(obj)
+        self.metsr_actors.append(obj)
 
     
     def map_scenic_to_metsr(self,lane: Lane) -> str:
@@ -1175,7 +1218,7 @@ class CosimSimulation(DrivingSimulation):
         super().destroy()
 
 
-    def _nearest_lane(self,obj, allow_offlane=True) -> Lane | None : # TODO :: Update lane logic to consider intersections
+    def _nearest_lane(self,obj, allow_offlane : bool =True, radius_size : int = 20) -> Lane | None : # TODO :: Update lane logic to consider intersections
         """
         Docstring for _nearest_lane
         
@@ -1190,10 +1233,18 @@ class CosimSimulation(DrivingSimulation):
         else:
             if not allow_offlane:
                 assert True, f"Object: {obj.name} is has left the roadway"
-            lanes = [*self.workspace.network.lanes]            
-            distances = [(lane.distanceTo(obj.position),  lane) for lane in lanes]
+
+            neighborhood = CircularRegion(center=[obj.x,
+                                                  obj.y],
+                                                  radius=radius_size) 
+            distances = []
+            for lane in self.network_lanes:
+                if neighborhood.intersects(lane):
+                    distances.append((lane.distanceTo(obj.position),  lane))
+
+            assert len(distances) > 0, f"Car has deviated too far from roadway"
             nearest_lane = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
-        
+
         return nearest_lane
 
     
@@ -1228,14 +1279,28 @@ class CosimSimulation(DrivingSimulation):
         
         Update object properties for METSR simulated objects
         """
-        metsr_obj = [obj for obj in self.objects if not obj.carla_actor_flag]
-        metsr_obj.append(self.objects[0])
-        obj_veh_ids = [self.getMetsrPrivateVehId(obj) for obj in self.objects]
-        raw_veh_data = self.metsr_client.query_vehicle(obj_veh_ids, True, True)
-        self.obj_data_cache = {obj: raw_veh_data['DATA'][i] for i, obj in enumerate(self.objects)}
-
+        self.obj_data_cache = self._collect_metsr_vehicle_data(self.metsr_actors)
         super().updateObjects()
         self.obj_data_cache = None 
+
+    def _collect_metsr_vehicle_data(self, objects: list[Object] | None = None):
+        """
+        Docstring for _collect_metsr_vehicle_data
+
+        :param objects: List of objects which data should be queried
+        :rtype objects: Scenic vehicle object
+        """
+        if objects is None: # all objects by defualt
+            obj_veh_ids = [self.getMetsrPrivateVehId(obj) for obj in self.objects]
+            raw_veh_data = self.metsr_client.query_vehicle(obj_veh_ids, True, True)
+            all_veh_data = {obj: raw_veh_data['DATA'][i] for i, obj in enumerate(self.objects)}
+        else:           
+            obj_veh_ids = [self.getMetsrPrivateVehId(obj) for obj in objects]
+            raw_veh_data = self.metsr_client.query_vehicle(obj_veh_ids, True, True)
+            all_veh_data = {obj: raw_veh_data['DATA'][i] for i, obj in enumerate(objects)}
+        
+        return all_veh_data
+
 
     def check_world_state_consistency(self) -> None:
         """
