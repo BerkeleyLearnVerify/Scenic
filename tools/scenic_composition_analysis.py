@@ -179,7 +179,14 @@ def find_composition_statements(
 
 
 def build_execution_structure(graph: CompositionGraph) -> ExecutionStructure:
-    """Recover execution relationships from the existing composition graph."""
+    """Build an execution structure from the composition graph, organizing containers, compositions, and invocations in a way that reflects the execution semantics of the composition graph.
+
+    Args:
+        graph (CompositionGraph): The composition graph to convert.
+
+    Returns:
+        ExecutionStructure: The execution structure.
+    """
 
     node_by_id = {node.id: node for node in graph.nodes}
     contains_by_container: Dict[str, List[str]] = {}
@@ -243,11 +250,13 @@ def build_execution_structure(graph: CompositionGraph) -> ExecutionStructure:
 
 
 def build_sxo_structure(graph: CompositionGraph) -> SXOStructure:
-    """Project the composition graph into an S/X/O semantic structure.
+    """Build an SxO structure from the composition graph, where scenarios and behaviors are represented as S nodes, compositions as X nodes, and invocations as O nodes. Edges represent the relationships between these nodes based on the "contains", "invokes", and "next" edges in the composition graph, as well as additional edges from invocations to their target containers.
 
-    S nodes are containers (`initial`, `scenario`, `behavior`).
-    X nodes are composition operators (`do`, `do choose`, `do shuffle`).
-    O nodes are invocation options/outcomes.
+    Args:
+        graph (CompositionGraph): The composition graph to convert.
+
+    Returns:
+        SXOStructure: The simplified composition graph structure.
     """
 
     sxo_nodes: List[SXONode] = []
@@ -332,7 +341,14 @@ def build_sxo_structure(graph: CompositionGraph) -> SXOStructure:
 
 
 def sample_from_graph(graph: CompositionGraph) -> List[str]:
-    """Sample an execution trace from the graph using Scenic composition semantics."""
+    """Sample a possible execution trace from the composition graph by traversing the execution structure and making random choices at composition and invocation nodes.
+
+    Args:
+        graph (CompositionGraph): The composition graph to sample from.
+
+    Returns:
+        List[str]: A sample execution trace based on the composition structure of the graph.
+    """
 
     execution = build_execution_structure(graph)
     trace: List[str] = []
@@ -352,7 +368,14 @@ def sample_from_graph(graph: CompositionGraph) -> List[str]:
 
 
 def run_scenic_composition(source: Union[str, Path]) -> List[str]:
-    """Analyze Scenic source and sample an execution trace from its composition graph."""
+    """Run the composition structure of a Scenic source and return a sample execution trace.
+
+    Args:
+        source (Union[str, Path]): The Scenic source to run.
+
+    Returns:
+        List[str]: A sample execution trace based on the composition structure of the source.
+    """
 
     graph = analyze_scenic_composition(source)
     return sample_from_graph(graph)

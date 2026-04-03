@@ -83,6 +83,8 @@ class CompositionGraph:
 
 @dataclass(frozen=True)
 class Container:
+    """Represents a container of composition statements, such as a scenario or behavior definition."""
+
     name: str
     kind: str
     body: Sequence[Any]
@@ -90,6 +92,8 @@ class Container:
 
 @dataclass(frozen=True)
 class SXONode:
+    """Represents a node in the simplified composition graph used for analysis and visualization."""
+
     id: str
     kind: str
     label: str
@@ -98,6 +102,8 @@ class SXONode:
 
 @dataclass(frozen=True)
 class SxOEdge:
+    """Represents an edge in the simplified composition graph used for analysis and visualization."""
+
     source: str
     target: str
     kind: str
@@ -106,15 +112,24 @@ class SxOEdge:
 
 @dataclass(frozen=True)
 class SXOStructure:
+    """Represents the entire simplified composition graph structure used for analysis and visualization."""
+
     nodes: Tuple[SXONode, ...]
     edges: Tuple[SxOEdge, ...]
 
     def as_dict(self) -> Dict[str, Any]:
+        """Convert the simplified composition graph structure to a dictionary.
+
+        Returns:
+            Dict[str, Any]: The dictionary representation of the simplified composition graph structure.
+        """
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class ExecutionStructure:
+    """Represents the execution structure of a composition, including the relationships between containers, compositions, and invocations."""
+
     container_ids: Tuple[str, ...]
     containers: Dict[str, Dict[str, Any]]
     compositions: Dict[str, Dict[str, Any]]
@@ -122,6 +137,11 @@ class ExecutionStructure:
     node_by_id: Dict[str, GraphNode]
 
     def as_dict(self) -> Dict[str, Any]:
+        """Convert the execution structure to a dictionary.
+
+        Returns:
+            Dict[str, Any]: The dictionary representation of the execution structure.
+        """
         return asdict(self)
 
 
@@ -385,6 +405,16 @@ def operator_semantics(operator: str, container_kind: str) -> Dict[str, Any]:
 def sort_node_ids(
     node_ids: Sequence[str], node_by_id: Dict[str, GraphNode]
 ) -> List[str]:
+    """Sort node IDs based on their line numbers and IDs.
+
+    Args:
+        node_ids (Sequence[str]): The list of node IDs to sort.
+        node_by_id (Dict[str, GraphNode]): A dictionary mapping node IDs to their corresponding graph nodes.
+
+    Returns:
+        List[str]: The sorted list of node IDs.
+    """
+
     return sorted(
         node_ids,
         key=lambda node_id: (
@@ -399,6 +429,16 @@ def sort_node_ids(
 def ordered_compositions(
     container: Dict[str, Any], execution: ExecutionStructure
 ) -> List[str]:
+    """Determine an ordered list of composition IDs based on a breadth-first traversal starting from the container's start IDs.
+
+    Args:
+        container (Dict[str, Any]): The container for which to determine the ordered composition IDs.
+        execution (ExecutionStructure): The execution structure.
+
+    Returns:
+        List[str]: The ordered list of composition IDs.
+    """
+
     ordered: List[str] = []
     visited = set()
     queue = list(container["start_ids"])
@@ -425,6 +465,19 @@ def ordered_compositions(
 def sample_composition(
     composition: Dict[str, Any], invocation_nodes: Dict[str, GraphNode]
 ) -> List[str]:
+    """Sample invocations from a composition based on its operator.
+
+    Args:
+        composition (Dict[str, Any]): The composition from which to sample invocations.
+        invocation_nodes (Dict[str, GraphNode]): A dictionary mapping invocation IDs to their corresponding graph nodes.
+
+    Raises:
+        ValueError: If the composition operator is unknown.
+
+    Returns:
+        List[str]: The list of sampled invocation IDs.
+    """
+
     operator = composition["node"].label
     invocation_ids = list(composition["invocation_ids"])
 
@@ -446,6 +499,16 @@ def sample_composition(
 def choose_invocation(
     invocation_ids: Sequence[str], invocation_nodes: Dict[str, GraphNode]
 ) -> str:
+    """Choose a single invocation ID from a list of invocation IDs, optionally using weights if provided in the invocation nodes.
+
+    Args:
+        invocation_ids (Sequence[str]): The list of invocation IDs to choose from.
+        invocation_nodes (Dict[str, GraphNode]): A dictionary mapping invocation IDs to their corresponding graph nodes, which may contain weight attributes.
+
+    Returns:
+        str: The chosen invocation ID.
+    """
+
     weights = [
         invocation_nodes[node_id].attributes.get("weight") for node_id in invocation_ids
     ]
@@ -456,4 +519,13 @@ def choose_invocation(
 
 
 def invocation_result(invocation: GraphNode) -> str:
+    """Get the result of an invocation.
+
+    Args:
+        invocation (GraphNode): The invocation node.
+
+    Returns:
+        str: The result of the invocation.
+    """
+
     return invocation.attributes.get("target") or invocation.attributes["text"]
