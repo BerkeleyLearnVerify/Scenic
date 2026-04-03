@@ -155,7 +155,7 @@ GRAPH_CASES = [
 ]
 
 
-def _count_by_kind(items):
+def count_by_kind(items):
     counts = {}
     for item in items:
         counts[item.kind] = counts.get(item.kind, 0) + 1
@@ -191,11 +191,11 @@ def test_analyze_scenic_composition_builds_expected_graph_structure(case):
         case["nestings"]
     )
 
-    node_counts = _count_by_kind(graph.nodes)
+    node_counts = count_by_kind(graph.nodes)
     for kind, expected in case["node_counts"].items():
         assert node_counts.get(kind, 0) == expected
 
-    edge_counts = _count_by_kind(graph.edges)
+    edge_counts = count_by_kind(graph.edges)
     for kind, expected in case["edge_counts"].items():
         assert edge_counts.get(kind, 0) == expected
 

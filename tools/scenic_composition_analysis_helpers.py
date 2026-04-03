@@ -4,7 +4,14 @@ import ast
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 import re
+import sys
+import random
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from scenic.syntax import ast as scenic_ast
 from scenic.syntax.parser import parse_string
@@ -79,6 +86,43 @@ class Container:
     name: str
     kind: str
     body: Sequence[Any]
+
+
+@dataclass(frozen=True)
+class SXONode:
+    id: str
+    kind: str
+    label: str
+    attributes: Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class SxOEdge:
+    source: str
+    target: str
+    kind: str
+    attributes: Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class SXOStructure:
+    nodes: Tuple[SXONode, ...]
+    edges: Tuple[SxOEdge, ...]
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ExecutionStructure:
+    container_ids: Tuple[str, ...]
+    containers: Dict[str, Dict[str, Any]]
+    compositions: Dict[str, Dict[str, Any]]
+    invocations: Dict[str, GraphNode]
+    node_by_id: Dict[str, GraphNode]
+
+    def as_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
 
 OPERATOR_INFO = {
@@ -336,3 +380,80 @@ def operator_semantics(operator: str, container_kind: str) -> Dict[str, Any]:
         "randomized": operator in {"choose", "shuffle"},
         "weighted": operator in {"choose", "shuffle"},
     }
+
+
+def sort_node_ids(
+    node_ids: Sequence[str], node_by_id: Dict[str, GraphNode]
+) -> List[str]:
+    return sorted(
+        node_ids,
+        key=lambda node_id: (
+            node_by_id[node_id].attributes.get("line")
+            if node_by_id[node_id].attributes.get("line") is not None
+            else -1,
+            node_id,
+        ),
+    )
+
+
+def ordered_compositions(
+    container: Dict[str, Any], execution: ExecutionStructure
+) -> List[str]:
+    ordered: List[str] = []
+    visited = set()
+    queue = list(container["start_ids"])
+    composition_ids = set(container["composition_ids"])
+
+    while queue:
+        current = queue.pop(0)
+        if current in visited:
+            continue
+        visited.add(current)
+        ordered.append(current)
+        queue.extend(
+            next_id
+            for next_id in execution.compositions[current]["next_ids"]
+            if next_id in composition_ids
+        )
+
+    ordered.extend(
+        node_id for node_id in container["composition_ids"] if node_id not in visited
+    )
+    return ordered
+
+
+def sample_composition(
+    composition: Dict[str, Any], invocation_nodes: Dict[str, GraphNode]
+) -> List[str]:
+    operator = composition["node"].label
+    invocation_ids = list(composition["invocation_ids"])
+
+    if not invocation_ids:
+        return []
+    if operator == "parallel":
+        chosen = invocation_ids
+    elif operator == "choose":
+        chosen = [choose_invocation(invocation_ids, invocation_nodes)]
+    elif operator == "shuffle":
+        chosen = invocation_ids
+        random.shuffle(chosen)
+    else:
+        raise ValueError(f"unknown operator {operator!r}")
+
+    return [invocation_result(invocation_nodes[node_id]) for node_id in chosen]
+
+
+def choose_invocation(
+    invocation_ids: Sequence[str], invocation_nodes: Dict[str, GraphNode]
+) -> str:
+    weights = [
+        invocation_nodes[node_id].attributes.get("weight") for node_id in invocation_ids
+    ]
+    if any(weight is not None for weight in weights):
+        normalized = [weight if weight is not None else 1.0 for weight in weights]
+        return random.choices(list(invocation_ids), weights=normalized, k=1)[0]
+    return random.choice(list(invocation_ids))
+
+
+def invocation_result(invocation: GraphNode) -> str:
+    return invocation.attributes.get("target") or invocation.attributes["text"]

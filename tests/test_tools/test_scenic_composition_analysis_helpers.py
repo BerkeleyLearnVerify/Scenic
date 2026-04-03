@@ -7,13 +7,22 @@ from tools.scenic_composition_analysis_helpers import (
     Container,
     CompositionGraph,
     CompositionStatement,
+    ExecutionStructure,
     GraphEdge,
     GraphNode,
     InvocationSpec,
+    SXONode,
+    SXOStructure,
+    SxOEdge,
+    choose_invocation,
     extract_from_parser,
+    invocation_result,
     load_source,
     operator_semantics,
+    ordered_compositions,
     parse_weight,
+    sample_composition,
+    sort_node_ids,
     target_name,
 )
 
@@ -192,3 +201,171 @@ def test_dataclasses_round_trip_with_as_dict():
     assert as_dict["statements"][0]["container_name"] == "Main"
     assert as_dict["nodes"][0]["id"] == "scenario:Main"
     assert as_dict["edges"][0]["kind"] == "contains"
+
+
+def test_execution_and_sxo_dataclasses_round_trip_with_as_dict():
+    node = GraphNode(id="behavior:Foo", kind="behavior", label="Foo")
+    execution = ExecutionStructure(
+        container_ids=("behavior:Foo",),
+        containers={
+            "behavior:Foo": {
+                "node": node,
+                "composition_ids": ["Foo:1"],
+                "start_ids": ["Foo:1"],
+            }
+        },
+        compositions={
+            "Foo:1": {
+                "node": GraphNode(id="Foo:1", kind="composition", label="parallel"),
+                "invocation_ids": ["Foo:1:invocation:0"],
+                "next_ids": [],
+            }
+        },
+        invocations={
+            "Foo:1:invocation:0": GraphNode(
+                id="Foo:1:invocation:0", kind="invocation", label="Bar"
+            )
+        },
+        node_by_id={"behavior:Foo": node},
+    )
+    sxo = SXOStructure(
+        nodes=(SXONode(id="S:behavior:Foo", kind="S", label="Foo", attributes={}),),
+        edges=(SxOEdge(source="S:behavior:Foo", target="X:Foo:1", kind="S_to_X", attributes={}),),
+    )
+
+    assert execution.as_dict()["container_ids"] == ("behavior:Foo",)
+    assert execution.as_dict()["containers"]["behavior:Foo"]["node"]["label"] == "Foo"
+    assert sxo.as_dict()["nodes"][0]["kind"] == "S"
+    assert sxo.as_dict()["edges"][0]["kind"] == "S_to_X"
+
+
+def test_sort_node_ids_orders_by_line_then_id():
+    node_by_id = {
+        "b": GraphNode(id="b", kind="composition", label="parallel", attributes={"line": 3}),
+        "a": GraphNode(id="a", kind="composition", label="parallel", attributes={"line": 3}),
+        "c": GraphNode(id="c", kind="composition", label="parallel", attributes={"line": 1}),
+    }
+
+    assert sort_node_ids(["b", "a", "c"], node_by_id) == ["c", "a", "b"]
+
+
+def test_ordered_compositions_follows_start_and_next_then_remaining():
+    execution = ExecutionStructure(
+        container_ids=("behavior:Foo",),
+        containers={
+            "behavior:Foo": {
+                "node": GraphNode(id="behavior:Foo", kind="behavior", label="Foo"),
+                "composition_ids": ["Foo:1", "Foo:2", "Foo:3"],
+                "start_ids": ["Foo:1"],
+            }
+        },
+        compositions={
+            "Foo:1": {
+                "node": GraphNode(id="Foo:1", kind="composition", label="parallel"),
+                "invocation_ids": [],
+                "next_ids": ["Foo:2"],
+            },
+            "Foo:2": {
+                "node": GraphNode(id="Foo:2", kind="composition", label="parallel"),
+                "invocation_ids": [],
+                "next_ids": [],
+            },
+            "Foo:3": {
+                "node": GraphNode(id="Foo:3", kind="composition", label="parallel"),
+                "invocation_ids": [],
+                "next_ids": [],
+            },
+        },
+        invocations={},
+        node_by_id={},
+    )
+
+    ordered = ordered_compositions(execution.containers["behavior:Foo"], execution)
+
+    assert ordered == ["Foo:1", "Foo:2", "Foo:3"]
+
+
+def test_choose_invocation_prefers_weighted_choice(monkeypatch):
+    invocation_nodes = {
+        "a": GraphNode(id="a", kind="invocation", label="A", attributes={"weight": 1.0}),
+        "b": GraphNode(id="b", kind="invocation", label="B", attributes={"weight": 5.0}),
+    }
+
+    def fake_choices(population, weights, k):
+        assert population == ["a", "b"]
+        assert weights == [1.0, 5.0]
+        assert k == 1
+        return ["b"]
+
+    monkeypatch.setattr("tools.scenic_composition_analysis_helpers.random.choices", fake_choices)
+
+    assert choose_invocation(["a", "b"], invocation_nodes) == "b"
+
+
+def test_choose_invocation_uses_uniform_choice_without_weights(monkeypatch):
+    invocation_nodes = {
+        "a": GraphNode(id="a", kind="invocation", label="A", attributes={}),
+        "b": GraphNode(id="b", kind="invocation", label="B", attributes={}),
+    }
+
+    monkeypatch.setattr("tools.scenic_composition_analysis_helpers.random.choice", lambda population: population[0])
+
+    assert choose_invocation(["a", "b"], invocation_nodes) == "a"
+
+
+def test_invocation_result_prefers_target_over_text():
+    with_target = GraphNode(
+        id="a",
+        kind="invocation",
+        label="A",
+        attributes={"target": "CollisionAvoidance", "text": "CollisionAvoidance()"},
+    )
+    without_target = GraphNode(
+        id="b",
+        kind="invocation",
+        label="B",
+        attributes={"target": None, "text": "new Object"},
+    )
+
+    assert invocation_result(with_target) == "CollisionAvoidance"
+    assert invocation_result(without_target) == "new Object"
+
+
+def test_sample_composition_parallel_returns_all_targets():
+    composition = {
+        "node": GraphNode(id="Foo:1", kind="composition", label="parallel"),
+        "invocation_ids": ["a", "b"],
+    }
+    invocations = {
+        "a": GraphNode(id="a", kind="invocation", label="A", attributes={"target": "A"}),
+        "b": GraphNode(id="b", kind="invocation", label="B", attributes={"target": "B"}),
+    }
+
+    assert sample_composition(composition, invocations) == ["A", "B"]
+
+
+def test_sample_composition_choose_and_shuffle(monkeypatch):
+    choose_composition = {
+        "node": GraphNode(id="Foo:1", kind="composition", label="choose"),
+        "invocation_ids": ["a", "b"],
+    }
+    shuffle_composition = {
+        "node": GraphNode(id="Foo:2", kind="composition", label="shuffle"),
+        "invocation_ids": ["a", "b"],
+    }
+    invocations = {
+        "a": GraphNode(id="a", kind="invocation", label="A", attributes={"target": "A"}),
+        "b": GraphNode(id="b", kind="invocation", label="B", attributes={"target": "B"}),
+    }
+
+    monkeypatch.setattr(
+        "tools.scenic_composition_analysis_helpers.choose_invocation",
+        lambda invocation_ids, invocation_nodes: "b",
+    )
+    monkeypatch.setattr(
+        "tools.scenic_composition_analysis_helpers.random.shuffle",
+        lambda items: items.reverse(),
+    )
+
+    assert sample_composition(choose_composition, invocations) == ["B"]
+    assert sample_composition(shuffle_composition, invocations) == ["B", "A"]

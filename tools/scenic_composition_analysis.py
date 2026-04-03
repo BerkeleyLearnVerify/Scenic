@@ -4,7 +4,8 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import sys
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
 
 if __package__ in (None, ""):
     if str(Path(__file__).resolve().parent) not in sys.path:
@@ -15,8 +16,15 @@ if __package__ in (None, ""):
         GraphEdge,
         GraphNode,
         Container,
+        ExecutionStructure,
+        SXOStructure,
+        SXONode,
+        SxOEdge,
         extract_from_parser,
         load_source,
+        sort_node_ids,
+        ordered_compositions,
+        sample_composition,
     )
 else:
     from .scenic_composition_analysis_helpers import (
@@ -25,8 +33,15 @@ else:
         GraphEdge,
         GraphNode,
         Container,
+        ExecutionStructure,
+        SXOStructure,
+        SXONode,
+        SxOEdge,
         extract_from_parser,
         load_source,
+        sort_node_ids,
+        ordered_compositions,
+        sample_composition,
     )
 
 
@@ -163,9 +178,204 @@ def find_composition_statements(
     return analyze_scenic_composition(source).statements
 
 
+def build_execution_structure(graph: CompositionGraph) -> ExecutionStructure:
+    """Recover execution relationships from the existing composition graph."""
+
+    node_by_id = {node.id: node for node in graph.nodes}
+    contains_by_container: Dict[str, List[str]] = {}
+    invokes_by_composition: Dict[str, List[str]] = {}
+    next_by_composition: Dict[str, List[str]] = {}
+    incoming_next: Dict[str, int] = {}
+
+    for edge in graph.edges:
+        if edge.kind == "contains":
+            contains_by_container.setdefault(edge.source, []).append(edge.target)
+        elif edge.kind == "invokes":
+            invokes_by_composition.setdefault(edge.source, []).append(edge.target)
+        elif edge.kind == "next":
+            next_by_composition.setdefault(edge.source, []).append(edge.target)
+            incoming_next[edge.target] = incoming_next.get(edge.target, 0) + 1
+
+    containers: Dict[str, Dict[str, Any]] = {}
+    container_ids: List[str] = []
+    for node in graph.nodes:
+        if node.kind not in {"initial", "scenario", "behavior"}:
+            continue
+        container_ids.append(node.id)
+        composition_ids = sort_node_ids(
+            contains_by_container.get(node.id, []), node_by_id
+        )
+        start_ids = sort_node_ids(
+            [
+                node_id
+                for node_id in composition_ids
+                if incoming_next.get(node_id, 0) == 0
+            ],
+            node_by_id,
+        )
+        containers[node.id] = {
+            "node": node,
+            "composition_ids": composition_ids,
+            "start_ids": start_ids,
+        }
+
+    compositions: Dict[str, Dict[str, Any]] = {}
+    for node in graph.nodes:
+        if node.kind != "composition":
+            continue
+        compositions[node.id] = {
+            "node": node,
+            "invocation_ids": sort_node_ids(
+                invokes_by_composition.get(node.id, []), node_by_id
+            ),
+            "next_ids": sort_node_ids(next_by_composition.get(node.id, []), node_by_id),
+        }
+
+    invocations = {node.id: node for node in graph.nodes if node.kind == "invocation"}
+
+    return ExecutionStructure(
+        container_ids=tuple(container_ids),
+        containers=containers,
+        compositions=compositions,
+        invocations=invocations,
+        node_by_id=node_by_id,
+    )
+
+
+def build_sxo_structure(graph: CompositionGraph) -> SXOStructure:
+    """Project the composition graph into an S/X/O semantic structure.
+
+    S nodes are containers (`initial`, `scenario`, `behavior`).
+    X nodes are composition operators (`do`, `do choose`, `do shuffle`).
+    O nodes are invocation options/outcomes.
+    """
+
+    sxo_nodes: List[SXONode] = []
+    sxo_edges: List[SxOEdge] = []
+    container_name_to_s_id: Dict[str, str] = {}
+
+    for node in graph.nodes:
+        if node.kind in {"initial", "scenario", "behavior"}:
+            s_id = f"S:{node.id}"
+            container_name_to_s_id[node.label] = s_id
+            sxo_nodes.append(
+                SXONode(
+                    id=s_id,
+                    kind="S",
+                    label=node.label,
+                    attributes={"container_kind": node.kind, **node.attributes},
+                )
+            )
+        elif node.kind == "composition":
+            sxo_nodes.append(
+                SXONode(
+                    id=f"X:{node.id}",
+                    kind="X",
+                    label=node.label,
+                    attributes=dict(node.attributes),
+                )
+            )
+        elif node.kind == "invocation":
+            sxo_nodes.append(
+                SXONode(
+                    id=f"O:{node.id}",
+                    kind="O",
+                    label=node.label,
+                    attributes=dict(node.attributes),
+                )
+            )
+
+    for edge in graph.edges:
+        if edge.kind == "contains":
+            sxo_edges.append(
+                SxOEdge(
+                    source=f"S:{edge.source}",
+                    target=f"X:{edge.target}",
+                    kind="S_to_X",
+                    attributes=dict(edge.attributes),
+                )
+            )
+        elif edge.kind == "invokes":
+            sxo_edges.append(
+                SxOEdge(
+                    source=f"X:{edge.source}",
+                    target=f"O:{edge.target}",
+                    kind="X_to_O",
+                    attributes=dict(edge.attributes),
+                )
+            )
+        elif edge.kind == "next":
+            sxo_edges.append(
+                SxOEdge(
+                    source=f"X:{edge.source}",
+                    target=f"X:{edge.target}",
+                    kind="X_to_X",
+                    attributes=dict(edge.attributes),
+                )
+            )
+
+    for node in graph.nodes:
+        if node.kind != "invocation":
+            continue
+        target = node.attributes.get("target")
+        if target in container_name_to_s_id:
+            sxo_edges.append(
+                SxOEdge(
+                    source=f"O:{node.id}",
+                    target=container_name_to_s_id[target],
+                    kind="O_targets_S",
+                    attributes={},
+                )
+            )
+
+    return SXOStructure(nodes=tuple(sxo_nodes), edges=tuple(sxo_edges))
+
+
+def sample_from_graph(graph: CompositionGraph) -> List[str]:
+    """Sample an execution trace from the graph using Scenic composition semantics."""
+
+    execution = build_execution_structure(graph)
+    trace: List[str] = []
+
+    for container_id in execution.container_ids:
+        container = execution.containers[container_id]
+        if container["node"].kind not in {"scenario", "behavior"}:
+            continue
+        for composition_id in ordered_compositions(container, execution):
+            trace.extend(
+                sample_composition(
+                    execution.compositions[composition_id], execution.invocations
+                )
+            )
+
+    return trace
+
+
+def run_scenic_composition(source: Union[str, Path]) -> List[str]:
+    """Analyze Scenic source and sample an execution trace from its composition graph."""
+
+    graph = analyze_scenic_composition(source)
+    return sample_from_graph(graph)
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise SystemExit(
             "usage: python tools/scenic_composition_analysis.py <scenic-file>"
         )
-    print(json.dumps(analyze_scenic_composition(sys.argv[1]).as_dict(), indent=2))
+    graph = analyze_scenic_composition(sys.argv[1])
+    execution = build_execution_structure(graph)
+    sxo = build_sxo_structure(graph)
+    sample = sample_from_graph(graph)
+
+    print(
+        json.dumps(
+            {
+                "graph": graph.as_dict(),
+                "execution_structure": execution.as_dict(),
+                "sxo_structure": sxo.as_dict(),
+                "sample_trace": sample,
+            },
+            indent=2,
+        )
+    )
