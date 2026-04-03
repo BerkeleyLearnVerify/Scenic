@@ -143,3 +143,6 @@ src/scenic/syntax/parser.py
 # generated media/output
 simulation.gif
 metadrive_gifs/
+
+# uv
+uv.lock

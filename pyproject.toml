@@ -17,7 +17,7 @@ maintainers = [
 	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 classifiers = [
 	"Operating System :: OS Independent",
@@ -48,6 +48,8 @@ dependencies = [
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
 	"trimesh >=4.6.0, <5",
+	"pytest>=8.4.2",
+	"pytest-cov>=7.1.0",
 ]
 
 [project.optional-dependencies]
