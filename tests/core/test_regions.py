@@ -1,7 +1,7 @@
 import math
 from pathlib import Path
 
-import fcl
+import coal
 import pytest
 import shapely.geometry
 import trimesh.voxel
@@ -481,8 +481,8 @@ def test_mesh_interiorPoint():
         assert SpheroidRegion(dimensions=(d, d, d), position=cp).containsRegion(reg)
 
 
-def test_mesh_fcl():
-    """Test internal construction of FCL models for MeshVolumeRegions."""
+def test_mesh_collision():
+    """Test internal construction of collision models for MeshVolumeRegions."""
     r1 = BoxRegion(dimensions=(2, 2, 2)).difference(BoxRegion(dimensions=(1, 1, 3)))
 
     for heading, shouldInt in ((0, False), (math.pi / 4, True), (math.pi / 2, False)):
@@ -490,13 +490,15 @@ def test_mesh_fcl():
         r2 = BoxRegion(dimensions=(1.5, 1.5, 0.5), position=(2, 0, 0), rotation=o)
         assert r1.intersects(r2) == shouldInt
 
-        o1 = fcl.CollisionObject(*r1._fclData)
-        o2 = fcl.CollisionObject(*r2._fclData)
-        assert fcl.collide(o1, o2) == shouldInt
+        o1 = coal.CollisionObject(*r1._collisionData)
+        o2 = coal.CollisionObject(*r2._collisionData)
+        req = coal.CollisionRequest()
+        res = coal.CollisionResult()
+        assert bool(coal.collide(o1, o2, req, res)) == shouldInt
 
     bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
     r3 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
-    o3 = fcl.CollisionObject(*r3._fclData)
+    o3 = coal.CollisionObject(*r3._collisionData)
     r4pos = r3.position.offsetLocally(bo, (0, 2, 0))
 
     for heading, shouldInt in ((0, False), (math.pi / 4, True), (math.pi / 2, False)):
@@ -504,8 +506,10 @@ def test_mesh_fcl():
         r4 = BoxRegion(dimensions=(1.5, 1.5, 0.5), position=r4pos, rotation=o)
         assert r3.intersects(r4) == shouldInt
 
-        o4 = fcl.CollisionObject(*r4._fclData)
-        assert fcl.collide(o3, o4) == shouldInt
+        o4 = coal.CollisionObject(*r4._collisionData)
+        req = coal.CollisionRequest()
+        res = coal.CollisionResult()
+        assert bool(coal.collide(o3, o4, req, res)) == shouldInt
 
 
 def test_mesh_empty_intersection():

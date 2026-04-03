@@ -6,10 +6,9 @@ from functools import reduce
 import inspect
 import itertools
 
-import fcl
+import coal
 import numpy
 import rv_ltl
-import trimesh
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
@@ -360,24 +359,30 @@ class BlanketCollisionRequirement(SamplingRequirement):
 
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
-        manager = fcl.DynamicAABBTreeCollisionManager()
-        objForGeom = {}
+        manager = coal.DynamicAABBTreeCollisionManager()
+        geomIdToObj = {}
         for i, obj in enumerate(objects):
             if obj.allowCollisions:
                 continue
-            geom, trans = obj.occupiedSpace._fclData
-            collisionObject = fcl.CollisionObject(geom, trans)
-            objForGeom[geom] = obj
+            geom, trans = obj.occupiedSpace._collisionData
+            collisionObject = coal.CollisionObject(geom, trans)
+            # collisionGeometry().id() returns the stable C++ address of the
+            # geometry, matching contact.o1.id() / contact.o2.id() in results.
+            geomIdToObj[collisionObject.collisionGeometry().id()] = obj
             manager.registerObject(collisionObject)
 
         manager.setup()
-        cdata = fcl.CollisionData()
-        manager.collide(cdata, fcl.defaultCollisionCallback)
-        collision = cdata.result.is_collision
+        callback = coal.CollisionCallBackDefault()
+        callback.data.request.num_max_contacts = 1
+        manager.collide(callback)
+        collision = callback.data.result.isCollision()
 
         if collision:
-            contact = cdata.result.contacts[0]
-            self._collidingObjects = (objForGeom[contact.o1], objForGeom[contact.o2])
+            contact = callback.data.result.getContact(0)
+            self._collidingObjects = (
+                geomIdToObj[contact.o1.id()],
+                geomIdToObj[contact.o2.id()],
+            )
 
         return collision
 
