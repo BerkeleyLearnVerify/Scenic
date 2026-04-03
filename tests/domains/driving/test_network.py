@@ -29,19 +29,20 @@ def test_show2D(network):
     plt.close()
 
 
-def test_element_tolerance(cached_maps, pytestconfig):
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_element_tolerance(cached_maps, pytestconfig, use2DMap):
     path = cached_maps[str(mapFolder / "CARLA" / "Town01.xodr")]
-    tol = 0.05
-    network = Network.fromFile(path, tolerance=tol)
-    drivable = network.drivableRegion
+    tol = 0.10
+    network = Network.fromFile(path, tolerance=tol, use2DMap=use2DMap)
+    drivable = network.drivableRegion.boundingPolygon
     toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
-    top_level_region = drivable.union(network.shoulderRegion).union(
-        network.sidewalkRegion
+    top_level_region = drivable.union(network.shoulderRegion.boundingPolygon).union(
+        network.sidewalkRegion.boundingPolygon
     )
     outside_top_level = top_level_region.buffer(2 * tol).difference(
         top_level_region.buffer(1.5 * tol)
     )
-    road = network.roads[0]
+    road = network.roads[0].boundingPolygon
     nearby = road.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
     for i in range(rounds):
@@ -60,7 +61,9 @@ def test_element_tolerance(cached_maps, pytestconfig):
             network.elementAt(pt, reject=True)
 
 
-def test_orientation_consistency(network):
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_orientation_consistency(network, network3D, use2DMap):
+    network = network if use2DMap else network3D
     for i in range(30):
         pt = network.drivableRegion.uniformPointInner()
         dirs = network.nominalDirectionsAt(pt)
@@ -102,7 +105,9 @@ def test_orientation_consistency(network):
             assert laneSec.orientation[pt] == pytest.approx(d)
 
 
-def test_linkage(network):
+@pytest.mark.parametrize("use2DMap", [True, False])
+def test_linkage(network, network3D, use2DMap):
+    network = network if use2DMap else network3D
     for road in network.roads:
         assert road.forwardLanes or road.backwardLanes
         assert road.is1Way == (not (road.forwardLanes and road.backwardLanes))
