@@ -4,6 +4,7 @@ import pytest
 
 from tools.scenic_composition_analysis import (
     analyze_scenic_composition,
+    build_compact_graph_dict,
     find_composition_statements,
 )
 
@@ -328,3 +329,79 @@ def test_graph_json_shape_matches_analysis_output():
     assert as_dict["statements"][0]["container_name"] == "EgoBehavior"
     assert as_dict["nodes"][0]["kind"] == "initial"
     assert {edge["kind"] for edge in as_dict["edges"]} == {"contains", "invokes"}
+
+
+def test_build_compact_graph_dict_has_simple_sxo_shape():
+    graph = analyze_scenic_composition(
+        "examples/driving/OAS_Scenarios/oas_scenario_03.scenic"
+    )
+
+    compact = build_compact_graph_dict(graph)
+
+    assert set(compact.keys()) == {"nodes", "edges"}
+    assert compact["nodes"]["S:behavior:FollowLeadCarBehavior"] == {
+        "type": "S",
+        "name": "FollowLeadCarBehavior",
+        "container_kind": "behavior",
+    }
+    assert compact["nodes"]["X:FollowLeadCarBehavior:1"] == {
+        "type": "X",
+        "op": "parallel",
+        "container": "FollowLeadCarBehavior",
+    }
+    assert compact["nodes"]["O:FollowLeadCarBehavior:2:invocation:0"] == {
+        "type": "O",
+        "target": "CollisionAvoidance",
+    }
+    assert {"source", "target", "type"} <= set(compact["edges"][0].keys())
+    assert {
+        (edge["source"], edge["target"], edge["type"]) for edge in compact["edges"]
+    } == {
+        (
+            "S:behavior:FollowLeadCarBehavior",
+            "X:FollowLeadCarBehavior:1",
+            "S_to_X",
+        ),
+        (
+            "X:FollowLeadCarBehavior:1",
+            "O:FollowLeadCarBehavior:1:invocation:0",
+            "X_to_O",
+        ),
+        (
+            "S:behavior:FollowLeadCarBehavior",
+            "X:FollowLeadCarBehavior:2",
+            "S_to_X",
+        ),
+        (
+            "X:FollowLeadCarBehavior:2",
+            "O:FollowLeadCarBehavior:2:invocation:0",
+            "X_to_O",
+        ),
+        (
+            "X:FollowLeadCarBehavior:1",
+            "X:FollowLeadCarBehavior:2",
+            "X_to_X",
+        ),
+        (
+            "O:FollowLeadCarBehavior:2:invocation:0",
+            "S:behavior:CollisionAvoidance",
+            "O_targets_S",
+        ),
+    }
+
+
+def test_build_compact_graph_dict_adds_uniform_probabilities_for_choose():
+    graph = analyze_scenic_composition(
+        "behavior MainBehavior():\n"
+        "    do choose Foo(), Bar()\n"
+    )
+
+    compact = build_compact_graph_dict(graph)
+    choose_edges = [
+        edge
+        for edge in compact["edges"]
+        if edge["type"] == "X_to_O"
+    ]
+
+    assert len(choose_edges) == 2
+    assert {edge["probability"] for edge in choose_edges} == {0.5}

@@ -340,6 +340,86 @@ def build_sxo_structure(graph: CompositionGraph) -> SXOStructure:
     return SXOStructure(nodes=tuple(sxo_nodes), edges=tuple(sxo_edges))
 
 
+def _choice_probabilities(invocation_ids: Sequence[str], sxo: SXOStructure) -> Dict[str, float]:
+    """Compute normalized probabilities for a choice node's outgoing O nodes."""
+
+    node_by_id = {node.id: node for node in sxo.nodes}
+    weights = [
+        node_by_id[node_id].attributes.get("weight")
+        for node_id in invocation_ids
+    ]
+    if any(weight is not None for weight in weights):
+        numeric_weights = [float(weight or 0.0) for weight in weights]
+        total = sum(numeric_weights)
+        if total > 0:
+            return {
+                node_id: weight / total
+                for node_id, weight in zip(invocation_ids, numeric_weights)
+            }
+    if not invocation_ids:
+        return {}
+    uniform = 1.0 / len(invocation_ids)
+    return {node_id: uniform for node_id in invocation_ids}
+
+
+def build_compact_graph_dict(graph: CompositionGraph) -> Dict[str, Any]:
+    """Build a compact dictionary export of the S/X/O graph for downstream consumers."""
+
+    sxo = build_sxo_structure(graph)
+    node_by_id = {node.id: node for node in sxo.nodes}
+    compact_nodes: Dict[str, Dict[str, Any]] = {}
+
+    for node in sxo.nodes:
+        if node.kind == "S":
+            compact_nodes[node.id] = {
+                "type": "S",
+                "name": node.label,
+                "container_kind": node.attributes.get("container_kind"),
+            }
+        elif node.kind == "X":
+            compact_nodes[node.id] = {
+                "type": "X",
+                "op": node.label,
+                "container": node.attributes.get("container"),
+            }
+        elif node.kind == "O":
+            compact_nodes[node.id] = {
+                "type": "O",
+                "target": node.attributes.get("target") or node.label,
+            }
+
+    compact_edges: List[Dict[str, Any]] = []
+    outgoing_o_by_x: Dict[str, List[str]] = {}
+    for edge in sxo.edges:
+        if edge.kind == "X_to_O":
+            outgoing_o_by_x.setdefault(edge.source, []).append(edge.target)
+
+    for edge in sxo.edges:
+        compact_edge = {
+            "source": edge.source,
+            "target": edge.target,
+            "type": edge.kind,
+        }
+        if edge.kind == "X_to_O":
+            source_node = node_by_id[edge.source]
+            target_node = node_by_id[edge.target]
+            weight = target_node.attributes.get("weight")
+            if weight is not None:
+                compact_edge["weight"] = weight
+            if source_node.label == "choose":
+                probabilities = _choice_probabilities(
+                    outgoing_o_by_x.get(edge.source, []), sxo
+                )
+                if edge.target in probabilities:
+                    compact_edge["probability"] = probabilities[edge.target]
+        compact_edges.append(compact_edge)
+
+    return {
+        "nodes": compact_nodes,
+        "edges": compact_edges,
+    }
+
+
 def sample_from_graph(graph: CompositionGraph) -> List[str]:
     """Sample a possible execution trace from the composition graph by traversing the execution structure and making random choices at composition and invocation nodes.
 
@@ -381,24 +461,28 @@ def run_scenic_composition(source: Union[str, Path]) -> List[str]:
     return sample_from_graph(graph)
 
 
+def build_analysis_output(source: Union[str, Path]) -> Dict[str, Any]:
+    """Build the complete analysis payload printed by the CLI."""
+
+    graph = analyze_scenic_composition(source)
+    execution = build_execution_structure(graph)
+    sxo = build_sxo_structure(graph)
+    compact = build_compact_graph_dict(graph)
+    sample = sample_from_graph(graph)
+
+    return {
+        "graph": graph.as_dict(),
+        "execution_structure": execution.as_dict(),
+        "sxo_structure": sxo.as_dict(),
+        "compact_graph": compact,
+        "sample_trace": sample,
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise SystemExit(
             "usage: python tools/scenic_composition_analysis.py <scenic-file>"
         )
-    graph = analyze_scenic_composition(sys.argv[1])
-    execution = build_execution_structure(graph)
-    sxo = build_sxo_structure(graph)
-    sample = sample_from_graph(graph)
-
-    print(
-        json.dumps(
-            {
-                "graph": graph.as_dict(),
-                "execution_structure": execution.as_dict(),
-                "sxo_structure": sxo.as_dict(),
-                "sample_trace": sample,
-            },
-            indent=2,
-        )
-    )
+    analysis_output = build_analysis_output(sys.argv[1])
+    print(json.dumps(analysis_output, indent=2))
