@@ -5,6 +5,7 @@ import threading
 
 
 from websockets.sync.client import connect
+import networkx as nx
 
 
 """
@@ -322,6 +323,29 @@ class METSRClient:
         assert res["TYPE"] == "ANS_routesBwCoords", res["TYPE"]
         return res
     
+    # query K shortest paths between coordinates
+    def query_k_routes(self, orig_x, orig_y, dest_x, dest_y, k, transform_coords = False):
+        msg = {"TYPE": "QUERY_multiRoutesBwCoords", "DATA": []}
+        if not isinstance(orig_x, list):
+            orig_x = [orig_x]
+            orig_y = [orig_y]
+            dest_x = [dest_x]
+            dest_y = [dest_y]
+            k = [k]
+        if not isinstance(transform_coords, list):
+            transform_coords = [transform_coords] * len(orig_x)
+        if not isinstance(k, list):
+            k = [k] * len(orig_x)
+        
+        assert len(orig_x) == len(orig_y) == len(dest_x) == len(dest_y), "Length of orig_x, orig_y, dest_x, and dest_y must be the same"
+
+        for orig_x, orig_y, dest_x, dest_y, transform_coord, k in zip(orig_x, orig_y, dest_x, dest_y, transform_coords, k):
+            msg["DATA"].append({"origX": orig_x, "origY": orig_y, "destX": dest_x, "destY": dest_y, "transformCoord": transform_coord, "K": k})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_kRoutes", res["TYPE"]
+        return res    
+    
     # query route between roads
     def query_route_between_roads(self, orig_road, dest_road):
         msg = {"TYPE": "QUERY_routesBwRoads", "DATA": []}
@@ -338,6 +362,25 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
 
         assert res["TYPE"] == "ANS_routesBwRoads", res["TYPE"]
+        return res
+   
+    # query K shortest paths between roads
+    def query_k_routes_between_roads(self, orig_road, dest_road, k):
+        msg = {"TYPE": "QUERY_multiRoutesBwRoads", "DATA": []}
+        if not isinstance(orig_road, list):
+            orig_road = [orig_road]
+            dest_road = [dest_road]
+            k = [k]
+        if not isinstance(k, list):
+            k = [k] * len(orig_road)
+
+        assert len(orig_road) == len(dest_road), "Length of orig_road and dest_road must be the same"
+        
+        for orig_road, dest_road, k in zip(orig_road, dest_road, k):
+            msg["DATA"].append({"orig": orig_road, "dest": dest_road, "K": k})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_multiRoutesBwRoads", res["TYPE"]
         return res
 
     # query road weights in the routing map
@@ -378,6 +421,26 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_busWithRoute", res["TYPE"]
         return res
+    
+        # query the entire routing graph, return a networkx graph without edge weights
+    def query_routing_graph(self):
+        # Step 1: get all road IDs by querying without arguments
+        all_roads_res = self.query_road()
+        road_ids = all_roads_res['orig_id']
+
+        # Step 2: query road details in batches of 10 and build the graph
+        graph = nx.DiGraph()
+        batch_size = 10
+        for batch_start in range(0, len(road_ids), batch_size):
+            batch = road_ids[batch_start : batch_start + batch_size]
+            res = self.query_road(id=batch)
+            for road in res['DATA']:
+                src = road['ID']
+                graph.add_node(src, length=road['length'], speed_limit=road['speed_limit'], r_type=road['r_type'])
+                for dst in road['down_stream_road']:
+                    graph.add_edge(src, dst)
+
+        return graph
 
     # CONTROL: change the state of the simulator
     # generate a vehicle trip between origin and destination zones
