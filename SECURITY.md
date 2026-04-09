@@ -16,7 +16,7 @@ Please **do not** report security vulnerabilities through public GitHub issues o
 ### How to Report
 
 - **Preferred:** Use [GitHub's private vulnerability reporting](https://github.com/BerkeleyLearnVerify/Scenic/security/advisories/new) through the **Security** tab of this repository.
-- **Alternative:** Email [dfremont@ucsc.edu](mailto:dfremont@ucsc.edu) with the subject line `SECURITY: <short description>`.
+- **Alternative:** Email [security@forum.scenic-lang.org](mailto:security@forum.scenic-lang.org) with the subject line `SECURITY: <short description>`.
 
 ### What to Include
 
@@ -31,7 +31,7 @@ To help us investigate, please include as much of the following as possible:
 
 ### What to Expect
 
-- We will acknowledge receipt within **72 hours**.
+- We will acknowledge receipt within **1 week**.
 - We will provide status updates at least every **14 days** while the issue is under investigation.
 - If the report is accepted as a security vulnerability, we will prioritize a fix and coordinate disclosure with you. We are happy to credit you in the GitHub security advisory unless you prefer to remain anonymous.
 - If the report is not accepted as a security vulnerability, we will let you know why.
