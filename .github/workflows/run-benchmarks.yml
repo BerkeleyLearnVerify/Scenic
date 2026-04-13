@@ -97,16 +97,16 @@ jobs:
 
       - name: Run benchmark on base branch
         working-directory: base
-        run: python tools/benchmarking/ci/benchmarks.py -o ../base.json
+        run: python tools/benchmarking/ci/run_benchmarks.py -o ../base.json
 
       - name: Run benchmark on compare branch
         working-directory: compare
-        run: python tools/benchmarking/ci/benchmarks.py -o ../head.json
+        run: python tools/benchmarking/ci/run_benchmarks.py -o ../head.json
 
       - name: Compare benchmarks results
         id: compare
         run: |
-          python -m pyperf compare_to --table --table-format=md base.json head.json > comparison.txt
+          python -m pyperf compare_to --table --table-format=md -G --min-speed=10 base.json head.json > comparison.txt
           echo "Comparison results:"
           cat comparison.txt
 
