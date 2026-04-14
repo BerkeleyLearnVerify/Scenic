@@ -133,6 +133,7 @@ def test_ego_top_level():
             assert ego.foo == 42
         """
     )
+    sampleResult(scenario, maxSteps=1)
 
 
 def test_workspace_top_level():
@@ -152,6 +153,7 @@ def test_workspace_top_level():
             assert workspace.region.radius == 2
         """
     )
+    sampleResult(scenario, maxSteps=1)
 
 
 @pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="need SIGALRM")
