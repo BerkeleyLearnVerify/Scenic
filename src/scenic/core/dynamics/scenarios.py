@@ -5,7 +5,9 @@ from collections import defaultdict
 import dataclasses
 import functools
 import inspect
+import sys
 import types
+import warnings
 import weakref
 
 import rv_ltl
@@ -196,10 +198,8 @@ class DynamicScenario(Invocable):
             # Start compose block
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
-                    from scenic.syntax.translator import composeBlock
-
                     raise InvalidScenarioError(
-                        f'"{composeBlock}" does not invoke any scenarios'
+                        '"compose" block does not invoke any scenarios'
                     )
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
@@ -251,7 +251,8 @@ class DynamicScenario(Invocable):
         else:
 
             def alarmHandler(signum, frame):
-                if sys.gettrace():
+                # NOTE: if using pytest-cov, sys.gettrace() may be set by coverage, but we still want timeout warnings enabled
+                if sys.gettrace() and "coverage" not in str(type(sys.gettrace())):
                     return  # skip the warning if we're in the debugger
                 warnings.warn(
                     f"the compose block of scenario {self} is taking a long time; "
