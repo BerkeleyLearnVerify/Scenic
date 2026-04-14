@@ -135,6 +135,38 @@ commonly-used features are:
 	* the :rst:role:`term` role for glossary terms is extended so that the cross-reference will
 	  work even if the link is plural but the glossary entry is singular or vice versa.
 
+Benchmarking and Profiling
+--------------------------
+
+The :file:`tools/benchmarking` folder contains tools to help measure Scenic's performance
+and resource usage. In particular, the :file:`tools/benchmarking/ci` folder contains a set
+of benchmarks available to run as a CI workflow to assess the performance impact of a PR.
+Those with write or triage permissions in the Scenic repository can trigger benchmarking
+by leaving a comment on the PR starting with ``!benchmark``. You can also run benchmarks
+locally using the :file:`run_benchmarking.py` script: use its ``-h`` option for
+instructions. The script uses `pyperf <https://pyperf.readthedocs.io/>`_, which runs the
+benchmarks many times to improve the stability of the results, so benchmarking is slow.
+You may want to use the ``--fast`` option for quick-and-dirty results. Note that
+even with the slow default options, many of the Scenic benchmarks have substantial
+variability, so speed differences on the order of 10% or less are probably not
+significant.
+
+When working on optimizing a particular part of Scenic, it is much faster to focus on one
+or a few suitable Scenic programs rather than constantly re-running the whole benchmark
+suite. Scenic's :option:`--gather-stats` option is convenient for measuring the time and
+sampling iterations required for a single Scenic program. For example:
+
+.. code:: console
+
+	scenic examples/webots/vacuum/vacuum_simple.scenic -v 0 --gather-stats 100
+
+This option is also ideal for running Scenic in a profiler to investigate where time is
+being spent. Using `Pyinstrument <https://github.com/joerick/pyinstrument>`_, for example:
+
+.. code:: console
+
+	pyinstrument -r html -m scenic examples/webots/vacuum/vacuum_simple.scenic -v 0 --gather-stats 100
+
 .. rubric:: Footnotes
 
 .. [#f1] To run the formatters on *all* files, changed or otherwise, use :command:`make format` in the root directory of the repository. But this should not be necessary if you installed the pre-commit hooks and so all files already committed are clean.

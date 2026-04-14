@@ -1,3 +1,4 @@
+import argparse
 import math
 from pathlib import Path
 import sys
@@ -100,6 +101,19 @@ defaultTypes = ("compile", "scene10")
 for ty in defaultTypes:
     assert ty in benchmarkTypes
 
+description = """\
+Run benchmarks. By default, runs all .scenic files in this directory, but
+particular benchmark files can be specified instead. For each file, several
+types of benchmarks are available, e.g. compilation or scene generation time.
+The default choice of types can be overridden using the --types option. For
+example, to measure compile time and the time to sample 100 scenes from the
+`tight_fit_2d.scenic` scenario, you can run:
+
+python run_benchmarks.py tight_fit_2d.scenic --types compile scene100
+
+Many additional options are inherited from `pyperf`: see its documentation
+for details.
+"""
 
 if __name__ == "__main__":
 
@@ -110,10 +124,17 @@ if __name__ == "__main__":
             cmd.extend(args.types)
 
     runner = pyperf.Runner(add_cmdline_args=add_cmdline_args)
+    runner.argparser.description = description
+    runner.argparser.formatter_class = argparse.RawDescriptionHelpFormatter
     types = ["all"]
-    types.extend(benchmarkTypes)
+    types.extend(sorted(benchmarkTypes))
     runner.argparser.add_argument(
-        "--types", nargs="+", action="extend", metavar="TYPE", choices=types
+        "--types",
+        nargs="+",
+        action="extend",
+        metavar="TYPE",
+        choices=types,
+        help=f"types of benchmark to run (options: {types}; default: {defaultTypes})",
     )
     runner.argparser.add_argument(
         "benchmarks", nargs="*", type=Path, help="benchmarks to run (default all)"

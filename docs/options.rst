@@ -134,3 +134,10 @@ Debugging
 	Implies the :option:`-b` option.
 
 	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
+
+.. option:: --gather-stats
+
+	Collect timing statistics over a specified number of scenes, rather than rendering
+	diagrams. If the number is negative, it is considered a number of rejection sampling
+	iterations rather than scenes (useful to reduce variability, and if the number of
+	iterations required to generate a scene is very large).
