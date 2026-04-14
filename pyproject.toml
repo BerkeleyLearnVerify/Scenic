@@ -45,7 +45,8 @@ dependencies = [
 	"Rtree ~= 1.0",
 	"rv-ltl ~= 0.1",
 	"scikit-image ~= 0.21",
-	"scipy ~= 1.7",
+	'scipy >= 1.17.0; python_version >= "3.11"',
+	'scipy ~= 1.7; python_version < "3.11"',
 	"shapely ~= 2.0",
 	"trimesh >=4.6.0, <5",
 ]

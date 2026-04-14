@@ -4,7 +4,7 @@ import carla
 import scipy
 
 from scenic.core.geometry import normalizeAngle
-from scenic.core.vectors import Orientation, Vector
+from scenic.core.vectors import Orientation, Vector, _getEulerAngles
 
 
 def _snapToGround(world, location, blueprint):
@@ -35,7 +35,7 @@ def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
 def scenicToCarlaRotation(orientation):
     # CARLA uses intrinsic yaw, pitch, roll rotations (in that order), like Scenic,
     # but with yaw being left-handed and with zero yaw being East.
-    yaw, pitch, roll = orientation.r.as_euler("ZXY", degrees=True)
+    yaw, pitch, roll = _getEulerAngles(orientation.r, "ZXY", degrees=True)
     yaw = -yaw - 90
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
