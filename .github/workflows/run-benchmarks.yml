@@ -62,26 +62,26 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: context.issue.number
               });
-              core.exportVariable('BASE_BRANCH', pr.data.base.ref);
-              core.exportVariable('COMPARE_BRANCH', pr.data.mergeable ?
-                `refs/pull/${context.issue.number}/merge` : pr.data.head.ref )
+              core.exportVariable('BASE_SHA', pr.data.base.sha);
+              core.exportVariable('COMPARE_SHA', pr.data.mergeable ?
+                pr.data.merge_commit_sha : pr.data.head.sha )
 
       - name: Print PR Details
         run: |
-          echo "COMPARE_BRANCH: $COMPARE_BRANCH"
-          echo "BASE_BRANCH: $BASE_BRANCH"
+          echo "COMPARE_SHA: $COMPARE_SHA"
+          echo "BASE_SHA: $BASE_SHA"
 
       - name: Checkout base branch
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
         with:
-          ref: ${{ env.BASE_BRANCH }}
+          ref: ${{ env.BASE_SHA }}
           path: base
           persist-credentials: false
 
       - name: Checkout compare branch
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
         with:
-          ref: ${{ env.COMPARE_BRANCH }}
+          ref: ${{ env.COMPARE_SHA }}
           path: compare
           persist-credentials: false
 
