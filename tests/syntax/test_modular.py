@@ -75,6 +75,38 @@ def test_requirement():
     assert all(2 < w <= 3 for w in ws)
 
 
+def test_requirement_local_main():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            ego = new Object
+            other = new Object at (10, Range(1, 2))
+            require other.position.y > 1.5
+            other = 42  # should not affect requirement above
+        """
+    )
+    ys = [sampleScene(scenario, maxIterations=60).objects[1].y for i in range(60)]
+    assert all(1.5 < y <= 2 for y in ys)
+
+
+def test_requirement_local_sub():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                do Sub()
+
+        scenario Sub():
+            ego = new Object
+            other = new Object at (10, Range(1, 2))
+            require other.position.y > 1.5
+            other = 42  # should not affect requirement above
+        """
+    )
+    ys = [sampleTrajectory(scenario, maxIterations=60)[0][1][1] for i in range(60)]
+    assert all(1.5 < y <= 2 for y in ys)
+
+
 def test_soft_requirement():
     scenario = compileScenic(
         """

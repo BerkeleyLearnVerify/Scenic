@@ -39,7 +39,7 @@ class RequirementType(enum.Enum):
 
 
 class PendingRequirement:
-    def __init__(self, ty, condition, line, prob, name, ego, recConfig):
+    def __init__(self, ty, condition, line, prob, name, ego, recConfig, scenario):
         self.ty = ty
         self.condition = condition
         self.line = line
@@ -68,6 +68,10 @@ class PendingRequirement:
                 assert globs is atomGlobals
             else:
                 atomGlobals = globs
+        for cell in self.cells:
+            # save current values of scenario locals (only needed for top-level scenario)
+            if cell.cell_contents is scenario:
+                cell.cell_contents = scenario._makeLocalsSnapshot()
         self.egoObject = ego
 
     def compile(self, namespace, scenario, syntax=None):
