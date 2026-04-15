@@ -249,6 +249,17 @@ def test_verbose():
     setDebuggingOptions(verbosity=1)
 
 
+def test_setSeed():
+    scenic.setSeed(12345)
+    p1 = sampleParamPFrom("param p = Range(0, 1)")
+    scenic.setSeed(12345)
+    p2 = sampleParamPFrom("param p = Range(0, 1)")
+    assert p1 == p2
+    scenic.setSeed(54321)
+    p3 = sampleParamPFrom("param p = Range(0, 1)")
+    assert p1 != p3
+
+
 def test_dump_ast():
     scenic.syntax.translator.dumpScenicAST = True
     try:

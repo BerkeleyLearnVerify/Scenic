@@ -3,12 +3,9 @@
 
 import argparse
 from importlib import metadata
-import random
 import sys
 import time
 import warnings
-
-import numpy
 
 import scenic
 from scenic.core.distributions import RejectionException
@@ -185,8 +182,7 @@ if args.seed is not None:
     if args.verbosity >= 1:
         print(f"Using random seed = {args.seed}")
 
-    random.seed(args.seed)
-    numpy.random.seed(args.seed)
+    scenic.setSeed(args.seed)
 
 # Load scenario from file
 if args.verbosity >= 1:

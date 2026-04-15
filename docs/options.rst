@@ -48,6 +48,8 @@ General Scenario Control
 	(although :mod:`random` and :mod:`numpy.random` should not be used in place of
 	Scenic's own sampling constructs in Scenic code).
 
+	This option can be configured from the Python API using `scenic.setSeed`.
+
 .. option:: --scenario <scenario>
 
 	If the given Scenic file defines multiple scenarios, select which one to run.

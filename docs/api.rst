@@ -28,10 +28,16 @@ the sampled values for all the global parameters and objects in the scene from t
 	import os
 	os.chdir('..')
 
+To make sampling deterministic, seed Scenic's random number generators
+before calling `Scenario.generate` using `scenic.setSeed` (the programmatic
+equivalent of the :option:`--seed` command-line option):
+
+.. autofunction:: scenic.setSeed
+
 .. testcode::
 
-	import random, scenic
-	random.seed(12345)
+	import scenic
+	scenic.setSeed(12345)
 	scenario = scenic.scenarioFromString('ego = new Object with foo Range(0, 5)')
 	scene, numIterations = scenario.generate()
 	print(f'ego has foo = {scene.egoObject.foo}')
