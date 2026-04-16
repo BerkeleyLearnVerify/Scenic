@@ -2899,15 +2899,15 @@ class PolygonalRegion(Region):
         else:
             raise TypeError(f"tried to create PolygonalRegion from non-polygon {polygon}")
 
-        assert self._polygons
+        #assert self._polygons
 
         if not self.polygons.is_valid:
             raise ValueError(
                 "tried to create PolygonalRegion with " f"invalid polygon {self.polygons}"
             )
 
-        if self.polygons.is_empty:
-            raise ValueError("tried to create empty PolygonalRegion")
+        # if self.polygons.is_empty:
+        #     raise ValueError("tried to create empty PolygonalRegion")
         shapely.prepare(self.polygons)
 
     ## Lazy Construction Methods ##
@@ -3073,7 +3073,7 @@ class PolygonalRegion(Region):
                 polys.append(toPolygon(reg))
         if not polys:
             return nowhere
-        if any(not poly for poly in polys):
+        if any(poly is None for poly in polys):
             raise TypeError(f"cannot take union of regions {regions}")
         union = polygonUnion(polys, buf=buf)
         orientation = VectorField.forUnionOf(regs, tolerance=buf)
