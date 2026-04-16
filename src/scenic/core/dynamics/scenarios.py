@@ -13,6 +13,7 @@ import weakref
 import rv_ltl
 
 import scenic
+from scenic.core.distributions import Samplable
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
@@ -434,7 +435,7 @@ class DynamicScenario(Invocable):
 
     def _addRequirement(self, ty, reqID, req, line, name, prob, recConfig=None):
         """Save a requirement defined at compile-time for later processing."""
-        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig)
+        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig, self)
         self._pendingRequirements.append((reqID, preq))
 
     def _addDynamicRequirement(self, ty, req, line, name):
@@ -534,6 +535,13 @@ class DynamicScenario(Invocable):
         )  # TODO unify these!
         return scenario
 
+    def _makeLocalsSnapshot(self):
+        locs = {}
+        for local in self._locals:
+            if local in self.__dict__:
+                locs[local] = self.__dict__[local]
+        return LocalsSnapshot(locs)
+
     def __getattr__(self, name):
         if name in self._locals:
             return DelayedArgument(
@@ -547,3 +555,13 @@ class DynamicScenario(Invocable):
         else:
             args = argsToString(self._args, self._kwargs)
             return f"{self.__class__.__name__}({args})"
+
+
+class LocalsSnapshot(Samplable):
+    def __init__(self, locs):
+        self._locs = locs
+        self.__dict__.update(locs)
+        super().__init__(locs.values())
+
+    def sampleGiven(self, value):
+        return LocalsSnapshot({name: value[val] for name, val in self._locs.items()})
