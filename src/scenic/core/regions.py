@@ -522,6 +522,75 @@ class IntersectionRegion(Region):
         return f"IntersectionRegion({self.regions!r})"
 
 
+def sampleSurfaceInVolume(intersection):
+    """Sample from the intersection of a MeshSurfaceRegion and a MeshVolumeRegion.
+
+    This is a specialized sampler for surface-volume intersections. It does not
+    compute an exact clipped surface; instead it filters surface triangles using
+    triangle/volume bounding-box overlap, then samples from the filtered surface
+    and checks sampled points against the volume exactly.
+    """
+    regs = intersection.regions
+    if len(regs) != 2:
+        return IntersectionRegion.genericSampler(intersection)
+
+    regA, regB = regs
+
+    # Only handle the specific surface-volume case here; otherwise fall back
+    # to the generic intersection sampler.
+    if isinstance(regA, MeshSurfaceRegion) and isinstance(regB, MeshVolumeRegion):
+        surface, volume = regA, regB
+    elif isinstance(regB, MeshSurfaceRegion) and isinstance(regA, MeshVolumeRegion):
+        surface, volume = regB, regA
+    else:
+        return IntersectionRegion.genericSampler(intersection)
+
+    mesh = surface.mesh
+    if mesh.is_empty or len(mesh.faces) == 0:
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    vol_min, vol_max = volume.mesh.bounds
+    triangles = mesh.triangles
+    tri_mins = triangles.min(axis=1)
+    tri_maxs = triangles.max(axis=1)
+
+    # Keep only triangles whose axis-aligned bounding boxes overlap the
+    # volume's bounding box. This is a conservative coarse filter: it may keep
+    # triangles that do not actually intersect the volume, but should not throw
+    # away triangles that could.
+    mask = numpy.all(tri_maxs >= vol_min, axis=1) & numpy.all(tri_mins <= vol_max, axis=1)
+
+    if not numpy.any(mask):
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    filtered_mesh = mesh.copy(include_visual=False)
+    filtered_mesh.faces = filtered_mesh.faces[mask]
+    filtered_mesh.remove_unreferenced_vertices()
+
+    if filtered_mesh.is_empty or len(filtered_mesh.faces) == 0:
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    # Sample from the reduced surface, then use an exact containment check
+    # against the volume before accepting the point.
+    filtered_surface = MeshSurfaceRegion(
+        mesh=filtered_mesh,
+        centerMesh=False,
+        orientation=surface.orientation,
+        tolerance=surface.tolerance,
+        onDirection=surface.onDirection,
+        name=surface.name,
+    )
+
+    # Try a small bounded number of samples from the filtered surface before
+    # rejecting this attempt.
+    for _ in range(20):
+        point = filtered_surface.uniformPointInner()
+        if volume._trueContainsPoint(point):
+            return point
+
+    raise RejectionException(f"sampling intersection of Regions {regs}")
+
+
 class UnionRegion(Region):
     def __init__(self, *regions, orientation=None, sampler=None, name=None):
         self.regions = tuple(regions)
@@ -1444,6 +1513,7 @@ class MeshVolumeRegion(MeshRegion):
 
         This function handles intersection computation for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
+        * `MeshSurfaceRegion`
         * `PolygonalFootprintRegion`
         * `PolygonalRegion`
         * `PathRegion`
@@ -1471,6 +1541,14 @@ class MeshVolumeRegion(MeshRegion):
             else:
                 # Something went wrong, abort
                 return super().intersect(other, triedReversed)
+
+        if isinstance(other, MeshSurfaceRegion):
+            return IntersectionRegion(
+                self,
+                other,
+                orientation=orientationFor(self, other, triedReversed),
+                sampler=sampleSurfaceInVolume,
+            )
 
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a polygonal footprint region. We can bound it in the vertical dimension
@@ -2040,6 +2118,26 @@ class MeshSurfaceRegion(MeshRegion):
             return self.intersects(bounded_footprint)
 
         return super().intersects(other, triedReversed)
+
+    @cached_method
+    def intersect(self, other, triedReversed=False):
+        """Get a `Region` representing the intersection of this region with another.
+
+        This function handles intersection computation for `MeshSurfaceRegion` with:
+            - `MeshVolumeRegion`
+        """
+        if isLazy(self) or isLazy(other):
+            return super().intersect(other, triedReversed)
+
+        if isinstance(other, MeshVolumeRegion):
+            return IntersectionRegion(
+                self,
+                other,
+                orientation=orientationFor(self, other, triedReversed),
+                sampler=sampleSurfaceInVolume,
+            )
+
+        return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False):
         """Get a `Region` representing the union of this region with another.

@@ -2,7 +2,7 @@ param map = localPath('../../../assets/maps/CARLA/Town01.xodr')
 param carla_map = 'Town01'
 from scenic.simulators.carla.model import *
 
-ego = new Car in intersection
+ego = new Car on intersection
 
 ego = new Car on ego.lane.predecessor
 

@@ -865,6 +865,31 @@ def test_intersection_sampler():
         assert all(reg.containsPoint(pt) for reg in regions)
 
 
+def test_surface_volume_intersection_sampler():
+    surface = BoxRegion(dimensions=(4, 4, 4)).getSurfaceRegion()
+    volume = BoxRegion(dimensions=(2, 2, 2), position=(1, 0, 0))
+
+    reg1 = surface.intersect(volume)
+    reg2 = volume.intersect(surface)
+
+    assert isinstance(reg1, IntersectionRegion)
+    assert isinstance(reg2, IntersectionRegion)
+    assert reg1.sampler is sampleSurfaceInVolume
+    assert reg2.sampler is sampleSurfaceInVolume
+
+
+def test_surface_volume_intersection_sampling():
+    surface = BoxRegion(dimensions=(4, 4, 4)).getSurfaceRegion()
+    volume = BoxRegion(dimensions=(2, 2, 2), position=(1, 0, 0))
+    intersection_region = surface.intersect(volume)
+
+    samples = sample_ignoring_rejections(intersection_region, 100)
+    assert samples
+
+    for pt in samples:
+        assert all(reg.containsPoint(pt) for reg in (surface, volume))
+
+
 def test_union_sampler():
     reg1 = BoxRegion(position=(0, 0, 0), dimensions=(0.5, 1, 1))
     reg2 = CircularRegion((0, 0, 0), 1)
