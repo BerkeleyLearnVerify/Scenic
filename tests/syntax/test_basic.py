@@ -56,6 +56,28 @@ def test_ego_nonobject():
         compileScenic("ego = dict()")
 
 
+def test_ego_subclass_point():
+    with pytest.raises(TypeError):
+        compileScenic(
+            """
+            class Foo(Point):
+                pass
+            ego = new Foo
+            """
+        )
+
+
+def test_ego_subclass_orientedpoint():
+    with pytest.raises(TypeError):
+        compileScenic(
+            """
+            class Bar(OrientedPoint):
+                pass
+            ego = new Bar
+            """
+        )
+
+
 def test_ego_undefined():
     with pytest.raises(InvalidScenarioError):
         compileScenic("x = ego\n" "ego = new Object")
@@ -63,6 +85,18 @@ def test_ego_undefined():
 
 def test_no_ego():
     compileScenic("new Object")
+
+
+def test_new_in_list_expression():
+    scenario = compileScenic(
+        """
+        objs = [new Object with allowCollisions True]
+        ego = new Object with allowCollisions True
+        """
+    )
+    assert len(scenario.objects) == 2
+    scene = sampleScene(scenario, maxIterations=1)
+    assert len(scene.objects) == 2
 
 
 def test_ego_complex_assignment():

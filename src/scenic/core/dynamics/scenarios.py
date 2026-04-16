@@ -5,12 +5,15 @@ from collections import defaultdict
 import dataclasses
 import functools
 import inspect
+import sys
 import types
+import warnings
 import weakref
 
 import rv_ltl
 
 import scenic
+from scenic.core.distributions import Samplable
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
@@ -196,10 +199,8 @@ class DynamicScenario(Invocable):
             # Start compose block
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
-                    from scenic.syntax.translator import composeBlock
-
                     raise InvalidScenarioError(
-                        f'"{composeBlock}" does not invoke any scenarios'
+                        '"compose" block does not invoke any scenarios'
                     )
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
@@ -251,7 +252,8 @@ class DynamicScenario(Invocable):
         else:
 
             def alarmHandler(signum, frame):
-                if sys.gettrace():
+                # NOTE: if using pytest-cov, sys.gettrace() may be set by coverage, but we still want timeout warnings enabled
+                if sys.gettrace() and "coverage" not in str(type(sys.gettrace())):
                     return  # skip the warning if we're in the debugger
                 warnings.warn(
                     f"the compose block of scenario {self} is taking a long time; "
@@ -433,7 +435,7 @@ class DynamicScenario(Invocable):
 
     def _addRequirement(self, ty, reqID, req, line, name, prob, recConfig=None):
         """Save a requirement defined at compile-time for later processing."""
-        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig)
+        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig, self)
         self._pendingRequirements.append((reqID, preq))
 
     def _addDynamicRequirement(self, ty, req, line, name):
@@ -533,6 +535,13 @@ class DynamicScenario(Invocable):
         )  # TODO unify these!
         return scenario
 
+    def _makeLocalsSnapshot(self):
+        locs = {}
+        for local in self._locals:
+            if local in self.__dict__:
+                locs[local] = self.__dict__[local]
+        return LocalsSnapshot(locs)
+
     def __getattr__(self, name):
         if name in self._locals:
             return DelayedArgument(
@@ -546,3 +555,13 @@ class DynamicScenario(Invocable):
         else:
             args = argsToString(self._args, self._kwargs)
             return f"{self.__class__.__name__}({args})"
+
+
+class LocalsSnapshot(Samplable):
+    def __init__(self, locs):
+        self._locs = locs
+        self.__dict__.update(locs)
+        super().__init__(locs.values())
+
+    def sampleGiven(self, value):
+        return LocalsSnapshot({name: value[val] for name, val in self._locs.items()})
