@@ -567,6 +567,7 @@ def executeInScenario(scenario, inheritEgo=False):
     oldScenario = currentScenario
     if inheritEgo and oldScenario is not None:
         scenario._ego = oldScenario._ego  # inherit ego from parent
+        scenario._workspace = oldScenario._workspace
     currentScenario = scenario
     oldParams = _globalParameters
     _globalParameters = scenario._globalParameters

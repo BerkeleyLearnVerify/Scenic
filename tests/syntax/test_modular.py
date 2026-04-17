@@ -149,6 +149,45 @@ def test_param_top_level():
     assert 1 <= ego.fizz <= 2
 
 
+def test_ego_top_level():
+    scenario = compileScenic(
+        """
+        ego = new Object with foo 42
+
+        scenario Main():
+            setup:
+                assert ego.foo == 42
+            compose:
+                assert ego.foo == 42
+                do Sub()
+
+        scenario Sub():
+            assert ego.foo == 42
+        """
+    )
+    sampleResult(scenario, maxSteps=1)
+
+
+def test_workspace_top_level():
+    scenario = compileScenic(
+        """
+        workspace = Workspace(CircularRegion(0@0, 2))
+
+        scenario Main():
+            setup:
+                assert workspace.region.radius == 2
+                ego = new Object
+            compose:
+                assert workspace.region.radius == 2
+                do Sub()
+
+        scenario Sub():
+            assert workspace.region.radius == 2
+        """
+    )
+    sampleResult(scenario, maxSteps=1)
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="need SIGALRM")
 @pytest.mark.slow
 def test_scenario_stuck(monkeypatch):
