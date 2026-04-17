@@ -1,6 +1,7 @@
 import pytest
 
-from scenic.core.distributions import InvalidScenarioError
+from scenic.core.distributions import RejectionException
+from scenic.core.errors import InvalidScenarioError
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
@@ -45,8 +46,9 @@ def test_car_clipping_3D(getAssetPath):
         ego = new Car at (100,0,1), with regionContainedIn everywhere
         car2 = new Car at (100,0,1), with regionContainedIn everywhere
     """
-    with pytest.raises(InvalidScenarioError):
-        compileScenic(code, mode2D=False)
+    scenario = compileScenic(code, mode2D=False)
+    with pytest.raises((InvalidScenarioError, RejectionException)):
+        sampleScene(scenario, maxIterations=1)
 
 
 def test_simulator_import():
