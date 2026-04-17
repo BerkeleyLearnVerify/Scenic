@@ -62,9 +62,12 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: context.issue.number
               });
+
+              const body = context.payload.comment.body.trim();
+              const requestedSha = body.split(/\s+/)[1];
+
               core.exportVariable('BASE_SHA', pr.data.base.sha);
-              core.exportVariable('COMPARE_SHA', pr.data.mergeable ?
-                pr.data.merge_commit_sha : pr.data.head.sha )
+              core.exportVariable('COMPARE_SHA', requestedSha);
 
       - name: Print PR Details
         run: |
@@ -117,7 +120,8 @@ jobs:
             const fs = require('fs');
             const result = fs.readFileSync('comparison.txt', 'utf8');
             const commentId = context.payload.comment.id;
-            const newBody = `🚀 Benchmarks completed.\n\n${result}`;
+            const originalBody = context.payload.comment.body;
+            const newBody = `${originalBody}\n\n🚀 Benchmarks completed.\n\n${result}`;
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
