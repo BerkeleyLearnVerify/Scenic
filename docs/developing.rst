@@ -142,7 +142,8 @@ The :file:`tools/benchmarking` folder contains tools to help measure Scenic's pe
 and resource usage. In particular, the :file:`tools/benchmarking/ci` folder contains a set
 of benchmarks available to run as a CI workflow to assess the performance impact of a PR.
 Those with write or triage permissions in the Scenic repository can trigger benchmarking
-by leaving a comment on the PR starting with ``!benchmark``. You can also run benchmarks
+of a commit by leaving a comment on the PR of the form ``!benchmark HASH``, specifying the
+hash of the desired commit. You can also run benchmarks
 locally using the :file:`run_benchmarking.py` script: use its ``-h`` option for
 instructions. The script uses `pyperf <https://pyperf.readthedocs.io/>`_, which runs the
 benchmarks many times to improve the stability of the results, so benchmarking is slow.
