@@ -330,3 +330,16 @@ def test_mode2D_heading_parentOrientation():
 
     obj = sampleEgoFrom(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 0.56
+
+
+def test_setSeed():
+    scenario = compileScenic("ego = new Object with foo Range(0,1)")
+
+    scenic.setSeed(10)
+    s1, _ = scenario.generate()
+    scenic.setSeed(10)
+    s2, _ = scenario.generate()
+    s3, _ = scenario.generate()
+
+    assert s1.objects[0].foo == s2.objects[0].foo
+    assert s1.objects[0].foo != s3.objects[0].foo
