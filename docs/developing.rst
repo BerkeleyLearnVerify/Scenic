@@ -144,7 +144,7 @@ of benchmarks available to run as a CI workflow to assess the performance impact
 Those with write or triage permissions in the Scenic repository can trigger benchmarking
 of a commit by leaving a comment on the PR of the form ``!benchmark HASH``, specifying the
 hash of the desired commit. You can also run benchmarks
-locally using the :file:`run_benchmarking.py` script: use its ``-h`` option for
+locally using the :file:`run_benchmarks.py` script: use its ``-h`` option for
 instructions. The script uses `pyperf <https://pyperf.readthedocs.io/>`_, which runs the
 benchmarks many times to improve the stability of the results, so benchmarking is slow.
 You may want to use the ``--fast`` option for quick-and-dirty results. Note that
