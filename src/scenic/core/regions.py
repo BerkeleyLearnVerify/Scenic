@@ -216,10 +216,15 @@ class Region(Samplable, ABC):
             if self.dimensionality < reg.dimensionality:
                 return False
 
-            if self.size is not None and reg.size is not None:
+            if tolerance == 0 and self.size is not None and reg.size is not None:
                 # A smaller region cannot contain a larger region of the
-                # same dimensionality.
-                if self.dimensionality == reg.dimensionality and self.size < reg.size:
+                # same dimensionality. We add a small factor to account for numerical error.
+                # NOTE: This path is ignored when tolerance is non-zero as evaluating it correctly
+                # in that case is non-trivial.
+                if (
+                    self.dimensionality == reg.dimensionality
+                    and self.size * 1.01 < reg.size
+                ):
                     return False
 
         return self.containsRegionInner(reg, tolerance)
