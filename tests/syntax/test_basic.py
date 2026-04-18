@@ -333,13 +333,11 @@ def test_mode2D_heading_parentOrientation():
 
 
 def test_setSeed():
-    scenario = compileScenic("ego = new Object with foo Range(0,1)")
-
     scenic.setSeed(10)
-    s1, _ = scenario.generate()
+    p1 = sampleParamPFrom("param p = Range(0, 1)")
     scenic.setSeed(10)
-    s2, _ = scenario.generate()
-    s3, _ = scenario.generate()
+    p2 = sampleParamPFrom("param p = Range(0, 1)")
+    p3 = sampleParamPFrom("param p = Range(0, 1)")
 
-    assert s1.objects[0].foo == s2.objects[0].foo
-    assert s1.objects[0].foo != s3.objects[0].foo
+    assert p1 == p2
+    assert p1 != p3
