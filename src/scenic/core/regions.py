@@ -522,6 +522,75 @@ class IntersectionRegion(Region):
         return f"IntersectionRegion({self.regions!r})"
 
 
+def sampleSurfaceInVolume(intersection):
+    """Sample from the intersection of a MeshSurfaceRegion and a MeshVolumeRegion.
+
+    This is a specialized sampler for surface-volume intersections. It does not
+    compute an exact clipped surface; instead it filters surface triangles using
+    triangle/volume bounding-box overlap, then samples from the filtered surface
+    and checks sampled points against the volume exactly.
+    """
+    regs = intersection.regions
+    if len(regs) != 2:
+        return IntersectionRegion.genericSampler(intersection)
+
+    regA, regB = regs
+
+    # Only handle the specific surface-volume case here; otherwise fall back
+    # to the generic intersection sampler.
+    if isinstance(regA, MeshSurfaceRegion) and isinstance(regB, MeshVolumeRegion):
+        surface, volume = regA, regB
+    elif isinstance(regB, MeshSurfaceRegion) and isinstance(regA, MeshVolumeRegion):
+        surface, volume = regB, regA
+    else:
+        return IntersectionRegion.genericSampler(intersection)
+
+    mesh = surface.mesh
+    if mesh.is_empty or len(mesh.faces) == 0:
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    vol_min, vol_max = volume.mesh.bounds
+    triangles = mesh.triangles
+    tri_mins = triangles.min(axis=1)
+    tri_maxs = triangles.max(axis=1)
+
+    # Keep only triangles whose axis-aligned bounding boxes overlap the
+    # volume's bounding box. This is a conservative coarse filter: it may keep
+    # triangles that do not actually intersect the volume, but should not throw
+    # away triangles that could.
+    mask = numpy.all(tri_maxs >= vol_min, axis=1) & numpy.all(tri_mins <= vol_max, axis=1)
+
+    if not numpy.any(mask):
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    filtered_mesh = mesh.copy(include_visual=False)
+    filtered_mesh.faces = filtered_mesh.faces[mask]
+    filtered_mesh.remove_unreferenced_vertices()
+
+    if filtered_mesh.is_empty or len(filtered_mesh.faces) == 0:
+        raise RejectionException(f"sampling intersection of Regions {regs}")
+
+    # Sample from the reduced surface, then use an exact containment check
+    # against the volume before accepting the point.
+    filtered_surface = MeshSurfaceRegion(
+        mesh=filtered_mesh,
+        centerMesh=False,
+        orientation=surface.orientation,
+        tolerance=surface.tolerance,
+        onDirection=surface.onDirection,
+        name=surface.name,
+    )
+
+    # Try a small bounded number of samples from the filtered surface before
+    # rejecting this attempt.
+    for _ in range(20):
+        point = filtered_surface.uniformPointInner()
+        if volume._trueContainsPoint(point):
+            return point
+
+    raise RejectionException(f"sampling intersection of Regions {regs}")
+
+
 class UnionRegion(Region):
     def __init__(self, *regions, orientation=None, sampler=None, name=None):
         self.regions = tuple(regions)
@@ -1444,6 +1513,7 @@ class MeshVolumeRegion(MeshRegion):
 
         This function handles intersection computation for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
+        * `MeshSurfaceRegion`
         * `PolygonalFootprintRegion`
         * `PolygonalRegion`
         * `PathRegion`
@@ -1471,6 +1541,14 @@ class MeshVolumeRegion(MeshRegion):
             else:
                 # Something went wrong, abort
                 return super().intersect(other, triedReversed)
+
+        if isinstance(other, MeshSurfaceRegion):
+            return IntersectionRegion(
+                self,
+                other,
+                orientation=orientationFor(self, other, triedReversed),
+                sampler=sampleSurfaceInVolume,
+            )
 
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a polygonal footprint region. We can bound it in the vertical dimension
@@ -2041,6 +2119,53 @@ class MeshSurfaceRegion(MeshRegion):
 
         return super().intersects(other, triedReversed)
 
+    @cached_method
+    def intersect(self, other, triedReversed=False):
+        """Get a `Region` representing the intersection of this region with another.
+
+        This function handles intersection computation for `MeshSurfaceRegion` with:
+            - `MeshVolumeRegion`
+        """
+        if isLazy(self) or isLazy(other):
+            return super().intersect(other, triedReversed)
+
+        if isinstance(other, MeshVolumeRegion):
+            return IntersectionRegion(
+                self,
+                other,
+                orientation=orientationFor(self, other, triedReversed),
+                sampler=sampleSurfaceInVolume,
+            )
+
+        return super().intersect(other, triedReversed)
+
+    def union(self, other, triedReversed=False):
+        """Get a `Region` representing the union of this region with another.
+
+        This function handles union computation for `MeshSurfaceRegion` with:
+            - `MeshSurfaceRegion`
+        """
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
+            return super().union(other, triedReversed)
+
+        # If other region is represented by a mesh, we can extract the mesh to
+        # perform boolean operations on it
+        if isinstance(other, MeshSurfaceRegion):
+            other_mesh = other.mesh
+
+            # Compute union using Trimesh
+            new_mesh = trimesh.util.concatenate(self.mesh, other_mesh)
+
+            return MeshSurfaceRegion(
+                new_mesh,
+                tolerance=min(self.tolerance, other.tolerance),
+                centerMesh=False,
+            )
+
+        # Don't know how to compute this union, fall back to default behavior.
+        return super().union(other, triedReversed)
+
     @distributionFunction
     def containsPoint(self, point):
         """Check if this region's surface contains a point."""
@@ -2052,18 +2177,18 @@ class MeshSurfaceRegion(MeshRegion):
 
     def containsObject(self, obj):
         # A surface cannot contain an object, which must have a volume.
-        return False
+        # Use footprint
+        return self.boundingPolygon.containsObject(obj)
 
     def containsRegionInner(self, reg, tolerance):
-        if tolerance != 0:
-            warnings.warn(
-                "Nonzero tolerances are ignored for containsRegionInner on MeshSurfaceRegion"
-            )
-
         if isinstance(reg, MeshSurfaceRegion):
-            diff_region = reg.difference(self)
-
-            return isinstance(diff_region, EmptyRegion)
+            if self.mesh.is_empty:
+                return False
+            elif reg.mesh.is_empty:
+                return True
+            return self.boundingPolygon.polygons.buffer(tolerance).contains(
+                reg.boundingPolygon.polygons
+            )
 
         raise NotImplementedError
 
@@ -2076,9 +2201,7 @@ class MeshSurfaceRegion(MeshRegion):
         point = toVector(point, f"Could not convert {point} to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-
         dist = abs(pq.signed_distance([point.coordinates])[0])
-
         return dist
 
     @property
@@ -2767,11 +2890,22 @@ class PathRegion(Region):
             numpy.linalg.norm(b - a, axis=1), (len(a), 1)
         )
 
+    def intersects(self, other, triedReversed=False):
+        if isinstance(other, PathRegion):
+            self_polyline = PolylineRegion(points=[(v.x, v.y) for v in self.vertices])
+            other_polyline = PolylineRegion(points=[(v.x, v.y) for v in other.vertices])
+            poly = toPolygon(other_polyline)
+            if poly is not None:
+                return self_polyline.lineString.intersects(poly)
+            return self_polyline.intersects(other, triedReversed)
+        else:
+            return super().intersects(other, triedReversed)
+
     def containsPoint(self, point):
         return self.distanceTo(point) < self.tolerance
 
     def containsObject(self, obj):
-        return False
+        raise NotImplementedError
 
     def containsRegionInner(self, reg, tolerance):
         raise NotImplementedError
@@ -2819,6 +2953,27 @@ class PathRegion(Region):
             tuple(numpy.amin(self.vertices, axis=0)),
             tuple(numpy.amax(self.vertices, axis=0)),
         )
+
+    @distributionMethod
+    def signedDistanceTo(self, point) -> float:
+        """Compute the signed distance of the PathRegion to a point.
+
+        The distance is positive if the point is left of the nearest segment,
+        and negative otherwise.
+        """
+        dist = self.distanceTo(point)
+        start, end = self.nearestSegmentTo(point)
+        rp = point - start
+        tangent = end - start
+        return dist if tangent.angleWith(rp) >= 0 else -dist
+
+    def __getitem__(self, i) -> Vector:
+        """Get the ith point along this path.
+
+        If the region consists of multiple polylines, this order is linear
+        along each polyline but arbitrary across different polylines.
+        """
+        return self.vertices[i]
 
     def uniformPointInner(self):
         # Pick an edge, weighted by length, and extract its two points
@@ -3079,6 +3234,16 @@ class PolygonalRegion(Region):
         orientation = VectorField.forUnionOf(regs, tolerance=buf)
         z = 0 if z is None else z
         return PolygonalRegion(polygon=union, orientation=orientation, z=z)
+
+    @cached_property
+    def _boundingPolygon(self):
+        return self._polygon
+
+    @cached_property
+    @distributionFunction
+    def boundingPolygon(self):
+        """A PolygonalRegion returning self"""
+        return self
 
     @property
     @distributionFunction
