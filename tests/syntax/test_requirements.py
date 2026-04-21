@@ -478,6 +478,52 @@ def test_static_intersection_violation_disabled():
     )
 
 
+def test_intersection_colliding_objects_identified():
+    """BlanketCollisionRequirement identifies the colliding pair by object identity.
+
+    This is a unit test for the Coal broadphase pair-identification path:
+    falsifiedByInner must set _collidingObjects to the exact two scenic
+    objects whose geometries overlap, with no pairwise fallback loop.
+    """
+    import types
+
+    import coal
+    import numpy
+
+    from scenic.core.requirements import BlanketCollisionRequirement
+
+    # Minimal fake scenic objects — falsifiedByInner only needs these two attrs.
+    # Use a class so instances are hashable (needed for the sample dict key).
+    class FakeObj:
+        def __init__(self, geom, trans=None):
+            self.allowCollisions = False
+            self.occupiedSpace = types.SimpleNamespace()
+            self.occupiedSpace._collisionData = (
+                geom,
+                trans if trans is not None else coal.Transform3s(),
+            )
+
+    def make_obj(geom, trans=None):
+        return FakeObj(geom, trans)
+
+    # obj_a and obj_b overlap (same position); obj_c is far away.
+    obj_a = make_obj(coal.Box(1.0, 1.0, 1.0))
+    obj_b = make_obj(coal.Box(1.0, 1.0, 1.0))
+    obj_c = make_obj(coal.Box(1.0, 1.0, 1.0))
+    obj_c.occupiedSpace._collisionData = (
+        coal.Box(1.0, 1.0, 1.0),
+        coal.Transform3s(numpy.eye(3), numpy.array([100.0, 0.0, 0.0])),
+    )
+
+    req = BlanketCollisionRequirement([obj_a, obj_b, obj_c], optional=True)
+    sample = {obj_a: obj_a, obj_b: obj_b, obj_c: obj_c}
+
+    assert req.falsifiedByInner(sample) is True
+    assert req._collidingObjects is not None
+    # The colliding pair must be exactly obj_a and obj_b — not obj_c.
+    assert set(req._collidingObjects) == {obj_a, obj_b}
+
+
 # Occlusion visibility requirements
 
 
