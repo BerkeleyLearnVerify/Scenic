@@ -9,3 +9,4 @@ Examples Overview:
 * `lgsvl`: Examples for the LGSVL simulator
 * `visualizer`: Examples for the built in Scenic visualizer
 * `webots`: Examples for the Webots robotics simulator
+* `mujoco`: Examples for the MuJoCo physics simulator
