@@ -14,7 +14,9 @@ from scenic.domains.driving.model import *  # includes basic actions and behavio
 
 from scenic.simulators.utils.colors import Color
 
-simulator NewtonianSimulator(network, render=render)
+param debugRender = False
+
+simulator NewtonianSimulator(network, render=render, debug_render=globalParameters.debugRender)
 
 class NewtonianActor(DrivingObject):
     throttle: 0
