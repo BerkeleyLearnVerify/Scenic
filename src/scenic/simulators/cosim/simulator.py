@@ -641,6 +641,7 @@ class CosimSimulation(DrivingSimulation):
         if self.count % 100 == 0: 
             print(f"Step: {self.count}. Total actors: {len(self.objects)}, bubble queue:{len(self.bubble_spawn_queue)} ")
             print(f"Total active vehicles: {self.total_active_vehicles[-1]}, Routes completed: {self.routes_completed}, frozen vehicles {len(self.frozen_vehicles)}")
+            print(f"Total bubble actors: {len(self.carla_actors) - len(self.bubble_spawn_queue)}")
         self.tick_metsr()
        
         # (4)
@@ -803,7 +804,7 @@ class CosimSimulation(DrivingSimulation):
         self.frozen_metsr_roads = roads
         bubble_road_ids = []
         for road in roads:
-            bubble_road_ids + self.map_scenic_to_metsr_road(road)
+            bubble_road_ids += self.map_scenic_to_metsr_road(road)
         self.frozen_roads = list(self.carla_control_roads.keys())
         # Collect roads into new and old for freeze/unfreezing 
         new_roads = [id for id in bubble_road_ids if id not in self.frozen_roads]
@@ -812,7 +813,7 @@ class CosimSimulation(DrivingSimulation):
     
     
    
-    def update_bubble_objects(self, bubble_roads: list[Road], intersections: list[Intersection]) -> None: 
+    def update_bubble_objects(self, bubble_roads: list[Road], bubble_intersections: list[Intersection]) -> None: 
         """
         Docstring for update_bubble_objects
         
@@ -840,9 +841,10 @@ class CosimSimulation(DrivingSimulation):
             # Skip vehicles which have not entered the roadway or have completed their route 
             if ('road' not in veh_data) or obj.finished_route: 
                 continue
+           
             road = self._nearest_road(obj)
             intersection = self._get_intersection(obj, road)
-            outside_bubble = (road not in bubble_roads and intersection not in intersections)
+            outside_bubble = (road not in bubble_roads and intersection not in bubble_intersections)
           
             # Spawn guard allows the client to process pending object creation """
             if obj.spawn_guard > 0: 
@@ -869,7 +871,7 @@ class CosimSimulation(DrivingSimulation):
                     else:                        # spawn the vehicle
                         carla_trajectory, route_data = None, None
                         VehID = self.getMetsrPrivateVehId(obj) 
-                        curr_lane = self._nearest_lane(obj)                   
+                        curr_lane = self._nearest_lane(obj)
                         for data_entry in cosim_data['DATA']:
                             if data_entry['ID'] == VehID:
                                 route_data = data_entry['route']
@@ -882,7 +884,7 @@ class CosimSimulation(DrivingSimulation):
                             if obj not in self.bubble_spawn_queue:
                                 self.bubble_spawn_queue.add(obj)
                             continue # Do not spawn vehicle if no trajectory can be created
-                        spawn_success = self.createObjectInCarla(obj,update_orientation=True, trajectory=carla_trajectory) 
+                        spawn_success = self.createObjectInCarla(obj, update_orientation=True, trajectory=carla_trajectory) 
                         if spawn_success == False:
                             self.bubble_spawn_queue.add(obj)
                             continue                   
