@@ -136,7 +136,7 @@ class network_cache():
         self.obj_lane_cache[obj] = nearest_lane
         return nearest_lane
     
-    def _nearest_road(self, obj: Object, allow_offroad : bool, radius_size: int = 30) -> Road:
+    def _nearest_road(self, obj: Object, allow_offroad : bool, radius_size: int = 50) -> Road:
         """
             Docstring for _nearest_road
 
@@ -154,24 +154,25 @@ class network_cache():
             road = self.obj_road_cache[obj]
             if road.containsPoint(obj.position):
                 nearest_road = road
- 
-        if not nearest_road and allow_offroad:
+            else:
+                nearest_road = obj._road 
+        
+        print(f"For: {obj.name}, nearest road is: {nearest_road}")
+        if nearest_road is None and allow_offroad:
             distances = []
             neighborhood = CircularRegion(center=[obj.x,obj.y],radius=radius_size) 
             for road in self.network_roads:
                 if neighborhood.intersects(road):
-                        if road.containsPoint(obj.position):
-                            nearest_road = road
-                            break
-                        else:
-                            distances.append((road.distanceTo(obj.position), road))
-            if not nearest_road:
-                if len(distances) > 0:
-                    nearest_road = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
-                else:
-                    assert f"Object has deviated to far from the roadway : i.e {radius_size/2} meters"
+                    distances.append((road.distanceTo(obj.position), road))
+            
+            if len(distances) > 0:
+                nearest_road = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
+            else:
+                print(f"No road has been found: {obj.name} at {obj.position}")
+
+        assert nearest_road is not None, f"Object has deviated to far from the roadway : i.e {radius_size/2} meters"
         
-        self.obj_road_cache[obj] = road
+        self.obj_road_cache[obj] = nearest_road
         return nearest_road
     
     def _get_intersection(self, obj: Object, road: Road ) -> Intersection | None:
@@ -186,14 +187,7 @@ class network_cache():
             Collects the nearest lane for an object from the intersection cache based
             on outgoing roads, if none is found queries Scenic
         """
-        curr_intersection = None
-        if road in self.connected_roads_to_intersections:
-            for intersection in self.connected_roads_to_intersections[road]:
-                if intersection.containsPoint(obj.position):
-                    curr_intersection = intersection
-                    break
-
-        return curr_intersection
+        return obj._intersection
     
     def _get_bubble_roads(self, bubble_region: CircularRegion) -> list[Road]:
         """
@@ -210,7 +204,20 @@ class network_cache():
     
 
     
-    def generate_scenic_trajectory(self, curr_lane, route):
+    def generate_scenic_trajectory(self, curr_lane: Lane, route: list[str] ) -> None | list[Lane]:
+        """
+        docstring for generate_scenic_trajectory
+
+        :param curr_lane: Current lane the object which that targeted route is being generated for is on 
+        :type curr_lane:  Lane
+        :param route: Proposed route for object queried from METSR with METSR road IDs
+        :type route: List[str]
+
+        Attempts to generate an eqivalent route of Scenic Lanes from a list of METSR target road IDs.
+        Enforces that the first road in the trajectory corresponds to the objects current road. If
+        no route is found returns None. 
+        
+        """
         # Enforce that the first trajectory target corresponds to current location
         metsr_curr_road = self.map_scenic_to_metsr_lanes(curr_lane)
         if metsr_curr_road != route[0]:
@@ -252,12 +259,18 @@ class network_cache():
         if len(trajectory) < 1:
             print(f'No roads found')
             return None
-                    
         return trajectory
     
     """ Translating Scenic -> Metsr representations"""
     
-    def map_scenic_to_metsr_road(self, road):
+    def map_scenic_to_metsr_road(self, road : Road) -> list[str]:
+        """
+        docstring for map_scenic_to_metsr_road
+        
+        :param road: Scenic road ID which should be translated to equivalent METSR road ID(s)
+        :type road: Road
+
+        """
         query_key = f'{road.id}' 
         metsr_keys= None
         
