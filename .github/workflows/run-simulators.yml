@@ -122,13 +122,16 @@ jobs:
           git clone --no-checkout https://github.com/BerkeleyLearnVerify/Scenic.git Scenic
           cd Scenic
           git checkout --detach "$GH_SHA"
+
+          # Later simulator tests run as ubuntu, so make sure the checked-out repo is writable by ubuntu
+          # before any Scenic-generated files are created.
+          chown -R ubuntu:ubuntu /home/ubuntu/actions/Scenic
+          chmod -R u+rwX /home/ubuntu/actions/Scenic
+
           python3 -m venv venv
           source venv/bin/activate
           python3 -m pip install -e .[test-full]
           python3 .github/check_latest_simulators.py
-
-          # Later simulator tests run as ubuntu, so make sure the checked-out repo is writable by ubuntu.
-          chown -R ubuntu:ubuntu /home/ubuntu/actions/Scenic
           EOF
           )
 
