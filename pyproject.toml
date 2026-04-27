@@ -60,6 +60,13 @@ metadrive = [
 	"metadrive-simulator >= 0.4.3",
 	"sumolib >= 1.21.0",
 ]
+maniskill = [
+	"mani-skill >= 3.0.0b20",
+	"torch >= 2.0.0",
+	"sapien >= 3.0.0",
+	"gymnasium >= 0.29.0",
+	"coacd >= 1.0.0",
+]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest >= 7.0.0, <9",
 	"pytest-cov >= 3.0.0",

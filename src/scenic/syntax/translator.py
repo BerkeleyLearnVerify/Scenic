@@ -42,7 +42,7 @@ from scenic.core.errors import InvalidScenarioError, PythonCompileError
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.pruning as pruning
 from scenic.core.serialization import deterministicHash
-from scenic.core.utils import cached_property
+from scenic.core.utils import buildingScenicDocumentation, cached_property
 from scenic.syntax.compiler import compileScenicAST
 from scenic.syntax.parser import parse_string
 import scenic.syntax.veneer as veneer
@@ -435,8 +435,7 @@ class ScenicModule(types.ModuleType):
 # getting confused. (Autodoc doesn't expect modules to have that attribute,
 # and we can't del it.) We only do this during Sphinx runs since it seems to
 # sometimes break pickling of the modules.
-sphinx = sys.modules.get("sphinx")
-buildingDocs = sphinx and getattr(sphinx, "_buildingScenicDocs", False)
+buildingDocs = buildingScenicDocumentation()
 if buildingDocs:
     ScenicModule.__module__ = None
 
