@@ -126,6 +126,9 @@ jobs:
           source venv/bin/activate
           python3 -m pip install -e .[test-full]
           python3 .github/check_latest_simulators.py
+
+          # Later simulator tests run as ubuntu, so make sure the checked-out repo is writable by ubuntu.
+          chown -R ubuntu:ubuntu /home/ubuntu/actions/Scenic
           EOF
           )
 
