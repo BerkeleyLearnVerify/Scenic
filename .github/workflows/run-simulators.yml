@@ -113,7 +113,7 @@ jobs:
           set -euo pipefail
 
           # Build the remote shell script as a JSON array for AWS-RunShellScript.
-          # AWS documents this pattern for running Bash scripts through Run Command.
+          # The first remote command is #!/bin/bash so SSM runs the script with Bash.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<EOF
           #!/bin/bash
           set -euo pipefail
@@ -266,33 +266,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Run CARLA tests once for each installed CARLA version on the instance.
+          # CARLA refuses to start as root. SSM Run Command runs as root by default,
+          # so run only the CARLA test block as the ubuntu user to match the old SSH behavior.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
           #!/bin/bash
           set -euo pipefail
 
-          export HOME=/home/ubuntu
-          export USER=ubuntu
-          export LOGNAME=ubuntu
-          export XDG_RUNTIME_DIR=/tmp/runtime-ubuntu
-          mkdir -p "$XDG_RUNTIME_DIR"
-          chmod 700 "$XDG_RUNTIME_DIR"
+          sudo -u ubuntu -H bash -lc '
+            set -euo pipefail
+            cd /home/ubuntu/actions/Scenic
+            source venv/bin/activate
 
-          whoami
-          echo "HOME=$HOME"
-          echo "USER=$USER"
-          echo "LOGNAME=$LOGNAME"
-          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
-
-          cd /home/ubuntu/actions/Scenic
-          source venv/bin/activate
-
-          carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*'))
-          for version in "${carla_versions[@]}"; do
-            echo "============================= CARLA $version ============================="
-            export CARLA_ROOT="$version"
-            pytest tests/simulators/carla
-          done
+            # Run CARLA tests once for each installed CARLA version on the instance.
+            carla_versions=($(find /software -maxdepth 1 -type d -name "carla*"))
+            for version in "${carla_versions[@]}"; do
+              echo "============================= CARLA $version ============================="
+              export CARLA_ROOT="$version"
+              pytest tests/simulators/carla
+            done
+          '
           EOF
           )
 
