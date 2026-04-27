@@ -113,7 +113,9 @@ jobs:
           set -euo pipefail
 
           # Build the remote shell script as a JSON array for AWS-RunShellScript.
+          # AWS documents this pattern for running Bash scripts through Run Command.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<EOF
+          #!/bin/bash
           set -euo pipefail
           cd /home/ubuntu/actions/
           rm -rf Scenic
@@ -189,6 +191,7 @@ jobs:
 
           # Run the GPU driver check remotely through SSM.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          #!/bin/bash
           set -euo pipefail
           output=$(nvidia-smi)
           echo "$output"
@@ -265,6 +268,7 @@ jobs:
 
           # Run CARLA tests once for each installed CARLA version on the instance.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          #!/bin/bash
           set -euo pipefail
           cd /home/ubuntu/actions/Scenic
           source venv/bin/activate
@@ -337,6 +341,7 @@ jobs:
 
           # Run Webots tests on a virtual display because Webots needs graphical support.
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          #!/bin/bash
           set -euo pipefail
 
           Xvfb :99 -screen 0 1024x768x16 &
@@ -453,4 +458,3 @@ jobs:
           # Delete the temporary volume so repeated workflow runs do not leave extra storage behind.
           aws ec2 delete-volume --volume-id "$VOLUME_ID"
           echo "Volume $VOLUME_ID deleted."
-
