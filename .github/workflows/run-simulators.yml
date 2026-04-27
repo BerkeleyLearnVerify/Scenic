@@ -270,6 +270,20 @@ jobs:
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
           #!/bin/bash
           set -euo pipefail
+
+          export HOME=/home/ubuntu
+          export USER=ubuntu
+          export LOGNAME=ubuntu
+          export XDG_RUNTIME_DIR=/tmp/runtime-ubuntu
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+
+          whoami
+          echo "HOME=$HOME"
+          echo "USER=$USER"
+          echo "LOGNAME=$LOGNAME"
+          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+
           cd /home/ubuntu/actions/Scenic
           source venv/bin/activate
 
