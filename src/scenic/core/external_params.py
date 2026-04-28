@@ -86,6 +86,15 @@ and standard deviation 3. Priors are restricted to primitive distributions and
 in general may be approximated so that VerifAI can handle them -- see
 `VerifaiParameter.withPrior` for details.
 
+To set a time bound when using VerifAI's dynamic sampling, set the `timeBound`
+global parameter to value representing the upper bound on the number of timesteps
+the sampler should account for. For example::
+
+    param timeBound = 250
+
+This value can also be set directly in VerifAI via the `maxSteps` parameter to the
+`ScenicSampler`.
+
 For more information on how to customize the sampler, see `VerifaiSampler`.
 
 .. _VerifAI: https://github.com/BerkeleyLearnVerify/VerifAI
@@ -276,7 +285,7 @@ class VerifaiSampler(ExternalSampler):
     def nextSample(self, feedback):
         if feedback is not None:
             assert self._lastSample is not None
-            self._lastSample.update(feedback)
+            self._lastSample.complete(feedback)
 
         self._lastSample = self.sampler.getSample()
         return self._lastSample
