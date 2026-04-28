@@ -147,19 +147,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
+              --query 'StatusDetails' \
               --output text 2>/dev/null || true)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
                 exit 1
                 ;;
-              Pending|InProgress|Delayed|"")
+              Pending|"In Progress"|InProgress|Delayed|"")
                 sleep 5
                 ;;
               *)
@@ -215,19 +215,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
+              --query 'StatusDetails' \
               --output text 2>/dev/null || true)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
                 exit 1
                 ;;
-              Pending|InProgress|Delayed|"")
+              Pending|"In Progress"|InProgress|Delayed|"")
                 sleep 5
                 ;;
               *)
@@ -293,19 +293,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
+              --query 'StatusDetails' \
               --output text 2>/dev/null || true)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
                 exit 1
                 ;;
-              Pending|InProgress|Delayed|"")
+              Pending|"In Progress"|InProgress|Delayed|"")
                 sleep 10
                 ;;
               *)
@@ -368,19 +368,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
+              --query 'StatusDetails' \
               --output text 2>/dev/null || true)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|DeliveryTimedOut|ExecutionTimedOut|Undeliverable|Terminated)
+              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
                 aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
                 exit 1
                 ;;
-              Pending|InProgress|Delayed|"")
+              Pending|"In Progress"|InProgress|Delayed|"")
                 sleep 10
                 ;;
               *)
@@ -437,6 +437,7 @@ jobs:
           fi
 
       - name: Detach Volume
+        if: ${{ needs.start_ec2_instance.outputs.volume_id != '' }}
         run: |
           # Detach the volume
           aws ec2 detach-volume --volume-id "$VOLUME_ID"
@@ -444,6 +445,7 @@ jobs:
           echo "Volume $VOLUME_ID detached."
 
       - name: Delete Volume
+        if: ${{ needs.start_ec2_instance.outputs.volume_id != '' }}
         run: |
           # Delete the volume after snapshot is complete
           aws ec2 delete-volume --volume-id "$VOLUME_ID"
