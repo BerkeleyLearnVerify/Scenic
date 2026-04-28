@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: start_ec2_instance
     permissions:
-      id-token: write # Required because this job sends commands through AWS SSM.
+      id-token: write
     steps:
       # Use OIDC to get short-lived AWS credentials for SSM.
       - name: Configure AWS Credentials
@@ -181,7 +181,7 @@ jobs:
     needs: start_ec2_instance
     continue-on-error: true
     permissions:
-      id-token: write # Required because this job sends commands through AWS SSM.
+      id-token: write
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
@@ -254,7 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check_simulator_version_updates, check_nvidia_smi]
     permissions:
-      id-token: write # Required because this job sends commands through AWS SSM.
+      id-token: write
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
@@ -326,7 +326,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check_simulator_version_updates, check_nvidia_smi]
     permissions:
-      id-token: write # Required because this job sends commands through AWS SSM.
+      id-token: write
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
@@ -400,7 +400,7 @@ jobs:
     name: stop_ec2_instance
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for GitHub OIDC -> AWS role assumption.
+      id-token: write 
     needs:
       [
         start_ec2_instance,
