@@ -5,25 +5,22 @@ on:
   # portal of the repo!!! Do not modify this workflow's trigger!
   workflow_dispatch:
 
-# Deny GitHub token permissions by default; grant only what individual jobs need.
 permissions: {}
 
-# Only one simulator run should use the shared EC2 instance/volume at a time.
+# Ensure only one simulator workflow runs at a time
 concurrency:
   group: sim
   cancel-in-progress: false
 
-# Shared AWS config used by the EC2 and SSM commands.
 env:
-  INSTANCE_ID: ${{ vars.AWS_EC2_INSTANCE_ID }}
-  AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+  INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
 
 jobs:
   start_ec2_instance:
     name: start_ec2_instance
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for GitHub OIDC -> AWS role assumption.
+      id-token: write # This is required for OIDC to request the JWT
     outputs:
       volume_id: ${{ steps.create_volume_step.outputs.volume_id }}
     steps:
@@ -31,9 +28,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Create Volume from Latest Snapshot and Attach to Instance
         id: create_volume_step
@@ -99,13 +96,13 @@ jobs:
     permissions:
       id-token: write
     steps:
-      # Use OIDC to get short-lived AWS credentials for SSM.
+      # Use OIDC to get AWS credentials for SSM.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Check for Simulator Version Updates
         env:
@@ -186,9 +183,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Check NVIDIA SMI
         run: |
@@ -259,9 +256,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Run CARLA Tests
         run: |
@@ -331,9 +328,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Run Webots Tests
         run: |
@@ -400,7 +397,7 @@ jobs:
     name: stop_ec2_instance
     runs-on: ubuntu-latest
     permissions:
-      id-token: write 
+      id-token: write
     needs:
       [
         start_ec2_instance,
@@ -416,9 +413,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
 
       - name: Stop EC2 Instance
         run: |
