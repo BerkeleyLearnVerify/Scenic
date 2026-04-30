@@ -33,7 +33,7 @@ class CarlaSimulator(DrivingSimulator):
         map_path,
         address="127.0.0.1",
         port=2000,
-        timeout=10,
+        timeout=60,
         render=True,
         record="",
         timestep=0.1,
@@ -155,7 +155,8 @@ class CarlaSimulation(DrivingSimulation):
             self.cameraManager = visuals.CameraManager(self.world, egoActor, self.hud)
             self.cameraManager._transform_index = camPosIndex
             self.cameraManager.set_sensor(camIndex)
-            self.cameraManager.set_transform(self.camTransform)
+            if self.client.get_server_version() != "0.10.0":
+                self.cameraManager.set_transform(self.camTransform)
 
         self.world.tick()  ## allowing manualgearshift to take effect    # TODO still need this?
 

@@ -13,15 +13,15 @@ To run this file using the Carla simulator:
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../assets/maps/CARLA/Town01.xodr')
-param carla_map = 'Town01'
+param map = localPath('../../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #################################
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz_2017'
+MODEL = 'vehicle.nissan.patrol'
 
 param EGO_INIT_DIST = VerifaiRange(-30, -20)
 param EGO_SPEED = VerifaiRange(7, 10)
@@ -63,8 +63,9 @@ behavior AdvBehavior():
 # SPATIAL RELATIONS             #
 #################################
 
-road = Uniform(*filter(lambda r: len(r.forwardLanes.lanes) == len(r.backwardLanes.lanes) == 1, network.roads))
+road = Uniform(*filter(lambda r: len(r.forwardLanes.lanes) > 0 and len(r.backwardLanes.lanes) > 0, network.roads))
 egoLane = Uniform(road.forwardLanes.lanes)[0]
+advLane = Uniform(*road.backwardLanes.lanes)
 spawnPt = new OrientedPoint on egoLane.centerline
 advSpawnPt = new OrientedPoint following roadDirection from spawnPt for globalParameters.ADV_INIT_DIST
 
@@ -87,8 +88,4 @@ adv = new Car left of advSpawnPt by 3,
     with behavior AdvBehavior()
 
 require (distance from spawnPt to intersection) > BUFFER_DIST
-require always (ego.laneSection._slowerLane is None)
-require always (ego.laneSection._fasterLane is None)
-require always (adv.laneSection._slowerLane is None)
-require always (adv.laneSection._fasterLane is None)
 terminate when (distance to spawnPt) > TERM_DIST

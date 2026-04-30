@@ -70,7 +70,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[guideways]",  # for running guideways modules
 	'scenic[metadrive]; python_version < "3.12"',  # MetaDrive not on PyPI for Py3.12+ yet; use GitHub (see docs)
 	"astor >= 0.8.1",
-	'carla >= 0.9.12; python_version <= "3.10" and (platform_system == "Linux" or platform_system == "Windows")',
+	'carla >= 0.9.12; python_version <= "3.12" and (platform_system == "Linux" or platform_system == "Windows")',
 	"dill",
 	"exceptiongroup",
 	"inflect ~= 5.5",
