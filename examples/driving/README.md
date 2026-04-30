@@ -6,5 +6,5 @@ For example:
 
 ```
 scenic --2d badlyParkedCarPullingIn.scenic
-scenic --2d -S --model scenic.simulators.newtonian.driving_model badlyParkedCarPullingIn.scenic
+scenic --2d -S --model scenic.simulators.metadrive.model badlyParkedCarPullingIn.scenic
 ```

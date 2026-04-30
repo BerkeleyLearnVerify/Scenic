@@ -702,7 +702,7 @@ class Road:
                     left, center, right = right[::-1], center[::-1], left[::-1]
                     succ, pred = pred, succ
                 section = roadDomain.LaneSection(
-                    id=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
+                    uid=f"road{self.id_}_sec{len(roadSections)}_lane{id_}",
                     polygon=lane_polys[id_],
                     centerline=PolylineRegion(cleanChain(center)),
                     leftEdge=PolylineRegion(cleanChain(left)),
@@ -719,7 +719,7 @@ class Road:
                 laneSections[id_] = section
                 allElements.append(section)
             section = roadDomain.RoadSection(
-                id=f"road{self.id_}_sec{len(roadSections)}",
+                uid=f"road{self.id_}_sec{len(roadSections)}",
                 polygon=sec_poly,
                 centerline=PolylineRegion(cleanChain(pts)),
                 leftEdge=PolylineRegion(cleanChain(sec.left_edge)),
@@ -931,7 +931,8 @@ class Road:
                     rightEdge = PolylineRegion(cleanChain(rightPoints))
                     centerline = PolylineRegion(cleanChain(centerPoints))
                     lane = roadDomain.Lane(
-                        id=f"road{self.id_}_lane{nextID}",
+                        uid=f"road{self.id_}_lane{nextID}",
+                        id = laneSection.openDriveID,
                         polygon=ls.parent_lane_poly,
                         centerline=centerline,
                         leftEdge=leftEdge,
@@ -986,7 +987,8 @@ class Road:
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
             forwardGroup = roadDomain.LaneGroup(
-                id=f"road{self.id_}_forward",
+                uid=f"road{self.id_}_forward",
+                id = self.id_,
                 polygon=buffer_union(
                     (lane.polygon for lane in forwardLanes), tolerance=tolerance
                 ),
@@ -1007,7 +1009,8 @@ class Road:
         if backwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
             backwardGroup = roadDomain.LaneGroup(
-                id=f"road{self.id_}_backward",
+                uid=f"road{self.id_}_backward",
+                id = self.id_,
                 polygon=buffer_union(
                     (lane.polygon for lane in backwardLanes), tolerance=tolerance
                 ),

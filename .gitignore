@@ -119,6 +119,8 @@ ENV/
 env.bak/
 venv.bak/
 scenic.venv/
+3_10_venv/
+scenic_venv/
 
 # Spyder project settings
 .spyderproject
@@ -141,3 +143,8 @@ dmypy.json
 src/scenic/syntax/parser.py
 
 simulation.gif
+
+# Random
+test.ipynb
+test.sh
+output.txt

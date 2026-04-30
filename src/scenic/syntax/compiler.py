@@ -1359,11 +1359,12 @@ class ScenicToPythonTransformer(Transformer):
         """Create a call to a function that implements requirement-like features, such as `record` and `terminate when`.
 
         Args:
-            functionName (str): Name of the requirement-like function to call. Its signature must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
+            functionName (str): Name of the requirement-like function to call. Its signature
+                must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
             body (ast.AST): AST node to evaluate for checking the condition
             lineno (int): Line number in the source code
-            name (Optional[str], optional): Optional name for requirements. Defaults to None.
-            prob (Optional[float], optional): Optional probability for requirements. Defaults to None.
+            name (Optional[str]): Optional name for requirements. Defaults to None.
+            prob (Optional[float]): Optional probability for requirements. Defaults to None.
         """
         propTransformer = PropositionTransformer(self.filename)
         newBody, self.nextSyntaxId = propTransformer.transform(body, self.nextSyntaxId)
@@ -1374,7 +1375,7 @@ class ScenicToPythonTransformer(Transformer):
             value=ast.Call(
                 func=ast.Name(functionName, loadCtx),
                 args=[
-                    ast.Constant(requirementId),  # requirement IDre
+                    ast.Constant(requirementId),  # requirement ID
                     newBody,  # body
                     ast.Constant(lineno),  # line number
                     ast.Constant(name),  # requirement name

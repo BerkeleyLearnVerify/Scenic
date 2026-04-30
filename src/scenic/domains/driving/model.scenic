@@ -351,6 +351,18 @@ def withinDistanceToAnyObjs(vehicle, thresholdDistance):
             return True
     return False
 
+def withinDistanceToAnyPedestrians(vehicle, thresholdDistance):
+    """Returns True if any visible pedestrian is within thresholdDistance of the given vehicle."""
+    objects = simulation().objects
+    for obj in objects:
+        if obj is vehicle or not isinstance(obj, Pedestrian):
+            continue
+        if not (vehicle can see obj):
+            continue
+        if (distance from obj to front of vehicle) < thresholdDistance:
+            return True
+    return False
+
 def withinDistanceToObjsInLane(vehicle, thresholdDistance):
     """ checks whether there exists any obj
     (1) in front of the vehicle, (2) on the same lane, (3) within thresholdDistance """

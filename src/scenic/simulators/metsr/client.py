@@ -5,12 +5,22 @@ import threading
 
 
 from websockets.sync.client import connect
+import networkx as nx
 
+
+"""
+Implementation of the remote data client
+
+A client directly communicates with a specific METSR-SIM server.
+
+Acknowledgement: Eric Vin for helping with the revision of the code
+"""
+
+# 2. listerize the query and control function by adding a for loop (is list, go for list, otherwise make it a list with one element)
 
 class METSRClient:
 
-    def __init__(self, host, port, sim_folder = None, manager = None,
-        max_connection_attempts = 5, timeout = 30, verbose = False):
+    def __init__(self, host, port, sim_folder = None, manager = None, max_connection_attempts = 5, timeout = 30, verbose = False):
         super().__init__()
 
         # Websocket config
@@ -38,7 +48,8 @@ class METSRClient:
         failed_attempts = 0
         while True:
             try:
-                self.ws = connect(self.uri)
+                time.sleep(10)
+                self.ws = connect(self.uri, max_size = 10 * 1024 * 1024, ping_interval = None, ping_timeout = None)
                 self.state = "connected"
                 if self.verbose:
                     print(f"Connected to {self.uri}")
@@ -50,8 +61,10 @@ class METSRClient:
                 failed_attempts += 1
                 if failed_attempts >= max_connection_attempts:
                     self.state = "failed"
-                    raise RuntimeError("Could not connect to METS-R Sim")
-                time.sleep(10)
+                    raise RuntimeError("Could not connect to METS-R SIM")
+                
+
+        print("Connection established!")
 
         # Ensure server is initialized by waiting to receive an initial packet
         # (could be ANS_ready or a heartbeat)
@@ -67,26 +80,29 @@ class METSRClient:
     def receive_msg(self, ignore_heartbeats, waiting_forever = True):
         start_time = time.time()
         while True:
-            raw_msg = self.ws.recv(timeout = self.timeout)
+            try:
+                raw_msg = self.ws.recv(timeout = 30)
 
-            # Decode the json string
-            msg = json.loads(str(raw_msg))
+                # Decode the json string
+                msg = json.loads(str(raw_msg))
 
-            if self.verbose:
-                self._logMessage("RECEIVED", msg)
-            
-            # EVERY decoded msg must have a TYPE field
-            assert "TYPE" in msg.keys(), "No type field in received message"
-            assert msg["TYPE"].split("_")[0] in {"STEP", "ANS", "CTRL", "ATK"}, "Uknown message type: " + str(msg["TYPE"])
+                if self.verbose:
+                    self._logMessage("RECEIVED", msg)
 
-            # Allow tick()
-            if msg["TYPE"] in {"ANS_ready"}:
-                self.current_tick = 0
-                continue
+                # EVERY decoded msg must have a TYPE field
+                assert "TYPE" in msg.keys(), "No type field in received message"
+                assert msg["TYPE"].split("_")[0] in {"STEP", "ANS", "CTRL", "ATK"}, "Uknown message type: " + str(msg["TYPE"])
 
-            # Return decoded message, if it's not an ignored heartbeat
-            if not ignore_heartbeats or msg["TYPE"] != "STEP":
-                return msg
+                # Allow tick()
+                if msg["TYPE"] in {"ANS_ready"}:
+                    self.current_tick = 0
+                    continue
+
+                # Return decoded message, if it's not an ignored heartbeat
+                if not ignore_heartbeats or msg["TYPE"] != "STEP":
+                    return msg
+            except:
+                pass
             
             if time.time() - start_time > self.timeout and not waiting_forever:
                 print("Timeout while waiting for message.")
@@ -117,7 +133,7 @@ class METSRClient:
             return res
 
     def tick(self, step_num = 1, wait_forever = False):
-        assert self.current_tick is not None, "self.current_tick is None. Reset should be called first"
+        assert self.current_tick is not None, "self.current_tick is None. Maybe there is another METS-R SIM instance unclosed."
         msg = {"TYPE": "STEP", "TICK": self.current_tick, "NUM": step_num}
         self.send_msg(msg)
 
@@ -190,6 +206,25 @@ class METSRClient:
         res = self.send_receive_msg(my_msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_road", res["TYPE"]
         return res
+    
+    # query centerline
+    def query_centerline(self, id, lane_index = -1, transform_coords = False):
+        my_msg = {"TYPE": "QUERY_centerLine"}
+        if id is not None:
+            my_msg['DATA'] = []
+            if not isinstance(id, list):
+                id = [id]
+            if not isinstance(lane_index, list):
+                lane_index = [lane_index] * len(id)
+            if not isinstance(transform_coords, list):
+                transform_coords = [transform_coords] * len(id)
+            for i, lane_idx, tran in zip(id, lane_index, transform_coords):
+                my_msg['DATA'].append({"roadID": i, "laneIndex": lane_idx, "transformCoord": tran})
+        else:
+            raise ValueError("id cannot be None for query_centerLine")
+        res = self.send_receive_msg(my_msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_centerLine", res["TYPE"]
+        return res
 
     # query zone
     def query_zone(self, id = None):
@@ -217,6 +252,35 @@ class METSRClient:
         assert res["TYPE"] == "ANS_signal", res["TYPE"]
         return res
     
+    # query signal groups
+    def query_signal_group(self, id = None):
+        my_msg = {"TYPE": "QUERY_signalGroup"}
+        if id is not None:
+            my_msg['DATA'] = []
+            if not isinstance(id, list):
+                id = [id]
+            for i in id:
+                my_msg['DATA'].append(i)
+        res = self.send_receive_msg(my_msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_signalGroup", res["TYPE"]
+        return res
+    
+    # query signal for connection between two consecutive roads
+    def query_signal_between_roads(self, upstream_road, downstream_road):
+        msg = {"TYPE": "QUERY_signalForConnection", "DATA": []}
+        if not isinstance(upstream_road, list):
+            upstream_road = [upstream_road]
+        if not isinstance(downstream_road, list):
+            downstream_road = [downstream_road] * len(upstream_road)
+        assert len(upstream_road) == len(downstream_road), "Length of upstream_road and downstream_road must be the same"
+        
+        for up_road, down_road in zip(upstream_road, downstream_road):
+            msg["DATA"].append({"upStreamRoad": up_road, "downStreamRoad": down_road})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_signalForConnection", res["TYPE"]
+        return res
+    
     # query chargingStation
     def query_chargingStation(self, id = None):
         my_msg = {"TYPE": "QUERY_chargingStation"}
@@ -237,6 +301,146 @@ class METSRClient:
         assert res["TYPE"] == "ANS_coSimVehicle", res["TYPE"]
         return res
     
+    # query route between coordinates
+    def query_route(self, orig_x, orig_y, dest_x, dest_y, transform_coords = False):
+        msg = {"TYPE": "QUERY_routesBwCoords", "DATA": []}
+        if not isinstance(orig_x, list):
+            orig_x = [orig_x]
+            orig_y = [orig_y]
+            dest_x = [dest_x]
+            dest_y = [dest_y]
+
+        if not isinstance(transform_coords, list):
+            transform_coords = [transform_coords] * len(orig_x)
+        
+        assert len(orig_x) == len(orig_y) == len(dest_x) == len(dest_y), "Length of orig_x, orig_y, dest_x, and dest_y must be the same"
+
+        for orig_x, orig_y, dest_x, dest_y, transform_coord in zip(orig_x, orig_y, dest_x, dest_y, transform_coords):
+            msg["DATA"].append({"origX": orig_x, "origY": orig_y, "destX": dest_x, "destY": dest_y, "transformCoord": transform_coord})
+
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+
+        assert res["TYPE"] == "ANS_routesBwCoords", res["TYPE"]
+        return res
+    
+    # query K shortest paths between coordinates
+    def query_k_routes(self, orig_x, orig_y, dest_x, dest_y, k, transform_coords = False):
+        msg = {"TYPE": "QUERY_multiRoutesBwCoords", "DATA": []}
+        if not isinstance(orig_x, list):
+            orig_x = [orig_x]
+            orig_y = [orig_y]
+            dest_x = [dest_x]
+            dest_y = [dest_y]
+            k = [k]
+        if not isinstance(transform_coords, list):
+            transform_coords = [transform_coords] * len(orig_x)
+        if not isinstance(k, list):
+            k = [k] * len(orig_x)
+        
+        assert len(orig_x) == len(orig_y) == len(dest_x) == len(dest_y), "Length of orig_x, orig_y, dest_x, and dest_y must be the same"
+
+        for orig_x, orig_y, dest_x, dest_y, transform_coord, k in zip(orig_x, orig_y, dest_x, dest_y, transform_coords, k):
+            msg["DATA"].append({"origX": orig_x, "origY": orig_y, "destX": dest_x, "destY": dest_y, "transformCoord": transform_coord, "K": k})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_kRoutes", res["TYPE"]
+        return res    
+    
+    # query route between roads
+    def query_route_between_roads(self, orig_road, dest_road):
+        msg = {"TYPE": "QUERY_routesBwRoads", "DATA": []}
+        if not isinstance(orig_road, list):
+            orig_road = [orig_road]
+        
+        if not isinstance(dest_road, list):
+            dest_road = [dest_road] * len(orig_road)
+        assert len(orig_road) == len(dest_road), "Length of orig_road and dest_road must be the same"
+
+        for orig_road, dest_road in zip(orig_road, dest_road):
+            msg["DATA"].append({"orig": orig_road, "dest": dest_road})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+
+        assert res["TYPE"] == "ANS_routesBwRoads", res["TYPE"]
+        return res
+   
+    # query K shortest paths between roads
+    def query_k_routes_between_roads(self, orig_road, dest_road, k):
+        msg = {"TYPE": "QUERY_multiRoutesBwRoads", "DATA": []}
+        if not isinstance(orig_road, list):
+            orig_road = [orig_road]
+            dest_road = [dest_road]
+            k = [k]
+        if not isinstance(k, list):
+            k = [k] * len(orig_road)
+
+        assert len(orig_road) == len(dest_road), "Length of orig_road and dest_road must be the same"
+        
+        for orig_road, dest_road, k in zip(orig_road, dest_road, k):
+            msg["DATA"].append({"orig": orig_road, "dest": dest_road, "K": k})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_multiRoutesBwRoads", res["TYPE"]
+        return res
+
+    # query road weights in the routing map
+    def query_road_weights(self, roadID = None):
+        msg = {"TYPE": "QUERY_edgeWeight"}
+        if roadID is not None:
+            msg["DATA"] = []
+            if not isinstance(roadID, list):
+                roadID = [roadID]
+            for i in roadID:
+                msg["DATA"].append(i)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_edgeWeight", res["TYPE"]
+        return res
+    
+    # query bus route
+    def query_bus_route(self, routeID = None):
+        msg = {"TYPE": "QUERY_busRoute"}
+        if routeID is not None:
+            msg["DATA"] = []
+            if not isinstance(routeID, list):
+                routeID = [routeID]
+            for i in routeID:
+                msg["DATA"].append(i)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_busRoute", res["TYPE"]
+        return res
+    
+    # find bus with route
+    def query_route_bus(self, routeID = None):
+        msg = {"TYPE": "QUERY_busWithRoute"}
+        if routeID is not None:
+            msg["DATA"] = []
+            if not isinstance(routeID, list):
+                routeID = [routeID]
+            for i in routeID:
+                msg["DATA"].append(i)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_busWithRoute", res["TYPE"]
+        return res
+    
+        # query the entire routing graph, return a networkx graph without edge weights
+    def query_routing_graph(self):
+        # Step 1: get all road IDs by querying without arguments
+        all_roads_res = self.query_road()
+        road_ids = all_roads_res['orig_id']
+
+        # Step 2: query road details in batches of 10 and build the graph
+        graph = nx.DiGraph()
+        batch_size = 10
+        for batch_start in range(0, len(road_ids), batch_size):
+            batch = road_ids[batch_start : batch_start + batch_size]
+            res = self.query_road(id=batch)
+            for road in res['DATA']:
+                src = road['ID']
+                graph.add_node(src, length=road['length'], speed_limit=road['speed_limit'], r_type=road['r_type'])
+                for dst in road['down_stream_road']:
+                    graph.add_edge(src, dst)
+
+        return graph
 
     # CONTROL: change the state of the simulator
     # generate a vehicle trip between origin and destination zones
@@ -298,7 +502,7 @@ class METSRClient:
     # release the road for co-simulation
     def release_cosim_road(self, roadID):
         msg = {
-                "TYPE": "CTRL_releaseCoSimRoad",
+                "TYPE": "CTRL_releaseCosimRoad",
                 "DATA": [] 
               }
         if not isinstance(roadID, list):
@@ -306,27 +510,32 @@ class METSRClient:
         for i in roadID:
             msg['DATA'].append(i)
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
-        assert res["TYPE"] == "CTRL_releaseCoSimRoad", res["TYPE"]
+        assert res["TYPE"] == "CTRL_releaseCosimRoad", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
         
     # teleport vehicle to a target location specified by road and coordiantes, only work when the road is a cosim road
-    def teleport_cosim_vehicle(self, vehID, roadID, x, y, private_veh = False, transform_coords = False):
+    def teleport_cosim_vehicle(self, vehID, x, y, bearing, speed = 0, private_veh = False, transform_coords = False):
         msg = {
                 "TYPE": "CTRL_teleportCoSimVeh",
                 "DATA": []
                 }
         if not isinstance(vehID, list):
             vehID = [vehID]
-            roadID = [roadID]
             x = [x]
             y = [y]
+            speed = [speed]
+            bearing = [bearing]
+        if not isinstance(bearing, list):
+            bearing = [bearing] * len(vehID)
+        if not isinstance(speed, list):
+            speed = [speed] * len(vehID)
         if not isinstance(private_veh, list):
             private_veh = [private_veh] * len(vehID)
         if not isinstance(transform_coords, list):
             transform_coords = [transform_coords] * len(vehID)
-        for vehID, roadID, x, y, private_veh, transform_coords in zip(vehID, roadID, x, y, private_veh, transform_coords):
-            msg["DATA"].append({"vehID": vehID, "roadID": roadID, "x": x, "y": y, "vehType": private_veh, "transformCoord": transform_coords})
+        for vehID, x, y, bearing, speed, private_veh, transform_coords in zip(vehID, x, y, bearing, speed, private_veh, transform_coords):
+            msg["DATA"].append({"vehID": vehID, "x": x, "y": y, "bearing": bearing, "speed": speed, "vehType": private_veh, "transformCoord": transform_coords})
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_teleportCoSimVeh", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
@@ -353,9 +562,30 @@ class METSRClient:
         return res
     
     # enter the next road
-    def enter_next_road(self, vehID, private_veh = False):
+    def enter_next_road(self, vehID, roadID="", private_veh = False):
         msg = {
-                "TYPE": "CTRL_enterNextRoad",
+                "TYPE": "CTRL_enterNextRoad", 
+                "DATA": []
+                }
+        if not isinstance(vehID, list):
+            vehID = [vehID]
+        if not isinstance(private_veh, list):
+            private_veh = [private_veh] * len(vehID)
+        if not isinstance(roadID, list):
+            roadID = [roadID] * len(vehID)
+        
+        for vehID, private_veh, roadID in zip(vehID, private_veh, roadID):
+            msg["DATA"].append({"vehID": vehID, "vehType": private_veh, "roadID": roadID})
+
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_enterNextRoad", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    # reach destination
+    def reach_dest(self, vehID, private_veh = False):
+        msg = {
+                "TYPE": "CTRL_reachDest",
                 "DATA": []
                 }
         if not isinstance(vehID, list):
@@ -367,7 +597,7 @@ class METSRClient:
             msg["DATA"].append({"vehID": vehID, "vehType": private_veh})
 
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
-        assert res["TYPE"] == "CTRL_enterNextRoad", res["TYPE"]
+        assert res["TYPE"] == "CTRL_reachDest", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
@@ -470,29 +700,113 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
-    def add_taxi_requests_between_roads(self, zoneID, orig, dest, num):
+    def add_taxi_requests_between_roads(self, orig, dest, num):
         msg = {
                 "TYPE": "CTRL_addTaxiReqBwRoads",
                 "DATA": []
                 }
         if not isinstance(orig, list):
             orig = [orig]
-        if not isinstance(zoneID, list):
-            zoneID = [zoneID] * len(orig)
         if not isinstance(dest, list):
-            dest = [dest] * len(zoneID)
+            dest = [dest] * len(orig)
         if not isinstance(num, list):
-            num = [num] * len(zoneID)
+            num = [num] * len(orig)
 
-        for zoneID, orig, dest, num in zip(zoneID, orig, dest, num):
-            msg["DATA"].append({"zoneID": zoneID, "orig": orig, "dest": dest, "num": num})
+        for orig, dest, num in zip(orig, dest, num):
+            msg["DATA"].append({"orig": orig, "dest": dest, "num": num})
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_addTaxiReqBwRoads", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
-
     # assign bus
+    def add_bus_route(self, routeName, zone, road, paths = None):
+        if paths is None:
+            msg = {
+                    "TYPE": "CTRL_addBusRoute",
+                    "DATA": []
+                    }
+        else:
+            msg = {
+                    "TYPE": "CTRL_addBusRouteWithPath",
+                    "DATA": []
+                    }
+        if not isinstance(routeName, list):
+            routeName = [routeName]
+            zone = [zone]
+            road = [road]
+            if paths != None: # TODO -- type 'path'
+                paths = [paths]
+        if paths is None:
+            for routeName, zone, road, paths in zip(routeName, zone, road, paths):
+                msg["DATA"].append({"routeName": routeName, "zones": zone, "roads": road})
+        else:
+            for routeName, zone, road, paths in zip(routeName, zone, road, paths):
+                msg["DATA"].append({"routeName": routeName, "zones": zone, "roads": road, "paths": paths})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+
+        if paths is None:
+            assert res["TYPE"] == "CTRL_addBusRoute", res["TYPE"]
+        else:
+            assert res["TYPE"] == "CTRL_addBusRouteWithPath", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    def add_bus_run(self, routeName, departTime):
+        msg = {
+                "TYPE": "CTRL_addBusRun",
+                "DATA": []
+                }
+        if not isinstance(routeName, list):
+            routeName = [routeName]
+            departTime = [departTime]
+
+        for routeName, departTime in zip(routeName, departTime):
+            msg["DATA"].append({"routeName": routeName, "departTime": departTime})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_addBusRun", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+    
+    def insert_bus_stop(self, busID, routeName, zoneID, roadName, stopIndex):
+        msg = {
+                "TYPE": "CTRL_insertStopToRoute",
+                "DATA": []
+                }
+        if not isinstance(busID, list):
+            busID = [busID]
+            routeName = [routeName] * len(busID)
+            zoneID = [zoneID] * len(busID)
+            roadName = [roadName] * len(busID)
+            stopIndex = [stopIndex] * len(busID)
+
+        for busID, routeName, zoneID, roadName, stopIndex in zip(busID, routeName, zoneID, roadName, stopIndex):
+            msg["DATA"].append({"busID": busID, "routeName": routeName, "zone": zoneID, "road": roadName, "stopIndex": stopIndex})
+
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_insertStopToRoute", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+    
+    def remove_bus_stop(self, busID, routeName, stopIndex):
+        msg = {
+                "TYPE": "CTRL_removeStopFromRoute",
+                "DATA": []
+                }
+        if not isinstance(busID, list):
+            busID = [busID]
+            routeName = [routeName] * len(busID)
+            stopIndex = [stopIndex] * len(busID)
+
+        for busID, routeName, stopIndex in zip(busID, routeName, stopIndex):
+            msg["DATA"].append({"busID": busID, "routeName": routeName, "stopIndex": stopIndex})
+
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_removeStopFromRoute", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+
     def assign_request_to_bus(self, vehID, orig, dest, num):
         msg = {
                 "TYPE": "CTRL_assignRequestToBus",
@@ -514,7 +828,7 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
-    def add_bus_requests(self, zoneID, dest, num):
+    def add_bus_requests(self, zoneID, dest, routeName, num):
         msg = {
                 "TYPE": "CTRL_addBusRequests",
                 "DATA": []
@@ -525,18 +839,208 @@ class METSRClient:
             dest = [dest] * len(zoneID)
         if not isinstance(num, list):
             num = [num] * len(zoneID)
+        if not isinstance(routeName, list):
+            routeName = [routeName] * len(zoneID)
 
-        for zoneID, dest, num in zip(zoneID, dest, num):
-            msg["DATA"].append({"zoneID": zoneID, "dest": dest, "num": num})
+        for zoneID, dest, num, routeName in zip(zoneID, dest, num, routeName):
+            msg["DATA"].append({"zoneID": zoneID, "dest": dest, "num": num, "routeName": routeName})
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_addBusRequests", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
+    # update vehicle route 
+    def update_vehicle_route(self, vehID, route, private_veh = False):
+        msg = {
+                "TYPE": "CTRL_updateVehicleRoute",
+                "DATA": []
+                }
+        if not isinstance(vehID, list):
+            vehID = [vehID]
+            route = [route]
+        if not isinstance(private_veh, list):
+            private_veh = [private_veh] * len(vehID)
+
+        for vehID, route, private_veh in zip(vehID, route, private_veh):
+            msg["DATA"].append({"vehID": vehID, "route": route, "vehType": private_veh})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateVehicleRoute", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    # update road weights in the routing map
+    def update_road_weights(self, roadID, weight):
+        msg = {"TYPE": "CTRL_updateEdgeWeight", "DATA": []}
+        if not isinstance(roadID, list):
+            roadID = [roadID]
+            weight = [weight]
+        if not isinstance(weight, list):
+            weight = [weight] * len(roadID)
+        for roadID, weight in zip(roadID, weight):
+            msg["DATA"].append({"roadID": roadID, "weight": weight})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateEdgeWeight", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+    
+    # update charging station prices
+    def update_charging_prices(self, stationID, stationType, price):
+        msg = {"TYPE": "CTRL_updateChargingPrice", "DATA": []}
+        if not isinstance(stationID, list):
+            stationID = [stationID]
+            stationType = [stationType]
+            price = [price]
+        if not isinstance(stationType, list):
+            stationType = [stationType] * len(stationID)
+        if not isinstance(price, list):
+            price = [price] * len(stationID)
+        for stationID, stationType, price in zip(stationID, stationType, price):
+            msg["DATA"].append({"chargerID": stationID, "chargerType": stationType, "weight": price})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateChargingPrice", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+    
+    # Traffic signal phase control
+    # Update the signal phase given signal ID and target phase (optionally with phase time offset)
+    # If only phase is provided, starts from the beginning of that phase (phaseTime = 0)
+    def update_signal(self, signalID, targetPhase, phaseTime = None):
+        msg = {"TYPE": "CTRL_updateSignal", "DATA": []}
+        if not isinstance(signalID, list):
+            signalID = [signalID]
+            targetPhase = [targetPhase]
+        if not isinstance(targetPhase, list):
+            targetPhase = [targetPhase] * len(signalID)
+        if phaseTime is None:
+            phaseTime = [None] * len(signalID)
+        elif not isinstance(phaseTime, list):
+            phaseTime = [phaseTime] * len(signalID)
+        else:
+            # If phaseTime is a list, ensure it matches the length
+            if len(phaseTime) != len(signalID):
+                phaseTime = phaseTime * (len(signalID) // len(phaseTime) + 1)
+                phaseTime = phaseTime[:len(signalID)]
+        
+        assert len(signalID) == len(targetPhase) == len(phaseTime), "Length of signalID, targetPhase, and phaseTime must be the same"
+        
+        for sig_id, tgt_phase, ph_time in zip(signalID, targetPhase, phaseTime):
+            signal_data = {"signalID": sig_id, "targetPhase": tgt_phase}
+            if ph_time is not None:
+                signal_data["phaseTime"] = ph_time
+            msg["DATA"].append(signal_data)
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateSignal", res["TYPE"]
+        return res
+    
+    # Update signal phase timing (green, yellow, red durations)
+    def update_signal_timing(self, signalID, greenTime, yellowTime, redTime):
+        msg = {"TYPE": "CTRL_updateSignalTiming", "DATA": []}
+        if not isinstance(signalID, list):
+            signalID = [signalID]
+            greenTime = [greenTime]
+            yellowTime = [yellowTime]
+            redTime = [redTime]
+        if not isinstance(greenTime, list):
+            greenTime = [greenTime] * len(signalID)
+        if not isinstance(yellowTime, list):
+            yellowTime = [yellowTime] * len(signalID)
+        if not isinstance(redTime, list):
+            redTime = [redTime] * len(signalID)
+        
+        assert len(signalID) == len(greenTime) == len(yellowTime) == len(redTime), "Length of signalID, greenTime, yellowTime, and redTime must be the same"
+        
+        for sig_id, green, yellow, red in zip(signalID, greenTime, yellowTime, redTime):
+            msg["DATA"].append({"signalID": sig_id, "greenTime": green, "yellowTime": yellow, "redTime": red})
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateSignalTiming", res["TYPE"]
+        return res
+    
+    # Set a complete new phase plan for a signal (phase timing + starting state + offset)
+    # Time values are in seconds
+    def set_signal_phase_plan(self, signalID, greenTime, yellowTime, redTime, startPhase, phaseOffset = None):
+        msg = {"TYPE": "CTRL_setSignalPhasePlan", "DATA": []}
+        if not isinstance(signalID, list):
+            signalID = [signalID]
+            greenTime = [greenTime]
+            yellowTime = [yellowTime]
+            redTime = [redTime]
+            startPhase = [startPhase]
+        if not isinstance(greenTime, list):
+            greenTime = [greenTime] * len(signalID)
+        if not isinstance(yellowTime, list):
+            yellowTime = [yellowTime] * len(signalID)
+        if not isinstance(redTime, list):
+            redTime = [redTime] * len(signalID)
+        if not isinstance(startPhase, list):
+            startPhase = [startPhase] * len(signalID)
+        if phaseOffset is None:
+            phaseOffset = [None] * len(signalID)
+        elif not isinstance(phaseOffset, list):
+            phaseOffset = [phaseOffset] * len(signalID)
+        else:
+            # If phaseOffset is a list, ensure it matches the length
+            if len(phaseOffset) != len(signalID):
+                phaseOffset = phaseOffset * (len(signalID) // len(phaseOffset) + 1)
+                phaseOffset = phaseOffset[:len(signalID)]
+        
+        assert len(signalID) == len(greenTime) == len(yellowTime) == len(redTime) == len(startPhase) == len(phaseOffset), "Length of all parameters must match"
+        
+        for sig_id, green, yellow, red, start_phase, ph_offset in zip(signalID, greenTime, yellowTime, redTime, startPhase, phaseOffset):
+            signal_data = {"signalID": sig_id, "greenTime": green, "yellowTime": yellow, "redTime": red, "startPhase": start_phase}
+            if ph_offset is not None:
+                signal_data["phaseOffset"] = ph_offset
+            msg["DATA"].append(signal_data)
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_setSignalPhasePlan", res["TYPE"]
+        return res
+    
+    # Set a complete new phase plan with tick-level precision
+    # Time values are in simulation ticks for more precise control
+    def set_signal_phase_plan_ticks(self, signalID, greenTicks, yellowTicks, redTicks, startPhase, tickOffset = None):
+        msg = {"TYPE": "CTRL_setSignalPhasePlanTicks", "DATA": []}
+        if not isinstance(signalID, list):
+            signalID = [signalID]
+            greenTicks = [greenTicks]
+            yellowTicks = [yellowTicks]
+            redTicks = [redTicks]
+            startPhase = [startPhase]
+        if not isinstance(greenTicks, list):
+            greenTicks = [greenTicks] * len(signalID)
+        if not isinstance(yellowTicks, list):
+            yellowTicks = [yellowTicks] * len(signalID)
+        if not isinstance(redTicks, list):
+            redTicks = [redTicks] * len(signalID)
+        if not isinstance(startPhase, list):
+            startPhase = [startPhase] * len(signalID)
+        if tickOffset is None:
+            tickOffset = [None] * len(signalID)
+        elif not isinstance(tickOffset, list):
+            tickOffset = [tickOffset] * len(signalID)
+        else:
+            # If tickOffset is a list, ensure it matches the length
+            if len(tickOffset) != len(signalID):
+                tickOffset = tickOffset * (len(signalID) // len(tickOffset) + 1)
+                tickOffset = tickOffset[:len(signalID)]
+        
+        assert len(signalID) == len(greenTicks) == len(yellowTicks) == len(redTicks) == len(startPhase) == len(tickOffset), "Length of all parameters must match"
+        
+        for sig_id, green, yellow, red, start_phase, tck_offset in zip(signalID, greenTicks, yellowTicks, redTicks, startPhase, tickOffset):
+            signal_data = {"signalID": sig_id, "greenTicks": green, "yellowTicks": yellow, "redTicks": red, "startPhase": start_phase}
+            if tck_offset is not None:
+                signal_data["tickOffset"] = tck_offset
+            msg["DATA"].append(signal_data)
+        
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_setSignalPhasePlanTicks", res["TYPE"]
+        return res
+     
     
     # reset the simulation with a property file
-    def reset(self, prop_file):
-        msg = {"TYPE": "CTRL_reset", "propertyFile": prop_file}
+    def reset(self):
+        msg = {"TYPE": "CTRL_reset"}
         res = self.send_receive_msg(msg, ignore_heartbeats=True, max_attempts=-1)
 
         assert res["TYPE"] == "CTRL_reset", res["TYPE"]
@@ -553,31 +1057,32 @@ class METSRClient:
             time.sleep(1) # wait for five secs if start viz
 
             self.start_viz()
-    
-    # reset the simulation with a map name
-    def reset_map(self, map_name):
-        # find the property file for the map
-        if map_name == "CARLA":
-            # copy CARLA data in the sim folder
-            # source_path = "data/CARLA"
-            # specify the property file
-            prop_file = "Data.properties.CARLA"
-        elif map_name == "NYC":
-            # copy NYC data in the sim folder
-            # source_path = "data/NYC"
-            # specify the property file
-            prop_file = "Data.properties.NYC"
-        elif map_name == "UA":
-            # copy UA data in the sim folder
-            # source_path = "data/UA"
-            # specify the property file
-            prop_file = "Data.properties.UA"
 
-        # docker_cp_command = f"docker cp {source_path} {self.docker_id}:/home/test/data/"
-        # subprocess.run(docker_cp_command, shell=True, check=True)
+    # Deprecated: reset the simulation with a property file
+    # # reset the simulation with a map name
+    # def reset_map(self, map_name):
+    #     # find the property file for the map
+    #     if map_name == "CARLA":
+    #         # copy CARLA data in the sim folder
+    #         # source_path = "data/CARLA"
+    #         # specify the property file
+    #         prop_file = "Data.properties.CARLA"
+    #     elif map_name == "NYC":
+    #         # copy NYC data in the sim folder
+    #         # source_path = "data/NYC"
+    #         # specify the property file
+    #         prop_file = "Data.properties.NYC"
+    #     elif map_name == "UA":
+    #         # copy UA data in the sim folder
+    #         # source_path = "data/UA"
+    #         # specify the property file
+    #         prop_file = "Data.properties.UA"
+
+    #     # docker_cp_command = f"docker cp {source_path} {self.docker_id}:/home/test/data/"
+    #     # subprocess.run(docker_cp_command, shell=True, check=True)
         
-        # reset the simulation with the property file
-        self.reset(prop_file)
+    #     # reset the simulation with the property file
+    #     self.reset(prop_file)
 
     # terminate the simulation
     def terminate(self):
@@ -598,27 +1103,7 @@ class METSRClient:
             self.stop_viz()
 
 
-    # open visualization server
-    def start_viz(self):
-        # obtain the latest directory in the sim_folder/trajectory_output
-        # get the latest directory
-        list_of_files = [os.path.join(self.sim_folder + "/trajectory_output", f) for f in os.listdir(self.sim_folder + "/trajectory_output")]
-        # sort the list of files by creation time
-        latest_directory = max(list_of_files, key=os.path.getmtime)
-        # open the visualization server
-        self.viz_event, self.viz_server = run_visualization_server(latest_directory)
-
-    def stop_viz(self):
-        if self.viz_server is not None:
-            stop_visualization_server(self.viz_event, self.viz_server)
-        self.viz_event = None
-        self.viz_server = None
-    
-    def _logMessage(self, direction, msg):
-        self._messagesLog.append(
-            (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), direction, tuple(msg.items()))
-        )
-
+        
     # override __str__ for logging 
     def __str__(self):
         s = f"-----------\n" \

@@ -559,11 +559,13 @@ def registerDynamicScenarioClass(cls):
 
 @contextmanager
 def executeInScenario(scenario, inheritEgo=False):
-    global currentScenario
+    global currentScenario, _globalParameters
     oldScenario = currentScenario
     if inheritEgo and oldScenario is not None:
         scenario._ego = oldScenario._ego  # inherit ego from parent
     currentScenario = scenario
+    oldParams = _globalParameters
+    _globalParameters = scenario._globalParameters
     try:
         yield
     except AttributeError as e:
@@ -578,6 +580,7 @@ def executeInScenario(scenario, inheritEgo=False):
             raise
     finally:
         currentScenario = oldScenario
+        _globalParameters = oldParams
 
 
 def prepareScenario(scenario):

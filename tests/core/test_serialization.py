@@ -54,6 +54,7 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProp
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
     for obj in scene1.objects + scene2.objects:
+        del obj._sampleParent
         if ignoreConstProps:
             del obj._constProps
         if ignoreDynamics:
@@ -159,7 +160,7 @@ class TestExportToBytes:
     def test_bytes(self):
         checkValueEncoding(b"", bytes)
         checkValueEncoding(b"\x00", bytes)
-        checkValueEncoding(b"\xFF", bytes)
+        checkValueEncoding(b"\xff", bytes)
         checkValueEncoding(b"\x00123456", bytes)
 
     def test_str(self):

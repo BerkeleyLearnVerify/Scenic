@@ -46,6 +46,7 @@ veneer.activate(
         paramOverrides=dict(
             map="../assets/maps/opendrive.org/CulDeSac.xodr",
             carla_map="blah",
+            sumo_map="blah",
             lgsvl_map="blah",
         ),
     )
@@ -54,6 +55,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", SimulatorInterfaceWarning)
     import scenic.simulators.carla.model
     import scenic.simulators.lgsvl.model
+    import scenic.simulators.metadrive.model
 veneer.deactivate()
 
 # Hack to allow importing models which require 2D compatibility mode
@@ -106,7 +108,7 @@ add_module_names = False
 autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
-autodoc_mock_imports = ["carla", "lgsvl"]
+autodoc_mock_imports = ["carla", "lgsvl", "metadrive"]
 autodoc_typehints = "description"
 autodoc_type_aliases = {
     "Vectorlike": "`scenic.domains.driving.roads.Vectorlike`",

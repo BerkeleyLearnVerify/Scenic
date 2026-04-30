@@ -71,6 +71,9 @@ if __name__ == "__main__":
 
             results[(str((benchmark, benchmark_params)), param)] = results_val
 
+    # for setup, subresults in results.items():
+    #     print(f"{setup}: {subresults[0][1]:.2f} s")
+
     # Plot times
     import matplotlib.pyplot as plt
 
