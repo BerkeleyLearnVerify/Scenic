@@ -20,11 +20,12 @@ class network_cache():
             self.radius_search_size=radius_search_size
 
             self.network_lanes = [*self.workspace.network.lanes]
-            self.network_roads = [*self.workspace.network.roads]
+            self.network_roads = [*self.workspace.network.allRoads]
             self.network_intersections = [*self.workspace.network.intersections]
 
             self.scenic_to_metsr_map_roads = {}
             self.intersection_road_links = set([])
+            self.scenic_unique_roads = set([])
             self.populate_scenic_to_metsr_roads()
 
             self.connected_roads_to_intersections = {}
@@ -39,9 +40,9 @@ class network_cache():
         """
         Generate scenic -> METSR mappings for roads
         """
-        for road,road_map in self.scenic_to_metsr_map_lanes.items():
-            scenic_road = road.split("_")[0]
-            metsr_road  = road_map.split("_")[0]
+        for road_lane,road_lane_map in self.scenic_to_metsr_map_lanes.items():
+            scenic_road = road_lane.split("_")[0]
+            metsr_road  = road_lane_map.split("_")[0]
             if metsr_road in self.metsr_represented_roads["orig_id"]:
                 if scenic_road not in self.scenic_to_metsr_map_roads:
                     self.scenic_to_metsr_map_roads[scenic_road] = []
@@ -51,23 +52,18 @@ class network_cache():
                         self.scenic_to_metsr_map_roads[scenic_road].append(metsr_road)
             else:
                 self.intersection_road_links.add(metsr_road)
+                self.scenic_unique_roads.add(scenic_road)
     
     def populate_roads_to_intersections(self) -> None:
         """
         Populate the dictionary 
         """
         for intersection in [*self.workspace.network.intersections]:
-            for lane in intersection.incomingLanes:
-                if lane.road not in self.connected_roads_to_intersections:
-                    self.connected_roads_to_intersections[lane.road] = [intersection]
+            for road in intersection.roads:
+                if road not in self.connected_roads_to_intersections:
+                    self.connected_roads_to_intersections[road] = [intersection]
                 else:
-                    self.connected_roads_to_intersections[lane.road].append(intersection)
-            for lane in intersection.outgoingLanes:
-                if lane not in self.connected_roads_to_intersections:
-                    self.connected_roads_to_intersections[lane.road] = [intersection]
-                else:
-                    self.connected_roads_to_intersections[lane.road].append(intersection)
-
+                    self.connected_roads_to_intersections[road].append(intersection)
 
     """Helpers for generating or collecting map data"""
 
@@ -113,7 +109,9 @@ class network_cache():
                     return nearest_lane                    
                 
             nearest_lane = obj._lane
-            if nearest_lane is None:
+            if nearest_lane is not None: # TODO need to cleanup this case or make a second helper
+                continue_search = self.map_scenic_to_metsr_lanes(nearest_lane) in self.intersection_road_links and not(allow_intersection_links)
+            if nearest_lane is None or continue_search:
                 if not allow_offlane:
                     assert nearest_lane, f"Object: {obj.name} is has left the roadway"
                 neighborhood = CircularRegion(center=[obj.x,obj.y],radius=radius_size) 
@@ -136,7 +134,7 @@ class network_cache():
         self.obj_lane_cache[obj] = nearest_lane
         return nearest_lane
     
-    def _nearest_road(self, obj: Object, allow_offroad : bool, radius_size: int = 50) -> Road:
+    def _nearest_road(self, obj: Object, allow_offroad: bool=True, radius_size: int = 50) -> Road:
         """
             Docstring for _nearest_road
 
@@ -152,42 +150,48 @@ class network_cache():
         nearest_road = None
         if obj in self.obj_road_cache:
             road = self.obj_road_cache[obj]
-            if road.containsPoint(obj.position):
-                nearest_road = road
-            else:
-                nearest_road = obj._road 
-        
-        print(f"For: {obj.name}, nearest road is: {nearest_road}")
-        if nearest_road is None and allow_offroad:
-            distances = []
-            neighborhood = CircularRegion(center=[obj.x,obj.y],radius=radius_size) 
-            for road in self.network_roads:
-                if neighborhood.intersects(road):
-                    distances.append((road.distanceTo(obj.position), road))
-            
-            if len(distances) > 0:
-                nearest_road = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
-            else:
-                print(f"No road has been found: {obj.name} at {obj.position}")
+            if road.containsPoint(obj.position): # try to verify road through the cache
+                return road
 
-        assert nearest_road is not None, f"Object has deviated to far from the roadway : i.e {radius_size/2} meters"
-        
-        self.obj_road_cache[obj] = nearest_road
+        nearest_road = obj._road  # last resort lookup
+        if nearest_road is not None: # Maintain the previous road
+           self.obj_road_cache[obj] = nearest_road
+     
         return nearest_road
     
-    def _get_intersection(self, obj: Object, road: Road ) -> Intersection | None:
+    def _get_intersection(self, obj: Object, curr_road: Road = None ) -> Intersection | None:
         """
             Docstring for _get_intersection
 
             :param obj: Object to identify lane for
             :type obj: Vehicle Object
             :param road: Objects current road in map
-            :type road: riad
+            :type road: road
 
-            Collects the nearest lane for an object from the intersection cache based
-            on outgoing roads, if none is found queries Scenic
+            Checks if the obj is on an intersection based, on its previous logged road
+            Looks up the intersection directly if no log exists yet
         """
-        return obj._intersection
+        intersection = None
+        road = None
+        if curr_road: # If obj is on road it is not in an intersection 
+            return None
+       
+        else:          
+            pos = obj.position 
+            if obj in self.obj_road_cache:
+                road = self.obj_road_cache[obj] # find the most recent road
+          
+        if road in self.connected_roads_to_intersections: # check if obj is in a connected intersection
+            intersections = self.connected_roads_to_intersections[road]
+            for intersection in intersections:
+                if intersection.containsPoint(pos):
+                    intersection = intersection
+                    break
+
+        if road is None or intersection is None: # Previous road was not cached, so we need to do a global lookup
+            intersection = obj._intersection
+    
+        return intersection
     
     def _get_bubble_roads(self, bubble_region: CircularRegion) -> list[Road]:
         """
@@ -202,7 +206,6 @@ class network_cache():
                 bubble_roads.append(road)
         return bubble_roads
     
-
     
     def generate_scenic_trajectory(self, curr_lane: Lane, route: list[str] ) -> None | list[Lane]:
         """
@@ -263,7 +266,7 @@ class network_cache():
     
     """ Translating Scenic -> Metsr representations"""
     
-    def map_scenic_to_metsr_road(self, road : Road) -> list[str]:
+    def map_scenic_to_metsr_road(self, road : Road) -> list[str] | None:
         """
         docstring for map_scenic_to_metsr_road
         
@@ -271,6 +274,9 @@ class network_cache():
         :type road: Road
 
         """
+        if road in self.scenic_unique_roads:
+            return None
+     
         query_key = f'{road.id}' 
         metsr_keys= None
         
