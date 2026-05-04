@@ -6,7 +6,6 @@ import itertools
 import math
 import warnings
 import xml.etree.ElementTree as ET
-import networkx as nx
 
 import numpy as np
 from scipy.integrate import quad, solve_ivp
@@ -788,17 +787,18 @@ class Road:
         ):
             pts = [pt[:2] for pt in pts]  # drop s coordinate
             
-            #Move this here so we can still get sidewalk and shoulder sections before skipping roads with no drivable region
+            #Get sidewalk and shoulder sections before skipping roads with no drivable region
             for id_, lane in sec.sidewalk_lanes.items():
                 sidewalkSections[id_].append(lane)
             for id_, lane in sec.shoulder_lanes.items():
                 shoulderSections[id_].append(lane)
             
+
             if not sec.drivable_lanes:
-                #If we don't want to skip, maybe build some sort of RoadSection here or add gaurds for attributes like left_edge, right_edge
                 continue
                 
-            #assert sec.drivable_lanes
+            assert sec.drivable_lanes
+
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
                 succ = None  # will set this later
@@ -849,11 +849,6 @@ class Road:
             allElements.append(section)
             last_section = section
 
-            # for id_, lane in sec.sidewalk_lanes.items():
-            #     sidewalkSections[id_].append(lane)
-            # for id_, lane in sec.shoulder_lanes.items():
-            #     shoulderSections[id_].append(lane)
-
         # Build sidewalks and shoulders
         # TODO improve this!
         forwardSidewalks, backwardSidewalks = [], []
@@ -863,142 +858,39 @@ class Road:
         for id_ in shoulderSections:
             (forwardShoulders if id_ < 0 else backwardShoulders).append(id_)
 
-        def combineSections(sections, name, forward):
-            #get the IDs on the correct "side" of the passed in section: forward = true --> negative IDs; forward = false --> positive IDs
-            #going through all the lanes in the section, so some might not be on the correct side
-            correct_side_secs = {}
-            for id_, lanes in sections.items():
-                if (id_ < 0) == forward:
-                    correct_side_secs[id_] = lanes
-
-            if not correct_side_secs:
-                return None
-            
-            #gather the actual lane objects that are in the passed in section —> these will be on the correct “side” now
-            lane_objects_secs = set()
-            for id_, lanes in correct_side_secs.items():
-                for lane in lanes:
-                    lane_objects_secs.add(lane)
-
-            #lanes_in_section_map: (sec_index, lane_id) -> lane object
-            lanes_in_section_map = {}
-            for sec_idx, sec in enumerate(self.lane_secs):
-                if name == "sidewalk":
-                    lane_dict = sec.sidewalk_lanes
-                elif name == "shoulder":
-                    lane_dict = sec.shoulder_lanes
-                else:
-                    continue
-                for id_, lane in lane_dict.items():
-                    if lane in lane_objects_secs and (id_ < 0) == forward:
-                        lanes_in_section_map[(sec_idx, id_)] = lane
-
-            if not lanes_in_section_map:
-                return None
-
-            #building graph using pred/succ links and adjacent neighbors
-            G = nx.Graph()
-            G.add_nodes_from(lanes_in_section_map.keys())
-
-            for (sec_idx, lane_id), lane in lanes_in_section_map.items():
-                node = (sec_idx, lane_id)
-
-                #check adjacent lanes in the same section
-                for i in [-1, 1]:
-                    neighbor = (sec_idx, lane_id + i)
-                    if neighbor in lanes_in_section_map:
-                        G.add_edge(node, neighbor)
-
-                #check successor link
-                if lane.succ is not None:
-                    succ_node = (sec_idx + 1, lane.succ)
-                    if succ_node in lanes_in_section_map:
-                        G.add_edge(node, succ_node)
-
-                #check predecessor link
-                if lane.pred is not None:
-                    pred_node = (sec_idx - 1, lane.pred)
-                    if pred_node in lanes_in_section_map:
-                        G.add_edge(node, pred_node)
-
-            #find connected components using networkx
-            components = [list(comp) for comp in nx.connected_components(G)]
-
-            if forward: #negative IDs: outermost = most negative
-                best_component = None
-                best_score = float('inf')
-
-                for component in components:
-                    most_negative = float('inf')
-                    for sec_idx, lane_id in component:
-                        if lane_id < most_negative:
-                            most_negative = lane_id
-                    
-                    if most_negative < best_score:
-                        best_score = most_negative
-                        best_component = component
-                
-                outermost = best_component
-
-            else: #positive IDs: outermost = most positive
-                best_component = None
-                best_score = float('-inf')
-
-                for component in components:
-                    most_positive = float('-inf')
-                    for sec_idx, lane_id in component:
-                        if lane_id > most_positive:
-                            most_positive = lane_id
-                    
-                    if most_positive > best_score:
-                        best_score = most_positive
-                        best_component = component
-                
-                outermost = best_component
-
-            #organize outermost component by section index
-            section_to_lanes = defaultdict(dict)
-            for sec_idx, lane_id in outermost:
-                section_to_lanes[sec_idx][lane_id] = lanes_in_section_map[(sec_idx, lane_id)]
-
-            #process sections in order for edge stitching
-            section_indices = sorted(section_to_lanes.keys())
-            if not forward:
-                section_indices = list(reversed(section_indices))
-
-            left_chain = []
-            right_chain = []
-            all_polys = []
-
-            for sec_idx in section_indices:
-                lanes = section_to_lanes[sec_idx]
-                sorted_ids = sorted(lanes.keys())
-
-                #max ID = innermost (left edge), min ID = outermost (right edge)
-                left_most_lane = lanes[max(sorted_ids)]
-                right_most_lane = lanes[min(sorted_ids)]
-
-                if forward:
-                    left_chain.extend(left_most_lane.left_bounds)
-                    right_chain.extend(right_most_lane.right_bounds)
-                else:
-                    left_chain.extend(reversed(left_most_lane.left_bounds))
-                    right_chain.extend(reversed(right_most_lane.right_bounds))
-
-                for lane in lanes.values():
-                    if hasattr(lane, 'poly') and lane.poly:
-                        all_polys.append(lane.poly)
-
-            if not all_polys or not left_chain or not right_chain:
-                return None
-
-            leftEdge = PolylineRegion(cleanChain(left_chain))
-            rightEdge = PolylineRegion(cleanChain(right_chain))
-            centerline = self.create_center_line(leftEdge, rightEdge)
-            union = buffer_union(all_polys, tolerance=tolerance)
-
-            id_ = f"road{self.id_}_{name}_{'fwd' if forward else 'bwd'}"
-            return (id_, union, centerline, leftEdge, rightEdge)
+        def combineSections(laneIDs, sections, name):
+            leftmost, rightmost = max(laneIDs), min(laneIDs)
+            if len(laneIDs) != leftmost - rightmost + 1:
+                warn(f"ignoring {name} in the middle of road {self.id_}")
+            leftPoints, rightPoints = [], []
+            if leftmost < 0:
+                leftmost = rightmost
+                while leftmost + 1 in laneIDs:
+                    leftmost = leftmost + 1
+                leftSecs, rightSecs = sections[leftmost], sections[rightmost]
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(leftSec.left_bounds)
+                    rightPoints.extend(rightSec.right_bounds)
+            else:
+                rightmost = leftmost
+                while rightmost - 1 in laneIDs:
+                    rightmost = rightmost - 1
+                leftSecs = reversed(sections[leftmost])
+                rightSecs = reversed(sections[rightmost])
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(reversed(rightSec.right_bounds))
+                    rightPoints.extend(reversed(leftSec.left_bounds))
+            leftEdge = PolylineRegion(cleanChain(leftPoints))
+            rightEdge = PolylineRegion(cleanChain(rightPoints))
+            centerline = nowhere if self.drivable_region.is_empty else self.create_center_line(leftEdge, rightEdge)
+            allPolys = (
+                sec.poly
+                for id_ in range(rightmost, leftmost + 1)
+                for sec in sections[id_]
+            )
+            union = buffer_union(allPolys, tolerance=tolerance)
+            id_ = f"road{self.id_}_{name}({leftmost},{rightmost})"
+            return id_, union, centerline, leftEdge, rightEdge
 
         def makeCrosswalk():
             pedestrian_crossings = []
@@ -1020,54 +912,46 @@ class Road:
         
         pedestrian_crossings = makeCrosswalk()
         
-        def makeSidewalk(laneIDs, forward):
+        def makeSidewalk(laneIDs):
             if not laneIDs:
                 return None
-            id_, union, centerline, leftEdge, rightEdge = combineSections(sidewalkSections, "sidewalk", forward)
+            id_, union, centerline, leftEdge, rightEdge = combineSections(
+                laneIDs, sidewalkSections, "sidewalk"
+            )
+            sidewalk = roadDomain.Sidewalk(
+                id=id_,
+                polygon=union,
+                centerline=centerline,
+                leftEdge=leftEdge,
+                rightEdge=rightEdge,
+                road=None,
+                crossings=(pedestrian_crossings),
+            )
+            allElements.append(sidewalk)
+            return sidewalk
 
-            try:
-                sidewalk = roadDomain.Sidewalk(
-                    id=id_,
-                    polygon=union,
-                    centerline=centerline,
-                    leftEdge=leftEdge,
-                    rightEdge=rightEdge,
-                    road=None,
-                    crossings=(),
-                )
-                allElements.append(sidewalk)
-                return sidewalk
+        forwardSidewalk = makeSidewalk(forwardSidewalks)
+        backwardSidewalk = makeSidewalk(backwardSidewalks)
 
-            except AssertionError:
-                warn(f"road {self.id_} {('forward' if forward else 'backward')} sidewalk component failed geometry validation; skipping")
-                return None
-            
-        forwardSidewalk = makeSidewalk(forwardSidewalks, forward=True)
-        backwardSidewalk = makeSidewalk(backwardSidewalks, forward=False)
-        
-        def makeShoulder(laneIDs, forward):
+        def makeShoulder(laneIDs):
             if not laneIDs:
                 return None
-            id_, union, centerline, leftEdge, rightEdge = combineSections(shoulderSections, "shoulder", forward)
+            id_, union, centerline, leftEdge, rightEdge = combineSections(
+                laneIDs, shoulderSections, "shoulder"
+            )
+            shoulder = roadDomain.Shoulder(
+                id=id_,
+                polygon=union,
+                centerline=centerline,
+                leftEdge=leftEdge,
+                rightEdge=rightEdge,
+                road=None,
+            )
+            allElements.append(shoulder)
+            return shoulder
 
-            try:
-                shoulder = roadDomain.Shoulder(
-                    id=id_,
-                    polygon=union,
-                    centerline=centerline,
-                    leftEdge=leftEdge,
-                    rightEdge=rightEdge,
-                    road=None,
-                )
-                allElements.append(shoulder)
-                return shoulder
-
-            except AssertionError:
-                warn(f"road {self.id_} {('forward' if forward else 'backward')} shoulder component failed geometry validation; skipping")
-                return None
-
-        forwardShoulder = makeShoulder(forwardShoulders, forward=True)
-        backwardShoulder = makeShoulder(backwardShoulders, forward=False)
+        forwardShoulder = makeShoulder(forwardShoulders)
+        backwardShoulder = makeShoulder(backwardShoulders)
 
         # Connect sections to their successors
         next_section = None
@@ -1354,15 +1238,16 @@ class Road:
         cumalative_curve_length = 0.0
 
         for curve in self.ref_line:
-            if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on; epsilon margin to allow for numerical error
-                local_s = s - cumalative_curve_length #Figure out the local s-coordinate on the curve (how many units into the curve are we?)
+            if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on
+                local_s = s - cumalative_curve_length #Compute the local s-coordinate (how many units into the curve are we?)
                 
-                x,y,z = curve.point_at(local_s) #Get the x,y,z position
+                x,y,z = curve.point_at(local_s)
                 heading = curve.heading_at(local_s)
 
                 return (x,y,z), heading
-          
-            cumalative_curve_length = cumalative_curve_length + curve.length #Update cumulative length of curves until we find the right curve
+
+            #Update cumulative length of curves until we find the right curve
+            cumalative_curve_length = cumalative_curve_length + curve.length
         
         #If we get to the end of the road reference line, we need to get the heading of the last curve
         last_curve = self.ref_line[-1]
@@ -1374,21 +1259,21 @@ class Road:
     def st_to_xyz(self, s, t, zOffset):
         (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s)
 
-        #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain the final global coordinates
+        #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain final global coordinates
         x = x_ref - t * math.sin(heading)
         y = y_ref + t * math.cos(heading)
         z = z_ref + zOffset
 
         return (x,y,0) 
 
-    def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll): #cornerLocal has u,v,z
+    def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll):
         (x0, y0, z0) = self.st_to_xyz(s, t, zOffset)
         (_,_,_), road_heading = self.xyz_heading_at_s(s)
         yaw = hdg + road_heading
 
-        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Create rotation object r that stores the 3x3 matrix. Extrinsic so lowercase
-        local_vector = np.array([u,v,z_local]) #Point in the object's local coordinate system
-        rotated_vector = r.apply(local_vector) #Rotate the vector into a global frame using the matrix (r)
+        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Extrinsic so lowercase
+        local_vector = np.array([u,v,z_local])
+        rotated_vector = r.apply(local_vector)
 
         x = x0 + rotated_vector[0]
         y = y0 + rotated_vector[1]
@@ -1438,14 +1323,14 @@ class Road:
             a = mrr[i]
             b = mrr[(i + 1) % 4] #Wrap around to the first point
 
-            edge = (a,b) #Form the edge between the two points: a and b
+            edge = (a,b)
             edges.append(edge)
         
         for (a,b) in edges:
-            dx = b[0] - a[0] #Difference in x-coordinates
-            dy = b[1] - a[1] #Difference in y-coordinates
+            dx = b[0] - a[0]
+            dy = b[1] - a[1]
 
-            distance = math.hypot(dx, dy) #Calculate the distance between the two points
+            distance = math.hypot(dx, dy)
             lengths.append(distance)
         
         get_mrr_shortest_indices = np.argsort(lengths)[:2] #Get the fist two indices - they correspond to the shortest edges
@@ -1467,7 +1352,9 @@ class Road:
 
         for x,y in crosswalk_polygon_coords:
             crosswalk_polygon_vertex = Point(x,y)
-            mrr_shortest_opp_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge)) #Distance from each vertex on the crosswalk polygon to the bottom edge of the MRR (shortest distance to any point on the bottom edge)
+
+            #Distance from each vertex on the crosswalk polygon to the bottom edge of the MRR
+            mrr_shortest_opp_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge))
             mrr_shortest_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_edge))
 
         bottom_cut_index = 0
@@ -1478,24 +1365,22 @@ class Road:
         for i in range(len(crosswalk_polygon_coords)):
             j = (i + 1) % len(crosswalk_polygon_coords)
             
-            b_score = max(mrr_shortest_opp_edge_distances[i], mrr_shortest_opp_edge_distances[j]) #Max of the two distances to the MRR bottom edge
+            b_score = max(mrr_shortest_opp_edge_distances[i], mrr_shortest_opp_edge_distances[j])
             if b_score < final_bottom_score:
                 final_bottom_score = b_score
                 bottom_cut_index = i
             
-            t_score = max(mrr_shortest_edge_distances[i], mrr_shortest_edge_distances[j]) #Max of the two distances to the MRR top edge
+            t_score = max(mrr_shortest_edge_distances[i], mrr_shortest_edge_distances[j])
             if t_score < final_top_score:
                 final_top_score = t_score
                 top_cut_index = i
 
-        top_cut = (top_cut_index, (top_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the top cut
-        #top_cut_vertices = (crosswalk_polygon_coords[top_cut[0]], crosswalk_polygon_coords[top_cut[1]])
-        bottom_cut = (bottom_cut_index, (bottom_cut_index + 1) % len(crosswalk_polygon_coords)) #Indices of the two vertices that define the bottom cut
-        #bottom_cut_vertices = (crosswalk_polygon_coords[bottom_cut[0]], crosswalk_polygon_coords[bottom_cut[1]])
+        top_cut = (top_cut_index, (top_cut_index + 1) % len(crosswalk_polygon_coords))
+        bottom_cut = (bottom_cut_index, (bottom_cut_index + 1) % len(crosswalk_polygon_coords))
 
         def walk_polygon(n, bottom_cut, top_cut):
-            t0, t1 = top_cut #top cut edge indices (t0 -> t1)
-            b0, b1 = bottom_cut #bottom edge indices (b0 -> b1)
+            t0, t1 = top_cut
+            b0, b1 = bottom_cut
 
             left_indices = [t0]
             i = t0
@@ -1514,9 +1399,6 @@ class Road:
         left_indices, right_indices = walk_polygon(len(crosswalk_polygon_coords), bottom_cut, top_cut)
         left_edge = [crosswalk_polygon_coords[i] for i in left_indices]
         right_edge = [crosswalk_polygon_coords[i] for i in right_indices]
-
-        #print(f"Top edge: {top_cut_vertices}. Left edge: {left_edge} for road {self.id_} crosswalk {cw.id_}")
-        #print(f"Bottom edge: {bottom_cut_vertices}. Right edge: {right_edge} for road {self.id_} crosswalk {cw.id_}") 
 
         leftEdge = PolylineRegion(cleanChain(left_edge))
         rightEdge = PolylineRegion(cleanChain(right_edge))
