@@ -115,8 +115,6 @@ jobs:
 
           # SSM runs as root, but CARLA cannot. Use ubuntu for checkout/install too
           # so generated files like parser.py are writable during simulator tests.
-          mkdir -p /home/ubuntu/actions &&
-          chown -R ubuntu:ubuntu /home/ubuntu/actions &&
           sudo -u ubuntu -H bash -lc '
             cd /home/ubuntu/actions/ &&
             rm -rf Scenic &&
@@ -144,23 +142,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'StatusDetails' \
-              --output text 2>/dev/null || true)
+              --query 'Status' \
+              --output text)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
                 exit 1
                 ;;
-              Pending|"In Progress"|InProgress|Delayed|"")
-                sleep 5
-                ;;
-              *)
-                echo "Unexpected SSM status: $status"
+              Pending|InProgress|Delayed)
                 sleep 5
                 ;;
             esac
@@ -212,23 +206,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'StatusDetails' \
-              --output text 2>/dev/null || true)
+              --query 'Status' \
+              --output text)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
                 exit 1
                 ;;
-              Pending|"In Progress"|InProgress|Delayed|"")
-                sleep 5
-                ;;
-              *)
-                echo "Unexpected SSM status: $status"
+              Pending|InProgress|Delayed)
                 sleep 5
                 ;;
             esac
@@ -290,23 +280,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'StatusDetails' \
-              --output text 2>/dev/null || true)
+              --query 'Status' \
+              --output text)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
                 exit 1
                 ;;
-              Pending|"In Progress"|InProgress|Delayed|"")
-                sleep 10
-                ;;
-              *)
-                echo "Unexpected SSM status: $status"
+              Pending|InProgress|Delayed)
                 sleep 10
                 ;;
             esac
@@ -365,23 +351,19 @@ jobs:
             status=$(aws ssm get-command-invocation \
               --command-id "$command_id" \
               --instance-id "$INSTANCE_ID" \
-              --query 'StatusDetails' \
-              --output text 2>/dev/null || true)
+              --query 'Status' \
+              --output text)
 
             case "$status" in
               Success)
                 break
                 ;;
-              Failed|Cancelled|TimedOut|Cancelling|"Delivery Timed Out"|"Execution Timed Out"|Undeliverable|Terminated|Incomplete|"Rate Exceeded")
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text || true
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text || true
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
                 exit 1
                 ;;
-              Pending|"In Progress"|InProgress|Delayed|"")
-                sleep 10
-                ;;
-              *)
-                echo "Unexpected SSM status: $status"
+              Pending|InProgress|Delayed)
                 sleep 10
                 ;;
             esac
