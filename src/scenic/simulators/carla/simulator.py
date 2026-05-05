@@ -63,6 +63,9 @@ class CarlaSimulator(DrivingSimulator):
 
         # Set to synchronous with fixed timestep
         settings = self.world.get_settings()
+        settings.substepping = True
+        settings.max_substep_delta_time = 0.01
+        settings.max_substeps = 10
         settings.synchronous_mode = True
         settings.fixed_delta_seconds = timestep  # NOTE: Should not exceed 0.1
         self.world.apply_settings(settings)
