@@ -79,6 +79,8 @@ class CarlaSimulator(DrivingSimulator):
                 "set timestep when creating the CarlaSimulator instead"
             )
 
+        self._cleanupWorld()
+
         self.scenario_number += 1
         return CarlaSimulation(
             scene,
@@ -90,6 +92,31 @@ class CarlaSimulator(DrivingSimulator):
             timestep=self.timestep,
             **kwargs,
         )
+
+    def _cleanupWorld(self):
+        """Destroy any actors left over in the CARLA world from a prior run."""
+        verbosePrint("Cleaning up existing actors in CARLA world...")
+        actor_list = self.world.get_actors()
+
+        for actor in actor_list.filter("walker.*"):
+            if actor.is_alive:
+                actor.destroy()
+
+        for actor in actor_list.filter("controller.ai.walker"):
+            if actor.is_alive:
+                actor.destroy()
+
+        for actor in actor_list.filter("vehicle.*"):
+            if actor.is_alive:
+                actor.set_autopilot(False, self.tm.get_port())
+                actor.destroy()
+
+        for actor in actor_list.filter("sensor.*"):
+            if actor.is_alive:
+                actor.destroy()
+
+        self.world.tick()
+        verbosePrint("Cleanup complete.")
 
     def destroy(self):
         super().destroy()
