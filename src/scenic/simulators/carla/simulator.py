@@ -19,6 +19,7 @@ import pygame
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.carla.blueprints import oldBlueprintNames
+from scenic.simulators.carla.sensors import CarlaCollisionSensor
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 from scenic.syntax.veneer import verbosePrint
@@ -249,6 +250,11 @@ class CarlaSimulation(DrivingSimulation):
                     f"Unable to spawn carla controller for object {obj}"
                 )
             obj.carlaController = controller
+
+        # Auto-attach a collision sensor to the ego so users can check
+        # ego.sensors['collision'].has_collision without explicit declaration.
+        if obj is self.scene.egoObject and "collision" not in obj.sensors:
+            obj.sensors["collision"] = CarlaCollisionSensor()
 
         # Adding sensors if available
         if obj.sensors:
