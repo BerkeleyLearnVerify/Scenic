@@ -135,6 +135,7 @@ class CarlaSimulation(DrivingSimulation):
                 self.displayDim, pygame.HWSURFACE | pygame.DOUBLEBUF
             )
             self.cameraManager = None
+            self.world.on_tick(self.hud.on_world_tick)
 
         if self.record:
             if not os.path.exists(self.record):
@@ -301,6 +302,9 @@ class CarlaSimulation(DrivingSimulation):
         # Run simulation for one timestep
         self.current_frame = self.world.tick()
 
+        if self.render:
+            self.displayClock.tick()
+
         # Wait for sensors to get updates
         for obj in self.objects:
             if obj.sensors:
@@ -310,7 +314,9 @@ class CarlaSimulation(DrivingSimulation):
 
         # Render simulation
         if self.render:
+            self.hud.tick(self.world, self.objects[0], self.displayClock)
             self.cameraManager.render(self.display)
+            self.hud.render(self.display)
             pygame.display.flip()
 
     def getProperties(self, obj, properties):
