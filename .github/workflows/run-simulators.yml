@@ -269,10 +269,12 @@ jobs:
           EOF
           )
 
+          # AWS-RunShellScript's executionTimeout defaults to 3600 seconds (1 hour).
+          # CARLA tests can take longer, so allow this SSM command to run for 3 hours.
           command_id=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
-            --parameters "commands=$commands" \
+            --parameters "commands=$commands,executionTimeout=10800" \
             --query 'Command.CommandId' \
             --output text)
 
