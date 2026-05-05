@@ -301,12 +301,18 @@ class CarlaSimulation(DrivingSimulation):
         # Run simulation for one timestep
         self.current_frame = self.world.tick()
 
-        # Wait for sensors to get updates
+        # Wait for sensors to deliver this frame's data. Event-based sensors
+        # (e.g. collision) don't fire every tick, so just bump their frame
+        # number rather than blocking on it.
         for obj in self.objects:
             if obj.sensors:
                 for sensor in obj.sensors.values():
-                    while sensor.frame != self.current_frame:
-                        pass
+                    if getattr(sensor, "_is_event_based", False):
+                        if hasattr(sensor, "updateFrame"):
+                            sensor.updateFrame(self.current_frame)
+                    else:
+                        while sensor.frame != self.current_frame:
+                            pass
 
         # Render simulation
         if self.render:
@@ -352,6 +358,8 @@ class CarlaSimulation(DrivingSimulation):
                     if sensor.carla_sensor is not None and sensor.carla_sensor.is_alive:
                         sensor.carla_sensor.stop()
                         sensor.carla_sensor.destroy()
+                    if hasattr(sensor, "reset"):
+                        sensor.reset()
             if obj.carlaActor is not None:
                 if isinstance(obj.carlaActor, carla.Vehicle):
                     obj.carlaActor.set_autopilot(False, self.tm.get_port())
