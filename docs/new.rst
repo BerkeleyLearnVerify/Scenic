@@ -15,6 +15,14 @@ It also features a new parser enabling clearer error messages, greater language 
 
 See :ref:`porting to Scenic 3` for tools to help migrate existing 2D scenarios.
 
+Scenic 3.1.1
+------------
+
+Minor new features:
+
+	* Added support for Python 3.14.
+
+
 Scenic 3.1.0
 ------------
 
