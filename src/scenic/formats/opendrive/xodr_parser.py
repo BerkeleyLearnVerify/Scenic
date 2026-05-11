@@ -213,6 +213,11 @@ class Line(Curve):
 
 
 def makeCurve(x0, y0, hdg, length, curve_elem):
+    """Create a reference-line curve from an OpenDRIVE geometry element.
+
+    The given length is the effective length Scenic should use, which may
+    differ from the length declared in the map if the planView is inconsistent.
+    """
     if curve_elem.tag == "line":
         return Line(x0, y0, hdg, length)
     elif curve_elem.tag == "arc":
