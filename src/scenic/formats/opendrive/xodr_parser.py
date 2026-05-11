@@ -212,6 +212,47 @@ class Line(Curve):
         return self.rel_to_abs((s, 0, s))
 
 
+def makeCurve(x0, y0, hdg, length, curve_elem):
+    if curve_elem.tag == "line":
+        return Line(x0, y0, hdg, length)
+    elif curve_elem.tag == "arc":
+        # Arc is clothoid of constant curvature.
+        curv = float(curve_elem.get("curvature"))
+        return Clothoid(x0, y0, hdg, length, curv, curv)
+    elif curve_elem.tag == "spiral":
+        curv0 = float(curve_elem.get("curvStart"))
+        curv1 = float(curve_elem.get("curvEnd"))
+        return Clothoid(x0, y0, hdg, length, curv0, curv1)
+    elif curve_elem.tag == "poly3":
+        a, b, c, d = (
+            float(curve_elem.get("a")),
+            float(curve_elem.get("b")),
+            float(curve_elem.get("c")),
+            float(curve_elem.get("d")),
+        )
+        return Cubic(x0, y0, hdg, length, a, b, c, d)
+    elif curve_elem.tag == "paramPoly3":
+        au, bu, cu, du, av, bv, cv, dv = (
+            float(curve_elem.get("aU")),
+            float(curve_elem.get("bU")),
+            float(curve_elem.get("cU")),
+            float(curve_elem.get("dU")),
+            float(curve_elem.get("aV")),
+            float(curve_elem.get("bV")),
+            float(curve_elem.get("cV")),
+            float(curve_elem.get("dV")),
+        )
+        p_range = curve_elem.get("pRange")
+        if p_range and p_range != "normalized":
+            # TODO support arcLength
+            raise NotImplementedError("unsupported pRange for paramPoly3")
+        else:
+            p_range = 1
+        return ParamCubic(x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range)
+    else:
+        raise NotImplementedError(f'unhandled OpenDRIVE geometry type "{curve_elem.tag}"')
+
+
 class Lane:
     def __init__(self, id_, type_, pred=None, succ=None):
         self.id_ = id_
@@ -1434,82 +1475,58 @@ class RoadMap:
                 hdg = float(geom.get("hdg"))
                 length = float(geom.get("length"))
                 curve_elem = geom[0]
-                curve = None
-                if curve_elem.tag == "line":
-                    curve = Line(x0, y0, hdg, length)
-                elif curve_elem.tag == "arc":
-                    # Arc is clothoid of constant curvature.
-                    curv = float(curve_elem.get("curvature"))
-                    curve = Clothoid(x0, y0, hdg, length, curv, curv)
-                elif curve_elem.tag == "spiral":
-                    curv0 = float(curve_elem.get("curvStart"))
-                    curv1 = float(curve_elem.get("curvEnd"))
-                    curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
-                elif curve_elem.tag == "poly3":
-                    a, b, c, d = (
-                        cubic_elem.get("a"),
-                        float(curve_elem.get("b")),
-                        float(curve_elem.get("c")),
-                        float(curve_elem.get("d")),
-                    )
-                    curve = Cubic(x0, y0, hdg, length, a, b, c, d)
-                elif curve_elem.tag == "paramPoly3":
-                    au, bu, cu, du, av, bv, cv, dv = (
-                        float(curve_elem.get("aU")),
-                        float(curve_elem.get("bU")),
-                        float(curve_elem.get("cU")),
-                        float(curve_elem.get("dU")),
-                        float(curve_elem.get("aV")),
-                        float(curve_elem.get("bV")),
-                        float(curve_elem.get("cV")),
-                        float(curve_elem.get("dV")),
-                    )
-                    p_range = curve_elem.get("pRange")
-                    if p_range and p_range != "normalized":
-                        # TODO support arcLength
-                        raise NotImplementedError("unsupported pRange for paramPoly3")
-                    else:
-                        p_range = 1
-                    curve = ParamCubic(
-                        x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range
-                    )
-                curves.append((s0, curve))
+                curves.append((s0, x0, y0, hdg, length, curve_elem))
+
             if not curves:
                 raise ValueError(f"road {road.id_} has an empty planView")
             if not curves[0][0] == 0:
                 raise ValueError(
                     f"reference line of road {road.id_} does not start at s=0"
                 )
-            lastS = 0
-            lastCurve = curves[0][1]
+
+            lastS = curves[0][0]
+            lastCurve = curves[0]
             refLine = []
-            for s0, curve in curves[1:]:
+            for curve in curves[1:]:
+                s0 = curve[0]
                 l = s0 - lastS
-                if abs(lastCurve.length - l) > 1e-4:
-                    raise ValueError(
-                        f"planView of road {road.id_} has inconsistent length"
-                    )
+
                 if l < 0:
                     raise ValueError(f"planView of road {road.id_} is not in order")
-                elif l < 1e-6:
+
+                lastS0, x0, y0, hdg, length, curve_elem = lastCurve
+                if abs(length - l) > 1e-4:
+                    warn(
+                        f"planView of road {road.id_} has inconsistent length: "
+                        f"geometry at s={lastS0} has declared length {length}, "
+                        f"but the next geometry starts at s={s0}; "
+                        f"using length {l}"
+                    )
+                    length = l
+
+                if l < 1e-6:
                     warn(
                         f"road {road.id_} reference line has a geometry of "
                         f"length {l}; skipping it"
                     )
                 else:
-                    refLine.append(lastCurve)
+                    refLine.append(makeCurve(x0, y0, hdg, length, curve_elem))
+
                 lastS = s0
                 lastCurve = curve
-            if refLine and lastCurve.length < 1e-6:
+
+            lastS0, x0, y0, hdg, length, curve_elem = lastCurve
+            if refLine and length < 1e-6:
                 warn(
                     f"road {road.id_} reference line has a geometry of "
-                    f"length {lastCurve.length}; skipping it"
+                    f"length {length}; skipping it"
                 )
             else:
                 # even if the last curve is shorter than the threshold, we'll keep it if
                 # it is the only curve; getting rid of the road entirely is handled by
                 # road elision above
-                refLine.append(lastCurve)
+                refLine.append(makeCurve(x0, y0, hdg, length, curve_elem))
+
             assert refLine
             road.ref_line = refLine
 
