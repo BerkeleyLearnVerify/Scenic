@@ -106,6 +106,7 @@ For more information on how to customize the sampler, see `VerifaiSampler`.
 """
 
 from abc import ABC, abstractmethod
+from importlib import metadata
 import warnings
 
 from dotmap import DotMap
@@ -193,6 +194,8 @@ class VerifaiSampler(ExternalSampler):
         import verifai.features
         import verifai.server
 
+        self._verifaiDynamic = int(metadata.version("verifai").split(".")[0]) > 2
+
         # construct FeatureSpace
         timeBound = globalParams.get("timeBound", 0)
         usingProbs = False
@@ -207,11 +210,18 @@ class VerifaiSampler(ExternalSampler):
             if param.probs is not None:
                 usingProbs = True
 
+        if not self._verifaiDynamic and any(param.isTimeSeries for param in self.params):
+            raise RuntimeError("TimeSeries not supported for VerifAI versions < 3.0")
+
         if timeBound == 0 and any(param.isTimeSeries for param in self.params):
             warnings.warn(
                 "TimeSeries external parameter used but no global parameter `timeBound` is specified. "
                 "(If using VerifAI’s ScenicSampler, set its maxSteps option)."
             )
+
+        fs_kwargs = {}
+        if self._verifaiDynamic:
+            fs_kwargs["timeBound"] = timeBound
 
         space = verifai.features.FeatureSpace(
             {
@@ -222,7 +232,7 @@ class VerifaiSampler(ExternalSampler):
                 )
                 for index, param in enumerate(self.params)
             },
-            timeBound=timeBound,
+            **fs_kwargs,
         )
 
         # set up VerifAI sampler
@@ -285,7 +295,10 @@ class VerifaiSampler(ExternalSampler):
     def nextSample(self, feedback):
         if feedback is not None:
             assert self._lastSample is not None
-            self._lastSample.complete(feedback)
+            if self._verifaiDynamic:
+                self._lastSample.complete(feedback)
+            else:
+                self.sampler.update(self.cachedSample[0], self.cachedSample[1], feedback)
 
         self._lastSample = self.sampler.getSample()
         return self._lastSample
@@ -308,8 +321,12 @@ class VerifaiSampler(ExternalSampler):
 
     def valueFor(self, param):
         if not param.isTimeSeries:
+            if self._verifaiDynamic:
+                sampleTarget = self.cachedSample.staticSample
+            else:
+                sampleTarget = self.cachedSample[0]
             return param.extractOutput(
-                getattr(self.cachedSample.staticSample, self.nameForParam(param.index))
+                getattr(sampleTarget, self.nameForParam(param.index))
             )
         else:
             callback = lambda: param.extractOutput(
