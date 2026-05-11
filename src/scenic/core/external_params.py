@@ -86,7 +86,7 @@ and standard deviation 3. Priors are restricted to primitive distributions and
 in general may be approximated so that VerifAI can handle them -- see
 `VerifaiParameter.withPrior` for details.
 
-To set a time bound when using VerifAI's dynamic sampling, set the `timeBound`
+To set a time bound when using VerifAI's dynamic sampling, set the ``timeBound``
 global parameter to value representing the upper bound on the number of timesteps
 the sampler should account for. For example::
 
