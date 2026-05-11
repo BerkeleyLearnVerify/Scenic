@@ -330,7 +330,7 @@ class VerifaiSampler(ExternalSampler):
             if self._verifaiDynamic:
                 sampleTarget = self.cachedSample.staticSample
             else:
-                sampleTarget = self.cachedSample[0]
+                sampleTarget = self.cachedSample
             return param.extractOutput(
                 getattr(sampleTarget, self.nameForParam(param.index))
             )
