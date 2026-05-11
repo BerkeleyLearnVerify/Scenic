@@ -288,6 +288,7 @@ class VerifaiSampler(ExternalSampler):
         self.cachedSample = None
 
         self._lastSample = None
+        self._lastInfo = None
         self._lastDynamicSample = None
         self._lastSimulation = None
         self._lastTime = -1
@@ -298,9 +299,14 @@ class VerifaiSampler(ExternalSampler):
             if self._verifaiDynamic:
                 self._lastSample.complete(feedback)
             else:
-                self.sampler.update(self.cachedSample[0], self.cachedSample[1], feedback)
+                self.sampler.update(self._lastSample, self._lastInfo, feedback)
 
-        self._lastSample = self.sampler.getSample()
+        if self._verifaiDynamic:
+            self._lastSample = self.sampler.getSample()
+        else:
+            lastSample = self.sampler.getSample()
+            self._lastSample = lastSample[0]
+            self._lastInfo = lastSample[1]
         return self._lastSample
 
     def nextDynamicSample(self):
