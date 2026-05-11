@@ -527,8 +527,8 @@ def sampleSurfaceInVolume(intersection):
 
     This is a specialized sampler for surface-volume intersections. It does not
     compute an exact clipped surface; instead it filters surface triangles using
-    triangle/volume bounding-box overlap, then samples from the filtered surface
-    and checks sampled points against the volume exactly.
+    triangle/volume bounding-box overlap, samples a batch of points from the filtered
+    surface, and keeps the first point that lies inside the volume.
     """
     regs = intersection.regions
     if len(regs) != 2:
@@ -570,23 +570,12 @@ def sampleSurfaceInVolume(intersection):
     if filtered_mesh.is_empty or len(filtered_mesh.faces) == 0:
         raise RejectionException(f"sampling intersection of Regions {regs}")
 
-    # Sample from the reduced surface, then use an exact containment check
-    # against the volume before accepting the point.
-    filtered_surface = MeshSurfaceRegion(
-        mesh=filtered_mesh,
-        centerMesh=False,
-        orientation=surface.orientation,
-        tolerance=surface.tolerance,
-        onDirection=surface.onDirection,
-        name=surface.name,
-    )
+    points, _ = trimesh.sample.sample_surface(filtered_mesh, 20)
+    inside = volume.mesh.contains(points)
 
-    # Try a small bounded number of samples from the filtered surface before
-    # rejecting this attempt.
-    for _ in range(20):
-        point = filtered_surface.uniformPointInner()
-        if volume._trueContainsPoint(point):
-            return point
+    valid_points = points[inside]
+    if len(valid_points) > 0:
+        return Vector(*valid_points[0])
 
     raise RejectionException(f"sampling intersection of Regions {regs}")
 
