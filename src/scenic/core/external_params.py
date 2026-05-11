@@ -93,7 +93,7 @@ the sampler should account for. For example::
     param timeBound = 250
 
 This value can also be set directly in VerifAI via the ``maxSteps`` parameter to the
-`ScenicSampler`.
+``ScenicSampler``.
 
 For more information on how to customize the sampler, see `VerifaiSampler`.
 
