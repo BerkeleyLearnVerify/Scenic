@@ -571,7 +571,9 @@ def sampleSurfaceInVolume(intersection):
         raise RejectionException(f"sampling intersection of Regions {regs}")
 
     points, _ = trimesh.sample.sample_surface(filtered_mesh, 20)
-    inside = volume.mesh.contains(points)
+    pq = trimesh.proximity.ProximityQuery(volume.mesh)
+    signed_distances = pq.signed_distance(points)
+    inside = signed_distances >= -volume.tolerance
 
     valid_points = points[inside]
     if len(valid_points) > 0:
