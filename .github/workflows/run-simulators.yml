@@ -257,12 +257,17 @@ jobs:
           commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
           #!/bin/bash
           sudo -u ubuntu -H bash -lc '
+            set -e
             cd /home/ubuntu/actions/Scenic &&
             source venv/bin/activate &&
-            carla_versions=($(find /software -maxdepth 1 -type d -name "carla*")) &&
-            for version in "${carla_versions[@]}"; do
-              echo "============================= CARLA $version ============================="
-              export CARLA_ROOT="$version"
+            carla_roots=($(find /software -maxdepth 1 -type d -name "carla*" | sort -V)) &&
+            for carla_root in "${carla_roots[@]}"; do
+              carla_version="${carla_root#/software/carla}"
+              echo "============================= CARLA $carla_version ============================="
+              export CARLA_ROOT="$carla_root"
+              echo "Using CARLA_ROOT=$CARLA_ROOT"
+              echo "Installing Python CARLA API carla==$carla_version"
+              python3 -m pip install --force-reinstall "carla==$carla_version"
               pytest tests/simulators/carla
             done
           '
