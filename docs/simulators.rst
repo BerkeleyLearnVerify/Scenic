@@ -128,7 +128,7 @@ Once CARLA is running, you can run dynamic Scenic scenarios following the instru
    - All ``examples/carla`` scenarios now support both CARLA 0.9.x and 0.10.0.  
    - Only the **Town10HD_Opt** map is available in 0.10.0.  
    - The 0.10.0 blueprint library is different (for example, bicycle blueprints are currently unavailable).
-   - There are some differences in physics in 0.10.0 (for example, pedestrians movement is slower). 
+   - There are some differences in physics in 0.10.0 (for example, car and pedestrian movement is slower). 
 
 
 Grand Theft Auto V

@@ -35,7 +35,7 @@ PED_MIN_SPEED = 1.0
 PED_THRESHOLD = 20
 
 param SAFETY_DIST = VerifaiRange(10, 15)
-BUFFER_DIST = 75
+BUFFER_DIST = 50
 CRASH_DIST = 5
 TERM_DIST = 50
 
@@ -82,7 +82,7 @@ ped = new Pedestrian right of spawnPt by 3,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)
 
-adv = new Car left of advSpawnPt by 3,
+adv = new Car left of advSpawnPt by 7,
     with blueprint MODEL,
     with heading 180 deg relative to spawnPt.heading,
     with behavior AdvBehavior()
