@@ -15,6 +15,7 @@ from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.propositions import Atomic, PropositionNode
+from scenic.core.regions import MeshSurfaceRegion, PolygonalRegion
 import scenic.syntax.relations as relations
 
 

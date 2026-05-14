@@ -10,7 +10,10 @@ import scenic.domains.driving.model as _model
 from scenic.domains.driving.roads import ManeuverType
 
 def concatenateCenterlines(centerlines=[]):
-    return PolylineRegion.unionAll(centerlines)
+    if isinstance(centerlines[0], PathRegion):
+        return PathRegion(polylines=centerlines)
+    else:
+        return PolylineRegion.unionAll(centerlines)
 
 behavior ConstantThrottleBehavior(x):
     while True:
@@ -131,9 +134,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             target_speed = original_target_speed
             _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
-        nearest_line_points = current_centerline.nearestSegmentTo(self.position)
-        nearest_line_segment = PolylineRegion(nearest_line_points)
-        cte = nearest_line_segment.signedDistanceTo(self.position)
+        cte = current_centerline.signedDistanceTo(self.position)
         if is_oppositeTraffic:
             cte = -cte
 
@@ -213,7 +214,7 @@ behavior TurnBehavior(trajectory, target_speed=6):
     it will terminate if the vehicle is outside of an intersection.
     """
 
-    if isinstance(trajectory, PolylineRegion):
+    if isinstance(trajectory, PolylineRegion) or isinstance(trajectory, PathRegion):
         trajectory_centerline = trajectory
     else:
         trajectory_centerline = concatenateCenterlines([traj.centerline for traj in trajectory])

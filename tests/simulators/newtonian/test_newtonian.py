@@ -43,7 +43,7 @@ def test_gif_creation(loadLocalScenario):
     scenario = loadLocalScenario("driving.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=1000)
     path = Path("assets") / "maps" / "CARLA" / "Town01.xodr"
-    network = Network.fromFile(path)
+    network = Network.fromFile(path, use2DMap=True)
     simulator = NewtonianSimulator(render=True, network=network, export_gif=True)
     simulation = simulator.simulate(scene, maxSteps=100)
     gif_path = Path("") / "simulation.gif"

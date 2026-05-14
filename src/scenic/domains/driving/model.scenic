@@ -17,12 +17,18 @@ If you are writing a generic scenario that supports multiple maps, you may leave
 ``map`` parameter undefined; then running the scenario will produce an error unless the
 user uses the :option:`--param` command-line option to specify the map.
 
-The ``use2DMap`` global parameter determines whether or not maps are generated in 2D. Currently
-3D maps are not supported, but are under development. By default, this parameter is `False`
-(so that future versions of Scenic will automatically use 3D maps), unless
-:ref:`2D compatibility mode` is enabled, in which case the default is `True`. The parameter
-can be manually set to `True` to ensure 2D maps are used even if the scenario is not compiled
-in 2D compatibility mode.
+Both 2D and 3D road networkd are now fully supported. The ``use2DMap`` global parameter 
+determines whether or not maps are generated in 2D or 3D. By default, this parameter is 
+`False` (so that 3D maps are used by default), unless :ref:`2D compatibility mode` is enabled, 
+in which case the default is `True`. The parameter can be manually set to `True` to ensure 2D 
+maps are used even if the scenario is not compiled in 2D compatibility mode.
+
+.. note::
+
+    3D road network support is now fully implemented. When ``use2DMap`` is `False`, road
+    geometry, object placement, and region queries will use full 3D coordinates, including
+    elevation (Z) values. This allows for more realistic scenarios with varying terrain
+    heights and complex road structures.
 
 
 .. note::
@@ -47,6 +53,8 @@ from scenic.core.sensors import Sensor
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
+from scenic.core.vectors import Vector
+
 ## 2D mode flag & checks
 
 def is2DMode():
@@ -58,21 +66,16 @@ param use2DMap = True if is2DMode() else False
 if is2DMode() and not globalParameters.use2DMap:
     raise RuntimeError('in 2D mode, global parameter "use2DMap" must be True')
 
-# Note: The following should be removed when 3D maps are supported
-if not globalParameters.use2DMap:
-    raise RuntimeError('3D maps not supported at this time.'
-        '(to use 2D maps set global parameter "use2DMap" to True)')
-
 ## Load map and set up workspace
 
 if 'map' not in globalParameters:
     raise RuntimeError('need to specify map before importing driving model '
                        '(set the global parameter "map")')
 param map_options = {}
-
+options = {**globalParameters.map_options, "use2DMap": globalParameters.use2DMap}
 #: The road network being used for the scenario, as a `Network` object.
-network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
-
+#network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
+network : Network = Network.fromFile(globalParameters.map, **options)
 workspace = DrivingWorkspace(network)
 
 ## Various useful objects and regions
@@ -102,6 +105,27 @@ intersection : Region = network.intersectionRegion
 #: traffic directions, the choice is arbitrary. At such points, the function
 #: `Network.nominalDirectionsAt` can be used to get all nominal directions.
 roadDirection : VectorField = network.roadDirection
+
+# --- Placement helper ---
+
+def centerOnSurface(surfaceRegion, baseOffset, contactTolerance):
+    """Return an object-center position resting on a surface region.
+
+    Samples a contact point on the surface, then offsets to the object's center using
+    baseOffset/contactTolerance. The offset is rotated by the surface orientation so it
+    behaves correctly on sloped surfaces.
+
+    In 2D compatibility mode (`mode2D`), everything is treated as flat, so we return the
+    sampled contact point.
+    """
+    contactPoint = Region.uniformPointIn(surfaceRegion)  
+    if is2DMode():
+        return contactPoint
+
+    offset = Vector(0, 0, contactTolerance / 2) - baseOffset
+    elem = network.elementAt(contactPoint) 
+    surfaceOrientation = elem.orientation[contactPoint]    
+    return contactPoint + offset.rotatedBy(surfaceOrientation)
 
 ## Standard object types
 
@@ -283,13 +307,14 @@ class Vehicle(DrivingObject):
             distribution derived from car color popularity statistics; see
             :obj:`Color.defaultCarColor`.
     """
-    regionContainedIn: roadOrShoulder
-    position: new Point on road
+    regionContainedIn: roadOrShoulder.boundingPolygon # Change region to bounding polygon region
+    position: centerOnSurface(road, self.baseOffset, self.contactTolerance)
     parentOrientation: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
     length: 4.5
+    height: 2.5 # default height;
     color: Color.defaultCarColor()
 
     @property
@@ -319,11 +344,12 @@ class Pedestrian(DrivingObject):
             used by simulators, but do appear in the debugging diagram.
     """
     regionContainedIn: network.walkableRegion
-    position: new Point on network.walkableRegion
+    position: centerOnSurface(network.walkableRegion, self.baseOffset, self.contactTolerance)
     parentOrientation: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     length: 0.75
+    height: 2.0
     color: [0, 0.5, 1]
 
 ## Stub sensor implementations
