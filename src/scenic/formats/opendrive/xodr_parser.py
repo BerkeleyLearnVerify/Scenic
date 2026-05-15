@@ -1500,7 +1500,7 @@ class RoadMap:
                     raise ValueError(f"planView of road {road.id_} is not in order")
 
                 lastS0, x0, y0, hdg, length, curve_elem = lastCurve
-                if abs(length - l) > 1e-4:
+                if abs(length - l) > 1e-3:
                     warn(
                         f"planView of road {road.id_} has inconsistent length: "
                         f"geometry at s={lastS0} has declared length {length}, "
