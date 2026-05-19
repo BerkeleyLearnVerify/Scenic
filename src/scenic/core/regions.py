@@ -1503,7 +1503,11 @@ class MeshVolumeRegion(MeshRegion):
             if slice_3d is None:
                 return nowhere
 
-            slice_2d, _ = slice_3d.to_2D(to_2D=numpy.eye(4))
+            try:
+                slice_2d, _ = slice_3d.to_2D(to_2D=numpy.eye(4))
+            except:
+                slice_2d, _ = slice_3d.to_planar(to_2D=numpy.eye(4))
+
             polygons = MultiPolygon(slice_2d.polygons_full) & other.polygons
 
             if polygons.is_empty:

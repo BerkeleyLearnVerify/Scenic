@@ -403,7 +403,10 @@ class Orientation:
 if sys.version_info >= (3, 11):
 
     def _getEulerAngles(rotation, axes, degrees=False):
-        return rotation.as_euler(axes, degrees=degrees, suppress_warnings=True)
+        try:
+            return rotation.as_euler(axes, degrees=degrees, suppress_warnings=True)
+        except:
+            return rotation.as_euler(axes, degrees=degrees)
 
 else:
 
