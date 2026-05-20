@@ -414,19 +414,14 @@ class Road:
         transition_points = [sec.s0 for sec in self.lane_secs[1:]]
         last_s = 0
         for piece in self.ref_line:
-            # INVESTIGATE HERE (transition_points strange behavior)
-            # if self.id_ == 18:
-            #     breakpoint()
             target_transition_points = [
                 s - last_s for s in transition_points if s >= last_s
             ]
             piece_points = piece.to_points(num, extra_points=target_transition_points)
-
             assert piece_points, "Failed to get piece points"
-
             piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points]
             ref_points.append(piece_points)
-            last_s = ref_points[-1][-1][2]
+            last_s = piece_points[-1][2]
 
         return ref_points
 
