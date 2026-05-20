@@ -57,8 +57,11 @@ def getCarlaSimulator(getAssetPath):
             else "CarlaUE4-Linux-Shipping"
         )
 
+        # CARLA 0.10.0/UE5 can be slow or fail to start on the first launch in CI.
+        # Low quality reduces rendering load and has made startup more reliable.
         carla_process = subprocess.Popen(
-            f"bash {CARLA_ROOT / ue_script} -RenderOffScreen", shell=True
+            f"bash {CARLA_ROOT / ue_script} -RenderOffScreen -quality-level=Low",
+            shell=True,
         )
 
         for _ in range(600):
@@ -68,15 +71,12 @@ def getCarlaSimulator(getAssetPath):
         else:
             pytest.fail("Unable to connect to CARLA.")
 
-        # Extra 5 seconds to ensure server startup
+        # Extra 10 seconds to ensure server startup
         time.sleep(10)
 
     base = getAssetPath("maps/CARLA")
 
-    def _getCarlaSimulator(town=None):
-        if town is None:
-            town = "Town10HD_Opt" if is_carla_0_10 else "Town01"
-
+    def _getCarlaSimulator(town):
         path = os.path.join(base, f"{town}.xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=180)
         return simulator, town, path
@@ -88,7 +88,7 @@ def getCarlaSimulator(getAssetPath):
 
 
 def test_throttle(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -112,7 +112,7 @@ def test_throttle(getCarlaSimulator):
 
 
 def test_brake(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -146,7 +146,7 @@ def test_brake(getCarlaSimulator):
 
 
 def test_reverse(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -174,7 +174,7 @@ def test_reverse(getCarlaSimulator):
 
 
 def test_steer(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -204,7 +204,7 @@ def test_steer(getCarlaSimulator):
 
 
 def test_track_waypoints(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     target_speed = 6.0
 
     code = f"""
@@ -215,7 +215,7 @@ def test_track_waypoints(getCarlaSimulator):
         model scenic.simulators.carla.model
 
         # Short straight segment, starting from a known-good spawn point.
-        waypoints = [(-2, -13), (-2, -23), (-2, -33)]
+        waypoints = [(62, 68), (52, 68), (42, 68)]
 
         behavior FollowPath():
             while True:

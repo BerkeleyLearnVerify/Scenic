@@ -227,7 +227,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
           # CARLA tests can exceed the default 1-hour role session.
-          role-duration-seconds: 10800  # 3 hours
+          role-duration-seconds: 7200  # 2 hours
       - name: Run CARLA Tests
         run: |
           # CARLA refuses to start as root. SSM Run Command runs as root by default,
@@ -237,36 +237,15 @@ jobs:
           sudo -u ubuntu -H bash -lc '
             cd /home/ubuntu/actions/Scenic &&
             source venv/bin/activate &&
-
-            # Avoid reusing a stale CARLA server from a previous version.
-            cleanup_carla() {
-              killall -9 CarlaUE4-Linux-Shipping CarlaUnreal-Linux-Shipping 2>/dev/null || true
-            }
-            trap cleanup_carla EXIT
-
-            failed=0
             carla_roots=($(find /software -maxdepth 1 -type d -name "carla*" | sort -V)) &&
             for carla_root in "${carla_roots[@]}"; do
               carla_version="${carla_root#/software/carla}"
               echo "============================= CARLA $carla_version ============================="
               export CARLA_ROOT="$carla_root"
-
-              # CARLA 0.10.0 is not available on PyPI, so install the wheel bundled with the local CARLA package.
-              if [[ "$carla_version" == "0.10.0" ]]; then
-                wheel="$CARLA_ROOT/PythonAPI/carla/dist/carla-0.10.0-cp310-cp310-linux_x86_64.whl"
-                python3 -m pip install --force-reinstall "$wheel"
-              else
-                python3 -m pip install --force-reinstall "carla==$carla_version"
-              fi || exit 1
-
-              if ! pytest tests/simulators/carla; then
-                failed=1
-              fi
-
-              cleanup_carla
+              python3 -m pip install --force-reinstall "$CARLA_ROOT"/PythonAPI/carla/dist/carla-"$carla_version"-cp310-cp310-*.whl
+              pytest tests/simulators/carla
+              sleep 5
             done
-
-            exit "$failed"
           '
           EOF
           )

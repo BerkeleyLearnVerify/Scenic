@@ -59,7 +59,7 @@ def model_blueprint(simulator, mapPath, town, modelType, modelName):
         param time_step = 1.0/10
 
         model scenic.simulators.carla.model
-        ego = new {modelType} at (-103.2, 37.6), 
+        ego = new {modelType} at (-103.2, 37.6),
               with blueprint '{modelName}',
               with regionContainedIn None
         terminate after 1 steps
@@ -73,5 +73,5 @@ def model_blueprint(simulator, mapPath, town, modelType, modelName):
 
 @pytest.mark.parametrize("modelType, modelName", PARAMS)
 def test_model_blueprints(getCarlaSimulator, modelType, modelName):
-    simulator, town, mapPath = getCarlaSimulator()
+    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
     model_blueprint(simulator, mapPath, town, modelType, modelName)
