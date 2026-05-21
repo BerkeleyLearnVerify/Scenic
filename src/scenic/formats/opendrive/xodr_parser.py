@@ -278,8 +278,8 @@ class Lane:
         assert self.width[ind][1] <= s, "No matching width entry found."
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
-        if w < -1e-6:  # allow for numerical error
-            raise RuntimeError("OpenDRIVE lane has negative width")
+        if w < -1e-3:  # allow for numerical error
+            warn("OpenDRIVE lane has negative width; clamping to zero")
         return max(w, 0)
 
 
@@ -383,7 +383,6 @@ class Road:
         # List of lane polygons. Not a dict b/c lane id is not unique along road.
         self.lane_polys = []
         # Each polygon in lane_polys is the union of connected lane section polygons.
-        # lane_polys is currently not used.
         # Reference line offset:
         self.offset = []  # List of tuple (Poly3, s-coordinate).
         self.drive_on_right = drive_on_right
@@ -512,7 +511,9 @@ class Road:
 
                         if len(bounds) < 3:
                             continue
-                        poly = cleanPolygon(Polygon(bounds), tolerance)
+                        poly = Polygon(bounds)
+                        if not poly.is_valid:
+                            poly = cleanPolygon(poly, tolerance)
                         if not poly.is_empty:
                             if poly.geom_type == "MultiPolygon":
                                 poly = MultiPolygon(
@@ -578,6 +579,23 @@ class Road:
                                 prev_id = id_ - 1
                             else:
                                 prev_id = id_ + 1
+
+                            if (
+                                offsets[id_] == offsets[prev_id]
+                                and id_ in left_bounds
+                                and left_bounds[id_][-1] == right_bounds[id_][-1]
+                            ):
+                                # Both the previous and current segments of this lane had
+                                # zero width; drop the former to avoid invalid polygons
+                                warn(
+                                    f"road {self.id_} section {i} lane {id_} has a "
+                                    "zero-width segment; skipping it"
+                                )
+                                left_bounds[id_].pop()
+                                right_bounds[id_].pop()
+                                lane.left_bounds.pop()
+                                lane.right_bounds.pop()
+                                lane.centerline.pop()
                             left_bound = [
                                 cur_p[0] + normal_vec[0] * offsets[id_],
                                 cur_p[1] + normal_vec[1] * offsets[id_],
@@ -643,10 +661,13 @@ class Road:
                     polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
                     assert not polys[ids[i]].overlaps(polyB)
 
-        for i in range(len(lane_polys) - 1):
-            if lane_polys[i].overlaps(lane_polys[i + 1]):
-                lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
-                assert not lane_polys[i].overlaps(lane_polys[i + 1])
+        for i in range(len(lane_polys)):
+            # TODO do this later when we have lane adjacency information to avoid
+            # considering all possible pairs
+            for j in range(i):
+                if lane_polys[i].overlaps(lane_polys[j]):
+                    lane_polys[i] = lane_polys[i].difference(lane_polys[j]).buffer(-1e-6)
+                    assert not lane_polys[i].overlaps(lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
