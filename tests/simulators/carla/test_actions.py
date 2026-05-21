@@ -57,19 +57,27 @@ def getCarlaSimulator(getAssetPath):
             else "CarlaUE4-Linux-Shipping"
         )
 
-        # CARLA 0.10.0/UE5 can be slow or fail to start on the first launch in CI.
-        # Low quality reduces rendering load and has made startup more reliable.
-        carla_process = subprocess.Popen(
-            f"bash {CARLA_ROOT / ue_script} -RenderOffScreen -quality-level=Low",
-            shell=True,
-        )
+        startup_attempts = 2 if is_carla_0_10 else 1
 
-        for _ in range(600):
-            if isCarlaServerRunning():
-                break
-            time.sleep(1)
-        else:
-            pytest.fail("Unable to connect to CARLA.")
+        # CARLA 0.10.0/UE5 can fail to start on the first try, so allow one retry before giving up.
+        for attempt in range(startup_attempts):
+            carla_process = subprocess.Popen(
+                f"bash {CARLA_ROOT / ue_script} -RenderOffScreen",
+                shell=True,
+            )
+
+            for _ in range(600):
+                if isCarlaServerRunning():
+                    break
+                time.sleep(1)
+            else:
+                if attempt + 1 < startup_attempts:
+                    print(f"CARLA failed to start on attempt {attempt + 1}, retrying...")
+                    continue
+
+                pytest.fail("Unable to connect to CARLA.")
+
+            break
 
         # Extra 10 seconds to ensure server startup
         time.sleep(10)

@@ -227,7 +227,8 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
           # CARLA tests can exceed the default 1-hour role session.
-          role-duration-seconds: 7200  # 2 hours
+          # Keep this longer than the SSM command timeout so we can still fetch logs if SSM times out.
+          role-duration-seconds: 9000  # 2.5 hours
       - name: Run CARLA Tests
         run: |
           # CARLA refuses to start as root. SSM Run Command runs as root by default,
@@ -237,24 +238,30 @@ jobs:
           sudo -u ubuntu -H bash -lc '
             cd /home/ubuntu/actions/Scenic &&
             source venv/bin/activate &&
+            failed=0 &&
             carla_roots=($(find /software -maxdepth 1 -type d -name "carla*" | sort -V)) &&
             for carla_root in "${carla_roots[@]}"; do
               carla_version="${carla_root#/software/carla}"
               echo "============================= CARLA $carla_version ============================="
               export CARLA_ROOT="$carla_root"
               python3 -m pip install --force-reinstall "$CARLA_ROOT"/PythonAPI/carla/dist/carla-"$carla_version"-cp310-cp310-*.whl
-              pytest tests/simulators/carla
+
+              if ! pytest tests/simulators/carla; then
+                failed=1
+              fi
               sleep 5
             done
+
+            exit "$failed"
           '
           EOF
           )
           # AWS-RunShellScript's executionTimeout defaults to 3600 seconds (1 hour).
-          # CARLA tests can take longer, so allow this SSM command to run for 3 hours.
+          # Limit the CARLA SSM command to 2 hours so it ends before the AWS role session expires.
           command_id=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
-            --parameters "commands=$commands,executionTimeout=10800" \
+            --parameters "commands=$commands,executionTimeout=7200" \
             --query 'Command.CommandId' \
             --output text)
           while true; do
