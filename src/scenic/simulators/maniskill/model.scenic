@@ -4,6 +4,8 @@ Global Parameters:
     render (bool): Whether to render the simulation in a window. If True, it will open
         a window and display the simulation. If False (default), the simulation runs headless.
     stride (int): Number of simulation steps between action updates. Default is 1.
+    shader_pack (str): ManiSkill shader pack to use for cameras. Default is "default".
+        Other ManiSkill shader packs such as "minimal" or "rt" can also be used.
 """
 
 try:
@@ -26,15 +28,17 @@ except ModuleNotFoundError:
 
 param render = False
 param stride = 1
+param shader_pack = "default"
 
 simulator ManiSkillSimulator(
     render=bool(globalParameters.render),
     stride=int(globalParameters.stride),
+    shader_pack=globalParameters.shader_pack,
 )
 
 class ManiskillObject(Object):
     """Base class for ManiSkill objects.
-    
+
     Properties:
         visualFilename (str or None): Path to a visual mesh file (e.g., .glb, .obj, .usdz).
         visualScale (tuple): Scale factor for the visual mesh as (x, y, z).
@@ -52,7 +56,7 @@ class ManiskillObject(Object):
 
 class Ground(ManiskillObject):
     """The default ground plane from ManiSkill.
-    
+
     This creates a large flat ground plane using ManiSkill's built-in ground builder.
     The ground is always kinematic (fixed in place).
     """
@@ -68,10 +72,10 @@ class Ground(ManiskillObject):
 
 class Robot(Object):
     """Robot object (Panda arm by default).
-    
+
     This class represents a robot in the scene. The robot is not physically generated
     in the scene (skipGeneration=True) but is used to configure the robot's initial state.
-    
+
     Properties:
         uuid (str): Robot type identifier. Default is "panda" for the Franka Emika Panda arm.
         jointAngles (list): Initial joint angles for the robot. If empty, uses a default configuration.
@@ -84,16 +88,17 @@ class Robot(Object):
 
 class Camera(OrientedPoint):
     """Camera configuration for the scene.
-    
+
     Cameras are not physical objects but define viewpoints for rendering and observation.
-    
+
     Properties:
         img_width (int): Image width in pixels. Default is 640.
         img_height (int): Image height in pixels. Default is 480.
         fov (float): Field of view in radians. Default is 1.0.
         near (float): Near clipping plane distance. Default is 0.01.
         far (float): Far clipping plane distance. Default is 100.0.
-        shader_pack (str): Shader pack to use for rendering. Default is "rt" (ray tracing).
+        shader_pack (str): Shader pack to use for rendering. Defaults to the global
+            ``shader_pack`` parameter, which is "default" unless overridden.
     """
     name: "camera"
     img_width: 640
@@ -101,5 +106,5 @@ class Camera(OrientedPoint):
     fov: 1.0
     near: 0.01
     far: 100.0
-    shader_pack: "rt"
+    shader_pack: globalParameters.shader_pack
     skipGeneration: True  # Don't generate this as a physical object

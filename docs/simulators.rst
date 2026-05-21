@@ -129,19 +129,37 @@ ManiSkill
 ---------
 
 Scenic supports integration with the `ManiSkill <https://maniskill.readthedocs.io/>`_
-simulator as an optional dependency, enabling users to describe robotic scenarios.
+simulator as an optional dependency, enabling users to describe robotic manipulation
+scenarios. The current interface is still in an early stage of
+development. Example scenarios can be found in :file:`examples/maniskill`,
+including :file:`stacked_cubes.scenic` and :file:`robot_arm.scenic`.
 
 You can install it with:
 
 .. code-block:: console
 
-    python -m pip install scenic[maniskill]
+    python -m pip install "scenic[maniskill]"
+
+The current interface supports scenes with no robot or a single robot.
+Multiple robots are not yet supported.
 
 .. note::
 
-   ManiSkill currently best supports Linux systems. On Windows and macOS, ManiSkill has
-   limited support. On macOS, additional setup may be required. See the
-   `ManiSkill installation instructions <https://maniskill.readthedocs.io/en/latest/user_guide/getting_started/installation.html>`_.
+   ManiSkill currently works best on Linux. On macOS, additional setup is
+   typically required, including Vulkan setup. macOS currently supports CPU
+   simulation, but GPU simulation is not supported.
+
+   macOS users may also need to install the Pinocchio Python package:
+
+   .. code-block:: console
+
+      python -m pip install pin
+
+   See the official
+   `ManiSkill installation instructions <https://maniskill.readthedocs.io/en/latest/user_guide/getting_started/installation.html>`_
+   and
+   `macOS installation guide <https://maniskill.readthedocs.io/en/latest/user_guide/getting_started/macos_install.html>`_
+   for platform-specific setup details.
 
 For more information, refer to the documentation of the
 `scenic.simulators.maniskill` module.

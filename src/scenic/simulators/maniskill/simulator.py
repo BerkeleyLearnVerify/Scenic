@@ -43,12 +43,14 @@ class ScenicEnv(BaseEnv):
         robot_uids="none",
         objects_to_create=[],
         camera_configs=None,
+        shader_pack="default",
         **kwargs,
     ):
         self.robot_uids = robot_uids
         self.scenic_objects = {}
         self.objects_to_create = objects_to_create
         self.scene_camera_configs = camera_configs
+        self.shader_pack = shader_pack
         super().__init__(*args, robot_uids=robot_uids, **kwargs)
 
     @property
@@ -71,7 +73,7 @@ class ScenicEnv(BaseEnv):
                 fov=1.0,
                 near=0.01,
                 far=100.0,
-                shader_pack="rt",
+                shader_pack=self.shader_pack,
             )
         ]
 
@@ -231,15 +233,20 @@ if not buildingScenicDocumentation():
 class ManiSkillSimulator(Simulator):
     """Simulator interface for ManiSkill."""
 
-    def __init__(self, render=False, stride=1):
+    def __init__(self, render=False, stride=1, shader_pack="default"):
         super().__init__()
         self.last_simulation = None
         self.render = render
         self.stride = stride
+        self.shader_pack = shader_pack
 
     def createSimulation(self, scene, **kwargs):
         self.last_simulation = ManiSkillSimulation(
-            scene, render=self.render, stride=self.stride, **kwargs
+            scene,
+            render=self.render,
+            stride=self.stride,
+            shader_pack=self.shader_pack,
+            **kwargs,
         )
         return self.last_simulation
 
@@ -247,7 +254,16 @@ class ManiSkillSimulator(Simulator):
 class ManiSkillSimulation(Simulation):
     """Simulation interface for ManiSkill."""
 
-    def __init__(self, scene, *, timestep=None, render=False, stride=1, **kwargs):
+    def __init__(
+        self,
+        scene,
+        *,
+        timestep=None,
+        render=False,
+        stride=1,
+        shader_pack="default",
+        **kwargs,
+    ):
         self.env: Optional[gym.Env] = None
         self._done = False
         self._obs = None
@@ -260,6 +276,7 @@ class ManiSkillSimulation(Simulation):
         self.stride = stride
         self.stride_idx = 0
         self.step_count = 0
+        self.shader_pack = shader_pack
 
         # Should it be headless (false) or render (true)?
         self.render = render
@@ -299,6 +316,7 @@ class ManiSkillSimulation(Simulation):
             render_mode=render_mode,
             objects_to_create=self.objects_to_create,
             camera_configs=self.camera_configs,
+            shader_pack=self.shader_pack,
         )
 
         self.step_count = 0
@@ -332,12 +350,12 @@ class ManiSkillSimulation(Simulation):
                 camera_config = CameraConfig(
                     obj.name,
                     pose,
-                    width=getattr(obj, "width", 640),
-                    height=getattr(obj, "height", 480),
+                    width=getattr(obj, "img_width", 640),
+                    height=getattr(obj, "img_height", 480),
                     fov=getattr(obj, "fov", 1.0),
                     near=getattr(obj, "near", 0.01),
                     far=getattr(obj, "far", 100.0),
-                    shader_pack=getattr(obj, "shader_pack", "rt"),
+                    shader_pack=getattr(obj, "shader_pack", self.shader_pack),
                 )
 
                 self.camera_configs.append(camera_config)
@@ -375,7 +393,7 @@ class ManiSkillSimulation(Simulation):
         if self.render:
             viewer = self.env.unwrapped.viewer
 
-            # If the GUI window has already been closed, stop the Scenic simulation cleanly.
+            # If the GUI window has already been closed, stop the simulation cleanly.
             if viewer is not None and viewer.closed:
                 self.screen = "Dead"
                 return
