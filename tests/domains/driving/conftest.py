@@ -45,4 +45,14 @@ def network(cached_maps, pytestconfig):
     else:
         path = mapFolder / "CARLA" / "Town03.xodr"
     path = cached_maps[str(path)]
-    return Network.fromFile(path)
+    return Network.fromFile(path, use2DMap=True)
+
+
+@pytest.fixture(scope="session")
+def network3D(cached_maps, pytestconfig):
+    if pytestconfig.getoption("--fast", False):
+        path = mapFolder / "CARLA" / "Town01.xodr"
+    else:
+        path = mapFolder / "CARLA" / "Town03.xodr"
+    path = cached_maps[str(path)]
+    return Network.fromFile(path, use2DMap=False)
