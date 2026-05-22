@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <OpenDRIVE>
+  <!-- One-way road with shoulders on both sides, plus splits/merges -->
   <road name="Road 1" length="25.0" id="1" junction="-1">
     <planView>
       <geometry s="0.0" x="0.0" y="0.0" hdg="0.0" length="25.0">
@@ -104,6 +105,54 @@
             <width sOffset="0.0" a="1.0" b="0.0" c="0.0" d="0.0"/>
             <link>
               <predecessor id="-4"/>
+            </link>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+  <!-- Road with shoulder that links to a lane of a different type -->
+  <road name="Road 2" length="10.0" id="2" junction="-1">
+    <planView>
+      <geometry s="0.0" x="0.0" y="100.0" hdg="0.0" length="10.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <link>
+              <successor id="-1"/>
+            </link>
+          </lane>
+          <lane id="-2" type="shoulder">
+            <width sOffset="0.0" a="1.0" b="0.0" c="0.0" d="0.0"/>
+            <link>
+              <successor id="-2"/>
+            </link>
+          </lane>
+        </right>
+      </laneSection>
+      <laneSection s="5.0">
+        <center>
+          <lane id="0" type="none"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <link>
+              <predecessor id="-1"/>
+            </link>
+          </lane>
+          <lane id="-2" type="restricted">
+            <width sOffset="0.0" a="1.0" b="0.0" c="0.0" d="0.0"/>
+            <link>
+              <predecessor id="-2"/>
             </link>
           </lane>
         </right>

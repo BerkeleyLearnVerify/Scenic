@@ -38,6 +38,20 @@ def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 
+def separate(polyA, polyB):
+    if not polyA.overlaps(polyB):
+        return polyA, polyB
+
+    # Shrink the larger polygon to try to avoid losing fiddly bits
+    if polyA.area >= polyB.area:
+        polyA = polyA.difference(polyB).buffer(-1e-6)
+    else:
+        polyB = polyB.difference(polyA).buffer(-1e-6)
+
+    assert not polyA.overlaps(polyB)
+    return polyA, polyB
+
+
 class Poly3:
     """Cubic polynomial."""
 
@@ -152,7 +166,10 @@ class ParamCubic(Curve):
 
     def point_at(self, s):
         root_func = lambda x: self.arclength(x) - s
-        p = float(brentq(root_func, 0, self.p_range))
+        # we expand the upper bound slightly to ensure a zero is bracketed even
+        # with numerical error
+        p = float(brentq(root_func, 0, self.p_range + 1e-9))
+        p = min(p, self.p_range)
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
 
@@ -656,30 +673,20 @@ class Road:
 
         # Difference and slightly erode all overlapping polygons
         for i in range(len(sec_polys) - 1):
-            if sec_polys[i].overlaps(sec_polys[i + 1]):
-                sec_polys[i] = sec_polys[i].difference(sec_polys[i + 1]).buffer(-1e-6)
-                assert not sec_polys[i].overlaps(sec_polys[i + 1])
+            sec_polys[i], sec_polys[i + 1] = separate(sec_polys[i], sec_polys[i + 1])
 
         for polys in sec_lane_polys:
             ids = sorted(polys)  # order adjacent lanes consecutively
             for i in range(len(ids) - 1):
-                polyA, polyB = polys[ids[i]], polys[ids[i + 1]]
-                if polyA.overlaps(polyB):
-                    polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
-                    assert not polys[ids[i]].overlaps(polyB)
+                polys[ids[i]], polys[ids[i + 1]] = separate(
+                    polys[ids[i]], polys[ids[i + 1]]
+                )
 
         for i in range(len(lane_polys)):
             # TODO do this later when we have lane adjacency information to avoid
             # considering all possible pairs
             for j in range(i):
-                pi, pj = lane_polys[i], lane_polys[j]
-                if pi.overlaps(pj):
-                    # Shrink the larger polygon to try to avoid losing fiddly bits
-                    if pi.area >= pj.area:
-                        lane_polys[i] = pi.difference(pj).buffer(-1e-6)
-                    else:
-                        lane_polys[j] = pj.difference(pi).buffer(-1e-6)
-                    assert not lane_polys[i].overlaps(lane_polys[j])
+                lane_polys[i], lane_polys[j] = separate(lane_polys[i], lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
@@ -846,6 +853,9 @@ class Road:
                     break
                 if len(section) != leftmost - rightmost + 1:
                     warn(f"ignoring {name} in the middle of road {self.id_}")
+                if leftmost not in section or rightmost not in section:
+                    # can happen if successor has a different lane type
+                    break
                 if leftmost < 0:
                     leftmost = rightmost
                     allPolys.append(section[leftmost].poly)
