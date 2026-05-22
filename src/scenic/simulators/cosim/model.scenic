@@ -1,10 +1,12 @@
 import pathlib
 from scenic.simulators.carla.model import Vehicle, is2DMode
 
-
 import scenic.simulators.carla.blueprints as blueprints
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
+
+from .utils.CoSimActions import *
+from .utils.scenarios import *
 
 from scenic.simulators.metsr.traffic_flows import *
 
@@ -36,8 +38,6 @@ simulator CosimSimulator(
     )
 
 param startTime = 6*60*60
-param timestep = 1
-param simTimestep = 0.1
 param verbose=False
 
 """
@@ -59,22 +59,66 @@ class Car(Vehicle):
     blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
     """
     blueprint: Uniform(*blueprints.carModels)
-    trajectory: None  # Set a trajectory for Carla autopilot
+
     origin: -1
     destination: -1
-    
+
     @property
     def isCar(self):
         return True
 
+behavior FollowRandomRoute():
+    """
+    Object will follow a random route starting from its 
+    spawn position to a random target road. Low level controls will be handled 
+    via the METSR driving module and CARLA autopilot
+
+    NOTE: Random route behaviors are restricted to non-ego vehicles 
+          This is due to the fact that CARLA may remove deadlocked or
+          non-moving vehicles from the simulation
+    """
+    while True:
+        take SetAutoPilotAction()
+    
 
 class EgoCar(Car):
     """
-    Special class for Ego 
+    Car which defines the corresponding bubble location 
+    based on its current position
     """
-    carla_actor_flag: True
-    behavior: DriveAvoidingCollisions(target_speed=15, avoidance_threshold=12)
-    interrupt: False
+    carla_actor_flag = True
+    behavior: DriveAvoidingCollisions()
+
+
+class NPCCar(Car, BackgroundDriver):
+    """
+    A Non-Ego vehicle which has no effect on the defined bubble region
+
+    :param carla_actor_flag: Dynamic flag representing vehicles presence in the
+                             Cosimluated region. This flag will be set internally and should
+                             not be modifed 
+    :type: carla_actor_flag: bool
+
+    :param behavior: Actor behavior
+    :type behavior: Scenic Behavior
+    """
+    carla_actor_flag = False
+    behavior: FollowRandomRoute()
+
+
+behavior CustomBubbleBehavior():
+    """
+    Object will follow a random route starting at
+    the origin zone and ending in the destination zone.
+    If the object enters the bubble then it will envoke 
+    followLaneBehavior or any general CARLA behavior
+    """    
+    while True:
+        if self.carla_actor_flag:
+            do FollowLaneBehavior()
+        else:
+            do FollowRandomRoute()
+
 
 
 behavior EgoAttack():
@@ -86,56 +130,9 @@ behavior EgoAttack():
         else:
             wait
 
-
-class NPCCar(Car):
-    """
-    An NPC car
-    """
-    finished_route_check: False
-    destination: -1
-    origin: -1
-    carla_actor_flag: False
-
 def currentTOD():
     return (simulation().currentTime * simulation().timestep + globalParameters.startTime)%_DAY_MOD
 
-
-scenario GeneratePrivateTrip(origin, destination, name=None):
-    if name != None:
-        new NPCCar with origin origin, with destination destination, with name name
-    else:
-        new NPCCar with origin origin, with destination destination
-    terminate after 1 steps
-
-scenario TrafficStream(origin, destination, traffic_flow):
-    compose:
-        while True:
-            raw_prob_spawn = traffic_flow.expected_vehs(
-                currentTOD(), currentTOD()+simulation().timestep)
-            if raw_prob_spawn < 0 or raw_prob_spawn > 1:
-                warnings.warn(f"raw_prob_spawn (={raw_prob_spawn}) fell outside [0,1] and will be clamped.")
-            prob_spawn = min(1, max(raw_prob_spawn, 0))
-            if Range(0,1) < prob_spawn:
-                do GeneratePrivateTrip(origin, destination)
-            else:
-                wait
-
-scenario ConstantTrafficStream(origin, destination, num_vehicles, stime=None, etime=None):
-    compose:
-        tf = ConstantTrafficFlow(num_vehicles, stime, etime)
-        do TrafficStream(origin, destination, tf)
-
-scenario NormalTrafficStream(origin, destination, num_vehicles, peak_time, stddev):
-    compose:
-        tf = NormalTrafficFlow(num_vehicles, peak_time, stddev)
-        do TrafficStream(origin, destination, tf)
-
-scenario CommuterTrafficStream(origin, destination, num_vehicles, 
-    peak_time_1, peak_time_2, stddev):
-    compose:
-        tf1 = NormalTrafficFlow(num_vehicles, peak_time_1, stddev)
-        tf2 = NormalTrafficFlow(num_vehicles, peak_time_2, stddev)
-        do TrafficStream(origin, destination, tf1), TrafficStream(destination, origin, tf2)
 
 
 
