@@ -143,10 +143,11 @@ def test_planview_must_be_in_order(tmp_path):
 def test_make_curve_poly3():
     curve_elem = ET.fromstring('<poly3 a="0.0" b="1.0" c="0.0" d="0.0"/>')
 
-    curve = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
+    curve, susp = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
 
     assert isinstance(curve, Cubic)
     assert curve.length == pytest.approx(10.0)
+    assert not susp
 
 
 def test_make_curve_param_poly3():
@@ -155,10 +156,11 @@ def test_make_curve_param_poly3():
         'aV="0.0" bV="0.0" cV="0.0" dV="0.0" pRange="normalized"/>'
     )
 
-    curve = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
+    curve, susp = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
 
     assert isinstance(curve, ParamCubic)
     assert curve.length == pytest.approx(10.0)
+    assert not susp
 
 
 def test_make_curve_param_poly3_rejects_arc_length():
