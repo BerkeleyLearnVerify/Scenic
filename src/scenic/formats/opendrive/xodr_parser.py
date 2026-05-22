@@ -292,6 +292,7 @@ class Lane:
         self.left_bounds = []  # to be filled in later
         self.right_bounds = []
         self.centerline = []
+        self.poly = None
         self.parent_lane_poly = None
 
     def width_at(self, s):
@@ -534,23 +535,29 @@ class Road:
                         bounds = left + right
 
                         if len(bounds) < 3:
+                            warn(
+                                f"road {self.id_} section {i} lane {id_} is "
+                                "entirely zero-width; skipping it"
+                            )
                             continue
                         poly = Polygon(bounds)
                         if not poly.is_valid:
                             poly = cleanPolygon(poly, tolerance)
-                        if not poly.is_empty:
-                            if poly.geom_type == "MultiPolygon":
-                                poly = MultiPolygon(
-                                    [
-                                        p
-                                        for p in poly.geoms
-                                        if not p.is_empty and p.exterior
-                                    ]
+                            if poly.is_empty:
+                                warn(
+                                    f"could not generate polygon for road {self.id_} "
+                                    f"section {i} lane {id_}; skipping it"
                                 )
-                                cur_sec_polys.extend(poly.geoms)
-                            else:
-                                cur_sec_polys.append(poly)
-                            cur_sec_lane_polys[id_].append(poly)
+                                continue
+                        assert not poly.is_empty
+                        if poly.geom_type == "MultiPolygon":
+                            poly = MultiPolygon(
+                                [p for p in poly.geoms if not p.is_empty and p.exterior]
+                            )
+                            cur_sec_polys.extend(poly.geoms)
+                        else:
+                            cur_sec_polys.append(poly)
+                        cur_sec_lane_polys[id_].append(poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
                         if i == 0 or not self.start_bounds_left:
@@ -823,11 +830,15 @@ class Road:
 
             fss, bss = {}, {}
             for id_, lane in sec.sidewalk_lanes.items():
+                if lane.poly is None:  # skip if we could not generate polygon
+                    continue
                 (fss if id_ < 0 else bss)[id_] = lane
             forwardSidewalks.append(fss)
             backwardSidewalks.append(bss)
             fss, bss = {}, {}
             for id_, lane in sec.shoulder_lanes.items():
+                if lane.poly is None:
+                    continue
                 (fss if id_ < 0 else bss)[id_] = lane
             forwardShoulders.append(fss)
             backwardShoulders.append(bss)
@@ -1332,8 +1343,7 @@ class RoadMap:
                             b_bounds_right[other_id],
                         ]
                     ).convex_hull
-                    if not gap_poly.is_valid:
-                        continue
+                    assert gap_poly.is_valid
                     if gap_poly.geom_type == "Polygon" and not gap_poly.is_empty:
                         if lane.type_ in self.drivable_lane_types:
                             drivable_polys.append(gap_poly)
