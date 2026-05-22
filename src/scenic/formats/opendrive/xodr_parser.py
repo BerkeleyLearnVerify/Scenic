@@ -867,24 +867,37 @@ class Road:
                 if leftmost not in section or rightmost not in section:
                     # can happen if successor has a different lane type
                     break
+
+                def hasGap(edge1, edge2):
+                    gap = np.linalg.norm(np.asarray(edge1) - edge2)
+                    if gap < max(tolerance, 0.01):
+                        return False
+                    warn(f"road {self.id_} has discontinuous {name}; truncating it")
+                    return True
+
                 if leftmost < 0:
                     leftmost = rightmost
-                    allPolys.append(section[leftmost].poly)
+                    secPolys = [section[leftmost].poly]
                     while leftmost + 1 in section:
                         leftmost = leftmost + 1
-                        allPolys.append(section[leftmost].poly)
+                        secPolys.append(section[leftmost].poly)
                     leftSec, rightSec = section[leftmost], section[rightmost]
+                    if leftPoints and hasGap(leftPoints[-1], leftSec.left_bounds[0]):
+                        break
                     leftPoints.extend(leftSec.left_bounds)
                     rightPoints.extend(rightSec.right_bounds)
                 else:
                     rightmost = leftmost
-                    allPolys.append(section[rightmost].poly)
+                    secPolys = [section[rightmost].poly]
                     while rightmost - 1 in section:
                         rightmost = rightmost - 1
-                        allPolys.append(section[rightmost].poly)
+                        secPolys.append(section[rightmost].poly)
                     leftSec, rightSec = section[leftmost], section[rightmost]
+                    if leftPoints and hasGap(leftPoints[-1], rightSec.right_bounds[-1]):
+                        break
                     leftPoints.extend(reversed(rightSec.right_bounds))
                     rightPoints.extend(reversed(leftSec.left_bounds))
+                allPolys.extend(secPolys)
             assert allPolys
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
