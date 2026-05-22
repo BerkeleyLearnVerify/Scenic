@@ -426,6 +426,8 @@ def registerObject(obj):
     elif activity > 0 or currentScenario:
         assert not evaluatingRequirement
         assert isinstance(obj, Object)
+        if currentScenario and currentScenario._isRunning:
+            raise InvalidScenarioError("tried to create an object inside a compose block")
         currentScenario._registerObject(obj)
         if currentSimulation:
             currentSimulation._createObject(obj)

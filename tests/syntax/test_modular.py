@@ -188,6 +188,38 @@ def test_workspace_top_level():
     sampleResult(scenario, maxSteps=1)
 
 
+def test_dynamic_object_creation():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                wait
+                do Sub()
+
+        scenario Sub():
+            new Object with behavior Foo()
+
+        behavior Foo():
+            take 42
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 42)
+
+
+def test_object_creation_in_compose():
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileScenic(
+            """
+            scenario Main():
+                compose:
+                    wait
+                    new Object
+            """
+        )
+        sampleResultOnce(scenario)
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="need SIGALRM")
 @pytest.mark.slow
 def test_scenario_stuck(monkeypatch):
