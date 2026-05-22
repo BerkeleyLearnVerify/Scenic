@@ -3,7 +3,7 @@ import os
 import numpy as np
 import carla
 from scenic.core.regions import CircularRegion
-from scenic.domains.driving.roads import Lane, Intersection, Road
+from scenic.domains.driving.roads import LaneSection, Intersection, Road
 from scenic.core.object_types import Object
 
 
@@ -19,7 +19,7 @@ class network_cache():
             self.scenic_to_metsr_map_lanes = scenic_to_metsr_map_lanes
             self.radius_search_size=radius_search_size
 
-            self.network_lanes = [*self.workspace.network.lanes]
+            self.network_lanes = [*self.workspace.network.laneSections]
             self.network_roads = [*self.workspace.network.allRoads]
             self.network_intersections = [*self.workspace.network.intersections]
 
@@ -42,17 +42,23 @@ class network_cache():
         """
         for road_lane,road_lane_map in self.scenic_to_metsr_map_lanes.items():
             scenic_road = road_lane.split("_")[0]
-            metsr_road  = road_lane_map.split("_")[0]
-            if metsr_road in self.metsr_represented_roads["orig_id"]:
-                if scenic_road not in self.scenic_to_metsr_map_roads:
-                    self.scenic_to_metsr_map_roads[scenic_road] = []
-                    self.scenic_to_metsr_map_roads[scenic_road].append(metsr_road)
+            for metsr_map in road_lane_map:
+                metsr_road  = metsr_map.split("_")[0]
+                if metsr_road in self.metsr_represented_roads["orig_id"]:
+                    if scenic_road not in self.scenic_to_metsr_map_roads:
+                        self.scenic_to_metsr_map_roads[scenic_road] = set()
+                        self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
+                    else:
+                        if metsr_road not in self.scenic_to_metsr_map_roads[scenic_road]:
+                            self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
                 else:
-                    if metsr_road not in self.scenic_to_metsr_map_roads[scenic_road]:
-                        self.scenic_to_metsr_map_roads[scenic_road].append(metsr_road)
-            else:
-                self.intersection_road_links.add(metsr_road)
+                    self.intersection_road_links.add(metsr_road)
+        
+        for road_lane in self.scenic_to_metsr_map_lanes.keys():
+            scenic_road = road_lane.split("_")[0]
+            if scenic_road not in self.scenic_to_metsr_map_roads:
                 self.scenic_unique_roads.add(scenic_road)
+
     
     def populate_roads_to_intersections(self) -> None:
         """
@@ -67,7 +73,7 @@ class network_cache():
 
     """Helpers for generating or collecting map data"""
 
-    def _nearest_lane(self,obj : Object, allow_offlane : bool = True, radius_search_size : int = 50, allow_intersection_links : bool = True) -> Lane | None :        
+    def _nearest_lane(self,obj : Object, allow_offlane : bool = True, radius_search_size : int = 50, allow_intersection_links : bool = True) -> LaneSection | None :        
         """
         Docstring for _nearest_lane
         
@@ -104,13 +110,21 @@ class network_cache():
                        
         if nearest_lane is None or not allow_intersection_links:
             if nearest_lane:
-                if self.map_scenic_to_metsr_lanes(nearest_lane) not in self.intersection_road_links:
-                    self.obj_lane_cache[obj] = nearest_lane
-                    return nearest_lane                    
+                metsr_roads = self.map_scenic_to_metsr_lanes(nearest_lane)
+                if metsr_roads:
+                    for road in metsr_roads:
+                        if road not in self.intersection_road_links:
+                            self.obj_lane_cache[obj] = nearest_lane
+                            return nearest_lane                    
                 
-            nearest_lane = obj._lane
-            if nearest_lane is not None: # TODO need to cleanup this case or make a second helper
-                continue_search = self.map_scenic_to_metsr_lanes(nearest_lane) in self.intersection_road_links and not(allow_intersection_links)
+            nearest_lane = obj._laneSection
+            if nearest_lane is not None: # TODO need to cleanup this case or make a second helped
+                mapped_roads = self.map_scenic_to_metsr_lanes(nearest_lane)
+                if mapped_roads: # Check if the returned lane has a valid metsr mapping
+                    continue_search = not self.map_scenic_to_metsr_lanes(nearest_lane).isdisjoint(self.intersection_road_links) and not(allow_intersection_links)
+                else:        
+                    continue_search = True
+
             if nearest_lane is None or continue_search:
                 if not allow_offlane:
                     assert nearest_lane, f"Object: {obj.name} is has left the roadway"
@@ -122,16 +136,21 @@ class network_cache():
                 assert len(distances) > 0, f"Object has deviated to far from the roadway : i.e {radius_size/2} meters"
                
                 if not allow_intersection_links:
+                    print(f"Selecting lane based on dist")
                     for _ in range(len(distances)):
                         distance, nearest_lane = min(distances, key=lambda t: t[0])[:] # min distance over all lanes
-                        if self.map_scenic_to_metsr_lanes(nearest_lane) not in self.intersection_road_links:
-                            break
-                        else:
-                            distances.remove((distance, nearest_lane))
+                        mapped_roads = self.map_scenic_to_metsr_lanes(nearest_lane)
+                        if mapped_roads:
+                            if mapped_roads.isdisjoint(self.intersection_road_links):
+                                break
+                            else:
+                                distances.remove((distance, nearest_lane))
                 else:
+                    print(f"Selecting lane based on dist")
                     nearest_lane = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
        
         self.obj_lane_cache[obj] = nearest_lane
+
         return nearest_lane
     
     def _nearest_road(self, obj: Object, allow_offroad: bool=True, radius_size: int = 50) -> Road:
@@ -207,7 +226,7 @@ class network_cache():
         return bubble_roads
     
     
-    def generate_scenic_trajectory(self, curr_lane: Lane, route: list[str] ) -> None | list[Lane]:
+    def generate_scenic_trajectory(self, curr_lane: LaneSection, route: list[str] ) -> None | list[LaneSection]:
         """
         docstring for generate_scenic_trajectory
 
@@ -221,25 +240,30 @@ class network_cache():
         no route is found returns None. 
         
         """
-        # Enforce that the first trajectory target corresponds to current location
-        metsr_curr_road = self.map_scenic_to_metsr_lanes(curr_lane)
-        if metsr_curr_road != route[0]:
-            route.insert(0, metsr_curr_road)
+        # # Enforce that the first trajectory target corresponds to current location
+        # metsr_curr_roads = self.map_scenic_to_metsr_lanes(curr_lane) 
+        # if metsr_curr_roads:
+        #     if route[0] not in metsr_curr_roads:
+        #         route.insert(0, metsr_curr_roads.pop()) # Arbritrarily any potential map
 
         # Collect All valid spawn locations
         map_data = self.scenic_to_metsr_map_lanes.items()
+        # print(f"METSR_MAPS: {list(self.scenic_to_metsr_map_lanes.values())}")
         valid_lanes = {}
         for road in route: 
-            for scenic_key, metsr_key in map_data: # Scenic <-> Metsr mappings
-                    key_road = metsr_key.split("_")[0] # Road for road_lane pair
-                    if key_road == road:
-                        if road not in valid_lanes:
-                            valid_lanes[road] = []
-                        valid_lanes[road].append(scenic_key) 
-        
+            for scenic_key, metsr_keys in map_data: # Scenic <-> Metsr mappings
+                    for metsr_key in metsr_keys:
+                        key_road = metsr_key.split("_")[0] # Road for road_lane pair
+                        if key_road == road:
+                            if road not in valid_lanes:
+                                valid_lanes[road] = []
+                            valid_lanes[road].append(scenic_key) 
+            
         # Search for corresponding lane with correct direction/orientation (Greedily takes the first lane)
-        trajectory = []        
+        trajectory = [] 
+        # print(f'Route: {route}')       
         for i,road in enumerate(route):
+            # print(f'Processing road: {road}')
             target_lanes = valid_lanes[road]
             assert len(target_lanes) > 1,  f"Failed to find target lanes for road: {road}"
             for road_lane in target_lanes:
@@ -286,18 +310,21 @@ class network_cache():
         assert metsr_keys is not None, f"Error identifying associated ID for {query_key}"  
         return metsr_keys
     
-    def map_scenic_to_metsr_lanes(self, lane):
-        metsr_key=None
+    def map_scenic_to_metsr_lanes(self, lane: LaneSection) -> set[str] | None:
+        """
+        docstring for map_scenic_to_metsr_lanes
+
+        Given a OpenDrive LaneSection
+        
+        """
+        metsr_keys=None
         query_key = f'{lane.road.id}_{lane.id}' 
         
-        # Check if element is present in map between formats
         if query_key in self.scenic_to_metsr_map_lanes: 
-            metsr_key = self.scenic_to_metsr_map_lanes[query_key]
-        
-        metsr_key = metsr_key.split("_")[0]
-        # There must be a valid mapping 
-        assert metsr_key is not None, f"Error identifying associated ID for {query_key}"    
-        return metsr_key
+            metsr_keys = self.scenic_to_metsr_map_lanes[query_key]
+            metsr_keys = set([metsr_key.split("_")[0] for metsr_key in metsr_keys])
+
+        return metsr_keys
 
 def generate_map(map):
     try:
@@ -311,9 +338,10 @@ def generate_map(map):
     edges = root.iterfind("edge")
 
     for edge in edges: 
+    
         lanes = edge.findall('lane')
-
         for lane in lanes:
+            # type = lane.attrib.get('type') if lane.attrib.get('type') else ""
             metrs_lane = lane.attrib.get("id")
             params = lane.findall('param')
 
@@ -323,12 +351,23 @@ def generate_map(map):
                     orig_id = orig_id.split()
                     if isinstance(orig_id, list):
                         for id in orig_id:
-                            lane_mappings[id] = metrs_lane
+                            if id in lane_mappings:
+                                lane_mappings[id].append(metrs_lane)
+                            else:
+                                lane_mappings[id] = [metrs_lane]
                     else:
-                        lane_mappings[orig_id] = metrs_lane
+                        if orig_id in lane_mappings:
+                            lane_mappings[orig_id].append(metrs_lane)
+                        else:
+                            lane_mappings[orig_id] = [metrs_lane]
+            # else:
+            #     print(f"Skipping lane: {lane.attrib.get('id')}")
 
     if lane_mappings == {}:
         print(f"An occured attempting to process map: {map}")
+
+    # for key, item in lane_mappings.items():
+    #     print(f"KEY: {key} :: ITEM: {item}")
 
     return lane_mappings
 
