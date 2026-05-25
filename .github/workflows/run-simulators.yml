@@ -243,15 +243,15 @@ jobs:
             for carla_root in "${carla_roots[@]}"; do
               killall -9 CarlaUE4-Linux-Shipping CarlaUnreal-Linux-Shipping 2>/dev/null || true
               sleep 5
-
               carla_version="${carla_root#/software/carla}"
               echo "============================= CARLA $carla_version ============================="
               export CARLA_ROOT="$carla_root"
-              python3 -m pip install --force-reinstall "$CARLA_ROOT"/PythonAPI/carla/dist/carla-"$carla_version"-cp310-cp310-*.whl
+              if [[ "$carla_version" == "0.10.0" ]]; then
+                python3 -m pip install --force-reinstall "$CARLA_ROOT"/PythonAPI/carla/dist/carla-"$carla_version"-cp310-cp310-*.whl
+              else
+                python3 -m pip install --force-reinstall "carla==$carla_version"
+              fi
               pytest tests/simulators/carla
-
-              killall -9 CarlaUE4-Linux-Shipping CarlaUnreal-Linux-Shipping 2>/dev/null || true
-              sleep 5
             done
           '
           EOF
