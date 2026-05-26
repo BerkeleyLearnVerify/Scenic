@@ -265,9 +265,7 @@ jobs:
               carla_version="${carla_root#/software/carla}"
               echo "============================= CARLA $carla_version ============================="
               export CARLA_ROOT="$carla_root"
-              echo "Using CARLA_ROOT=$CARLA_ROOT"
-              echo "Installing Python CARLA API carla==$carla_version"
-              python3 -m pip install --force-reinstall "carla==$carla_version"
+              python3 -m pip install --force-reinstall "$CARLA_ROOT"/PythonAPI/carla/dist/carla-"$carla_version"-cp310-cp310-*.whl
               pytest tests/simulators/carla
             done
           '
