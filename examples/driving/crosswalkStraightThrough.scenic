@@ -44,7 +44,7 @@ behavior PedestrianCrossBehavior(threshold=20, walking_speed=1.2, walking_direct
 # GEOMETRY
 def orderedEnds(cr, m):
     ends = [cr.centerline[0], cr.centerline[-1]]
-    ends.sort(key=lambda p: p.distanceTo(m.startLane.centerline[-1]))
+    ends.sort(key=lambda p: distance from p to m.startLane.centerline)
     return ends
 
 straightManeuverCrossingTriples = []
@@ -74,7 +74,7 @@ egoStartPoint = new OrientedPoint at intersection_edge
 
 walkDirection = angle from pedSpawn to pedEnd
 pedStartPoint = new OrientedPoint at pedSpawn,
-                    with heading walkDirection
+                    facing walkDirection
 
 # PLACEMENT
 ego = new Car following roadDirection from egoStartPoint for EGO_OFFSET,
@@ -82,4 +82,6 @@ ego = new Car following roadDirection from egoStartPoint for EGO_OFFSET,
 
 ped = new Pedestrian at pedStartPoint,
         with regionContainedIn None,
-        with behavior PedestrianCrossBehavior(PED_THRESHOLD, PED_SPEED, walkDirection)
+        with parentOrientation 0,
+        with behavior PedestrianCrossBehavior(PED_THRESHOLD, PED_SPEED, walkDirection),
+        facing walkDirection
