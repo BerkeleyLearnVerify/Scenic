@@ -34,6 +34,7 @@ from scenic.core.serialization import Serializer
 from scenic.core.vectors import Vector
 
 
+
 class SimulatorInterfaceWarning(UserWarning):
     """Warning indicating an issue with the interface to an external simulator."""
 
@@ -51,6 +52,11 @@ class SimulationCreationError(Exception):
 
 class DivergenceError(Exception):
     """Exception indicating simulation replay failed due to simulator nondeterminism."""
+
+    pass
+
+class ObjectMissingInSimulation(Exception):
+    """Exception indicating that the corresponding object is not accesible as expected in the simulator instance"""
 
     pass
 
