@@ -57,13 +57,13 @@ def getCarlaSimulator(getAssetPath):
             else "CarlaUE4-Linux-Shipping"
         )
 
-        # CARLA 0.10.0/UE5 can be slow or fail to start on the first launch in CI.
         carla_process = subprocess.Popen(
             f"bash {CARLA_ROOT / ue_script} -RenderOffScreen",
             shell=True,
         )
 
-        for _ in range(600):
+        # CARLA 0.10.0 can take up to 10 minutes to start on the first launch in CI
+        for _ in range(900):
             if isCarlaServerRunning():
                 break
             time.sleep(1)
@@ -75,7 +75,18 @@ def getCarlaSimulator(getAssetPath):
 
     base = getAssetPath("maps/CARLA")
 
-    def _getCarlaSimulator(town):
+    # Use a single default map per CARLA version for the test suite.
+    #
+    # In our current CI setup, CARLA 0.10.0 only works reliably with Town10HD_Opt,
+    # so all CARLA 0.10.0 tests should use that map.
+    #
+    # For CARLA 0.9.x, most tests also worked with Town10HD_Opt, but the blueprint
+    # parameterization test became unstable: most blueprints spawned successfully,
+    # but CARLA would eventually crash. Switching maps within the same CARLA process
+    # also caused instability, so we consistently use Town01 for the 0.9.x suite.
+    def _getCarlaSimulator(town=None):
+        if town is None:
+            town = "Town10HD_Opt" if is_carla_0_10 else "Town01"
         path = os.path.join(base, f"{town}.xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=180)
         return simulator, town, path
@@ -87,7 +98,7 @@ def getCarlaSimulator(getAssetPath):
 
 
 def test_throttle(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
+    simulator, town, mapPath = getCarlaSimulator()
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -99,7 +110,7 @@ def test_throttle(getCarlaSimulator):
             while True:
                 take SetThrottleAction(1)
 
-        ego = new Car at (-3.3, -68), with behavior DriveWithThrottle
+        ego = new Car at (2, -17), with behavior DriveWithThrottle
         record ego.speed as CarSpeed
         terminate after 5 steps
     """
@@ -111,7 +122,7 @@ def test_throttle(getCarlaSimulator):
 
 
 def test_brake(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
+    simulator, town, mapPath = getCarlaSimulator()
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -131,7 +142,7 @@ def test_brake(getCarlaSimulator):
             do DriveWithThrottle() for 2 steps
             do Brake() for 6 steps
 
-        ego = new Car at (-3.3, -68),
+        ego = new Car at (2, -17),
             with blueprint 'vehicle.nissan.patrol',
             with behavior DriveThenBrake
         record final ego.speed as CarSpeed
@@ -145,7 +156,7 @@ def test_brake(getCarlaSimulator):
 
 
 def test_reverse(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
+    simulator, town, mapPath = getCarlaSimulator()
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -157,7 +168,7 @@ def test_reverse(getCarlaSimulator):
             while True:
                 take SetReverseAction(True), SetThrottleAction(1)
 
-        ego = new Car at (-3.3, -68), with behavior DriveInReverse
+        ego = new Car at (2, -17), with behavior DriveInReverse
         record initial ego.heading as Heading
         record final ego.velocity as Vel
         terminate after 5 steps
@@ -173,7 +184,7 @@ def test_reverse(getCarlaSimulator):
 
 
 def test_steer(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
+    simulator, town, mapPath = getCarlaSimulator()
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -186,7 +197,7 @@ def test_steer(getCarlaSimulator):
                 take SetThrottleAction(0.5), SetSteerAction(1)
 
         # Ego facing west
-        ego = new Car at (-3.3, -68), with behavior TurnRight
+        ego = new Car at (2, -17), with behavior TurnRight
 
         record initial ego.heading as InitialHeading
         record final ego.heading as FinalHeading
@@ -203,8 +214,12 @@ def test_steer(getCarlaSimulator):
 
 
 def test_track_waypoints(getCarlaSimulator):
-    simulator, town, mapPath = getCarlaSimulator("Town10HD_Opt")
+    simulator, town, mapPath = getCarlaSimulator()
     target_speed = 6.0
+    if is_carla_0_10:
+        waypoints = [(62, 68), (52, 68), (42, 68)]
+    else:
+        waypoints = [(-2, -13), (-2, -23), (-2, -33)]
 
     code = f"""
         param map = r'{mapPath}'
@@ -214,7 +229,7 @@ def test_track_waypoints(getCarlaSimulator):
         model scenic.simulators.carla.model
 
         # Short straight segment, starting from a known-good spawn point.
-        waypoints = [(62, 68), (52, 68), (42, 68)]
+        waypoints = {waypoints}
 
         behavior FollowPath():
             while True:
