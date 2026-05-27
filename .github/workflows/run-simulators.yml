@@ -249,6 +249,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
           allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+          # CARLA tests can exceed the default 1-hour role session.
+          # Keep this longer than the SSM command timeout so we can still fetch logs if SSM times out.
+          role-duration-seconds: 9000  # 2.5 hours
 
       - name: Run CARLA Tests
         run: |
@@ -273,11 +276,11 @@ jobs:
           )
 
           # AWS-RunShellScript's executionTimeout defaults to 3600 seconds (1 hour).
-          # CARLA tests can take longer, so allow this SSM command to run for 3 hours.
+          # Limit the CARLA SSM command to 2 hours so it ends before the AWS role session expires.
           command_id=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
-            --parameters "commands=$commands,executionTimeout=10800" \
+            --parameters "commands=$commands,executionTimeout=7200" \
             --query 'Command.CommandId' \
             --output text)
 
