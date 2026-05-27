@@ -1,4 +1,7 @@
+from scenic.simulators.metsr.traffic_flows import *
 
+
+"""Library of useful scenarios for composing CoSim Scenic programs"""
 scenario GeneratePrivateTrip(origin, destination, name=None):
     if name != None:
         new NPCCar with origin origin, with destination destination, with name name
@@ -6,6 +9,8 @@ scenario GeneratePrivateTrip(origin, destination, name=None):
         new NPCCar with origin origin, with destination destination
     terminate after 1 steps
 
+
+"""Generic traffic Stream which spawns new vehicles according to the probabilities defined by traffic_flow"""
 scenario TrafficStream(origin, destination, traffic_flow):
     compose:
         while True:
@@ -18,17 +23,19 @@ scenario TrafficStream(origin, destination, traffic_flow):
                 do GeneratePrivateTrip(origin, destination)
             else:
                 wait
-
+"""Constant Stream"""
 scenario ConstantTrafficStream(origin, destination, num_vehicles, stime=None, etime=None):
     compose:
         tf = ConstantTrafficFlow(num_vehicles, stime, etime)
         do TrafficStream(origin, destination, tf)
 
+"""Normally distributed Stream"""
 scenario NormalTrafficStream(origin, destination, num_vehicles, peak_time, stddev):
     compose:
         tf = NormalTrafficFlow(num_vehicles, peak_time, stddev)
         do TrafficStream(origin, destination, tf)
 
+"""Two-way stream modeling incoming and outgoing traffic """
 scenario CommuterTrafficStream(origin, destination, num_vehicles, 
     peak_time_1, peak_time_2, stddev):
     compose:
