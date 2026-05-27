@@ -5,7 +5,7 @@ from scenic.simulators.metsr.client import METSRClient
 from scenic.simulators.cosim.utils.utils import *
 from scenic.core.regions import CircularRegion
 from scenic.core.object_types import Object
-from scenic.core.simulators import SimulationCreationError
+from scenic.core.simulators import SimulationCreationError, ObjectMissingInSimulation
 from scenic.domains.driving.roads import Lane, Intersection, Road
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 
@@ -16,10 +16,10 @@ import math
 import scenic.simulators.cosim.utils.utils as _utils
 import scenic.simulators.carla.utils.utils as utils
 
+from .utils.network_helper import network_cache
 
 import scenic.simulators.carla.utils.visuals as visuals
 from scenic.simulators.carla.blueprints import oldBlueprintNames
-import random
 
 try:
     import carla
@@ -351,7 +351,8 @@ class CosimSimulation(DrivingSimulation):
         try:
             carlaActor = self.carla_world.spawn_actor(blueprint, transform)
         except Exception as e:
-            return False
+            raise SimulationCreationError(f"Unable to spawn object {obj} due to error: {e}")
+            
         
         if carlaActor is None:
             raise SimulationCreationError(f"Unable to spawn object {obj}")
@@ -673,7 +674,6 @@ class CosimSimulation(DrivingSimulation):
          (2) If the vehicle is in METSR updates the overwrite flag for manually controlling the vehicle        
         """
         if obj.carla_actor_flag:
-            # print(f"Setting obj: {obj.name} with no specific trajectory")
             obj.carlaActor.set_autopilot(True) # Set the autopilot with no specific trajectory if none is found?
             success = True
         else:
@@ -761,13 +761,15 @@ class CosimSimulation(DrivingSimulation):
             try: 
                 loc = obj.carlaActor.get_location()
             except RuntimeError:
-                print(f"Vehicle {obj.name} removed by CARLA likely due to deadlock")
-                self.remove_bubble_object(obj, destroy=False)
-                self.createObjectInCarla(obj)
-                continue
+                warnings.warn(f"Object {obj.name if hasattr(obj,'name') else obj} automatically removed by CARLA likely due to deadlock")
+                raise ObjectMissingInSimulation(f"Unable to access object in simulation, if this issue persists try removing CARLA autopilot")
+
+                # self.remove_bubble_object(obj, destroy=False)
+                # continue
            
             if (loc.x,loc.y,loc.z) == (0,0,0): # Carla object still in the process of processing obj spawn
                 continue
+           
             vehID = self.getMetsrPrivateVehId(obj)
             lane = self._nearest_lane(obj)
             veh_data = all_veh_data[obj]
@@ -836,7 +838,7 @@ class CosimSimulation(DrivingSimulation):
             veh_data = all_veh_data[obj]
 
             # Skip vehicles which have not entered the roadway or have completed their route 
-            if ('road' not in veh_data) or obj.finished_route: 
+            if ('road' not in veh_data):
                 continue
 
             outside_bubble = False
@@ -895,9 +897,6 @@ class CosimSimulation(DrivingSimulation):
         """    
         way_points = []
         for i,lane in enumerate(trajectory):
-            # if i == 0:
-            #     points = [lane.centerline.end]
-            # else:
             points = [lane.centerline.start, lane.centerline.end]
             for point in points:
                 scenic_pos = point
@@ -969,7 +968,7 @@ class CosimSimulation(DrivingSimulation):
         if destroy:
             self.destroy_carla_obj(obj)
         obj.carla_actor_flag = False
-        obj.trajectory = None
+        obj.active_autopilot = False
         self.carla_actors.remove(obj)
         self.metsr_actors.append(obj)   
     
@@ -1056,6 +1055,7 @@ class CosimSimulation(DrivingSimulation):
                     ctrl = obj._control
                     if ctrl is not None:
                         obj.carlaActor.apply_control(ctrl)
+                        obj._control = None
                 elif obj.autopilot_action and not obj.active_autopilot: # Activate autopilot
                     obj.active_autopilot = self.initiate_autopilot(obj)
                     obj._control = None # TODO What does this do? 
@@ -1104,7 +1104,6 @@ class CosimSimulation(DrivingSimulation):
             save_file = f"metsr_state_at_{self.count}.bin"
         else:
             save_file = file_name
-        
         self.metsr_client.save(save_file)
 
 
