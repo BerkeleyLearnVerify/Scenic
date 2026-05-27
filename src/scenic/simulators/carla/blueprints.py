@@ -1,9 +1,50 @@
 """CARLA blueprints for cars, pedestrians, etc."""
 
-#: Mapping from current names of blueprints to ones in old CARLA versions.
-#:
-#: We provide a tuple of old names in case they change more than once.
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+import warnings
+
+from scenic.core.distributions import distributionFunction
+from scenic.core.errors import InvalidScenarioError
+
+# Import auto-generated blueprint data for all CARLA versions
+from ._blueprintData import _DIMS, _IDS
+
+try:
+    _CARLA_VER = _pkg_version("carla")
+except PackageNotFoundError:
+    _CARLA_VER = "0.0.0"  # no carla package; default to newest known blueprints
+
+
+def _verkey(s: str):
+    # Handle '0.9.15', '0.10.0', '1.2' -> (major, minor, patch)
+    parts = [int(p) for p in s.split(".")]
+    parts += [0] * (3 - len(parts))
+    return tuple(parts[:3])
+
+
+def _pick(vermap, ver):
+    """Choose the blueprint map for CARLA version"""
+    # 1) Exact match
+    if ver in vermap:
+        return vermap[ver]
+    # 2) If same major.minor, use the newest patch.
+    mm = ".".join(ver.split(".")[:2])
+    cands = [v for v in vermap if v.startswith(mm + ".")]
+    if cands:
+        best = max(cands, key=_verkey)
+        return vermap[best]
+    # 3) Otherwise, use the newest version.
+    best = max(vermap.keys(), key=_verkey)
+    if ver != "0.0.0":
+        warnings.warn(
+            f"Unknown CARLA version {ver}; using blueprints for {best}. "
+            "Scenic may not have the correct set of blueprints."
+        )
+    return vermap[best]
+
+
 oldBlueprintNames = {
+    # Map current names to legacy names
     "vehicle.dodge.charger_police": ("vehicle.dodge_charger.police",),
     "vehicle.lincoln.mkz_2017": ("vehicle.lincoln.mkz2017",),
     "vehicle.mercedes.coupe": ("vehicle.mercedes-benz.coupe",),
@@ -11,223 +52,81 @@ oldBlueprintNames = {
     "vehicle.ford.mustang": ("vehicle.mustang.mustang",),
 }
 
-## Vehicle blueprints
 
-#: blueprints for cars
-carModels = [
-    "vehicle.audi.a2",
-    "vehicle.audi.etron",
-    "vehicle.audi.tt",
-    "vehicle.bmw.grandtourer",
-    "vehicle.chevrolet.impala",
-    "vehicle.citroen.c3",
-    "vehicle.dodge.charger_police",
-    "vehicle.jeep.wrangler_rubicon",
-    "vehicle.lincoln.mkz_2017",
-    "vehicle.mercedes.coupe",
-    "vehicle.mini.cooper_s",
-    "vehicle.ford.mustang",
-    "vehicle.nissan.micra",
-    "vehicle.nissan.patrol",
-    "vehicle.seat.leon",
-    "vehicle.tesla.model3",
-    "vehicle.toyota.prius",
-    "vehicle.volkswagen.t2",
-]
+# Pick blueprint data for current CARLA version
+ids = _pick(_IDS, _CARLA_VER)
+dims = _pick(_DIMS, _CARLA_VER)
 
-#: blueprints for bicycles
-bicycleModels = [
-    "vehicle.bh.crossbike",
-    "vehicle.diamondback.century",
-    "vehicle.gazelle.omafiets",
-]
 
-#: blueprints for motorcycles
-motorcycleModels = [
-    "vehicle.harley-davidson.low_rider",
-    "vehicle.kawasaki.ninja",
-    "vehicle.yamaha.yzf",
-]
+# Backwards-compatible model lists
+# Vehicles
+carModels = ids["carModels"]
+bicycleModels = ids["bicycleModels"]
+motorcycleModels = ids["motorcycleModels"]
+truckModels = ids["truckModels"]
+vanModels = ids["vanModels"]
+busModels = ids["busModels"]
+# Walkers
+walkerModels = ids["walkerModels"]
+# Props
+trashModels = ids["trashModels"]
+coneModels = ids["coneModels"]
+debrisModels = ids["debrisModels"]
+vendingMachineModels = ids["vendingMachineModels"]
+chairModels = ids["chairModels"]
+busStopModels = ids["busStopModels"]
+advertisementModels = ids["advertisementModels"]
+garbageModels = ids["garbageModels"]
+containerModels = ids["containerModels"]
+tableModels = ids["tableModels"]
+barrierModels = ids["barrierModels"]
+plantpotModels = ids["plantpotModels"]
+mailboxModels = ids["mailboxModels"]
+gnomeModels = ids["gnomeModels"]
+creasedboxModels = ids["creasedboxModels"]
+caseModels = ids["caseModels"]
+boxModels = ids["boxModels"]
+benchModels = ids["benchModels"]
+barrelModels = ids["barrelModels"]
+atmModels = ids["atmModels"]
+kioskModels = ids["kioskModels"]
+ironplateModels = ids["ironplateModels"]
+trafficwarningModels = ids["trafficwarningModels"]
 
-#: blueprints for trucks
-truckModels = [
-    "vehicle.carlamotors.carlacola",
-    "vehicle.tesla.cybertruck",
-]
 
-## Prop blueprints
+def blueprintsInCategory(category):
+    """Return all blueprint IDs for a category; raise if none recorded."""
+    model = category + "Models"
+    models = ids.get(model)
+    if models:
+        return models
+    raise InvalidScenarioError(
+        f"Scenic has no '{category}' blueprints recorded for CARLA {_CARLA_VER}."
+    )
 
-#: blueprints for trash cans
-trashModels = [
-    "static.prop.trashcan01",
-    "static.prop.trashcan02",
-    "static.prop.trashcan03",
-    "static.prop.trashcan04",
-    "static.prop.trashcan05",
-    "static.prop.bin",
-]
 
-#: blueprints for traffic cones
-coneModels = [
-    "static.prop.constructioncone",
-    "static.prop.trafficcone01",
-    "static.prop.trafficcone02",
-]
+def _get_dim(bp_id, key, default):
+    """Return recorded dimension or ``default`` if missing/0.
 
-#: blueprints for road debris
-debrisModels = [
-    "static.prop.dirtdebris01",
-    "static.prop.dirtdebris02",
-    "static.prop.dirtdebris03",
-]
+    Note: CARLA 0.9.14 bbox returns 0 for some blueprints (see CARLA issue #5841).
+    """
+    val = dims.get(bp_id, {}).get(key)
+    return val if val else default
 
-#: blueprints for vending machines
-vendingMachineModels = [
-    "static.prop.vendingmachine",
-]
 
-#: blueprints for chairs
-chairModels = [
-    "static.prop.plasticchair",
-]
+@distributionFunction
+def width(bp_id, default):
+    """Get width for ``bp_id``; return ``default`` if unknown."""
+    return _get_dim(bp_id, "width", default)
 
-#: blueprints for bus stops
-busStopModels = [
-    "static.prop.busstop",
-]
 
-#: blueprints for roadside billboards
-advertisementModels = [
-    "static.prop.advertisement",
-    "static.prop.streetsign",
-    "static.prop.streetsign01",
-    "static.prop.streetsign04",
-]
+@distributionFunction
+def length(bp_id, default):
+    """Get length for ``bp_id``; return ``default`` if unknown."""
+    return _get_dim(bp_id, "length", default)
 
-#: blueprints for pieces of trash
-garbageModels = [
-    "static.prop.colacan",
-    "static.prop.garbage01",
-    "static.prop.garbage02",
-    "static.prop.garbage03",
-    "static.prop.garbage04",
-    "static.prop.garbage05",
-    "static.prop.garbage06",
-    "static.prop.plasticbag",
-    "static.prop.trashbag",
-]
 
-#: blueprints for containers
-containerModels = [
-    "static.prop.container",
-    "static.prop.clothcontainer",
-    "static.prop.glasscontainer",
-]
-
-#: blueprints for tables
-tableModels = [
-    "static.prop.table",
-    "static.prop.plastictable",
-]
-
-#: blueprints for traffic barriers
-barrierModels = [
-    "static.prop.streetbarrier",
-    "static.prop.chainbarrier",
-    "static.prop.chainbarrierend",
-]
-
-#: blueprints for flowerpots
-plantpotModels = [
-    "static.prop.plantpot01",
-    "static.prop.plantpot02",
-    "static.prop.plantpot03",
-    "static.prop.plantpot04",
-    "static.prop.plantpot05",
-    "static.prop.plantpot06",
-    "static.prop.plantpot07",
-    "static.prop.plantpot08",
-]
-
-#: blueprints for mailboxes
-mailboxModels = [
-    "static.prop.mailbox",
-]
-
-#: blueprints for garden gnomes
-gnomeModels = [
-    "static.prop.gnome",
-]
-
-#: blueprints for creased boxes
-creasedboxModels = [
-    "static.prop.creasedbox01",
-    "static.prop.creasedbox02",
-    "static.prop.creasedbox03",
-]
-
-#: blueprints for briefcases, suitcases, etc.
-caseModels = [
-    "static.prop.travelcase",
-    "static.prop.briefcase",
-    "static.prop.guitarcase",
-]
-
-#: blueprints for boxes
-boxModels = [
-    "static.prop.box01",
-    "static.prop.box02",
-    "static.prop.box03",
-]
-
-#: blueprints for benches
-benchModels = [
-    "static.prop.bench01",
-    "static.prop.bench02",
-    "static.prop.bench03",
-]
-
-#: blueprints for barrels
-barrelModels = [
-    "static.prop.barrel",
-]
-
-#: blueprints for ATMs
-atmModels = [
-    "static.prop.atm",
-]
-
-#: blueprints for kiosks
-kioskModels = [
-    "static.prop.kiosk_01",
-]
-
-#: blueprints for iron plates
-ironplateModels = [
-    "static.prop.ironplank",
-]
-
-#: blueprints for traffic warning signs
-trafficwarningModels = [
-    "static.prop.trafficwarning",
-]
-
-## Walker blueprints
-
-#: blueprints for pedestrians
-walkerModels = [
-    "walker.pedestrian.0001",
-    "walker.pedestrian.0002",
-    "walker.pedestrian.0003",
-    "walker.pedestrian.0004",
-    "walker.pedestrian.0005",
-    "walker.pedestrian.0006",
-    "walker.pedestrian.0007",
-    "walker.pedestrian.0008",
-    "walker.pedestrian.0009",
-    "walker.pedestrian.0010",
-    "walker.pedestrian.0011",
-    "walker.pedestrian.0012",
-    "walker.pedestrian.0013",
-    "walker.pedestrian.0014",
-]
+@distributionFunction
+def height(bp_id, default):
+    """Get height for ``bp_id``; return ``default`` if unknown."""
+    return _get_dim(bp_id, "height", default)

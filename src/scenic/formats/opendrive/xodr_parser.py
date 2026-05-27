@@ -40,25 +40,18 @@ def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 
-def separate_polys(polyA, polyB, tolerance=-1e-6):
-    """Return a version of polyA separated from polyB"""
-    assert polyA.is_valid
-    assert polyB.is_valid
-
+def separate(polyA, polyB):
     if not polyA.overlaps(polyB):
-        return polyA
+        return polyA, polyB
 
-    polyA = polyA.difference(polyB)
-    assert polyA.is_valid
-
-    if not polyA.overlaps(polyB):
-        return polyA
-
-    polyA = polyA.buffer(tolerance)
-    assert polyA.is_valid
+    # Shrink the larger polygon to try to avoid losing fiddly bits
+    if polyA.area >= polyB.area:
+        polyA = polyA.difference(polyB).buffer(-1e-6)
+    else:
+        polyB = polyB.difference(polyA).buffer(-1e-6)
 
     assert not polyA.overlaps(polyB)
-    return polyA
+    return polyA, polyB
 
 
 class Poly3:
@@ -113,10 +106,10 @@ class Curve:
     def point_at(self, s):
         """Get an (x, y, s) point along the curve at the given s coordinate."""
         return
-    
+
     @abc.abstractmethod
     def heading_at(self, s):
-        """Get the heading along the curve at the given s coordinate"""
+        """Get the heading along the curve at the given s coordinate."""
         return
 
     def rel_to_abs(self, point):
@@ -159,34 +152,17 @@ class Cubic(Curve):
         u = float(brentq(root_func, 0, self.ubound))
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
-    
-    def heading_at(self, s):
-        '''
-        -Working with a specific curve now, so that curve has its own local coordinate system (defined in terms of u)
-            -u is kind of like how far we've moved along the x-axis in the curve's own coordinate system
-        -Need to find the value of u that gets us to the point exactly s meters along the curve. This is already done in the point_at() function above.
-            -self.arclength(x) calculates the curve length from u=0 to u=x, i.e., the distance traveled along the local curve
-            -Define f(u) = self.arclength(u) - s and solve for f(u) = 0
-                -Brent's method evaluates root_func at points between 0 and self.ubound until it finds the value of u that makes self.arclength(u) = s
-                -Important to note that self.arclength(u) is different from s because s is measures from the start of the ROAD's reference line not 
-                just the start of the curve segment
-        -Then, find the local heading using the slope of the tangent line
-        -Add this local heading to self.hdg attribute to get the global_heading
-        '''
 
-        #Brent's method
+    def heading_at(self, s):
         root_func = lambda x: self.arclength(x) - s
         u = float(brentq(root_func, 0, self.ubound))
-
-        dv_du = self.poly.grad_at(u) #Calculate the gradient (slope) of tangent line (black dotted line) at point u
-        local_heading = math.atan2(dv_du, 1) #Calculate the angle relative to the baseline; this is the local_heading
-        global_heading = local_heading + self.hdg #Obtain the global heading value using what we already know
-
+        dv_du = self.poly.grad_at(u)
+        local_heading = math.atan2(dv_du, 1)
+        global_heading = local_heading + self.hdg
         while global_heading > math.pi:
-            global_heading = global_heading - (2 * math.pi)
+            global_heading -= 2 * math.pi
         while global_heading < -math.pi:
-            global_heading = global_heading + (2 * math.pi)
-        
+            global_heading += 2 * math.pi
         return global_heading
 
 
@@ -209,25 +185,25 @@ class ParamCubic(Curve):
 
     def point_at(self, s):
         root_func = lambda x: self.arclength(x) - s
-        p = float(brentq(root_func, 0, self.p_range))
+        # we expand the upper bound slightly to ensure a zero is bracketed even
+        # with numerical error
+        p = float(brentq(root_func, 0, self.p_range + 1e-9))
+        p = min(p, self.p_range)
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
-    
-    def heading_at(self, s):
-        #Brent's method
-        root_func = lambda x: self.arclength(x) - s
-        p = float(brentq(root_func, 0, self.p_range))
 
+    def heading_at(self, s):
+        root_func = lambda x: self.arclength(x) - s
+        p = float(brentq(root_func, 0, self.p_range + 1e-9))
+        p = min(p, self.p_range)
         du_dp = self.u_poly.grad_at(p)
         dv_dp = self.v_poly.grad_at(p)
-        local_heading = math.atan2(dv_dp, du_dp) #atan2(y, x) --> We use atan2 here because of how the parameterization is
+        local_heading = math.atan2(dv_dp, du_dp)
         global_heading = local_heading + self.hdg
-
         while global_heading > math.pi:
-            global_heading = global_heading - (2 * math.pi)
+            global_heading -= 2 * math.pi
         while global_heading < -math.pi:
-            global_heading = global_heading + (2 * math.pi)
-        
+            global_heading += 2 * math.pi
         return global_heading
 
 
@@ -240,7 +216,7 @@ class Clothoid(Curve):
         # Initial and final curvature.
         self.curv0 = curv0
         self.curv1 = curv1
-        self.curve_rate = (curv1 - curv0) / length
+        self.curve_rate = 0 if length == 0 else (curv1 - curv0) / length
         self.a = abs(curv0)
         self.r = 1 / self.a if curv0 != 0 else 1  # value not used if curv0 == 0
         self.ode_init = np.array([x0, y0, hdg])
@@ -271,29 +247,15 @@ class Clothoid(Curve):
             sol = solve_ivp(clothoid_ode, (0, s), self.ode_init)
             x, y, hdg = sol.y[:, -1]
             return (x, y, s)
-    
+
     def heading_at(self, s):
-        '''
-        -The formal definition for curvature: k = ||dT/ds|| --> Magnitude of the rate of change of the unit tangent vector w.r.t. change in arc length
-            -Simplifies to: k(s) = dθ/ds
-        -So we can say k(s) (curvature) is the rate at which heading changes with respect to a change in s (movement along the curve)
-        -A Clothoid's curvature increases linearly with the arc length
-            -Modeled by: k(s) = k_0 + k_rate * s
-        -
-        '''
-
-        k_0 = self.curv0
-        k_rate = self.curve_rate
-
-        theta = (k_0 * s) + (0.5 * k_rate * s * s) + self.hdg
-
-        
+        theta = (self.curv0 * s) + (0.5 * self.curve_rate * s * s) + self.hdg
         while theta > math.pi:
-            theta = theta - (2 * math.pi)
+            theta -= 2 * math.pi
         while theta < -math.pi:
-            theta = theta + (2 * math.pi)
-        
+            theta += 2 * math.pi
         return theta
+
 
 class Line(Curve):
     """A line segment between (x0, y0) and (x1, y1)."""
@@ -306,16 +268,67 @@ class Line(Curve):
 
     def point_at(self, s):
         return self.rel_to_abs((s, 0, s))
-    
+
     def heading_at(self, s):
         heading = self.hdg
-
         while heading > math.pi:
-            heading = heading - (2 * math.pi)
+            heading -= 2 * math.pi
         while heading < -math.pi:
-            heading = heading + (2 * math.pi)
-        
+            heading += 2 * math.pi
         return heading
+
+
+def makeCurve(x0, y0, hdg, length, curve_elem):
+    """Create a reference-line curve from an OpenDRIVE geometry element.
+
+    The given length is the effective length Scenic should use, which may
+    differ from the length declared in the map if the planView is inconsistent.
+    """
+    suspicion = None
+    if curve_elem.tag == "line":
+        curve = Line(x0, y0, hdg, length)
+    elif curve_elem.tag == "arc":
+        # Arc is clothoid of constant curvature.
+        curv = float(curve_elem.get("curvature"))
+        curve = Clothoid(x0, y0, hdg, length, curv, curv)
+    elif curve_elem.tag == "spiral":
+        curv0 = float(curve_elem.get("curvStart"))
+        curv1 = float(curve_elem.get("curvEnd"))
+        if length and abs(curv0 - curv1) / length > 50:
+            suspicion = f"spiral with very high curvature rate (length {length:.3g})"
+        curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
+    elif curve_elem.tag == "poly3":
+        a, b, c, d = (
+            float(curve_elem.get("a")),
+            float(curve_elem.get("b")),
+            float(curve_elem.get("c")),
+            float(curve_elem.get("d")),
+        )
+        curve = Cubic(x0, y0, hdg, length, a, b, c, d)
+    elif curve_elem.tag == "paramPoly3":
+        au, bu, cu, du, av, bv, cv, dv = (
+            float(curve_elem.get("aU")),
+            float(curve_elem.get("bU")),
+            float(curve_elem.get("cU")),
+            float(curve_elem.get("dU")),
+            float(curve_elem.get("aV")),
+            float(curve_elem.get("bV")),
+            float(curve_elem.get("cV")),
+            float(curve_elem.get("dV")),
+        )
+        p_range = curve_elem.get("pRange")
+        if p_range and p_range != "normalized":
+            # TODO support arcLength
+            raise NotImplementedError("unsupported pRange for paramPoly3")
+        else:
+            p_range = 1
+        curve = ParamCubic(x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range)
+    else:
+        raise NotImplementedError(f'unhandled OpenDRIVE geometry type "{curve_elem.tag}"')
+
+    if length < 1e-6:
+        suspicion = f"geometry of length {length:.3g}"
+    return curve, suspicion
 
 
 class Lane:
@@ -328,6 +341,7 @@ class Lane:
         self.left_bounds = []  # to be filled in later
         self.right_bounds = []
         self.centerline = []
+        self.poly = None
         self.parent_lane_poly = None
 
     def width_at(self, s):
@@ -338,8 +352,8 @@ class Lane:
         assert self.width[ind][1] <= s, "No matching width entry found."
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
-        if w < -1e-6:  # allow for numerical error
-            warn(f"OpenDRIVE lane has negative width ({w})")
+        if w < -1e-3:  # allow for numerical error
+            warn("OpenDRIVE lane has negative width; clamping to zero")
         return max(w, 0)
 
 
@@ -432,7 +446,7 @@ class Road:
         self.junction = junction if junction != "-1" else None
         self.predecessor = None
         self.successor = None
-        self.crosswalks = [] #List of Crosswalk objects
+        self.crosswalks = []
         self.signals = []  # List of Signal objects.
         self.lane_secs = []  # List of LaneSection objects.
         self.ref_line = []  # List of Curve objects defining reference line.
@@ -444,7 +458,6 @@ class Road:
         # List of lane polygons. Not a dict b/c lane id is not unique along road.
         self.lane_polys = []
         # Each polygon in lane_polys is the union of connected lane section polygons.
-        # lane_polys is currently not used.
         # Reference line offset:
         self.offset = []  # List of tuple (Poly3, s-coordinate).
         self.drive_on_right = drive_on_right
@@ -479,12 +492,10 @@ class Road:
                 s - last_s for s in transition_points if s >= last_s
             ]
             piece_points = piece.to_points(num, extra_points=target_transition_points)
-
             assert piece_points, "Failed to get piece points"
-
             piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points]
             ref_points.append(piece_points)
-            last_s = ref_points[-1][-1][2]
+            last_s = piece_points[-1][2]
 
         return ref_points
 
@@ -574,21 +585,29 @@ class Road:
                         bounds = left + right
 
                         if len(bounds) < 3:
+                            warn(
+                                f"road {self.id_} section {i} lane {id_} is "
+                                "entirely zero-width; skipping it"
+                            )
                             continue
-                        poly = cleanPolygon(Polygon(bounds), tolerance)
-                        if not poly.is_empty:
-                            if poly.geom_type == "MultiPolygon":
-                                poly = MultiPolygon(
-                                    [
-                                        p
-                                        for p in poly.geoms
-                                        if not p.is_empty and p.exterior
-                                    ]
+                        poly = Polygon(bounds)
+                        if not poly.is_valid:
+                            poly = cleanPolygon(poly, tolerance)
+                            if poly.is_empty:
+                                warn(
+                                    f"could not generate polygon for road {self.id_} "
+                                    f"section {i} lane {id_}; skipping it"
                                 )
-                                cur_sec_polys.extend(poly.geoms)
-                            else:
-                                cur_sec_polys.append(poly)
-                            cur_sec_lane_polys[id_].append(poly)
+                                continue
+                        assert not poly.is_empty
+                        if poly.geom_type == "MultiPolygon":
+                            poly = MultiPolygon(
+                                [p for p in poly.geoms if not p.is_empty and p.exterior]
+                            )
+                            cur_sec_polys.extend(poly.geoms)
+                        else:
+                            cur_sec_polys.append(poly)
+                        cur_sec_lane_polys[id_].append(poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
                         if i == 0 or not self.start_bounds_left:
@@ -641,6 +660,23 @@ class Road:
                                 prev_id = id_ - 1
                             else:
                                 prev_id = id_ + 1
+
+                            if (
+                                offsets[id_] == offsets[prev_id]
+                                and id_ in left_bounds
+                                and left_bounds[id_][-1] == right_bounds[id_][-1]
+                            ):
+                                # Both the previous and current segments of this lane had
+                                # zero width; drop the former to avoid invalid polygons
+                                warn(
+                                    f"road {self.id_} section {i} lane {id_} has a "
+                                    "zero-width segment; skipping it"
+                                )
+                                left_bounds[id_].pop()
+                                right_bounds[id_].pop()
+                                lane.left_bounds.pop()
+                                lane.right_bounds.pop()
+                                lane.centerline.pop()
                             left_bound = [
                                 cur_p[0] + normal_vec[0] * offsets[id_],
                                 cur_p[1] + normal_vec[1] * offsets[id_],
@@ -694,15 +730,20 @@ class Road:
 
         # Difference and slightly erode all overlapping polygons
         for i in range(len(sec_polys) - 1):
-            sec_polys[i] = separate_polys(sec_polys[i], sec_polys[i + 1])
+            sec_polys[i], sec_polys[i + 1] = separate(sec_polys[i], sec_polys[i + 1])
 
         for polys in sec_lane_polys:
             ids = sorted(polys)  # order adjacent lanes consecutively
             for i in range(len(ids) - 1):
-                polys[ids[i]] = separate_polys(polys[ids[i]], polys[ids[i + 1]])
+                polys[ids[i]], polys[ids[i + 1]] = separate(
+                    polys[ids[i]], polys[ids[i + 1]]
+                )
 
-        for i, j in itertools.combinations(range(len(lane_polys)), 2):
-            lane_polys[i] = separate_polys(lane_polys[i], lane_polys[j])
+        for i in range(len(lane_polys)):
+            # TODO do this later when we have lane adjacency information to avoid
+            # considering all possible pairs
+            for j in range(i):
+                lane_polys[i], lane_polys[j] = separate(lane_polys[i], lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
@@ -780,8 +821,8 @@ class Road:
         # Create lane and road sections
         roadSections = []
         last_section = None
-        sidewalkSections = defaultdict(list)
-        shoulderSections = defaultdict(list)
+        forwardSidewalks, backwardSidewalks = [], []
+        forwardShoulders, backwardShoulders = [], []
         for sec, pts, sec_poly, lane_polys in zip(
             self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
         ):
@@ -837,52 +878,96 @@ class Road:
             allElements.append(section)
             last_section = section
 
+            fss, bss = {}, {}
             for id_, lane in sec.sidewalk_lanes.items():
-                sidewalkSections[id_].append(lane)
+                if lane.poly is None:  # skip if we could not generate polygon
+                    continue
+                (fss if id_ < 0 else bss)[id_] = lane
+            forwardSidewalks.append(fss)
+            backwardSidewalks.append(bss)
+            fss, bss = {}, {}
             for id_, lane in sec.shoulder_lanes.items():
-                shoulderSections[id_].append(lane)
+                if lane.poly is None:
+                    continue
+                (fss if id_ < 0 else bss)[id_] = lane
+            forwardShoulders.append(fss)
+            backwardShoulders.append(bss)
 
         # Build sidewalks and shoulders
         # TODO improve this!
-        forwardSidewalks, backwardSidewalks = [], []
-        forwardShoulders, backwardShoulders = [], []
-        for id_ in sidewalkSections:
-            (forwardSidewalks if id_ < 0 else backwardSidewalks).append(id_)
-        for id_ in shoulderSections:
-            (forwardShoulders if id_ < 0 else backwardShoulders).append(id_)
-
-        def combineSections(laneIDs, sections, name):
-            leftmost, rightmost = max(laneIDs), min(laneIDs)
-            if len(laneIDs) != leftmost - rightmost + 1:
-                warn(f"ignoring {name} in the middle of road {self.id_}")
+        def combineSections(sections, name, backward):
             leftPoints, rightPoints = [], []
-            if leftmost < 0:
-                leftmost = rightmost
-                while leftmost + 1 in laneIDs:
-                    leftmost = leftmost + 1
-                leftSecs, rightSecs = sections[leftmost], sections[rightmost]
-                for leftSec, rightSec in zip(leftSecs, rightSecs):
+            allPolys = []
+            if backward:
+                sections = reversed(sections)
+            leftSec, rightSec = None, None
+            for section in sections:
+                if leftSec is None:
+                    if not section:
+                        continue
+                    leftmost, rightmost = max(section), min(section)
+                elif backward:
+                    leftmost, rightmost = leftSec.pred, rightSec.pred
+                else:
+                    leftmost, rightmost = leftSec.succ, rightSec.succ
+                if not leftmost or not rightmost:
+                    break
+                if len(section) != leftmost - rightmost + 1:
+                    warn(f"ignoring {name} in the middle of road {self.id_}")
+                if leftmost not in section or rightmost not in section:
+                    # can happen if successor has a different lane type
+                    break
+
+                def hasGap(edge1, edge2):
+                    gap = np.linalg.norm(np.asarray(edge1) - edge2)
+                    if gap < max(tolerance, 0.01):
+                        return False
+                    warn(f"road {self.id_} has discontinuous {name}; truncating it")
+                    return True
+
+                if leftmost < 0:
+                    leftmost = rightmost
+                    secPolys = [section[leftmost].poly]
+                    while leftmost + 1 in section:
+                        leftmost = leftmost + 1
+                        secPolys.append(section[leftmost].poly)
+                    leftSec, rightSec = section[leftmost], section[rightmost]
+                    if leftPoints and hasGap(leftPoints[-1], leftSec.left_bounds[0]):
+                        break
                     leftPoints.extend(leftSec.left_bounds)
                     rightPoints.extend(rightSec.right_bounds)
-            else:
-                rightmost = leftmost
-                while rightmost - 1 in laneIDs:
-                    rightmost = rightmost - 1
-                leftSecs = reversed(sections[leftmost])
-                rightSecs = reversed(sections[rightmost])
-                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                else:
+                    rightmost = leftmost
+                    secPolys = [section[rightmost].poly]
+                    while rightmost - 1 in section:
+                        rightmost = rightmost - 1
+                        secPolys.append(section[rightmost].poly)
+                    leftSec, rightSec = section[leftmost], section[rightmost]
+                    if leftPoints and hasGap(leftPoints[-1], rightSec.right_bounds[-1]):
+                        break
                     leftPoints.extend(reversed(rightSec.right_bounds))
                     rightPoints.extend(reversed(leftSec.left_bounds))
+                allPolys.extend(secPolys)
+            assert allPolys
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
-            centerline = self.create_center_line(leftEdge, rightEdge)
-            allPolys = (
-                sec.poly
-                for id_ in range(rightmost, leftmost + 1)
-                for sec in sections[id_]
-            )
+
+            # Heuristically create some kind of reasonable centerline
+            if len(leftPoints) == len(rightPoints):
+                centerPoints = list(
+                    averageVectors(l, r) for l, r in zip(leftPoints, rightPoints)
+                )
+            else:
+                num = max(len(leftPoints), len(rightPoints))
+                centerPoints = []
+                for d in np.linspace(0, 1, num):
+                    l = leftEdge.lineString.interpolate(d, normalized=True)
+                    r = rightEdge.lineString.interpolate(d, normalized=True)
+                    centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
+            centerline = PolylineRegion(cleanChain(centerPoints))
             union = buffer_union(allPolys, tolerance=tolerance)
-            id_ = f"road{self.id_}_{name}({leftmost},{rightmost})"
+            direction = "Backward" if backward else "Forward"
+            id_ = f"road{self.id_}_{name}{direction}"
             return id_, union, centerline, leftEdge, rightEdge
 
         def makeCrosswalk():
@@ -902,14 +987,15 @@ class Road:
                 allElements.append(crossing)
 
             return pedestrian_crossings
-        
+
         pedestrian_crossings = makeCrosswalk()
-        
-        def makeSidewalk(laneIDs):
-            if not laneIDs:
+
+        def makeSidewalk(sections, backward=False):
+            sections = tuple(sections)
+            if not any(sections):
                 return None
             id_, union, centerline, leftEdge, rightEdge = combineSections(
-                laneIDs, sidewalkSections, "sidewalk"
+                sections, "sidewalk", backward
             )
             sidewalk = roadDomain.Sidewalk(
                 id=id_,
@@ -924,13 +1010,14 @@ class Road:
             return sidewalk
 
         forwardSidewalk = makeSidewalk(forwardSidewalks)
-        backwardSidewalk = makeSidewalk(backwardSidewalks)
+        backwardSidewalk = makeSidewalk(backwardSidewalks, backward=True)
 
-        def makeShoulder(laneIDs):
-            if not laneIDs:
+        def makeShoulder(sections, backward=False):
+            sections = tuple(sections)
+            if not any(sections):
                 return None
             id_, union, centerline, leftEdge, rightEdge = combineSections(
-                laneIDs, shoulderSections, "shoulder"
+                sections, "shoulder", backward
             )
             shoulder = roadDomain.Shoulder(
                 id=id_,
@@ -944,7 +1031,7 @@ class Road:
             return shoulder
 
         forwardShoulder = makeShoulder(forwardShoulders)
-        backwardShoulder = makeShoulder(backwardShoulders)
+        backwardShoulder = makeShoulder(backwardShoulders, backward=True)
 
         # Connect sections to their successors
         next_section = None
@@ -1094,7 +1181,6 @@ class Road:
             middleLane = startLanes[len(startLanes) // 2].lane  # rather arbitrary
             return leftEdge, middleLane.centerline, rightEdge
 
-
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
             forwardGroup = roadDomain.LaneGroup(
@@ -1219,51 +1305,40 @@ class Road:
         cumalative_curve_length = 0.0
 
         for curve in self.ref_line:
-            if cumalative_curve_length + curve.length >= s - 1e-9: #Find the curve that the s-coordinate is on
-                local_s = s - cumalative_curve_length #Compute the local s-coordinate (how many units into the curve are we?)
-                
-                x,y,z = curve.point_at(local_s)
+            if cumalative_curve_length + curve.length >= s - 1e-9:
+                local_s = s - cumalative_curve_length
+                x, y, z = curve.point_at(local_s)
                 heading = curve.heading_at(local_s)
-
-                return (x,y,z), heading
-
-            #Update cumulative length of curves until we find the right curve
+                return (x, y, z), heading
             cumalative_curve_length = cumalative_curve_length + curve.length
-        
-        #If we get to the end of the road reference line, we need to get the heading of the last curve
-        last_curve = self.ref_line[-1]
-        x,y,z = last_curve.point_at(last_curve.length)
-        heading = last_curve.heading_at(last_curve.length)
 
-        return (x,y,z), heading
+        last_curve = self.ref_line[-1]
+        x, y, z = last_curve.point_at(last_curve.length)
+        heading = last_curve.heading_at(last_curve.length)
+        return (x, y, z), heading
 
     def st_to_xyz(self, s, t, zOffset):
         (x_ref, y_ref, z_ref), heading = self.xyz_heading_at_s(s)
-
-        #Lateral offset (t) is applied in the perpendicular direction of the road heading to obtain final global coordinates
         x = x_ref - t * math.sin(heading)
         y = y_ref + t * math.cos(heading)
         z = z_ref + zOffset
-
-        return (x,y,0) 
+        return (x, y, 0)
 
     def uv_to_xyz(self, s, t, zOffset, u, v, z_local, hdg, pitch, roll):
         (x0, y0, z0) = self.st_to_xyz(s, t, zOffset)
-        (_,_,_), road_heading = self.xyz_heading_at_s(s)
+        (_, _, _), road_heading = self.xyz_heading_at_s(s)
         yaw = hdg + road_heading
 
-        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False) #Extrinsic so lowercase
-        local_vector = np.array([u,v,z_local])
+        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False)
+        local_vector = np.array([u, v, z_local])
         rotated_vector = r.apply(local_vector)
 
         x = x0 + rotated_vector[0]
         y = y0 + rotated_vector[1]
         z = z0 + rotated_vector[2]
-
-        return (x,y,z)   
+        return (x, y, z)
 
     def create_center_line(self, leftEdge, rightEdge):
-        # Heuristically create some kind of reasonable centerline
         leftPoints = list(leftEdge.lineString.coords)
         rightPoints = list(rightEdge.lineString.coords)
 
@@ -1279,7 +1354,6 @@ class Road:
                 r = rightEdge.lineString.interpolate(d, normalized=True)
                 centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
         centerline = PolylineRegion(cleanChain(centerPoints))
-
         return centerline
 
     def construct_crosswalk_polys(self, cw, tolerance):
@@ -1290,38 +1364,40 @@ class Road:
                 v = corner_local['v']
                 z_local = corner_local['z']
 
-                x, y, z = self.uv_to_xyz(float(cw.s), float(cw.t), float(cw.zOffset), u, v, z_local, float(cw.hdg), float(cw.pitch), float(cw.roll))
-                points.append((x,y))
-        
+                x, y, z = self.uv_to_xyz(
+                    float(cw.s), float(cw.t), float(cw.zOffset),
+                    u, v, z_local,
+                    float(cw.hdg), float(cw.pitch), float(cw.roll),
+                )
+                points.append((x, y))
+
         crosswalk_polygon = cleanPolygon(Polygon(points), tolerance)
         crosswalk_polygon_coords = list(crosswalk_polygon.exterior.coords[:-1])
 
-        mrr = list(crosswalk_polygon.minimum_rotated_rectangle.exterior.coords)[:-1] #Drop last point - same as the first point
+        mrr = list(crosswalk_polygon.minimum_rotated_rectangle.exterior.coords)[:-1]
         edges = []
         lengths = []
-        
+
         for i in range(4):
             a = mrr[i]
-            b = mrr[(i + 1) % 4] #Wrap around to the first point
-
-            edge = (a,b)
+            b = mrr[(i + 1) % 4]
+            edge = (a, b)
             edges.append(edge)
-        
-        for (a,b) in edges:
+
+        for (a, b) in edges:
             dx = b[0] - a[0]
             dy = b[1] - a[1]
-
             distance = math.hypot(dx, dy)
             lengths.append(distance)
-        
-        get_mrr_shortest_indices = np.argsort(lengths)[:2] #Get the fist two indices - they correspond to the shortest edges
+
+        get_mrr_shortest_indices = np.argsort(lengths)[:2]
 
         mrr_shortest_edge = edges[get_mrr_shortest_indices[0]]
         mrr_shortest_opp_edge = edges[get_mrr_shortest_indices[1]]
 
         def get_edge_midpoint(vertex1, vertex2):
             return (np.asarray(vertex1) + np.asarray(vertex2)) / 2
-        
+
         m1 = get_edge_midpoint(mrr_shortest_edge[0], mrr_shortest_edge[1])
         m2 = get_edge_midpoint(mrr_shortest_opp_edge[0], mrr_shortest_opp_edge[1])
 
@@ -1331,12 +1407,14 @@ class Road:
         mrr_shortest_edge = LineString(mrr_shortest_edge)
         mrr_shortest_opp_edge = LineString(mrr_shortest_opp_edge)
 
-        for x,y in crosswalk_polygon_coords:
-            crosswalk_polygon_vertex = Point(x,y)
-
-            #Distance from each vertex on the crosswalk polygon to the bottom edge of the MRR
-            mrr_shortest_opp_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge))
-            mrr_shortest_edge_distances.append(crosswalk_polygon_vertex.distance(mrr_shortest_edge))
+        for x, y in crosswalk_polygon_coords:
+            crosswalk_polygon_vertex = Point(x, y)
+            mrr_shortest_opp_edge_distances.append(
+                crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge)
+            )
+            mrr_shortest_edge_distances.append(
+                crosswalk_polygon_vertex.distance(mrr_shortest_edge)
+            )
 
         bottom_cut_index = 0
         top_cut_index = 0
@@ -1345,19 +1423,31 @@ class Road:
 
         for i in range(len(crosswalk_polygon_coords)):
             j = (i + 1) % len(crosswalk_polygon_coords)
-            
-            b_score = max(mrr_shortest_opp_edge_distances[i], mrr_shortest_opp_edge_distances[j])
+
+            b_score = max(
+                mrr_shortest_opp_edge_distances[i],
+                mrr_shortest_opp_edge_distances[j],
+            )
             if b_score < final_bottom_score:
                 final_bottom_score = b_score
                 bottom_cut_index = i
-            
-            t_score = max(mrr_shortest_edge_distances[i], mrr_shortest_edge_distances[j])
+
+            t_score = max(
+                mrr_shortest_edge_distances[i],
+                mrr_shortest_edge_distances[j],
+            )
             if t_score < final_top_score:
                 final_top_score = t_score
                 top_cut_index = i
 
-        top_cut = (top_cut_index, (top_cut_index + 1) % len(crosswalk_polygon_coords))
-        bottom_cut = (bottom_cut_index, (bottom_cut_index + 1) % len(crosswalk_polygon_coords))
+        top_cut = (
+            top_cut_index,
+            (top_cut_index + 1) % len(crosswalk_polygon_coords),
+        )
+        bottom_cut = (
+            bottom_cut_index,
+            (bottom_cut_index + 1) % len(crosswalk_polygon_coords),
+        )
 
         def walk_polygon(n, bottom_cut, top_cut):
             t0, t1 = top_cut
@@ -1368,16 +1458,18 @@ class Road:
             while i != b1:
                 i = (i - 1 + n) % n
                 left_indices.append(i)
-            
+
             right_indices = [t1]
             i = t1
             while i != b0:
                 i = (i + 1) % n
                 right_indices.append(i)
-            
+
             return left_indices, right_indices
-        
-        left_indices, right_indices = walk_polygon(len(crosswalk_polygon_coords), bottom_cut, top_cut)
+
+        left_indices, right_indices = walk_polygon(
+            len(crosswalk_polygon_coords), bottom_cut, top_cut
+        )
         left_edge = [crosswalk_polygon_coords[i] for i in left_indices]
         right_edge = [crosswalk_polygon_coords[i] for i in right_indices]
 
@@ -1389,25 +1481,21 @@ class Road:
 
 
 class Crosswalk:
-    def __init__(self, type_, subtype, id_, s, t, zOffset, orientation, length, width, hdg, pitch, roll, outlines): 
+    def __init__(self, type_, subtype, id_, s, t, zOffset, orientation,
+                 length, width, hdg, pitch, roll, outlines):
         self.type_ = type_
         self.subtype = subtype
         self.id_ = id_
-        
         self.s = s
         self.t = t
         self.zOffset = zOffset
         self.orientation = orientation
-
         self.length = length
         self.width = width
-
         self.hdg = hdg
         self.pitch = pitch
         self.roll = roll
-
         self.outlines = outlines
-
         self.polygon = None
         self.centerline = None
         self.leftEdge = None
@@ -1415,6 +1503,7 @@ class Crosswalk:
 
     def is_valid(self):
         return self.length > 0 and self.width > 0
+
 
 class Signal:
     """Traffic lights, stop signs, etc."""
@@ -1486,63 +1575,6 @@ class RoadMap:
                 sidewalk_lane_types=self.sidewalk_lane_types,
                 shoulder_lane_types=self.shoulder_lane_types,
             )
-
-        # Cleanup lanes and lane sections that overlap with their successors
-        for t_id, t_road in self.roads.items():
-            t_poly = polygonUnion(t_road.lane_polys)
-            p_id = t_road.predecessor
-            s_id = t_road.successor
-
-            if t_road.predecessor is not None and t_id != p_id:
-                # Find predecessor roads
-                if p_id in self.roads:
-                    p_roads = [self.roads[p_id]]
-                elif p_id in self.junctions:
-                    p_roads = [self.roads[p_id] for p_id in self.junctions[p_id].paths]
-                else:
-                    assert False
-
-                # Trim all predecessor roads
-                for p_road in p_roads:
-                    # Trim lanes and lane sections
-                    p_road.lane_polys = [
-                        separate_polys(lp, t_poly) for lp in p_road.lane_polys
-                    ]
-                    p_road.sec_polys = [
-                        separate_polys(sp, t_poly) for sp in p_road.sec_polys
-                    ]
-                    p_road.sec_lane_polys = [
-                        {k: separate_polys(lsp, t_poly) for k, lsp in l.items()}
-                        for l in p_road.sec_lane_polys
-                    ]
-
-            if t_road.successor is not None and t_id != s_id:
-                # Find successor roads
-                if s_id in self.roads:
-                    s_roads = [self.roads[s_id]]
-                elif s_id in self.junctions:
-                    s_roads = [self.roads[s_id] for s_id in self.junctions[s_id].paths]
-                else:
-                    assert False
-
-                # Trim all successor roads
-                for s_road in s_roads:
-                    s_poly = polygonUnion(s_road.lane_polys)
-                    assert s_poly.is_valid
-
-                    # Trim lanes and lane sections
-                    t_road.lane_polys = [
-                        separate_polys(lp, s_poly) for lp in t_road.lane_polys
-                    ]
-                    t_road.sec_polys = [
-                        separate_polys(sp, s_poly) for sp in t_road.sec_polys
-                    ]
-                    t_road.sec_lane_polys = [
-                        {k: separate_polys(lsp, s_poly) for k, lsp in l.items()}
-                        for l in t_road.sec_lane_polys
-                    ]
-
-        for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
 
@@ -1561,8 +1593,6 @@ class RoadMap:
                     sidewalk_polys.append(sidewalk_poly)
                 if not (shoulder_poly is None or shoulder_poly.is_empty):
                     shoulder_polys.append(shoulder_poly)
-                
-                #Get crosswalk polygons
                 for cw in road.crosswalks:
                     if not (cw.polygon is None or cw.polygon.is_empty):
                         crosswalk_polys.append(cw.polygon)
@@ -1605,8 +1635,7 @@ class RoadMap:
                             b_bounds_right[other_id],
                         ]
                     ).convex_hull
-                    if not gap_poly.is_valid:
-                        continue
+                    assert gap_poly.is_valid
                     if gap_poly.geom_type == "Polygon" and not gap_poly.is_empty:
                         if lane.type_ in self.drivable_lane_types:
                             drivable_polys.append(gap_poly)
@@ -1708,22 +1737,21 @@ class RoadMap:
 
     def __parse_crosswalk(self, crosswalk_elem):
         cw = Crosswalk(
-            type_ = crosswalk_elem.get("type"),
-            subtype = crosswalk_elem.get("subtype"),
-            id_ = crosswalk_elem.get("id"),
-            s = float(crosswalk_elem.get("s", 0.0)),
-            t = float(crosswalk_elem.get("t", 0.0)),
-            zOffset = float(crosswalk_elem.get("zOffset", 0.0)),
-            orientation = crosswalk_elem.get("orientation"),
-            length = float(crosswalk_elem.get("length", 0.0)),
-            width = float(crosswalk_elem.get("width", 0.0)),
-            hdg = float(crosswalk_elem.get("hdg", 0.0)),
-            pitch = float(crosswalk_elem.get("pitch", 0.0)),
-            roll = float(crosswalk_elem.get("roll", 0.0)),
-            outlines = []
+            type_=crosswalk_elem.get("type"),
+            subtype=crosswalk_elem.get("subtype"),
+            id_=crosswalk_elem.get("id"),
+            s=float(crosswalk_elem.get("s", 0.0)),
+            t=float(crosswalk_elem.get("t", 0.0)),
+            zOffset=float(crosswalk_elem.get("zOffset", 0.0)),
+            orientation=crosswalk_elem.get("orientation"),
+            length=float(crosswalk_elem.get("length", 0.0)),
+            width=float(crosswalk_elem.get("width", 0.0)),
+            hdg=float(crosswalk_elem.get("hdg", 0.0)),
+            pitch=float(crosswalk_elem.get("pitch", 0.0)),
+            roll=float(crosswalk_elem.get("roll", 0.0)),
+            outlines=[],
         )
 
-        #Parse outlines (fixed)
         for outline_elem in crosswalk_elem.iter("outline"):
             corners = []
             for corner_elem in outline_elem.iter("cornerRoad"):
@@ -1734,7 +1762,6 @@ class RoadMap:
                     "s": float(corner_elem.get("s", 0.0)),
                     "t": float(corner_elem.get("t", 0.0)),
                 })
-
             for corner_elem in outline_elem.iter("cornerLocal"):
                 corners.append({
                     "height": float(corner_elem.get("height", 0.0)),
@@ -1743,11 +1770,9 @@ class RoadMap:
                     "v": float(corner_elem.get("v", 0.0)),
                     "z": float(corner_elem.get("z", 0.0)),
                 })
-
             cw.outlines.append(corners)
-        
-        return cw
 
+        return cw
 
     def __parse_signal_validity(self, validity_elem):
         if validity_elem is None:
@@ -1848,7 +1873,7 @@ class RoadMap:
 
             # Parse planView:
             plan_view = r.find("planView")
-            curves = []
+            curveData = []
             for geom in plan_view.iter("geometry"):
                 x0 = float(geom.get("x"))
                 y0 = float(geom.get("y"))
@@ -1856,94 +1881,64 @@ class RoadMap:
                 hdg = float(geom.get("hdg"))
                 length = float(geom.get("length"))
                 curve_elem = geom[0]
-                curve = None
-                if curve_elem.tag == "line":
-                    curve = Line(x0, y0, hdg, length)
-                elif curve_elem.tag == "arc":
-                    # Arc is clothoid of constant curvature.
-                    curv = float(curve_elem.get("curvature"))
-                    curve = Clothoid(x0, y0, hdg, length, curv, curv)
-                elif curve_elem.tag == "spiral":
-                    curv0 = float(curve_elem.get("curvStart"))
-                    curv1 = float(curve_elem.get("curvEnd"))
-                    curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
-                elif curve_elem.tag == "poly3":
-                    a, b, c, d = (
-                        float(curve_elem.get("a")),
-                        float(curve_elem.get("b")),
-                        float(curve_elem.get("c")),
-                        float(curve_elem.get("d")),
-                    )
-                    curve = Cubic(x0, y0, hdg, length, a, b, c, d)
-                elif curve_elem.tag == "paramPoly3":
-                    au, bu, cu, du, av, bv, cv, dv = (
-                        float(curve_elem.get("aU")),
-                        float(curve_elem.get("bU")),
-                        float(curve_elem.get("cU")),
-                        float(curve_elem.get("dU")),
-                        float(curve_elem.get("aV")),
-                        float(curve_elem.get("bV")),
-                        float(curve_elem.get("cV")),
-                        float(curve_elem.get("dV")),
-                    )
-                    p_range = curve_elem.get("pRange")
-                    if p_range and p_range != "normalized":
-                        # TODO support arcLength
-                        raise NotImplementedError("unsupported pRange for paramPoly3")
-                    else:
-                        p_range = 1
-                    curve = ParamCubic(
-                        x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range
-                    )
-                curves.append((s0, curve))
-            if not curves:
+                curveData.append((s0, x0, y0, hdg, length, curve_elem))
+
+            if not curveData:
                 raise ValueError(f"road {road.id_} has an empty planView")
-            if not curves[0][0] == 0:
+            if not curveData[0][0] == 0:
                 raise ValueError(
                     f"reference line of road {road.id_} does not start at s=0"
                 )
-            lastS = 0
-            lastCurve = curves[0][1]
-            refLine = []
-            for s0, curve in curves[1:]:
-                l = s0 - lastS
-                if abs(lastCurve.length - l) > 1e-4:
-                    raise ValueError(
-                        f"planView of road {road.id_} has inconsistent length"
-                    )
-                if l < 0:
-                    raise ValueError(f"planView of road {road.id_} is not in order")
-                elif l < 1e-6:
-                    warn(
-                        f"road {road.id_} reference line has a geometry of "
-                        f"length {l}; skipping it"
-                    )
+
+            refLine, suspectGeometries = [], []
+            for i, (s0, x0, y0, hdg, length, curve_elem) in enumerate(curveData):
+                if i + 1 < len(curveData):
+                    nextS0 = curveData[i + 1][0]
+                    l = nextS0 - s0
+
+                    if l < 0:
+                        raise ValueError(f"planView of road {road.id_} is not in order")
+
+                    if abs(length - l) > 1e-3:
+                        warn(
+                            f"planView of road {road.id_} has inconsistent length: "
+                            f"geometry at s={s0} has declared length {length}, "
+                            f"but the next geometry starts at s={nextS0}; "
+                            f"using length {l}"
+                        )
+                        length = l
+
+                curve, suspicion = makeCurve(x0, y0, hdg, length, curve_elem)
+                if suspicion:
+                    suspectGeometries.append((curve, suspicion, length))
                 else:
-                    refLine.append(lastCurve)
-                lastS = s0
-                lastCurve = curve
-            if refLine and lastCurve.length < 1e-6:
-                warn(
-                    f"road {road.id_} reference line has a geometry of "
-                    f"length {lastCurve.length}; skipping it"
-                )
-            else:
-                # even if the last curve is shorter than the threshold, we'll keep it if
-                # it is the only curve; getting rid of the road entirely is handled by
-                # road elision above
-                refLine.append(lastCurve)
+                    refLine.append(curve)
+
+            exonerated = None
+            if not refLine:
+                # All geometries were suspect, so we need to keep at least one of them.
+                # We'll heuristically keep whichever is longest and drop the rest.
+                # (Extremely short roads can be removed entirely by road elision above.)
+                exonerated = max(suspectGeometries, key=lambda t: t[2])[0]
+                refLine.append(exonerated)
+            for curve, suspicion, _ in suspectGeometries:
+                note = "" if curve is exonerated else "; skipping it"
+                warn(f"road {road.id_} reference line has a {suspicion}{note}")
+
             assert refLine
             road.ref_line = refLine
 
-            #Parse crosswalks
-            objects_elem = r.find("objects") #All the objects on the road
+            # Parse crosswalks
+            objects_elem = r.find("objects")
             if objects_elem is not None:
-                for obj in objects_elem.iter("object"): #Go through each specific object and check if it is a crosswalk
+                for obj in objects_elem.iter("object"):
                     if obj.get("type") == "crosswalk":
                         cw = self.__parse_crosswalk(obj)
                         road.crosswalks.append(cw)
 
-                        crosswalk_poly, centerLine, leftEdge, rightEdge = road.construct_crosswalk_polys(cw, self.tolerance)
+                        crosswalk_poly, centerLine, leftEdge, rightEdge = (
+                            road.construct_crosswalk_polys(cw, self.tolerance)
+                        )
                         cw.polygon = crosswalk_poly
                         cw.centerline = centerLine
                         cw.leftEdge = leftEdge
@@ -2286,14 +2281,14 @@ class RoadMap:
             if rid not in roads:
                 continue  # road does not have any drivable lanes, so we skipped it
             newRoad = roads[rid]
-            if oldRoad.predecessor:
-                intersection = intersections[oldRoad.predecessor]
+            if (pred := oldRoad.predecessor) and pred in intersections:
+                intersection = intersections[pred]
                 newRoad._predecessor = intersection
                 newRoad.sections[0]._predecessor = intersection
                 if newRoad.backwardLanes:
                     newRoad.backwardLanes._successor = intersection
-            if oldRoad.successor:
-                intersection = intersections[oldRoad.successor]
+            if (succ := oldRoad.successor) and succ in intersections:
+                intersection = intersections[succ]
                 newRoad._successor = intersection
                 newRoad.sections[-1]._successor = intersection
                 if newRoad.forwardLanes:
@@ -2341,7 +2336,7 @@ class RoadMap:
             laneGroups=tuple(groups),
             lanes=lanes,
             intersections=intersections,
-            crossings=tuple(crossings),
+            crossings=crossings,
             sidewalks=tuple(sidewalks),
             shoulders=tuple(shoulders),
             tolerance=self.tolerance,

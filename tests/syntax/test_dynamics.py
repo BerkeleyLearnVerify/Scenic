@@ -247,7 +247,7 @@ def test_behavior_create_object():
 
 def test_behavior_define_param():
     with pytest.raises(ScenicSyntaxError):
-        scenario = compileScenic(
+        compileScenic(
             """
             behavior Bar():
                 param foo = 3
@@ -255,7 +255,6 @@ def test_behavior_define_param():
             ego = new Object with behavior Bar
             """
         )
-        sampleResultOnce(scenario)
 
 
 def test_behavior_illegal_yield():
