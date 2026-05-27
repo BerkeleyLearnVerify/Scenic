@@ -136,7 +136,6 @@ class network_cache():
                 assert len(distances) > 0, f"Object has deviated to far from the roadway : i.e {radius_size/2} meters"
                
                 if not allow_intersection_links:
-                    print(f"Selecting lane based on dist")
                     for _ in range(len(distances)):
                         distance, nearest_lane = min(distances, key=lambda t: t[0])[:] # min distance over all lanes
                         mapped_roads = self.map_scenic_to_metsr_lanes(nearest_lane)
@@ -146,7 +145,6 @@ class network_cache():
                             else:
                                 distances.remove((distance, nearest_lane))
                 else:
-                    print(f"Selecting lane based on dist")
                     nearest_lane = min(distances, key=lambda t: t[0])[1] # min distance over all lanes
        
         self.obj_lane_cache[obj] = nearest_lane
@@ -341,7 +339,6 @@ def generate_map(map):
     
         lanes = edge.findall('lane')
         for lane in lanes:
-            # type = lane.attrib.get('type') if lane.attrib.get('type') else ""
             metrs_lane = lane.attrib.get("id")
             params = lane.findall('param')
 
@@ -365,9 +362,6 @@ def generate_map(map):
 
     if lane_mappings == {}:
         print(f"An occured attempting to process map: {map}")
-
-    # for key, item in lane_mappings.items():
-    #     print(f"KEY: {key} :: ITEM: {item}")
 
     return lane_mappings
 
