@@ -4,22 +4,21 @@
 # Setting up METSR:   
 1. Create a virtual env `python -m venv metsr_venv`
 2. Run `git clone clone https://github.com/umnilab/METS-R_HPC`
-3. Create an instance of METSR sim 
-a. An example template for this is provided in `run_blank.py`
+3. Create an instance of METSR sim. An example template for this is provided in `run_blank.py`. Please note this template should be run inside the top level METS-R folder.
 
-For METSR specific details please review the its documentation: https://umnilab.github.io/METS-R_doc/`
+For METSR specific details please review its documentation: https://umnilab.github.io/METS-R_doc/`.
 
 # Setting up CARLA:
 1. Ensure CARLA is open an running on your desktop
 
-For CARLA specific details please review the CARLA examples folder or its documentation: https://carla.readthedocs.io/en/latest/python_api/
+For CARLA specific details please review the CARLA examples folder or its documentation: https://carla.readthedocs.io/en/latest/python_api/.
 
 # Finally to run the scenic program first ensure
 - The `globalParameter address` set at the top of your Scenic program matches your current IP address to allow Scenic to connect to CARLA
 - The `globalParameter map` set at the top of your Scenic program provides the path to the corresponding `xodr` map you would like to run
-- Ensure that this parameter matches the configuration file used to spin up METSR
+- Ensure that this parameter matches the configuration file used to spin up METSR (this can be viewed inside `run_blank.py`.
 - The `globalParameter xml_map` matches provides the path to the corresponding `xml` map. 
-        `xml` map files can be generated from the provided sumo file found in `assets\maps\CARLA` using the command noted at the end fo this file
+        `xml` map files can be generated from the provided sumo file found in `assets\maps\CARLA` using the command noted at the end of this file
 
 Now the simulator can be started running the following command: `scenic [your_file.scenic] --simulate --2d`  
  
