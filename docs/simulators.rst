@@ -10,11 +10,17 @@ On this page we list interfaces that we and others have developed; if you have a
 Note that not every interface supports all Scenic features: in particular, some interfaces do not support dynamic scenarios.
 See the individual entries for details on each interface's capabilities and how to set it up.
 
+.. note::
+	While Scenic aims to support multiple Python versions, some simulators may have more limited compatibility.
+	Be sure to check the documentation of each simulator to confirm which Python versions are supported.
+
 .. contents:: List of Simulators
    :local:
 
 Currently Supported
 ===================
+
+.. _metadrive_simulator:
 
 MetaDrive
 ----------------------------
@@ -26,6 +32,20 @@ You can install it with:
 .. code-block:: console
 
     python -m pip install scenic[metadrive]
+
+.. note::
+
+   MetaDrive **0.4.3** (the current PyPI release) does **not** support Python 3.12/3.13.
+   It also has known issues on macOS Apple Silicon (M-series) with 3D rendering and a
+   braking issue where vehicles may not come to a complete stop.
+
+   To use Python 3.12+ **and** get the fixes for the macOS/braking issues, install
+   MetaDrive from the GitHub repo:
+
+   .. code-block:: console
+
+      python -m pip install "metadrive-simulator @ git+https://github.com/metadriverse/metadrive.git@main"
+      python -m pip install "sumolib >= 1.21.0"
 
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
 
@@ -53,7 +73,7 @@ Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Sceni
 The interface supports dynamic scenarios written using the CARLA world model (:obj:`scenic.simulators.carla.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
 To use the interface, please follow these instructions:
 
-1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.14) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
+1. Install the latest version of CARLA (we've tested versions 0.9.9 through 0.9.16) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
    Note that CARLA currently only supports Linux and Windows.
 2. Install Scenic in your Python virtual environment as instructed in :ref:`quickstart`.
 3. Within the same virtual environment, install CARLA's Python API.

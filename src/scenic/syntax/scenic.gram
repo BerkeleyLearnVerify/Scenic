@@ -56,31 +56,6 @@ EXPR_NAME_MAPPING = {
 }
 
 
-def parse_file(
-    path: str,
-    py_version: Optional[tuple]=None,
-    token_stream_factory: Optional[
-        Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    ] = None,
-    verbose:bool = False,
-) -> ast.Module:
-    """Parse a file."""
-    with open(path) as f:
-        tok_stream = (
-            token_stream_factory(f.readline)
-            if token_stream_factory else
-            tokenize.generate_tokens(f.readline)
-        )
-        tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
-        parser = ScenicParser(
-            tokenizer,
-            verbose=verbose,
-            filename=os.path.basename(path),
-            py_version=py_version
-        )
-        return parser.parse("file")
-
-
 def parse_string(
     source: str,
     mode: Union[Literal["eval"], Literal["exec"]],
@@ -99,7 +74,24 @@ def parse_string(
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
-    return parser.parse(mode if mode == "eval" else "file")
+
+    # Tokenization / early indentation errors are raised before ScenicParser
+    # runs; wrap them in ScenicParseError so they use Scenic's normal syntax
+    # error reporting (correct filename, consistent formatting).
+    try:
+        return parser.parse(mode if mode == "eval" else "file")
+    except tokenize.TokenError as e:
+        msg, (lineno, offset) = e.args
+        syn = SyntaxError(msg)
+        syn.filename = filename
+        syn.lineno = lineno
+        syn.offset = offset
+        raise ScenicParseError(syn) from None
+
+    except IndentationError as e:
+        e.filename = filename
+        raise ScenicParseError(e) from None
+
 
 
 class Target(enum.Enum):
@@ -337,7 +329,8 @@ class Parser(Parser):
             line, col_offset = t.end
         source += "\\n)"
         try:
-            m = ast.parse(source)
+            # Use the Scenic parser's filename so f-string errors report the right file.
+            m = ast.parse(source, filename=self.filename)
         except SyntaxError as err:
             args = (err.filename, err.lineno + line_offset - 2, err.offset, err.text)
             if sys.version_info >= (3, 10):
@@ -1728,18 +1721,23 @@ scenic_specifiers: ss=','.scenic_specifier+ { ss }
 scenic_specifier:
     | scenic_valid_specifier
     | invalid_scenic_specifier
+# Split into non-operator-like vs operator-like instance specifiers.
 scenic_valid_specifier:
-    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
+    | scenic_instance_specifier_nonoperator
+    | scenic_instance_specifier_operator_like
+scenic_instance_specifier_operator_like:
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | "offset" 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
     | "offset" "along" d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
+scenic_instance_specifier_nonoperator:
+    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
         s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
     | "beyond" v=expression 'by' o=expression b=['from' a=expression {a}] { s.BeyondSpecifier(position=v, offset=o, base=b) }
     | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
-    | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
     | 'on' r=expression { s.OnSpecifier(region=r, LOCATIONS) }
     | "contained" 'in' r=expression { s.ContainedInSpecifier(region=r, LOCATIONS) }
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
@@ -2499,7 +2497,7 @@ invalid_kwarg[NoReturn]:
      }
 
 invalid_scenic_instance_creation[NoReturn]:
-    | n=NAME s=scenic_valid_specifier {
+    | n=NAME s=scenic_instance_specifier_nonoperator {
         self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot 'new'?", n, s)
     }
 invalid_scenic_specifier[NoReturn]:

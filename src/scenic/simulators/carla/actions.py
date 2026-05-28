@@ -3,6 +3,8 @@
 import math as _math
 
 import carla as _carla
+import numpy as np
+from scipy import linalg
 
 from scenic.domains.driving.actions import *
 import scenic.simulators.carla.utils.utils as _utils
@@ -108,21 +110,22 @@ class SetTrafficLightAction(VehicleAction):
 
 
 class SetAutopilotAction(VehicleAction):
+    """Enable or disable CARLA autopilot with optional Traffic Manager settings.
+
+    Arguments:
+        enabled: Enable or disable autopilot (bool)
+        kwargs: Additional autopilot options such as:
+
+            * ``speed``: Target speed of the car in m/s (default: None). Mutually exclusive with ``vehicle_percentage_speed_difference``.
+            * ``vehicle_percentage_speed_difference``: Percentage difference between intended speed and the current speed limit. Can be negative to exceed the speed limit.
+            * ``path``: Route for the vehicle to follow (default: None)
+            * ``ignore_signs_percentage``: Percentage of ignored traffic signs (default: 0)
+            * ``ignore_lights_percentage``: Percentage of ignored traffic lights (default: 0)
+            * ``ignore_walkers_percentage``: Percentage of ignored pedestrians (default: 0)
+            * ``auto_lane_change``: Whether to allow automatic lane changes (default: False)
+    """
+
     def __init__(self, enabled, **kwargs):
-        """
-        :param enabled: Enable or disable autopilot (bool)
-        :param kwargs: Additional autopilot options such as:
-            - speed: Target speed of the car in m/s (default: None). Mutually
-              exclusive with vehicle_percentage_speed_difference.
-            - vehicle_percentage_speed_difference: Percentage difference between
-              intended speed and the current speed limit. Can be negative to
-              exceed the speed limit.
-            - path: Route for the vehicle to follow (default: None)
-            - ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
-            - ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
-            - ignore_walkers_percentage: Percentage of ignored pedestrians (default: 0)
-            - auto_lane_change: Whether to allow automatic lane changes (default: False)
-        """
         if not isinstance(enabled, bool):
             raise TypeError("Enabled must be a boolean.")
 
@@ -228,89 +231,104 @@ class SetWalkAction(PedestrianAction):
             controller.stop()
 
 
-class TrackWaypointsAction(Action):
-    def __init__(self, waypoints, cruising_speed=10):
-        self.waypoints = np.array(waypoints)
-        self.curr_index = 1
-        self.cruising_speed = cruising_speed
+class TrackWaypointsAction(VehicleAction):
+    """Track (x, y) waypoints in Scenic coordinates at a target speed."""
 
-    def canBeTakenBy(self, agent):
-        # return agent.lgsvlAgentType is lgsvl.AgentType.EGO
-        return True
+    PREDICTIVE_LENGTH = 3.0
+    MIN_SPEED = 1.0
+    WHEEL_BASE = 3.0
+    EPS = 1e-9
 
-    def LQR(v_target, wheelbase, Q, R):
-        A = np.matrix([[0, v_target * (5.0 / 18.0)], [0, 0]])
-        B = np.matrix([[0], [(v_target / wheelbase) * (5.0 / 18.0)]])
-        V = np.matrix(linalg.solve_continuous_are(A, B, Q, R))
-        K = np.matrix(linalg.inv(R) * (B.T * V))
-        return K
+    Q = np.array([[1.0, 0.0], [0.0, 3.0]])
+    R = np.array([[10.0]])
+
+    def __init__(self, waypoints, cruising_speed=10.0):
+        self.waypoints = waypoints
+        self.cruising_speed = float(cruising_speed)
+        self._route_key = id(waypoints)
+
+    @staticmethod
+    def _wrap_to_pi(angle):
+        return (angle + _math.pi) % (2 * _math.pi) - _math.pi
+
+    @classmethod
+    def _lqr_gain(cls, speed):
+        A = np.array([[0.0, speed], [0.0, 0.0]])
+        B = np.array([[0.0], [speed / cls.WHEEL_BASE]])
+        V = linalg.solve_continuous_are(A, B, cls.Q, cls.R)
+        return np.linalg.solve(cls.R, B.T @ V)
+
+    def _ensure_state(self, obj):
+        if getattr(obj, "_tw_route_key", None) == self._route_key:
+            return
+
+        waypoints = np.asarray(self.waypoints, dtype=float)
+        if waypoints.ndim != 2 or waypoints.shape[1] < 2 or len(waypoints) < 3:
+            raise ValueError(
+                "TrackWaypointsAction expects waypoints as an array of shape (N, 2) with N >= 3."
+            )
+
+        obj._tw_waypoints = waypoints[:, :2]
+        obj._tw_index = 1
+        obj._tw_route_key = self._route_key
 
     def applyTo(self, obj, sim):
-        carlaObj = obj.carlaActor
-        transform = carlaObj.get_transform()
-        pos = transform.location
-        rot = transform.rotation
-        velocity = carlaObj.get_velocity()
-        th, x, y, v = (
-            rot.y / 180.0 * np.pi,
-            pos.x,
-            pos.z,
-            (velocity.x**2 + velocity.z**2) ** 0.5,
-        )
-        # print('state:', th, x, y, v)
-        PREDICTIVE_LENGTH = 3
-        MIN_SPEED = 1
-        WHEEL_BASE = 3
-        v = max(MIN_SPEED, v)
+        self._ensure_state(obj)
+        waypoints = obj._tw_waypoints
+        index = obj._tw_index
 
-        x = x + PREDICTIVE_LENGTH * np.cos(-th + np.pi / 2)
-        y = y + PREDICTIVE_LENGTH * np.sin(-th + np.pi / 2)
-        # print('car front:', x, y)
-        dists = np.linalg.norm(self.waypoints - np.array([x, y]), axis=1)
-        dist_pos = np.argpartition(dists, 1)
-        index = dist_pos[0]
-        if index > self.curr_index and index < len(self.waypoints) - 1:
-            self.curr_index = index
-        p1, p2, p3 = (
-            self.waypoints[self.curr_index - 1],
-            self.waypoints[self.curr_index],
-            self.waypoints[self.curr_index + 1],
-        )
+        actor = obj.carlaActor
+        transform = actor.get_transform()
 
-        p1_a = np.linalg.norm(p1 - np.array([x, y]))
-        p3_a = np.linalg.norm(p3 - np.array([x, y]))
-        p1_p2 = np.linalg.norm(p1 - p2)
-        p3_p2 = np.linalg.norm(p3 - p2)
+        pos = _utils.carlaToScenicPosition(transform.location)
+        vel = _utils.carlaToScenicPosition(actor.get_velocity())
 
-        if p1_a - p1_p2 > p3_a - p3_p2:
-            p1 = p2
-            p2 = p3
+        x, y = pos.x, pos.y
+        speed = max(self.MIN_SPEED, _math.hypot(vel.x, vel.y))
 
-        # print('points:',p1, p2)
-        x1, y1, x2, y2 = p1[0], p1[1], p2[0], p2[1]
-        th_n = -math.atan2(y2 - y1, x2 - x1) + np.pi / 2
-        d_th = (th - th_n + 3 * np.pi) % (2 * np.pi) - np.pi
-        d_x = (x2 - x1) * y - (y2 - y1) * x + y2 * x1 - y1 * x2
-        d_x /= np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
-        # print('d_th, d_x:',d_th, d_x)
+        forward = transform.get_forward_vector()
+        fx, fy = forward.x, -forward.y
+        heading = self._wrap_to_pi(_math.atan2(fx, fy))
 
-        K = TrackWaypoints.LQR(
-            v, WHEEL_BASE, np.array([[1, 0], [0, 3]]), np.array([[10]])
-        )
-        u = -K * np.matrix([[-d_x], [d_th]])
-        u = np.double(u)
-        u_steering = min(max(u, -1), 1)
+        x_f = x + self.PREDICTIVE_LENGTH * fx
+        y_f = y + self.PREDICTIVE_LENGTH * fy
+        lookahead = np.array([x_f, y_f])
 
-        K = 1
-        u = -K * (v - self.cruising_speed)
-        u_thrust = min(max(u, -1), 1)
+        nearest = int(np.argmin(np.linalg.norm(waypoints - lookahead, axis=1)))
+        if index < nearest < (len(waypoints) - 1):
+            index = nearest
+        index = max(1, min(index, len(waypoints) - 2))
+        obj._tw_index = index
 
-        # print('u:', u_thrust, u_steering)
+        p1 = waypoints[index - 1]
+        p2 = waypoints[index]
+        p3 = waypoints[index + 1]
 
-        ctrl = carlaObj.get_control()
-        ctrl.steering = u_steering
-        if u_thrust > 0:
-            ctrl.throttle = u_thrust
-        elif u_thrust < 0.1:
-            ctrl.braking = -u_thrust
-        carlaObj.apply_control(ctrl)
+        if (np.linalg.norm(p1 - lookahead) - np.linalg.norm(p1 - p2)) > (
+            np.linalg.norm(p3 - lookahead) - np.linalg.norm(p3 - p2)
+        ):
+            p1, p2 = p2, p3
+
+        x1, y1 = p1
+        x2, y2 = p2
+        dx = x2 - x1
+        dy = y2 - y1
+
+        desired_heading = _math.atan2(dx, dy)
+        heading_error = self._wrap_to_pi(heading - desired_heading)
+
+        denom = _math.hypot(dx, dy) + self.EPS
+        cross_track_error = (dx * y_f - dy * x_f + y2 * x1 - y1 * x2) / denom
+
+        K = self._lqr_gain(speed)
+        err = np.array([[-cross_track_error], [heading_error]])
+        steer = float(np.clip((-(K @ err)).item(), -1.0, 1.0))
+
+        u = float(np.clip(self.cruising_speed - speed, -1.0, 1.0))
+        throttle = max(0.0, u)
+        brake = max(0.0, -u)
+
+        ctrl = obj.control
+        ctrl.steer = steer
+        ctrl.throttle = throttle
+        ctrl.brake = brake

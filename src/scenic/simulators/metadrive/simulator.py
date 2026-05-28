@@ -35,6 +35,7 @@ class MetaDriveSimulator(DrivingSimulator):
     def __init__(
         self,
         sumo_map,
+        xodr_map,
         timestep=0.1,
         render=True,
         render3D=False,
@@ -49,11 +50,14 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
+        self.xodr_map = xodr_map
         self.real_time = real_time
         self.screen_record = screen_record
         self.screen_record_filename = screen_record_filename
         self.screen_record_path = screen_record_path
-        self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+        self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(
+            self.sumo_map, self.xodr_map
+        )
 
         if self.screen_record and self.render3D:
             raise SimulationCreationError(
@@ -274,9 +278,8 @@ class MetaDriveSimulation(DrivingSimulation):
             if obj is self.objects[0]:  # Skip ego vehicle (it is handled separately)
                 continue
             if obj.isVehicle:
-                action = obj._collect_action()
+                action = obj._prepare_action()
                 obj.metaDriveActor.before_step(action)
-                obj._reset_control()
             else:
                 # For Pedestrians
                 if obj._walking_direction is None:
@@ -294,9 +297,8 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Special handling for the ego vehicle
         ego_obj = self.objects[0]
-        action = ego_obj._collect_action()
-        self.client.step(action)  # Apply action in the simulator
-        ego_obj._reset_control()
+        action = ego_obj._prepare_action()
+        self.client.step(action)
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:

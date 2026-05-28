@@ -43,6 +43,7 @@ from scenic.domains.driving.roads import (ManeuverType, Network, Road, Lane, Lan
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.behaviors import *
 
+from scenic.core.sensors import Sensor
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
@@ -332,6 +333,22 @@ class Pedestrian(DrivingObject):
     @property
     def isPedestrian(self):
         return True
+
+## Stub sensor implementations
+
+class SSSensor(Sensor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def getObservation(self):
+        raise RuntimeError("This simulator does not support SSSensor")
+
+class RGBSensor(Sensor):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def getObservation(self):
+        raise RuntimeError("This simulator does not support RGBSensor")
 
 ## Utility functions
 
