@@ -95,7 +95,11 @@ jobs:
     needs: start_ec2_instance
     permissions:
       id-token: write
+      contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # Use OIDC to get AWS credentials for SSM.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
@@ -108,9 +112,7 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
-          # Build the remote shell script as a JSON array for AWS-RunShellScript.
-          # The first remote command is #!/bin/bash so SSM runs the script with Bash.
-          commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<EOF
+          .github/scripts/run-ssm-command.sh "$INSTANCE_ID" <<EOF
           #!/bin/bash
 
           # SSM runs as root, but CARLA cannot. Use ubuntu for checkout/install too
@@ -127,44 +129,6 @@ jobs:
             python3 .github/check_latest_simulators.py
           '
           EOF
-          )
-
-          # Run the script on the EC2 instance through SSM instead of SSH.
-          command_id=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --parameters "commands=$commands" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          # Poll SSM until the remote command finishes, then print its output.
-          while true; do
-            status=$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
-              --output text)
-
-            case "$status" in
-              Success)
-                break
-                ;;
-              Failed|Cancelled|TimedOut|Cancelling)
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
-                exit 1
-                ;;
-              Pending|InProgress|Delayed)
-                sleep 5
-                ;;
-            esac
-          done
-
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
 
   check_nvidia_smi:
     name: check_nvidia_smi
@@ -173,7 +137,11 @@ jobs:
     continue-on-error: true
     permissions:
       id-token: write
+      contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
@@ -183,7 +151,7 @@ jobs:
 
       - name: Check NVIDIA SMI
         run: |
-          commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          .github/scripts/run-ssm-command.sh "$INSTANCE_ID" <<'EOF'
           #!/bin/bash
           output=$(nvidia-smi) &&
           echo "$output"
@@ -193,42 +161,6 @@ jobs:
             exit 1
           fi
           EOF
-          )
-
-          command_id=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --parameters "commands=$commands" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          while true; do
-            status=$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
-              --output text)
-
-            case "$status" in
-              Success)
-                break
-                ;;
-              Failed|Cancelled|TimedOut|Cancelling)
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
-                exit 1
-                ;;
-              Pending|InProgress|Delayed)
-                sleep 5
-                ;;
-            esac
-          done
-
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
 
       - name: NVIDIA Driver is not set
         if: ${{ failure() }}
@@ -242,7 +174,11 @@ jobs:
     needs: [check_simulator_version_updates, check_nvidia_smi]
     permissions:
       id-token: write
+      contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
@@ -257,7 +193,7 @@ jobs:
         run: |
           # CARLA refuses to start as root. SSM Run Command runs as root by default,
           # so run the CARLA test block as the ubuntu user.
-          commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          .github/scripts/run-ssm-command.sh "$INSTANCE_ID" 7200 <<'EOF'
           #!/bin/bash
           sudo -u ubuntu -H bash -lc '
             set -e
@@ -273,44 +209,6 @@ jobs:
             done
           '
           EOF
-          )
-
-          # AWS-RunShellScript's executionTimeout defaults to 3600 seconds (1 hour).
-          # Limit the CARLA SSM command to 2 hours so it ends before the AWS role session expires.
-          command_id=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --parameters "commands=$commands,executionTimeout=7200" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          while true; do
-            status=$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
-              --output text)
-
-            case "$status" in
-              Success)
-                break
-                ;;
-              Failed|Cancelled|TimedOut|Cancelling)
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
-                exit 1
-                ;;
-              Pending|InProgress|Delayed)
-                sleep 10
-                ;;
-            esac
-          done
-
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
 
   run_webots_simulators:
     name: run_webots_simulators
@@ -318,7 +216,11 @@ jobs:
     needs: [check_simulator_version_updates, check_nvidia_smi]
     permissions:
       id-token: write
+      contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
@@ -328,7 +230,7 @@ jobs:
 
       - name: Run Webots Tests
         run: |
-          commands=$(jq -Rs -c 'split("\n") | if .[-1] == "" then .[:-1] else . end' <<'EOF'
+          .github/scripts/run-ssm-command.sh "$INSTANCE_ID" <<'EOF'
           #!/bin/bash
           sudo -u ubuntu -H bash -lc '
             Xvfb :99 -screen 0 1024x768x16 &
@@ -346,42 +248,6 @@ jobs:
             done
           '
           EOF
-          )
-
-          command_id=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name AWS-RunShellScript \
-            --parameters "commands=$commands" \
-            --query 'Command.CommandId' \
-            --output text)
-
-          while true; do
-            status=$(aws ssm get-command-invocation \
-              --command-id "$command_id" \
-              --instance-id "$INSTANCE_ID" \
-              --query 'Status' \
-              --output text)
-
-            case "$status" in
-              Success)
-                break
-                ;;
-              Failed|Cancelled|TimedOut|Cancelling)
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
-                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
-                exit 1
-                ;;
-              Pending|InProgress|Delayed)
-                sleep 10
-                ;;
-            esac
-          done
-
-          aws ssm get-command-invocation \
-            --command-id "$command_id" \
-            --instance-id "$INSTANCE_ID" \
-            --query 'StandardOutputContent' \
-            --output text
 
   stop_ec2_instance:
     name: stop_ec2_instance
