@@ -14,6 +14,10 @@ See the individual entries for details on each interface's capabilities and how 
 	While Scenic aims to support multiple Python versions, some simulators may have more limited compatibility.
 	Be sure to check the documentation of each simulator to confirm which Python versions are supported.
 
+.. note::
+	Scenic also supports outputing data in formats that may be imported into other simulators and tools (e.g. :ref:`xosc_export`).
+	For more details, see :ref:`serialization`.
+
 .. contents:: List of Simulators
    :local:
 
@@ -162,7 +166,6 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 .. _our VerifAI paper: https://doi.org/10.1007/978-3-030-25540-4_25
 
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
-
 
 Deprecated
 ==========

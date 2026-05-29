@@ -398,12 +398,22 @@ Serializer.addCodec(str, writeStr, readStr)
 
 
 def toOpenScenario(
+    simulationResult,
     scenario,
     scene,
-    simulationResult,
     mapPath=None,
     scenarioName="ScenicScenario",
 ):
+    """Export a `SimulationResult` as a `scenariogeneration` `xosc` object.
+
+    Args:
+        simulationResult: The `SimulationResult` to be exported to XOSC
+        scenario: The scenario from which simulationResult was sampled.
+        scene: The scene from which simulationResult was sampled.
+        mapPath: The path to the XODR map used to run the simulation. If
+            one is not provided the `map` param of the scenario is used.
+        scenarioName: The name of the scenario in the generated XOSC file.
+    """
     try:
         import scenariogeneration
         from scenariogeneration import ScenarioGenerator, xosc
@@ -419,8 +429,14 @@ def toOpenScenario(
     xosc_paramdec = xosc.ParameterDeclarations()
 
     # Extract map
-    assert "map" in scenario.params
-    map_path = mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
+    if map_path is None:
+        if "map" not in scenario.params:
+            raise ValueError(
+                "No `mapPath` provided and scenario does not have a `map` parameter defined."
+            )
+        map_path = (
+            mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
+        )
     xosc_road = xosc.RoadNetwork(roadfile=map_path)
 
     # Create entitities

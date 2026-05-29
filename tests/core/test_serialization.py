@@ -554,4 +554,4 @@ def test_xosc_export(getMetadriveSimulator):
     scene, _ = scenario.generate()
     simulationResult = simulator.simulate(scene)
     assert simulationResult is not None
-    xosc_scenario = toOpenScenario(scenario, scene, simulationResult)
+    xosc_scenario = toOpenScenario(simulationResult, scenario, scene)
