@@ -429,15 +429,15 @@ def toOpenScenario(
     xosc_paramdec = xosc.ParameterDeclarations()
 
     # Extract map
-    if map_path is None:
+    if mapPath is None:
         if "map" not in scenario.params:
             raise ValueError(
                 "No `mapPath` provided and scenario does not have a `map` parameter defined."
             )
-        map_path = (
+        mapPath = (
             mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
         )
-    xosc_road = xosc.RoadNetwork(roadfile=map_path)
+    xosc_road = xosc.RoadNetwork(roadfile=mapPath)
 
     # Create entitities
     entities = xosc.Entities()
