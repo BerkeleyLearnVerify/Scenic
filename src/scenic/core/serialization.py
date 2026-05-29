@@ -404,7 +404,7 @@ def toOpenScenario(
     mapPath=None,
     scenarioName="ScenicScenario",
 ):
-    """Export a `SimulationResult` as a `scenariogeneration` `xosc` object.
+    """Export a `SimulationResult` as a `scenariogeneration.xosc` object.
 
     Args:
         simulationResult: The `SimulationResult` to be exported to XOSC
