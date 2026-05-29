@@ -1,6 +1,7 @@
 from scenic.core.regions import CircularRegion
-from scenic.domains.driving.roads import LaneSection, Intersection, Road
+from scenic.domains.driving.roads import LaneSection, Intersection, Road, Lane
 from scenic.core.object_types import Object
+import matplotlib.pyplot as plt
 
 class network_cache():
     def __init__(self, 
@@ -16,9 +17,11 @@ class network_cache():
 
             self.network_lanes = [*self.workspace.network.laneSections]
             self.network_roads = [*self.workspace.network.allRoads]
+            self.roads_by_id = {str(road.id): road for road in self.network_roads}
             self.network_intersections = [*self.workspace.network.intersections]
 
             self.scenic_to_metsr_map_roads = {}
+            self.all_scenic_roads_connected_too = {}
             self.intersection_road_links = set([])
             self.scenic_unique_roads = set([])
             self.populate_scenic_to_metsr_roads()
@@ -30,11 +33,15 @@ class network_cache():
             self.obj_lane_cache = {}
 
     # Initialilzation
+    def _visualize_network(self,bubble_roads: list[Road], ego_position, frozen_metsr_road_lines, count):
+        self.workspace.network.show(bubble_roads=bubble_roads, ego_position=ego_position, metsr_road_lines=frozen_metsr_road_lines)
+        plt.savefig(f"./figures/town06/run2/network_at_{count}")
 
     def populate_scenic_to_metsr_roads(self) -> None:
         """
         Generate scenic -> METSR mappings for roads
         """
+        all_scenic_roads_connected_too = {}
         for road_lane,road_lane_map in self.scenic_to_metsr_map_lanes.items():
             scenic_road = road_lane.split("_")[0]
             for metsr_map in road_lane_map:
@@ -43,9 +50,17 @@ class network_cache():
                     if scenic_road not in self.scenic_to_metsr_map_roads:
                         self.scenic_to_metsr_map_roads[scenic_road] = set()
                         self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
+                        if metsr_road not in all_scenic_roads_connected_too:
+                            all_scenic_roads_connected_too[metsr_road] = [scenic_road]
+                        else:
+                            all_scenic_roads_connected_too[metsr_road].append(scenic_road)
                     else:
                         if metsr_road not in self.scenic_to_metsr_map_roads[scenic_road]:
                             self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
+                            if metsr_road not in all_scenic_roads_connected_too:
+                                all_scenic_roads_connected_too[metsr_road] = [scenic_road]
+                            else:
+                                all_scenic_roads_connected_too[metsr_road].append(scenic_road)
                 else:
                     self.intersection_road_links.add(metsr_road)
         
@@ -53,7 +68,7 @@ class network_cache():
             scenic_road = road_lane.split("_")[0]
             if scenic_road not in self.scenic_to_metsr_map_roads:
                 self.scenic_unique_roads.add(scenic_road)
-
+        self.all_scenic_roads_connected_too = all_scenic_roads_connected_too
     
     def populate_roads_to_intersections(self) -> None:
         """
@@ -113,7 +128,7 @@ class network_cache():
                             return nearest_lane                    
                 
             nearest_lane = obj._laneSection
-            if nearest_lane is not None: # TODO need to cleanup this case or make a second helped
+            if nearest_lane is not None: # TODO need to cleanup this case or make a second helper
                 mapped_roads = self.map_scenic_to_metsr_lanes(nearest_lane)
                 if mapped_roads: # Check if the returned lane has a valid metsr mapping
                     continue_search = not self.map_scenic_to_metsr_lanes(nearest_lane).isdisjoint(self.intersection_road_links) and not(allow_intersection_links)
@@ -279,8 +294,31 @@ class network_cache():
         if len(trajectory) < 1:
             print(f'No roads found')
             return None
-        return trajectory
+        
+        final_trajectory = list(set([ls.lane for ls in trajectory])) # Convert to the correct type TODO fix this... 
+        return final_trajectory
     
+    def generate_metsr_trajectory(self, scenic_trajectory: list[LaneSection]) -> list[str]:
+        """
+        docstring for generate_metsr_trajectory
+
+        :param trajectory: ordered sequence of target lanesections
+        :type trajectory: list[LandSection] 
+        """
+        metsr_trajectory = []
+        for laneSection in scenic_trajectory:
+            if laneSection not in self.intersection_road_links:
+                mapped_roads = self.scenic_to_metsr_map_lanes(laneSection)
+                if mapped_roads:
+                    if len(mapped_roads) > 1:
+                        print(f'What do you even do in this case: {mapped_roads} ')
+                    road = mapped_roads.pop()
+                    metsr_trajectory.append(road)
+                else:
+                    print(f"Skipped non existing mapping for laneSection: {laneSection.road.id}_{laneSection.lane.id}")
+        return metsr_trajectory
+    
+
     """ Translating Scenic -> Metsr representations"""
     
     def map_scenic_to_metsr_road(self, road : Road) -> list[str] | None:
@@ -291,7 +329,7 @@ class network_cache():
         :type road: Road
 
         """
-        if road in self.scenic_unique_roads:
+        if str(road.id) in self.scenic_unique_roads:
             return None
      
         query_key = f'{road.id}' 
@@ -318,3 +356,23 @@ class network_cache():
             metsr_keys = set([metsr_key.split("_")[0] for metsr_key in metsr_keys])
 
         return metsr_keys
+    
+    def repair_mapping(self,road_ids, bubble_road_ids):
+        """
+        Docstring for repair_mappping
+
+        :param road_ids:
+        :type road_ids:
+        :param bubble_road_ids:
+        :type bubble_road_ids:
+        
+        """
+        repaired_bubble = []
+        for id in bubble_road_ids:
+            all_connected_roads = self.all_scenic_roads_connected_too[id]
+            if len(all_connected_roads) > 1:
+                for road_id in all_connected_roads:
+                    if road_id not in road_ids:
+                        repaired_bubble.append(self.roads_by_id[road_id])
+        return repaired_bubble
+
