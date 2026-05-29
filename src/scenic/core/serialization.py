@@ -403,15 +403,6 @@ def toOpenScenario(
     simulationResult,
     mapPath=None,
     scenarioName="ScenicScenario",
-    wheelbaseRatio=0.6,
-    maxSteeringAngle=0.523598775598,
-    wheelDiameter=0.8,
-    trackWidth=1.68,
-    groundClearance=0.4,
-    maxSpeed=69,
-    maxAcceleration=10,
-    maxDeceleration=10,
-    pedestrianMass=65,
 ):
     try:
         import scenariogeneration
@@ -447,14 +438,18 @@ def toOpenScenario(
                 0,
             )
             veh_fa = xosc.Axle(
-                maxSteeringAngle,
-                wheelDiameter,
-                trackWidth,
-                wheelbaseRatio * obj.length,
-                groundClearance,
+                obj.maxSteeringAngle,
+                obj.wheelDiameter,
+                obj.trackWidth,
+                obj.wheelbase,
+                obj.groundClearance,
             )
             veh_ra = xosc.Axle(
-                maxSteeringAngle, wheelDiameter, trackWidth, 0, groundClearance
+                obj.maxSteeringAngle,
+                obj.wheelDiameter,
+                obj.trackWidth,
+                0,
+                obj.groundClearance,
             )
             xosc_obj = xosc.Vehicle(
                 name=obj_name,
@@ -462,9 +457,9 @@ def toOpenScenario(
                 boundingbox=veh_bb,
                 frontaxle=veh_fa,
                 rearaxle=veh_ra,
-                max_speed=maxSpeed,
-                max_acceleration=maxAcceleration,
-                max_deceleration=maxDeceleration,
+                max_speed=obj.maxSpeed,
+                max_acceleration=obj.maxAcceleration,
+                max_deceleration=obj.maxDeceleration,
                 mass=None,
                 model3d=None,
                 max_acceleration_rate=None,
@@ -483,35 +478,45 @@ def toOpenScenario(
             )
             xosc_obj = xosc.Pedestrian(
                 name=obj_name,
-                mass=pedestrianMass,
+                mass=obj.mass,
                 boundingbox=ped_bb,
                 category=xosc.PedestrianCategory.pedestrian,
                 model=None,
                 role=None,
             )
         else:
-            warnings.warn(f"Unknown object {obj} is ignored.")
+            warnings.warn(
+                f"Object {obj} of unsupported type is being ignored during XOSC export."
+            )
             continue
 
         xosc_objects[obj] = xosc_obj
         entities.add_scenario_object(obj_name, xosc_obj)
 
-    # Create init
-    init = xosc.Init()
-
-    for obj, xosc_obj in xosc_objects.items():
-        scenic_yaw = obj.yaw
-        state_orientation = scenic_yaw + math.radians(90)
-        state_position = obj.position.offsetRotated(
-            scenic_yaw, Vector(0, -0.5 * wheelbaseRatio * obj.length, 0)
+    # Helper function
+    def pos_to_WorldPosition(obj, pos, yaw):
+        # XOSC Reference point is back axle, so we must translate Scenic's
+        # convention to this.
+        state_position = (
+            pos.offsetRotated(yaw, Vector(0, -0.5 * obj.wheelbase, 0))
+            if obj.isVehicle
+            else pos
         )
-        init_position = xosc.WorldPosition(
+        state_orientation = yaw + math.radians(90)
+        return xosc.WorldPosition(
             x=state_position.x,
             y=state_position.y,
             z=state_position.z,
             h=state_orientation,
         )
-        obj_init_action = xosc.TeleportAction(init_position)
+
+    # Initial states
+    init = xosc.Init()
+
+    for obj, xosc_obj in xosc_objects.items():
+        obj_init_action = xosc.TeleportAction(
+            pos_to_WorldPosition(obj, obj.position, obj.yaw)
+        )
         init.add_init_action(xosc_obj.name, obj_init_action)
 
     # Dynamics
@@ -529,19 +534,12 @@ def toOpenScenario(
         action_times = []
         action_positions = []
         for t, states in enumerate(simulationResult.trajectory):
-            scenic_yaw = states.orientations[obj_i].yaw
-            state_orientation = scenic_yaw + math.radians(90)
-            state_position = states.positions[obj_i].offsetRotated(
-                scenic_yaw, Vector(0, -0.5 * wheelbaseRatio * obj.length, 0)
+            action_positions.append(
+                pos_to_WorldPosition(
+                    obj, states.positions[obj_i], states.orientations[obj_i].yaw
+                )
             )
             action_times.append(simulationResult.timestep * t)
-            pos = xosc.WorldPosition(
-                x=state_position.x,
-                y=state_position.y,
-                z=state_position.z,
-                h=state_orientation,
-            )
-            action_positions.append(pos)
 
         polyline = xosc.Polyline(time=action_times, positions=action_positions)
         trajectory = xosc.Trajectory(name=f"Trajectory_{xosc_obj.name}", closed=False)

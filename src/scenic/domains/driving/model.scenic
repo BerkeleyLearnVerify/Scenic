@@ -286,6 +286,24 @@ class Vehicle(DrivingObject):
         color (:obj:`Color` or RGB tuple): Color of the vehicle. The default value is a
             distribution derived from car color popularity statistics; see
             :obj:`Color.defaultCarColor`.
+        wheelbase: The distance between the front and rear axles of the vehicle. Default value is 0.6
+            times the length of the vehicle.
+        maxSteeringAngle: The maximum steering angle of the vehicle. The full steering range would be
+            two times this value, going from (-maxSteeringAngle, maxSteeringAngle). Default value
+            30 degrees.
+        wheelDiameter: The diameter of the *entire* wheel (including the tire). Default value is 0.7 meters.
+        trackWidth: Distance between the vehicle's wheels when pointed straight ahead. Default value
+            is 0.85 times the width of the vehicle.
+        groundClearance: Default value is half the wheel diameter.
+        maxSpeed: The maximum rated speed of the vehicle. Default value is 45 meters per second (~100 mph).
+            This value is not enforced by Scenic and is provided simply for other tools to reference (e.g.
+            exporting to OpenScenarioXML).
+        maxAcceleration: The maximum rated acceleration of the vehicle. Default value is 5 meters per second^2.
+            This value is not enforced by Scenic and is provided simply for other tools to reference (e.g.
+            exporting to OpenScenarioXML).
+        maxDeceleration: The maximum rated deceleration of the vehicle. Default value is 10 meters per second^2.
+            This value is not enforced by Scenic and is provided simply for other tools to reference (e.g.
+            exporting to OpenScenarioXML).
     """
     regionContainedIn: roadOrShoulder
     position: new Point on road
@@ -295,6 +313,14 @@ class Vehicle(DrivingObject):
     width: 2
     length: 4.5
     color: Color.defaultCarColor()
+    wheelbase: 0.6*self.length
+    maxSteeringAngle: 35 deg
+    wheelDiameter: 0.7
+    trackWidth: 0.85*self.width
+    groundClearance: 0.5*self.wheelDiameter
+    maxSpeed: 45
+    maxAcceleration: 5
+    maxDeceleration: 10
 
     @property
     def isVehicle(self):
@@ -321,6 +347,7 @@ class Pedestrian(DrivingObject):
         length: The default length is 0.75 m.
         color: The default color is turquoise. Pedestrian colors are not necessarily
             used by simulators, but do appear in the debugging diagram.
+        mass: Default value is 65 kg.
     """
     regionContainedIn: network.walkableRegion
     position: new Point on network.walkableRegion
@@ -329,6 +356,7 @@ class Pedestrian(DrivingObject):
     width: 0.75
     length: 0.75
     color: [0, 0.5, 1]
+    mass: 65
 
     @property
     def isPedestrian(self):
