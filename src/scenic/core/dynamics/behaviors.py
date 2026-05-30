@@ -147,7 +147,7 @@ class Behavior(Invocable, Samplable):
         # Yield from a generator that zips all the inner generators together without padding, until all inner generators have terminated.
         while True:
             try:
-                raw_actions = next(itertools.zip_longest(*inner_generators))
+                raw_actions_list = next(itertools.zip_longest(*inner_generators))
                 yield tuple(
                     filter(
                         lambda x: x is not None,
