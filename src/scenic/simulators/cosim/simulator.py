@@ -13,10 +13,12 @@ import pygame
 import warnings
 import os
 import math
+import random
 import scenic.simulators.cosim.utils.utils as _utils
 import scenic.simulators.carla.utils.utils as utils
 
 from .utils.network_helper import network_cache
+from .utils.global_route_planner import GlobalRoutePlanner
 
 import scenic.simulators.carla.utils.visuals as visuals
 from scenic.simulators.carla.blueprints import oldBlueprintNames
@@ -177,6 +179,7 @@ class CosimSimulation(DrivingSimulation):
         self.metsr_actors = []
         self.carla_actors = []
         self.metsr_road_lines = []
+        self.spawn_points = self.carla_world.get_map().get_spawn_points()
 
         # For tracking / data collection
         self.bubble_sizes = []
@@ -194,7 +197,6 @@ class CosimSimulation(DrivingSimulation):
         """
         # Updated version takes no arguements
         self.metsr_client.reset() 
-        # print(f"{os.getcwd()}")
         valid_metsr_roads = self.metsr_client.query_road()
 
         self.network_helper = network_cache(self.workspace,
@@ -291,6 +293,15 @@ class CosimSimulation(DrivingSimulation):
             self.metsr_client.generate_trip(**call_kwargs) 
         # Road update occurs at synchronizatoin
         self.metsr_client.teleport_cosim_vehicle(self.getMetsrPrivateVehId(obj), obj.position.x, obj.position.y, bearing=0, private_veh = True, transform_coords = True)
+    
+        dest = random.choice(self.spawn_points)
+        pos = utils.carlaToScenicPosition(dest.location)
+        for _ in range(20): #max 20 tries
+            route = self.metsr_client.query_route(obj.position.x, obj.position.y, pos.x, pos.y, transform_coords=True)["DATA"][0]
+            if route != "KO":
+                break
+        obj.route = route['road_list']
+        self.metsr_client.update_vehicle_route(self.getMetsrPrivateVehId(obj), route['road_list'], private_veh=True)
 
     def createObjectInCarla(self, obj: Object, update_orientation: bool = False, trajectory: list[carla.Transform] = None, metsr_data: dict = None) -> None:
         """
@@ -343,7 +354,6 @@ class CosimSimulation(DrivingSimulation):
             rot = utils.scenicToCarlaRotation(obj.orientation)
 
         transform = carla.Transform(loc, rot)
-        # print(f"Attempting to spawn obj {obj.name} in location: {transform.location}")
         # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:
             c = obj.color
@@ -420,7 +430,7 @@ class CosimSimulation(DrivingSimulation):
                 self.metsr_client.tick() # allow obj to enter road if possible
             obj.carla_actor_flag = False
             obj.spawn_guard = 0
-        # Track autopilot behaviors
+        # Track autopilot behaviors TODO redundant?
         obj.active_autopilot = False
         obj.autopilot_action = False
 
@@ -861,7 +871,6 @@ class CosimSimulation(DrivingSimulation):
             if key not in self.network_helper.intersection_road_links: # Skip roads not recognized by metsr
                 self.carla_control_roads[key] = True    # Keep track of frozen lanes
                 self.metsr_client.set_cosim_road(key)
-                # self.metsr_road_lines.append(self.metsr_client.query_centerline(key,lane_index=-1,transform_coords=True)["DATA"][0]["centerline"])
             
 
     def release_roads(self,keys: list[str]) -> None:
@@ -951,10 +960,6 @@ class CosimSimulation(DrivingSimulation):
         """Map Scenic lane to equivalent METSR road, guareneteed 1->1 mapping"""
         return self.network_helper.map_scenic_to_metsr_lanes(lane)
     
-    def generate_scenic_trajectory(self, curr_lane : Lane , route: list[str]) -> list[Lane] | None:
-        """Attempt to translate metsr route to equvialent sequence of Scenic lanes"""
-        return self.network_helper.generate_scenic_trajectory(curr_lane, route)
-    
     def generate_metsr_trajectory(self, trajectory: list[Lane]) -> list[str] | None:
         """Convert a scenic specified trajectory to an equivalent metsr route"""
         return self.network_helper.generate_metsr_trajctory(trajectory)
@@ -1032,19 +1037,47 @@ class CosimSimulation(DrivingSimulation):
         Convert proposed METS-R trajectory to a sequence of equivalent Lane's
         """
         cosim_data = self.metsr_client.query_coSimVehicle()
+        trajectory = None
         if obj.carla_actor_flag:
             VehID = self.getMetsrPrivateVehId(obj) 
-            curr_lane = self._nearest_lane(obj)
             for data_entry in cosim_data['DATA']:
                 if data_entry['ID'] == VehID:
                     route_data = data_entry['route']
-                    print(f"{obj.name} Current proposed route is: {route_data}")
-                    trajectory = self.generate_scenic_trajectory(curr_lane, route_data)
+                    trajectory = self.generate_scenic_trajectory(route = route_data)
                     if trajectory != None:
                         obj.final_road = trajectory[-1]
-                        return trajectory
-                    
+        
+        if trajectory is None:
+            route = obj.route
+            trajectory = self.generate_scenic_trajectory(route=route)
+            if trajectory != None:
+                obj.final_road = trajectory[-1]
+        
+        return trajectory
+    
+    def generate_scenic_trajectory(self, route: list[str]) -> list[Lane]:
+        start = route[0]
+        end    = route[-1]
+        target_start  =self.metsr_client.query_centerline(start,lane_index=-1,transform_coords=True)["DATA"][0]["centerline"][0]
+        target_end    =self.metsr_client.query_centerline(end,lane_index=-1,transform_coords=True)["DATA"][0]["centerline"][1]
 
+        target_start = carla.Location(target_start[0], -target_start[1], 0)
+        target_end   = carla.Location(target_end[0], -target_end[1], 0)
+
+        world_map = self.carla_world.get_map()
+
+        grp = GlobalRoutePlanner(world_map, sampling_resolution=2.0)
+        route = grp.trace_route(target_start, target_end)
+
+        traj = []
+        locations = [utils.carlaToScenicPosition(wp.transform.location) for wp, _ in route]
+        for loc in locations:
+            lane = self.network_helper.workspace.network.laneAt(loc)
+            if lane and lane not in traj:
+                traj.append(lane)
+
+        return traj
+                    
     def updateObjects(self) -> None:
         """
         Docstring for updateObjects

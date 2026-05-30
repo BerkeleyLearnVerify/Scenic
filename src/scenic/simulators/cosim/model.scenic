@@ -104,20 +104,6 @@ class NPCCar(Car, BackgroundDriver):
     behavior: CustomBubbleBehavior()
 
 
-
-behavior FollowRandomRoute():
-    """
-    Object will follow a random route starting from its 
-    spawn position to a random target road. Low level controls will be handled 
-    via the METSR driving module and CARLA autopilot
-
-    NOTE: Random route behaviors are restricted to non-ego vehicles 
-          This is due to the fact that CARLA may remove deadlocked or
-          non-moving vehicles from the simulation
-    """
-    while True:
-        take SetAutoPilotAction(True)
-
 """
 Behaviors:
     A mix of default behaviors for the Interface
@@ -138,8 +124,11 @@ behavior DisableAutoPilotThenDrive():
     while True:
         do DriveAvoidingCollisions()
 
+behavior SetAndFollowTrajectoryBehavior(target_speed, turn_speed):
+    trajectory = self.trajectory
+    do FollowTrajectoryBehavior(trajectory=trajectory, target_speed=target_speed, turn_speed=turn_speed)
         
-behavior StateBehavior(state_map, eval_func):
+behavior StateBehavior(state_map, eval_func, verbose=False):
     """
     docstring for StateBehavior
     
@@ -176,26 +165,34 @@ behavior FollowSingleTrajectoryBehavior(target_speed = 10, trajectory = None, tu
     Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
     If no trajectory is supplied, object will follow METSR proposed trajectory by default
 
-    NOTE: Trajectories should constitute a list of LaneSections rather than lanes. This distinction
-          is important in generating proper trajectory translations across simualators
-
     :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
     :param trajectory: It is a list of sequential lanes to track, from the lane that the vehicle is initially on to the lane it should end up on.
     """
     if trajectory is None:
         if not hasattr(self, "trajectory"):
              self.trajectory = None
-        state_map = {False: WaitBehavior(), True: FollowTrajectoryBehavior(target_speed=target_speed, trajectory = self.trajectory, turn_speed=turn_speed)}
+        state_map = {False: WaitBehavior(), True: SetAndFollowTrajectoryBehavior(target_speed=target_speed, turn_speed=turn_speed)}
         state_func = lambda: bool(self.trajectory is not None and self.carla_actor_flag)
         while True:
             do StateBehavior(state_map, state_func)
     else:
-        state_map = {False: SetAutoPilotAndWait(trajectory), True: FollowTrajectoryBehavior(target_speed=target_speed, trajectory = trajectory, turn_speed=turn_speed)}
+        state_map = {False: SetAutoPilotAndWait(trajectory), True: FollowTrajectoryBehavior(target_speed=target_speed, turn_speed=turn_speed)}
         state_func = lambda: self.carla_actor_flag
         while True:
             do StateBehavior(state_map, state_fuc)
   
+behavior FollowRandomRoute():
+    """
+    Object will follow a random route starting from its 
+    spawn position to a random target road. Low level controls will be handled 
+    via the METSR driving module and CARLA autopilot
 
+    NOTE: Random route behaviors are restricted to non-ego vehicles 
+          This is due to the fact that CARLA may remove deadlocked or
+          non-moving vehicles from the simulation
+    """
+    while True:
+        take SetAutoPilotAction(True)
 
 behavior EgoAttack():
     condition = True # overwrite this with some condition to initiate attack
