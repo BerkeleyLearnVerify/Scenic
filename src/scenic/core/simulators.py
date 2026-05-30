@@ -489,6 +489,8 @@ class Simulation(abc.ABC):
 
                 # Run the agent's behavior to get its actions
                 actions = agent.behavior._step()
+                if actions is None:
+                    actions = tuple()
 
                 # Handle pseudo-actions marking the end of a simulation/scenario
                 if isinstance(actions, _EndSimulationAction):
