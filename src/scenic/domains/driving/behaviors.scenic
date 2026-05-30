@@ -39,9 +39,20 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
+behavior FollowPathBehavior(path, target_speed, controllers):
+    """
+    Follows the given path at the given target_speed, using the specified controller(s).
+    
+    Args:
+        path: A `PolylineRegion` representing the desired vehicle path.
+        target_speed: The desired speed to maintain.
+        controllers: Either a tuple (LonController, LatController) or a single controller for
+            longitudinal and lateral controls.
+    """
+
 behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
     """
-    Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
+    Follows the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
     If straight route is not available, then any availble turn route will be taken, uniformly randomly.
     If turning at the intersection, the vehicle will slow down to make the turn, safely.
