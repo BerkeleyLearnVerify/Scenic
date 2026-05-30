@@ -151,7 +151,7 @@ class Behavior(Invocable, Samplable):
                 yield tuple(
                     filter(
                         lambda x: x is not None,
-                        itertools.chain.from_iterable(raw_actions),
+                        itertools.chain.from_iterable(raw_actions_list),
                     )
                 )
             except StopIteration:
