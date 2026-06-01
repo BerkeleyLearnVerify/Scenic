@@ -13,12 +13,9 @@ from tests.utils import compileScenic, sampleScene
 # Known-good spawn points for the CARLA blueprint tests:
 # - CARLA 0.10.0 uses Town10HD_Opt
 # - CARLA 0.9.x uses Town01
-#
-# These positions are chosen to make blueprint spawning stable across many
-# actor types; they are not intended to test road/lane placement.
 BLUEPRINT_TEST_SPAWNS = {
     "Town10HD_Opt": (-103, 37.6),
-    "Town01": (2, -17),
+    "Town01": (369, -326),
 }
 
 # Map class name -> ids dict key

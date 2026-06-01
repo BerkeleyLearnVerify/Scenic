@@ -75,15 +75,7 @@ def getCarlaSimulator(getAssetPath):
 
     base = getAssetPath("maps/CARLA")
 
-    # Use a single default map per CARLA version for the test suite.
-    #
-    # In our current CI setup, CARLA 0.10.0 only works reliably with Town10HD_Opt,
-    # so all CARLA 0.10.0 tests should use that map.
-    #
-    # For CARLA 0.9.x, most tests also worked with Town10HD_Opt, but the blueprint
-    # parameterization test became unstable: most blueprints spawned successfully,
-    # but CARLA would eventually crash. Switching maps within the same CARLA process
-    # also caused instability, so we consistently use Town01 for the 0.9.x suite.
+    # CARLA 0.10.0 only works with Town10HD_Opt
     def _getCarlaSimulator(town=None):
         if town is None:
             town = "Town10HD_Opt" if is_carla_0_10 else "Town01"
