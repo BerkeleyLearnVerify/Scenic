@@ -290,7 +290,7 @@ class Vehicle(DrivingObject):
             times the length of the vehicle.
         maxSteeringAngle: The maximum steering angle of the vehicle. The full steering range would be
             two times this value, going from (-maxSteeringAngle, maxSteeringAngle). Default value
-            30 degrees.
+            40 degrees.
         wheelDiameter: The diameter of the *entire* wheel (including the tire). Default value is 0.7 meters.
         trackWidth: Distance between the vehicle's wheels when pointed straight ahead. Default value
             is 0.85 times the width of the vehicle.
@@ -314,7 +314,7 @@ class Vehicle(DrivingObject):
     length: 4.5
     color: Color.defaultCarColor()
     wheelbase: 0.6*self.length
-    maxSteeringAngle: 35 deg
+    maxSteeringAngle: 40 deg
     wheelDiameter: 0.7
     trackWidth: 0.85*self.width
     groundClearance: 0.5*self.wheelDiameter

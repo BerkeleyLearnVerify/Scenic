@@ -15,6 +15,8 @@ the following terms:
 
 import math
 
+import numpy as np
+
 from scenic.core.simulators import Action
 from scenic.core.vectors import Vector
 
@@ -241,11 +243,8 @@ class RegulatedControlAction(SteeringAction):
             brake = min(abs(throttle), max_brake)
 
         # Steering regulation: changes cannot happen abruptly, can't steer too much.
-
-        if steer > past_steer + 0.1:
-            steer = past_steer + 0.1
-        elif steer < past_steer - 0.1:
-            steer = past_steer - 0.1
+        if past_steer is not None:
+            steer = np.clip(steer, past_steer - 0.1, past_steer + 0.1)
 
         if steer >= 0:
             steer = min(max_steer, steer)
