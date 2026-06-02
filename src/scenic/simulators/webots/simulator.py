@@ -24,7 +24,7 @@ from textwrap import dedent
 import trimesh
 
 from scenic.core.regions import MeshVolumeRegion
-from scenic.core.simulators import Simulation, Simulator
+from scenic.core.simulators import Simulation, Simulator, SimulationCreationError
 from scenic.core.type_support import toOrientation
 from scenic.core.vectors import Vector
 from scenic.simulators.webots.utils import ENU, WebotsCoordinateSystem
@@ -73,11 +73,17 @@ class WebotsSimulation(Simulation):
         self.mode2D = scene.compileOptions.mode2D
         self.nextAdHocObjectId = 1
         self.usedObjectNames = defaultdict(lambda: 0)
+        self.adhocs = []
 
         # directory to store proto files for adhoc webots objects
         self.tmpMeshDir = tempfile.mkdtemp()
+        self.actions = None
 
         timestep = supervisor.getBasicTimeStep() / 1000 if timestep is None else timestep
+        self.observations = None
+        self.reward = None
+        self.done = None
+        self.info = None
 
         super().__init__(scene, timestep=timestep, **kwargs)
 
@@ -100,25 +106,43 @@ class WebotsSimulation(Simulation):
                 mesh=objectRawMesh,
                 dimensions=(obj.width, obj.length, obj.height),
             ).mesh
-            objFilePath = path.join(self.tmpMeshDir, f"{self.nextAdHocObjectId}.obj")
+            # objFilePath = path.join(self.tmpMeshDir, f"{self.nextAdHocObjectId}.obj")
+            objFilePath = path.join(self.tmpMeshDir, f"{name}.obj")
             trimesh.exchange.export.export_mesh(objectScaledMesh, objFilePath)
-
-            name = self._getAdhocObjectName(self.nextAdHocObjectId)
+            # name = self._getAdhocObjectName(self.nextAdHocObjectId)
+            name = obj.webotsName
             protoName = (
                 "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
             )
-            protoDef = dedent(
-                f"""
-                DEF {name} {protoName} {{
-                    url "{objFilePath}"
-                }}
-                """
-            )
+            if obj.color:
+                print("setting target color")
+                protoDef = dedent(
+                    f"""
+                    DEF {name} {protoName} {{
+                        url "{objFilePath}"
+                        children [
+                            Color {{
+                                MFColor color [{obj.color[0]} {obj.color[1]}, {obj.color[2]}]
+                            }}
+                        ]
+                    }}
+                    """
+                )
+            else:
+                protoDef = dedent(
+                    f"""
+                    DEF {name} {protoName} {{
+                        url "{objFilePath}"
+                    }}
+                    """
+                )
+
 
             rootNode = self.supervisor.getRoot()
             rootChildrenField = rootNode.getField("children")
             rootChildrenField.importMFNodeFromString(-1, protoDef)
-            self.nextAdHocObjectId += 1
+            self.adhocs.append(obj)
+            # self.nextAdHocObjectId += 1
         else:
             if obj.webotsName:
                 name = obj.webotsName
@@ -137,8 +161,15 @@ class WebotsSimulation(Simulation):
         webotsObj = self.supervisor.getFromDef(name)
         if webotsObj is None:
             raise SimulationCreationError(f"Webots object {name} does not exist in world")
+        print(f"Created Object name: {name}")
         obj.webotsObject = webotsObj
         obj.webotsName = name
+        if hasattr(obj, "webots_type"):
+            if obj.webots_type == 'OBSTACLE':
+                self.supervisor.obstacles[obj.webotsName] = webotsObj
+
+            elif obj.webots_type == 'TARGET':
+                self.supervisor.target = webotsObj
 
         # Set the fields of the Webots object:
 
@@ -206,8 +237,9 @@ class WebotsSimulation(Simulation):
                 webotsObj.restartController()
 
     def step(self):
-        ms = round(1000 * self.timestep)
-        self.supervisor.step(ms)
+        # ms = round(1000 * self.timestep)
+        # self.supervisor.step(ms)
+        self.observations, self.reward, self.done, self.info = self.supervisor.step(self.actions)
 
     def getProperties(self, obj, properties):
         webotsObj = getattr(obj, "webotsObject", None)
@@ -245,18 +277,36 @@ class WebotsSimulation(Simulation):
             val = (field.getMFFloat(0), obj.battery[1], obj.battery[2])
             values["battery"] = val
 
+        if hasattr(obj, "done"):
+            obj.done = self.done
+
         return values
 
     def destroy(self):
         # Destroy adhoc objects generated at the beginning of the simulation
-        for i in range(1, self.nextAdHocObjectId):
-            name = self._getAdhocObjectName(i)
+        # for i in range(1, self.nextAdHocObjectId):
+            # name = self._getAdhocObjectName(i)
+            # node = self.supervisor.getFromDef(name)
+            # node.remove()
+        for ah in self.adhocs:
+            name = ah.webotsName
             node = self.supervisor.getFromDef(name)
             node.remove()
 
     def _getAdhocObjectName(self, i: int) -> str:
         return f"SCENIC_ADHOC_{i}"
 
+    def get_obs(self):
+        return self.observations
+
+    def get_reward(self):
+        return self.reward
+
+    def get_info(self):
+        return self.info
+
+    def solved(self):
+        return self.supervisor.solved()
 
 def getFieldSafe(webotsObject, fieldName):
     """Get field from webots object. Return null if no such field exists.

@@ -14,6 +14,9 @@ class ScenicZooEnv(ParallelEnv):
     def __init__(self, 
                  scenario: Scenario,
                  simulator : Simulator,
+                 get_obs : callable,
+                 get_info : callable,
+                 get_reward : callable
                  render_mode=None,
                  max_steps=1000,
                  observation_space : spaces.Dict = spaces.Dict(),
@@ -37,6 +40,10 @@ class ScenicZooEnv(ParallelEnv):
         self.terminations = {}
         self.truncations = {}
 
+        self.get_obs = get_obs
+        self.get_info = get_info
+        self.get_reward = get_reward : callable
+
     def _make_run_loop(self):
         # TODO: need to figure out if we make the scene
         # terminate if any single agent satisfies the termination condition
@@ -50,8 +57,8 @@ class ScenicZooEnv(ParallelEnv):
                     # this first block before the while loop is for the first reset call
                     done = lambda: not (simulation.result is None)
                     truncated = lambda: (steps_taken >= self.max_steps) # TODO handle cases where it is done right on maxsteps
-                    observation = simulation.get_obs()
-                    info = simulation.get_info()
+                    observation = self.get_obs(simulation)
+                    info = self.get_info(simulation)
                     actions = yield observation, info
                     simulation.actions = actions # TODO add action dict to simulation interfaces
 
@@ -60,9 +67,9 @@ class ScenicZooEnv(ParallelEnv):
                         # this is consistent with how reset works
                         simulation.advance()
                         steps_taken += 1
-                        observation = simulation.get_obs()
-                        info = simulation.get_info()
-                        reward = simulation.get_reward()
+                        observation = self.get_obs(simulation)
+                        info = self.get_info(simulation)
+                        reward = self.get_reward(simulation)
 
                         if done():
                             self.feedback_result = simulation.result
