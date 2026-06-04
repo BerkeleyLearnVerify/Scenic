@@ -60,7 +60,7 @@ class ScenicGymEnv(gym.Env):
                     observation = self.get_obs(simulation)
                     info = self.get_info(simulation)
                     actions = yield observation, info
-                    simulation.actions = actions # TODO add action dict to simulation interfaces
+                    simulation.set_actions(actions) # TODO add action dict to simulation interfaces
 
                     while not done():
                         # Probably good that we advance first before any action is set.
@@ -80,7 +80,7 @@ class ScenicGymEnv(gym.Env):
                             break # a little unclean right here
 
                         actions = yield observation, reward, done(), done(), info
-                        simulation.actions = actions # TODO add action dict to simulation interfaces
+                        simulation.set_actions(actions) # TODO add action dict to simulation interfaces
                         
             except ResetException:
                 continue
