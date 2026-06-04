@@ -5,10 +5,13 @@ import math
 import random
 import time
 
-from scenic.simulators.utils.coordinates import rep103ToScenicHeading, scenicToRep103Heading
-
 import numpy
 import scipy.spatial
+
+from scenic.simulators.utils.coordinates import (
+    rep103ToScenicHeading,
+    scenicToRep103Heading,
+)
 
 try:
     import PIL

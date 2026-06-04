@@ -27,7 +27,10 @@ from scenic.domains.driving.controllers import (
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.metadrive.sensors import MetaDriveRGBSensor, MetaDriveSSSensor
 import scenic.simulators.metadrive.utils as utils
-from scenic.simulators.utils.coordinates import rep103ToScenicHeading, scenicToRep103Heading
+from scenic.simulators.utils.coordinates import (
+    rep103ToScenicHeading,
+    scenicToRep103Heading,
+)
 
 
 class MetaDriveSimulator(DrivingSimulator):
