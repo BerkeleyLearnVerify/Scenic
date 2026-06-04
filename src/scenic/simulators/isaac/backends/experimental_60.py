@@ -56,6 +56,12 @@ def _quat_conjugate(q):
     return np.concatenate((q[:, :1], -q[:, 1:]), axis=-1)
 
 
+def _position_array(position):
+    if hasattr(position, "x") and hasattr(position, "y") and hasattr(position, "z"):
+        return np.array([position.x, position.y, position.z], dtype=float)
+    return np.asarray(position, dtype=float).reshape(-1)[:3]
+
+
 def _differential_inverse_kinematics(
     jacobian_end_effector,
     current_position,
@@ -611,6 +617,11 @@ class Experimental60Backend(IsaacBackend):
             handle.metadata["default_dof_positions"]
         )
 
+    def _ensure_franka_primitive_control_ready(self, handle):
+        if not handle.metadata.get("primitive_control_ready", False):
+            self._reset_franka(handle)
+            handle.metadata["primitive_control_ready"] = True
+
     def _franka_end_effector_pose(self, handle):
         position, orientation = handle.metadata["end_effector"].get_world_poses()
         return position.numpy(), orientation.numpy()
@@ -659,6 +670,60 @@ class Experimental60Backend(IsaacBackend):
             positions,
             dof_indices=handle.metadata["gripper_dof_indices"],
         )
+
+    def move_franka_end_effector(self, sim, obj, position, orientation=None):
+        handle = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(handle)
+        current_position, current_orientation = self._franka_end_effector_pose(handle)
+        if orientation is None:
+            orientation = handle.metadata["downward_orientation"]
+        self._move_franka_end_effector(
+            handle,
+            current_position,
+            current_orientation,
+            np.array([_position_array(position)], dtype=float),
+            np.array([orientation], dtype=float),
+        )
+
+    def set_franka_gripper(self, sim, obj, opened):
+        handle = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(handle)
+        self._set_franka_gripper(handle, "open" if opened else "closed")
+
+    def set_franka_arm_joint_positions(self, sim, obj, joint_positions):
+        handle = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(handle)
+        joint_positions = np.asarray(joint_positions, dtype=float).reshape(-1)
+        arm_dof_indices = handle.metadata["arm_dof_indices"][: len(joint_positions)]
+        handle.wrapper.set_dof_position_targets(
+            joint_positions.tolist(),
+            dof_indices=arm_dof_indices,
+        )
+
+    def hold_franka_position(self, sim, obj):
+        handle = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(handle)
+        arm_dof_indices = handle.metadata["arm_dof_indices"]
+        current_dof_positions = handle.wrapper.get_dof_positions().numpy()
+        arm_targets = current_dof_positions[:, arm_dof_indices].reshape(-1).tolist()
+        handle.wrapper.set_dof_position_targets(
+            arm_targets,
+            dof_indices=arm_dof_indices,
+        )
+
+    def get_franka_end_effector_pose(self, sim, obj):
+        handle = sim.world.get_object(obj.name)
+        position, orientation = self._franka_end_effector_pose(handle)
+        return (
+            np.asarray(position, dtype=float).reshape(-1)[:3],
+            np.asarray(orientation, dtype=float).reshape(-1)[:4],
+        )
+
+    def get_franka_gripper_positions(self, sim, obj):
+        handle = sim.world.get_object(obj.name)
+        gripper_dof_indices = handle.metadata["gripper_dof_indices"]
+        dof_positions = handle.wrapper.get_dof_positions().numpy()
+        return dof_positions[:, gripper_dof_indices].reshape(-1)
 
     def get_physics_properties(self, world, obj):
         handle = world.get_object(obj.name)

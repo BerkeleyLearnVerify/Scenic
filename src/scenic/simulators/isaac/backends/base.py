@@ -364,6 +364,24 @@ class IsaacBackend:
     ):
         raise NotImplementedError
 
+    def move_franka_end_effector(self, sim, obj, position, orientation=None):
+        raise NotImplementedError
+
+    def set_franka_gripper(self, sim, obj, opened):
+        raise NotImplementedError
+
+    def set_franka_arm_joint_positions(self, sim, obj, joint_positions):
+        raise NotImplementedError
+
+    def hold_franka_position(self, sim, obj):
+        raise NotImplementedError
+
+    def get_franka_end_effector_pose(self, sim, obj):
+        raise NotImplementedError
+
+    def get_franka_gripper_positions(self, sim, obj):
+        raise NotImplementedError
+
     def get_physics_properties(self, world, obj):
         raise NotImplementedError
 

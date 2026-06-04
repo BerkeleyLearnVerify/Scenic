@@ -41,3 +41,58 @@ behavior RandomMovement():
 behavior PickPlaceObject(target_object, goal_position):
     while True:
         take applyPickPlaceController(target_object, goal_position)
+
+
+# Generic manipulator primitives. Scenario-level behaviors should compose these
+# with `do ...` so the overall task is visible in the scenario file.
+
+behavior MoveEndEffectorTo(position, orientation=None, threshold=0.01,
+                           max_steps=None):
+    sim = simulation()
+    target = np.array(position, dtype=float).flatten()[:3]
+    steps = 0
+    while True:
+        take SetEEPoseAction(position, orientation)
+        steps += 1
+        ee_pos, _ = self.get_ee_pose(sim)
+        ee = np.array(ee_pos, dtype=float).flatten()[:3]
+        dist = np.linalg.norm(ee - target)
+        if dist <= threshold:
+            break
+        if max_steps is not None and steps >= max_steps:
+            break
+
+
+behavior OpenGripper(threshold=0.002, max_steps=100):
+    sim = simulation()
+    target = np.array([0.05, 0.05], dtype=float)
+    steps = 0
+    while True:
+        take OpenGripperAction()
+        steps += 1
+        positions = np.array(self.get_gripper_positions(sim), dtype=float)
+        positions = positions.flatten()[:len(target)]
+        if np.linalg.norm(positions - target) <= threshold:
+            break
+        if max_steps is not None and steps >= max_steps:
+            break
+
+
+behavior CloseGripper(threshold=0.002, max_steps=100):
+    sim = simulation()
+    target = np.array([0.01, 0.01], dtype=float)
+    steps = 0
+    while True:
+        take CloseGripperAction()
+        steps += 1
+        positions = np.array(self.get_gripper_positions(sim), dtype=float)
+        positions = positions.flatten()[:len(target)]
+        if np.linalg.norm(positions - target) <= threshold:
+            break
+        if max_steps is not None and steps >= max_steps:
+            break
+
+
+behavior HoldPosition(max_steps=30):
+    for i in range(max_steps):
+        take HoldPositionAction()

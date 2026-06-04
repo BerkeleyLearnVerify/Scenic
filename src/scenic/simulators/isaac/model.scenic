@@ -138,6 +138,24 @@ class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
             end_effector_orientation,
         )
 
+    def move_to_pose(self, sim, position, orientation=None):
+        sim.backend.move_franka_end_effector(sim, self, position, orientation)
+
+    def set_gripper(self, sim, opened):
+        sim.backend.set_franka_gripper(sim, self, opened)
+
+    def set_joint_positions(self, sim, joint_positions):
+        sim.backend.set_franka_arm_joint_positions(sim, self, joint_positions)
+
+    def hold_position(self, sim):
+        sim.backend.hold_franka_position(sim, self)
+
+    def get_ee_pose(self, sim):
+        return sim.backend.get_franka_end_effector_pose(sim, self)
+
+    def get_gripper_positions(self, sim):
+        return sim.backend.get_franka_gripper_positions(sim, self)
+
 class GroundPlane(IsaacSimObject):
 
     width: 5

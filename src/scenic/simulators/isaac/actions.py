@@ -75,3 +75,53 @@ class applyPickPlaceController(ManipulatorRobotAction):
             self.end_effector_offset,
             self.end_effector_orientation,
         )
+
+
+# ---------- generic manipulator (end-effector) actions ----------
+#
+# Each action advances the manipulator by a single step; behaviors loop over
+# them. They delegate to robot class methods, which dispatch to the active
+# backend for backend-owned robots like FrankaPanda.
+
+class SetEEPoseAction(ManipulatorRobotAction):
+    """Take one IK step moving the end effector toward a world pose.
+
+    ``orientation`` is an Isaac wxyz quaternion, or None to keep the
+    backend-defined default (a downward-facing grasp for the Franka).
+    """
+
+    def __init__(self, position, orientation=None):
+        self.position = position
+        self.orientation = orientation
+
+    def applyTo(self, obj, sim):
+        obj.move_to_pose(sim, self.position, self.orientation)
+
+
+class SetArmJointPoseAction(ManipulatorRobotAction):
+    """Command explicit arm joint position targets."""
+
+    def __init__(self, joint_positions):
+        self.joint_positions = joint_positions
+
+    def applyTo(self, obj, sim):
+        obj.set_joint_positions(sim, self.joint_positions)
+
+
+class OpenGripperAction(ManipulatorRobotAction):
+
+    def applyTo(self, obj, sim):
+        obj.set_gripper(sim, True)
+
+
+class CloseGripperAction(ManipulatorRobotAction):
+
+    def applyTo(self, obj, sim):
+        obj.set_gripper(sim, False)
+
+
+class HoldPositionAction(ManipulatorRobotAction):
+    """Hold the current arm targets so the arm settles in place."""
+
+    def applyTo(self, obj, sim):
+        obj.hold_position(sim)
