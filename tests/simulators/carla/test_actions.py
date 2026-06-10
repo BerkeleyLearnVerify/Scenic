@@ -23,10 +23,13 @@ is_carla_0_10 = carla_pkg_version.startswith("0.10")
 
 
 def checkCarlaPath():
-    CARLA_ROOT = Path(os.environ.get("CARLA_ROOT", ""))
-    if not CARLA_ROOT.exists():
+    CARLA_ROOT = os.environ.get("CARLA_ROOT")
+    if not CARLA_ROOT:
         pytest.skip("CARLA_ROOT env variable not set.")
-    return CARLA_ROOT
+    path = Path(CARLA_ROOT)
+    if not path.exists():
+        pytest.skip("CARLA_ROOT set to nonexistent folder")
+    return path
 
 
 def isCarlaServerRunning(host="localhost", port=2000):
