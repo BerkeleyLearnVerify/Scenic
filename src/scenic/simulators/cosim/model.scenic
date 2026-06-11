@@ -85,7 +85,7 @@ class EgoCar(Car):
     based on its current position
     """
     carla_actor_flag = True
-    behavior: DriveAvoidingCollisions()
+    behavior: FollowLaneBehavior()
 
 
 class NPCCar(Car, BackgroundDriver):
@@ -101,7 +101,7 @@ class NPCCar(Car, BackgroundDriver):
     :type behavior: Scenic Behavior
     """
     carla_actor_flag = False
-    behavior: CustomBubbleBehavior()
+    behavior: FollowRandomRoute()
 
 
 """
@@ -139,14 +139,10 @@ behavior StateBehavior(state_map, eval_func, verbose=False):
     :param eval_func: Fuction which maps an object to a given state
     :type eval_func:  Function
     """
-    prev_state = eval_func()
-    try:
-        behavior = state_map[prev_state]
-        do behavior
-    interrupt when eval_func() != prev_state:
-        prev_state = eval_func()
-        behavior = state_map[prev_state]
-        do behavior
+    while True:
+        curr_state = eval_func()
+        behavior = state_map(curr_state)
+        do behavior until curr_state != eval_func()
         
 behavior CustomBubbleBehavior():
     """
@@ -176,10 +172,10 @@ behavior FollowSingleTrajectoryBehavior(target_speed = 10, trajectory = None, tu
         while True:
             do StateBehavior(state_map, state_func)
     else:
-        state_map = {False: SetAutoPilotAndWait(trajectory), True: FollowTrajectoryBehavior(target_speed=target_speed, turn_speed=turn_speed)}
+        state_map = {False: SetAutoPilotAndWait(trajectory), True: FollowTrajectoryBehavior(target_speed=target_speed,trajectory=trajectory, turn_speed=turn_speed)}
         state_func = lambda: self.carla_actor_flag
         while True:
-            do StateBehavior(state_map, state_fuc)
+            do StateBehavior(state_map, state_func)
   
 behavior FollowRandomRoute():
     """
@@ -194,14 +190,6 @@ behavior FollowRandomRoute():
     while True:
         take SetAutoPilotAction(True)
 
-behavior EgoAttack():
-    condition = True # overwrite this with some condition to initiate attack
-    while True:
-        if condition:
-            self.interrupt = True
-            # do --- define attacker bahavior 
-        else:
-            wait
 
 def currentTOD():
     return (simulation().currentTime * simulation().timestep + globalParameters.startTime)%_DAY_MOD
