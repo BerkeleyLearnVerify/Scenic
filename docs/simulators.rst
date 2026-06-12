@@ -10,6 +10,10 @@ On this page we list interfaces that we and others have developed; if you have a
 Note that not every interface supports all Scenic features: in particular, some interfaces do not support dynamic scenarios.
 See the individual entries for details on each interface's capabilities and how to set it up.
 
+.. note::
+	While Scenic aims to support multiple Python versions, some simulators may have more limited compatibility.
+	Be sure to check the documentation of each simulator to confirm which Python versions are supported.
+
 .. contents:: List of Simulators
    :local:
 

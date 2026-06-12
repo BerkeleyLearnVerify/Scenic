@@ -89,6 +89,7 @@ def getMetadriveSimulator(getAssetPath):
         sumoPath = os.path.join(base, f"{town}.net.xml")
         simulator = MetaDriveSimulator(
             sumo_map=sumoPath,
+            xodr_map=openDrivePath,
             render=render,
             render3D=render3D,
             **kwargs,

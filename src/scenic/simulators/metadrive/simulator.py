@@ -35,6 +35,7 @@ class MetaDriveSimulator(DrivingSimulator):
     def __init__(
         self,
         sumo_map,
+        xodr_map,
         timestep=0.1,
         render=True,
         render3D=False,
@@ -49,11 +50,14 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
+        self.xodr_map = xodr_map
         self.real_time = real_time
         self.screen_record = screen_record
         self.screen_record_filename = screen_record_filename
         self.screen_record_path = screen_record_path
-        self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+        self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(
+            self.sumo_map, self.xodr_map
+        )
 
         if self.screen_record and self.render3D:
             raise SimulationCreationError(

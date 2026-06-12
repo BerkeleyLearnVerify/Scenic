@@ -1,7 +1,10 @@
-# NOTE: MetaDrive uses a coordinate system where (0,0) is centered
-# around the middle of the SUMO map. To ensure alignment, we shift
-# positions using both the computed SUMO map center (center_x, center_y)
-# and adjust for SUMO’s netOffset (offset_x, offset_y).
+# NOTE: MetaDrive uses a coordinate system where (0, 0) is centered near the
+# middle of the SUMO map.
+# Some OpenDRIVE maps include a dataset-level <header><offset ...>, and
+# SUMO/netconvert may apply an additional translation recorded as
+# <location netOffset="..."> in the .net.xml.
+# To align Scenic with MetaDrive, we account for both translations (when
+# present) and then recenter using the convBoundary midpoint.
 
 import math
 import xml.etree.ElementTree as ET
@@ -51,13 +54,34 @@ def extractNetOffsetAndBoundary(sumo_map_path):
     return net_offset, sumo_map_boundary
 
 
-def getMapParameters(sumo_map_path):
+def extractXODROffset(xodr_map_path):
+    """Return the (x, y) translation from the OpenDRIVE <header><offset> element.
+
+    If the file has no <header> or no <offset>, returns (0.0, 0.0).
+    """
+    tree = ET.parse(xodr_map_path)
+    root = tree.getroot()
+    header = root.find("header")
+    if header is None:
+        return 0.0, 0.0
+    offset = header.find("offset")
+    if offset is None:
+        return 0.0, 0.0
+    return float(offset.get("x", "0")), float(offset.get("y", "0"))
+
+
+def getMapParameters(sumo_map_path, xodr_map_path):
     """Retrieve the map parameters."""
     net_offset, sumo_map_boundary = extractNetOffsetAndBoundary(sumo_map_path)
     xmin, ymin, xmax, ymax = sumo_map_boundary
     center_x = (xmin + xmax) / 2
     center_y = (ymin + ymax) / 2
-    scenic_offset = (center_x - net_offset[0], center_y - net_offset[1])
+
+    xodr_offset = extractXODROffset(xodr_map_path)
+    combined_offset_x = net_offset[0] + xodr_offset[0]
+    combined_offset_y = net_offset[1] + xodr_offset[1]
+
+    scenic_offset = (center_x - combined_offset_x, center_y - combined_offset_y)
     return scenic_offset, sumo_map_boundary
 
 

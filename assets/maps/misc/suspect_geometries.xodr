@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenDRIVE>
+  <!-- Road with a short, extremely rapidly-turning S-curve which we should elide -->
+  <road name="Road 1" length="20.0" id="1" junction="-1">
+    <planView>
+      <geometry s="0.0" x="0.0" y="0.0" hdg="0.0" length="20.0">
+        <line/>
+      </geometry>
+      <geometry s="20.0" x="20.0" y="0.0" hdg="0.0" length="0.1">
+        <spiral curvStart="100.0" curvEnd="-100.0"/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+  <!-- Similar to above but the S-curve is the whole road, so we can't elide it -->
+  <road name="Road 2" length="0.01" id="2" junction="-1">
+    <planView>
+      <geometry s="0.0" x="0.0" y="100.0" hdg="0.0" length="0.01">
+        <spiral curvStart="100.0" curvEnd="-100.0"/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving">
+            <width sOffset="0.0" a="0.01" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+  <!-- Road with a very short kink we should elide -->
+  <road name="Road 3" length="20.0" id="3" junction="-1">
+    <planView>
+      <geometry s="0.0" x="0.0" y="-100.0" hdg="0.0" length="1.0e-9">
+        <line/>
+      </geometry>
+      <geometry s="1.0e-9" x="1.0e-9" y="-100.0" hdg="1.5707963267948966" length="19.999999999">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+</OpenDRIVE>

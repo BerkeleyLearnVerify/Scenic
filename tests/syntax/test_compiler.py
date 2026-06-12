@@ -1441,7 +1441,9 @@ class TestCompiler:
                 assert False
 
     def test_do_choose(self):
-        node, _ = compileScenicAST(DoChoose([Constant("foo"), Constant("bar")]))
+        node, _ = compileScenicAST(
+            DoChoose([Constant("foo"), Constant("bar")]), inBehavior=True
+        )
         match node:
             case [
                 Expr(
@@ -1469,8 +1471,10 @@ class TestCompiler:
             case _:
                 assert False
 
-    def test_do_choose(self):
-        node, _ = compileScenicAST(DoShuffle([Constant("foo"), Constant("bar")]))
+    def test_do_shuffle(self):
+        node, _ = compileScenicAST(
+            DoShuffle([Constant("foo"), Constant("bar")]), inBehavior=True
+        )
         match node:
             case [
                 Expr(

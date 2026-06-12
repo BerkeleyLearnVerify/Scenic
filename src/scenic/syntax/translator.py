@@ -647,6 +647,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 def constructScenarioFrom(namespace, scenarioName=None):
     """Build a Scenario object from an executed Scenic module."""
     modularScenarios = namespace["_scenarios"]
+    topLevelScenario = namespace["_scenario"]
 
     def isModularScenario(thing):
         return isinstance(thing, type) and issubclass(thing, DynamicScenario)
@@ -671,9 +672,12 @@ def constructScenarioFrom(namespace, scenarioName=None):
     elif modularScenarios and not modularScenarios[0]._requiresArguments():
         dynScenario = modularScenarios[0]()
     else:
-        dynScenario = namespace["_scenario"]
+        dynScenario = topLevelScenario
 
     if not dynScenario._prepared:  # true for all except top-level scenarios
+        # Inherit ego, workspace, etc. from top level
+        dynScenario._inherit(topLevelScenario)
+
         # Execute setup block (if any) to create objects and requirements;
         # extract any requirements and scan for relations used for pruning
         dynScenario._prepare(delayPreconditionCheck=True)

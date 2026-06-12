@@ -120,6 +120,7 @@ __all__ = (
     "VerifaiRange",
     "VerifaiDiscreteRange",
     "VerifaiOptions",
+    "TimeSeries",
     "File",
     "Files",
     # Constructible types
@@ -201,6 +202,7 @@ from scenic.core.dynamics.guards import (
 from scenic.core.dynamics.invocables import BlockConclusion, runTryInterrupt
 from scenic.core.dynamics.scenarios import DynamicScenario
 from scenic.core.external_params import (
+    TimeSeries,
     VerifaiDiscreteRange,
     VerifaiOptions,
     VerifaiParameter,
@@ -424,6 +426,8 @@ def registerObject(obj):
     elif activity > 0 or currentScenario:
         assert not evaluatingRequirement
         assert isinstance(obj, Object)
+        if currentScenario and currentScenario._isRunning:
+            raise InvalidScenarioError("tried to create an object inside a compose block")
         currentScenario._registerObject(obj)
         if currentSimulation:
             currentSimulation._createObject(obj)
@@ -563,11 +567,14 @@ def registerDynamicScenarioClass(cls):
 
 @contextmanager
 def executeInScenario(scenario, inheritEgo=False):
-    global currentScenario
+    global currentScenario, _globalParameters
     oldScenario = currentScenario
     if inheritEgo and oldScenario is not None:
         scenario._ego = oldScenario._ego  # inherit ego from parent
+        scenario._workspace = oldScenario._workspace
     currentScenario = scenario
+    oldParams = _globalParameters
+    _globalParameters = scenario._globalParameters
     try:
         yield
     except AttributeError as e:
@@ -582,6 +589,7 @@ def executeInScenario(scenario, inheritEgo=False):
             raise
     finally:
         currentScenario = oldScenario
+        _globalParameters = oldParams
 
 
 def prepareScenario(scenario):

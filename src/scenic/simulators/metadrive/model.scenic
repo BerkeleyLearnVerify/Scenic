@@ -94,6 +94,7 @@ if bool(globalParameters.screen_record) and not bool(globalParameters.render):
 
 simulator MetaDriveSimulator(
     sumo_map=globalParameters.sumo_map,
+    xodr_map=globalParameters.map,
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
