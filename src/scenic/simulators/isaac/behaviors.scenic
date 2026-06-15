@@ -46,6 +46,16 @@ behavior PickPlaceObject(target_object, goal_position):
 # Generic manipulator primitives. Scenario-level behaviors should compose these
 # with `do ...` so the overall task is visible in the scenario file.
 
+def _unit_quaternion(quaternion):
+    quaternion = np.array(quaternion, dtype=float).flatten()[:4]
+    return quaternion / np.linalg.norm(quaternion)
+
+def _quaternion_distance(quaternion_a, quaternion_b):
+    quaternion_a = _unit_quaternion(quaternion_a)
+    quaternion_b = _unit_quaternion(quaternion_b)
+    dot = abs(float(np.dot(quaternion_a, quaternion_b)))
+    return 2 * np.arccos(np.clip(dot, -1.0, 1.0))
+
 behavior MoveEndEffectorTo(position, orientation=None, threshold=0.035,
                            max_steps=None):
     sim = simulation()
@@ -58,6 +68,21 @@ behavior MoveEndEffectorTo(position, orientation=None, threshold=0.035,
         ee = np.array(ee_pos, dtype=float).flatten()[:3]
         dist = np.linalg.norm(ee - target)
         if dist <= threshold:
+            break
+        if max_steps is not None and steps >= max_steps:
+            break
+
+
+behavior RotateEndEffectorTo(orientation, threshold=0.05, max_steps=None):
+    sim = simulation()
+    target = np.array(orientation, dtype=float).flatten()[:4]
+    steps = 0
+    while True:
+        ee_pos, _ = self.get_ee_pose(sim)
+        take SetEEPoseAction(ee_pos, target)
+        steps += 1
+        _, ee_orientation = self.get_ee_pose(sim)
+        if _quaternion_distance(ee_orientation, target) <= threshold:
             break
         if max_steps is not None and steps >= max_steps:
             break
