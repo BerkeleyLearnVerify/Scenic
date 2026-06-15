@@ -1,31 +1,51 @@
 from scenic.core.simulators import Action
 
-class _WheeledRobot: pass
-class _HolonomicRobot: pass
-class _ManipulatorRobot: pass
-class _QuadrupedRobot: pass
-class _Robot: pass
+
+class _WheeledRobot:
+    pass
+
+
+class _HolonomicRobot:
+    pass
+
+
+class _ManipulatorRobot:
+    pass
+
+
+class _QuadrupedRobot:
+    pass
+
+
+class _Robot:
+    pass
+
 
 class ManipulatorRobotAction(Action):
     def canBeTakenBy(self, agent):
         return isinstance(agent, _ManipulatorRobot)
 
+
 class RobotAction(Action):
     def canBeTakenBy(self, agent):
         return isinstance(agent, _Robot)
 
+
 class WheeledRobotAction(Action):
     def canBeTakenBy(self, agent):
         return isinstance(agent, _WheeledRobot)
-    
+
+
 class HolonomicRobotAction(Action):
     def canBeTakenBy(self, agent):
         return isinstance(agent, _HolonomicRobot)
-    
+
+
 class QuadrupedRobotAction(Action):
     def canBeTakenBy(self, agent):
         return isinstance(agent, _QuadrupedRobot)
-    
+
+
 class applyController(RobotAction):
 
     def __init__(self, command):
@@ -33,6 +53,7 @@ class applyController(RobotAction):
 
     def applyTo(self, obj, sim):
         obj.move(sim, self.command)
+
 
 class applyWheeledController(WheeledRobotAction):
 
@@ -43,6 +64,7 @@ class applyWheeledController(WheeledRobotAction):
     def applyTo(self, obj, sim):
         obj.move(sim, self.throttle, self.steering)
 
+
 class applyHolonomicController(HolonomicRobotAction):
 
     def __init__(self, forward_speed=0, lateral_speed=0, yaw_speed=0):
@@ -52,6 +74,7 @@ class applyHolonomicController(HolonomicRobotAction):
 
     def applyTo(self, obj, sim):
         obj.move(sim, self.forward_speed, self.lateral_speed, self.yaw_speed)
+
 
 class applyPickPlaceController(ManipulatorRobotAction):
 
@@ -82,6 +105,7 @@ class applyPickPlaceController(ManipulatorRobotAction):
 # Each action advances the manipulator by a single step; behaviors loop over
 # them. They delegate to robot class methods, which dispatch to the active
 # backend for backend-owned robots like FrankaPanda.
+
 
 class SetEEPoseAction(ManipulatorRobotAction):
     """Take one IK step moving the end effector toward a world pose.

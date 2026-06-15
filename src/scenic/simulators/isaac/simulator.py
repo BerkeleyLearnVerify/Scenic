@@ -7,9 +7,9 @@ import trimesh
 from scenic.core.regions import MeshVolumeRegion
 from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 from scenic.core.vectors import Vector
-
 from scenic.simulators.isaac.backends import get_backend
 import scenic.simulators.isaac.utils as utils
+
 
 class IsaacSimSimulator(Simulator):
     def __init__(self, headless=False, environmentUSDPath=None, backend=None):
@@ -106,6 +106,7 @@ class IsaacSimSimulation(Simulation):
         self.backend.update_app(self.client)
 
         from scenic.simulators.isaac.utils import setCollidersExistingObj
+
         # set collision approximation for all existing environment objects to None
         # setting approximation to None means the mesh geometry is used as the collider
         # according to the USD schema

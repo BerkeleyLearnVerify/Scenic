@@ -65,6 +65,7 @@ def compute_bbox(prim):
     )
     return cache.ComputeWorldBound(prim).ComputeAlignedBox()
 
+
 def compute_local_mesh_bbox(prim):
     from pxr import UsdGeom
 
@@ -88,8 +89,8 @@ def vec3_to_list(vec):
 
 
 def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
-    from pxr import Usd, UsdGeom
     import omni
+    from pxr import Usd, UsdGeom
 
     if open_stage_func is None:
         from isaacsim.core.utils.stage import open_stage
@@ -102,8 +103,7 @@ def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
     stage = usd_context.get_stage()
 
     mesh_prims = [
-        prim for prim in stage.Traverse()
-        if prim.IsA(UsdGeom.Mesh) and prim.IsValid()
+        prim for prim in stage.Traverse() if prim.IsA(UsdGeom.Mesh) and prim.IsValid()
     ]
     if not mesh_prims:
         raise RuntimeError(f"no mesh prims found in environment USD: {usd_path}")
@@ -260,7 +260,9 @@ def asset_convert(args):
             model = str(entry.relative_path)
             model_name = os.path.splitext(model)[0]
             model_format = os.path.splitext(model)[1][1:]
-            print(f"Model: {model}, Model Name: {model_name}, model_format: {model_format}")
+            print(
+                f"Model: {model}, Model Name: {model_name}, model_format: {model_format}"
+            )
             if model_format != "usd":
                 continue
 

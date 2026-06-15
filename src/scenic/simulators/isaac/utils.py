@@ -11,9 +11,7 @@ import trimesh
 def convert_sync(in_file, out_file, load_materials=False):
     from scenic.simulators.isaac.backends import get_backend
 
-    return get_backend().convert_sync(
-        in_file, out_file, load_materials=load_materials
-    )
+    return get_backend().convert_sync(in_file, out_file, load_materials=load_materials)
 
 
 def get_simulation_app(headless=False):
@@ -56,7 +54,9 @@ def _environment_cache_dir(source):
     source = os.fspath(source)
     digest = hashlib.sha1(source.encode("utf-8")).hexdigest()[:12]
     stem = Path(urlparse(source).path).stem or "environment"
-    return Path.home() / ".cache" / "scenic" / "isaac" / "environments" / f"{stem}_{digest}"
+    return (
+        Path.home() / ".cache" / "scenic" / "isaac" / "environments" / f"{stem}_{digest}"
+    )
 
 
 def default_environment_mesh_paths(environment_usd_path):
@@ -269,6 +269,7 @@ def getExistingObj(objName):
             f"available objects: {available}"
         ) from exc
 
+
 def existingObjects():
     """Return each registered existing Isaac object once."""
     objs_by_prim_path = {}
@@ -281,10 +282,11 @@ def existingObjects():
 
     return tuple(objs_by_prim_path.values())
 
-def setCollidersExistingObj(verbose = False):
-    from scenic.simulators.isaac.backends import get_backend
 
+def setCollidersExistingObj(verbose=False):
     from pxr import UsdPhysics
+
+    from scenic.simulators.isaac.backends import get_backend
 
     approximation = UsdPhysics.Tokens.none
 
@@ -319,8 +321,7 @@ def setCollidersExistingObj(verbose = False):
 
     if failed:
         failed_text = "\n".join(
-            f"  {prim_path}: {type(exc).__name__}: {exc}"
-            for prim_path, exc in failed
+            f"  {prim_path}: {type(exc).__name__}: {exc}" for prim_path, exc in failed
         )
         raise RuntimeError(
             "failed to set mesh collision approximation for some existing "

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 import math
 import os
+
 import numpy as np
 
 from scenic.simulators.isaac.backends.base import IsaacArticulationAction, IsaacBackend
@@ -246,8 +247,8 @@ class Experimental60Backend(IsaacBackend):
         headless=True,
         overwrite=False,
     ):
-        default_mesh_path, default_info_path = scenic_utils.default_environment_mesh_paths(
-            environment_usd_path
+        default_mesh_path, default_info_path = (
+            scenic_utils.default_environment_mesh_paths(environment_usd_path)
         )
         mesh_path = (
             scenic_utils.resolvedPath(environment_mesh_path)
@@ -293,8 +294,8 @@ class Experimental60Backend(IsaacBackend):
         return opened
 
     def create_generic_object(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import RigidPrim, XformPrim
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
@@ -340,7 +341,7 @@ class Experimental60Backend(IsaacBackend):
                 reset_xform_op_properties=True,
             )
             self.disable_rigid_body(prim_path)
-        
+
         wrapper.set_world_poses(positions=root_position, orientations=orientation)
         wrapper.set_local_scales(local_scale)
 
@@ -394,8 +395,8 @@ class Experimental60Backend(IsaacBackend):
             wrapper.apply_visual_materials(material)
 
     def create_robot(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
@@ -415,8 +416,8 @@ class Experimental60Backend(IsaacBackend):
         return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation")
 
     def create_create3(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         stage_utils.add_reference_to_stage(
@@ -439,11 +440,13 @@ class Experimental60Backend(IsaacBackend):
             self.apply_visual_material(
                 wrapper, obj, geometry_paths=self._geometry_paths_under(prim_path)
             )
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation", metadata)
+        return ExperimentalObjectHandle(
+            obj.name, prim_path, wrapper, "articulation", metadata
+        )
 
     def create_kaya(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         stage_utils.add_reference_to_stage(
@@ -469,11 +472,13 @@ class Experimental60Backend(IsaacBackend):
             self.apply_visual_material(
                 wrapper, obj, geometry_paths=self._geometry_paths_under(prim_path)
             )
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation", metadata)
+        return ExperimentalObjectHandle(
+            obj.name, prim_path, wrapper, "articulation", metadata
+        )
 
     def create_franka_panda(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation, RigidPrim
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         root_position = self._franka_root_position(obj)
@@ -528,8 +533,8 @@ class Experimental60Backend(IsaacBackend):
         return position
 
     def create_ur5e(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation, RigidPrim
+        import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
         base_position = self._ur5e_base_position(obj)
@@ -574,7 +579,9 @@ class Experimental60Backend(IsaacBackend):
             "gripper_dof_indices": gripper_dof_indices,
             "default_dof_positions": default_dof_positions,
             "open_gripper_positions": np.array([UR5E_GRIPPER_OPEN_POSITION], dtype=float),
-            "closed_gripper_positions": np.array([UR5E_GRIPPER_CLOSED_POSITION], dtype=float),
+            "closed_gripper_positions": np.array(
+                [UR5E_GRIPPER_CLOSED_POSITION], dtype=float
+            ),
             "open_gripper_velocity": UR5E_GRIPPER_OPEN_VELOCITY,
             "closed_gripper_velocity": UR5E_GRIPPER_CLOSE_VELOCITY,
             "downward_orientation": UR5E_DOWNWARD_ORIENTATION.copy(),
@@ -615,9 +622,7 @@ class Experimental60Backend(IsaacBackend):
     def _configure_ur5e_gripper_attachment(self, stage, prim_path):
         from pxr import Gf, Sdf
 
-        joint = self._require_stage_prim(
-            stage, f"{prim_path}/joints/robot_gripper_joint"
-        )
+        joint = self._require_stage_prim(stage, f"{prim_path}/joints/robot_gripper_joint")
 
         def set_quat_attr(attr_name, values):
             attr = joint.GetAttribute(attr_name)
@@ -761,7 +766,9 @@ class Experimental60Backend(IsaacBackend):
                     if attr and attr.IsValid():
                         attr.Set(0.0)
         if not found_finger_joint:
-            raise RuntimeError(f"Missing Robotiq finger_joint under {gripper_root.GetPath()}")
+            raise RuntimeError(
+                f"Missing Robotiq finger_joint under {gripper_root.GetPath()}"
+            )
 
     def _configure_ur5e_gripper_contact(self, stage, prim_path):
         from omni.physx.scripts import physicsUtils
@@ -789,8 +796,12 @@ class Experimental60Backend(IsaacBackend):
             if not any("Collision" in schema for schema in prim.GetAppliedSchemas()):
                 continue
             if prim.IsInstanceProxy():
-                raise RuntimeError(f"Could not bind UR5e contact material to instance proxy: {prim.GetPath()}")
-            physicsUtils.add_physics_material_to_prim(stage, prim, UR5E_GRIPPER_CONTACT_MATERIAL_PATH)
+                raise RuntimeError(
+                    f"Could not bind UR5e contact material to instance proxy: {prim.GetPath()}"
+                )
+            physicsUtils.add_physics_material_to_prim(
+                stage, prim, UR5E_GRIPPER_CONTACT_MATERIAL_PATH
+            )
             collision_api = (
                 UsdPhysics.CollisionAPI(prim)
                 if prim.HasAPI(UsdPhysics.CollisionAPI)
@@ -802,7 +813,9 @@ class Experimental60Backend(IsaacBackend):
             physx_collision_api.CreateRestOffsetAttr().Set(float(UR5E_REST_OFFSET))
             bound.append(str(prim.GetPath()))
         if not bound:
-            raise RuntimeError(f"No collision geometry found for UR5e Robotiq gripper under {root.GetPath()}")
+            raise RuntimeError(
+                f"No collision geometry found for UR5e Robotiq gripper under {root.GetPath()}"
+            )
 
     def _configure_ur5e_pick_object_contact(self, stage, prim_paths):
         from omni.physx.scripts import physicsUtils
@@ -838,11 +851,17 @@ class Experimental60Backend(IsaacBackend):
                 if any("Collision" in schema for schema in prim.GetAppliedSchemas())
             ]
             if not collision_prims:
-                raise RuntimeError(f"No collision geometry found for UR5e pick object: {prim_path}")
+                raise RuntimeError(
+                    f"No collision geometry found for UR5e pick object: {prim_path}"
+                )
             for prim in collision_prims:
                 if prim.IsInstanceProxy():
-                    raise RuntimeError(f"Could not bind UR5e pick object material to instance proxy: {prim.GetPath()}")
-                physicsUtils.add_physics_material_to_prim(stage, prim, UR5E_OBJECT_CONTACT_MATERIAL_PATH)
+                    raise RuntimeError(
+                        f"Could not bind UR5e pick object material to instance proxy: {prim.GetPath()}"
+                    )
+                physicsUtils.add_physics_material_to_prim(
+                    stage, prim, UR5E_OBJECT_CONTACT_MATERIAL_PATH
+                )
                 collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
                 collision_api.CreateContactOffsetAttr().Set(float(UR5E_CONTACT_OFFSET))
                 collision_api.CreateRestOffsetAttr().Set(float(UR5E_REST_OFFSET))
@@ -1020,7 +1039,9 @@ class Experimental60Backend(IsaacBackend):
     ):
         if state.pick_position is None:
             target_handle = sim.world.get_object(target_object.name)
-            state.pick_position = target_handle.wrapper.get_world_poses()[0].numpy()[0].copy()
+            state.pick_position = (
+                target_handle.wrapper.get_world_poses()[0].numpy()[0].copy()
+            )
         if state.place_position is None:
             state.place_position = scenic_utils.vectorToArray(goal_position).copy()
 
@@ -1029,9 +1050,13 @@ class Experimental60Backend(IsaacBackend):
         current_position, current_orientation = self._franka_end_effector_pose(handle)
 
         if end_effector_orientation is not None:
-            state.end_effector_orientation = np.array(end_effector_orientation, dtype=float).copy()
+            state.end_effector_orientation = np.array(
+                end_effector_orientation, dtype=float
+            ).copy()
         elif state.end_effector_orientation is None:
-            state.end_effector_orientation = handle.metadata["downward_orientation"].copy()
+            state.end_effector_orientation = handle.metadata[
+                "downward_orientation"
+            ].copy()
         orientation = state.end_effector_orientation
 
         phases = [
@@ -1073,9 +1098,7 @@ class Experimental60Backend(IsaacBackend):
 
     def _reset_franka(self, handle):
         handle.wrapper.reset_to_default_state()
-        handle.wrapper.set_dof_position_targets(
-            handle.metadata["default_dof_positions"]
-        )
+        handle.wrapper.set_dof_position_targets(handle.metadata["default_dof_positions"])
 
     def _ensure_franka_primitive_control_ready(self, handle):
         if not handle.metadata.get("primitive_control_ready", False):
@@ -1128,8 +1151,7 @@ class Experimental60Backend(IsaacBackend):
             ),
         )
         dof_position_targets = (
-            current_dof_positions[:, metadata["arm_dof_indices"]]
-            + delta_dof_positions
+            current_dof_positions[:, metadata["arm_dof_indices"]] + delta_dof_positions
         )
         franka.set_dof_position_targets(
             dof_position_targets,
@@ -1263,8 +1285,7 @@ class Experimental60Backend(IsaacBackend):
             scale=UR5E_IK_STEP_SCALE,
         )
         dof_position_targets = (
-            current_dof_positions[:, metadata["arm_dof_indices"]]
-            + delta_dof_positions
+            current_dof_positions[:, metadata["arm_dof_indices"]] + delta_dof_positions
         )
         ur5e.set_dof_position_targets(
             dof_position_targets,
@@ -1393,5 +1414,7 @@ class Experimental60Backend(IsaacBackend):
         dof_names = list(articulation.dof_names)
         missing = [name for name in names if name not in dof_names]
         if missing:
-            raise RuntimeError(f"{articulation.paths[0]} is missing required DOFs: {missing}")
+            raise RuntimeError(
+                f"{articulation.paths[0]} is missing required DOFs: {missing}"
+            )
         return [dof_names.index(name) for name in names]

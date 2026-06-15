@@ -122,8 +122,8 @@ class Core51Backend(IsaacBackend):
         headless=True,
         overwrite=False,
     ):
-        default_mesh_path, default_info_path = scenic_utils.default_environment_mesh_paths(
-            environment_usd_path
+        default_mesh_path, default_info_path = (
+            scenic_utils.default_environment_mesh_paths(environment_usd_path)
         )
         mesh_path = (
             scenic_utils.resolvedPath(environment_mesh_path)
@@ -237,7 +237,7 @@ class Core51Backend(IsaacBackend):
                 collision=True,
             )
             self.disable_rigid_body(usd_prim)
-        
+
         wrapper.set_world_pose(position=root_position, orientation=orientation)
         wrapper.set_local_scale(local_scale)
 
@@ -250,9 +250,7 @@ class Core51Backend(IsaacBackend):
         from isaacsim.core.utils.stage import add_reference_to_stage
 
         if obj.control:
-            obj.controller = self.create_controller(
-                obj.control, f"{obj.name}_controller"
-            )
+            obj.controller = self.create_controller(obj.control, f"{obj.name}_controller")
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
@@ -438,9 +436,7 @@ class Core51Backend(IsaacBackend):
     def _configure_ur5e_gripper_attachment(self, stage, prim_path):
         from pxr import Gf, Sdf
 
-        joint = self._require_stage_prim(
-            stage, f"{prim_path}/joints/robot_gripper_joint"
-        )
+        joint = self._require_stage_prim(stage, f"{prim_path}/joints/robot_gripper_joint")
 
         def set_quat_attr(attr_name, values):
             attr = joint.GetAttribute(attr_name)
@@ -584,7 +580,9 @@ class Core51Backend(IsaacBackend):
                     if attr and attr.IsValid():
                         attr.Set(0.0)
         if not found_finger_joint:
-            raise RuntimeError(f"Missing Robotiq finger_joint under {gripper_root.GetPath()}")
+            raise RuntimeError(
+                f"Missing Robotiq finger_joint under {gripper_root.GetPath()}"
+            )
 
     def _configure_ur5e_closed_loop_gripper(self, stage, prim_path):
         from pxr import Gf, PhysxSchema, Sdf, Usd, UsdPhysics
@@ -670,7 +668,9 @@ class Core51Backend(IsaacBackend):
 
     def apply_robot_control(self, sim, obj, command):
         robot = sim.world.scene.get_object(obj.name)
-        robot.apply_action(self._to_core_articulation_action(obj.controller.forward(command=command)))
+        robot.apply_action(
+            self._to_core_articulation_action(obj.controller.forward(command=command))
+        )
 
     def apply_wheeled_control(self, sim, obj, command):
         wheeled_robot = sim.world.scene.get_object(obj.name)

@@ -1,7 +1,8 @@
-import atexit
 import asyncio
+import atexit
 from dataclasses import dataclass
 import os
+
 import numpy as np
 
 import scenic.simulators.isaac.utils as scenic_utils
@@ -220,7 +221,7 @@ class IsaacBackend:
             return np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
 
         return q_wxyz / norm
-    
+
     def isaac_quat_to_scenic_euler_angles(self, quat):
         """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll.
 
@@ -248,15 +249,14 @@ class IsaacBackend:
 
         yaw, pitch, roll = R.from_quat(q_xyzw).as_euler("ZXY", degrees=False)
         return float(yaw), float(pitch), float(roll)
-    
+
     def _vec3_to_np(self, vec):
         return np.array([float(vec[0]), float(vec[1]), float(vec[2])], dtype=float)
 
-
     def compute_prim_world_bbox(self, prim_path):
         """Return world-space bbox min, max, center, and size for a prim."""
-        from pxr import Usd, UsdGeom
         from isaacsim.core.utils import prims
+        from pxr import Usd, UsdGeom
 
         prim = prims.get_prim_at_path(prim_path)
         if prim is None or not prim.IsValid():
@@ -276,7 +276,6 @@ class IsaacBackend:
 
         return mn, mx, center, size
 
-
     def rotate_vector_by_wxyz_quat(self, quat_wxyz, vec):
         """Rotate a vector by an Isaac/Usd wxyz quaternion."""
         from scipy.spatial.transform import Rotation as R
@@ -291,8 +290,9 @@ class IsaacBackend:
 
         return R.from_quat(q_xyzw).apply(vec)
 
-
-    def compute_usd_scale_and_root_position(self, obj, prim_path, scenic_position, orientation):
+    def compute_usd_scale_and_root_position(
+        self, obj, prim_path, scenic_position, orientation
+    ):
         """Compute local USD scale so the referenced asset matches Scenic dimensions.
 
         Returns:
