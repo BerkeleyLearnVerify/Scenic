@@ -27,11 +27,9 @@ Some examples use a non-default backend. For example,
 
 ## **Known Issues**
 
-1. There seems to be a slight mismatch between the location of objects placed in Scenic and those placed in Isaac Sim. This causes problems with the Scenic mutate statement, as differences in positions will cause well-defined Scenic programs to create Isaac Sim programs with intersecting 3D meshes. To see this, try the vacuum example with `mutate couch, coffee_table` (and default standard deviations).
+1. There can still be small differences between Scenic geometry and the corresponding Isaac Sim USD geometry/colliders, especially for converted or complex assets. The current backend compensates for USD bounding-box offsets when placing assets, but scenarios using `mutate` can still expose unexpected intersections.
 
-2. Sometimes, repairing a complex converted mesh will not result in a reasonable volume. One example of this is the Jetbot robot.
-
-3. Some robots, like Franka, require setup after being added to the simulator. The current Franka primitive-control path performs this setup lazily before the first primitive action, but new robot backends may need similar setup.
+2. Sometimes, repairing a complex converted mesh will not result in a reasonable volume. 
 
 ## **Assets**
 
