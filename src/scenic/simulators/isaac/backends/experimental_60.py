@@ -3,29 +3,20 @@ import math
 import os
 import numpy as np
 
-from scenic.simulators.isaac.backends.base import IsaacArticulationAction, IsaacBackend
+from scenic.simulators.isaac.backends.base import IsaacBackend
 import scenic.simulators.isaac.utils as scenic_utils
-
-
-@dataclass
-class ExperimentalObjectHandle:
-    name: str
-    prim_path: str
-    wrapper: object
-    kind: str
-    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
 class ExperimentalWorld:
     app: object
     timestep: float
+    render: bool = False
     objects: dict = field(default_factory=dict)
     simulation_time: float = 0.0
 
     def get_object(self, name):
         return self.objects[name]
-
 
 @dataclass
 class FrankaPickPlaceState:
@@ -83,21 +74,26 @@ def _differential_inverse_kinematics(
         @ error
     ).squeeze(-1)
 
-
 class Experimental60Backend(IsaacBackend):
-    """Isaac Sim 6.0 backend implemented with Core Experimental APIs."""
+    """Isaac Sim 6.0.0 backend implemented with Core Experimental APIs."""
 
     name = "experimental_60"
 
     def create_world(self, timestep):
-        self._ensure_stage()
-        return ExperimentalWorld(app=self._simulation_app, timestep=timestep)
-
-    def _ensure_stage(self):
         import isaacsim.core.experimental.utils.stage as stage_utils
+        from pxr import UsdPhysics
 
         if stage_utils.get_current_stage() is None:
             stage_utils.create_new_stage(template="sunlight")
+        
+        stage = stage_utils.get_current_stage()
+        stage_utils.set_stage_up_axis("Z")
+        stage_utils.set_stage_units(meters_per_unit=1.0)
+
+        if not stage.GetPrimAtPath("/World/physicsScene").IsValid():
+            UsdPhysics.Scene.Define(stage, "/World/physicsScene")
+
+        return ExperimentalWorld(app=self._simulation_app, timestep=timestep)
 
     def open_environment_stage(self, usd_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
@@ -122,15 +118,14 @@ class Experimental60Backend(IsaacBackend):
         return True
 
     def enable_extension(self, name):
-        import omni.kit.app
+        import isaacsim.core.experimental.utils.app as app_utils
 
-        manager = omni.kit.app.get_app().get_extension_manager()
-        if hasattr(manager, "set_extension_enabled_immediate"):
-            manager.set_extension_enabled_immediate(name, True)
-        else:
-            manager.set_extension_enabled(name, True)
+        app_utils.enable_extension(name)
 
     def initialize_physics(self, world, objects):
+        from isaacsim.core.simulation_manager import SimulationManager
+
+        SimulationManager.setup_simulation(dt=world.timestep)
         if world.app is not None:
             world.app.update()
 
@@ -142,9 +137,16 @@ class Experimental60Backend(IsaacBackend):
             world.app.update()
 
     def step_world(self, world):
+        from isaacsim.core.simulation_manager import SimulationManager
+        from isaacsim.core.rendering_manager import RenderingManager
+
+        SimulationManager.step(steps=1)
+        RenderingManager.render()
+
         if world.app is not None:
             world.app.update()
-        world.simulation_time += world.timestep
+
+        world.simulation_time = SimulationManager.get_simulation_time()
 
     def stop_and_clear_world(self, world):
         import isaacsim.core.experimental.utils.stage as stage_utils
@@ -152,22 +154,24 @@ class Experimental60Backend(IsaacBackend):
 
         timeline = omni.timeline.get_timeline_interface()
         timeline.stop()
+        if world.app is not None:
+            world.app.update()
 
-        for handle in list(world.objects.values()):
-            stage_utils.delete_prim(handle.prim_path)
+        for name, wrapper in list(world.objects.items()):
+            prim_path = getattr(wrapper, "prim_path", f"/World/{name}")
+            try:
+                stage_utils.delete_prim(prim_path)
+            except Exception as exc:
+                pass
         world.objects.clear()
-
-    def add_object(self, world, obj):
-        if isinstance(obj, ExperimentalObjectHandle):
-            world.objects[obj.name] = obj
+        if world.app is not None:
+            world.app.update()
 
     def run_coroutine(self, coro):
-        if self._simulation_app is not None and hasattr(
-            self._simulation_app, "run_coroutine"
-        ):
-            return self._simulation_app.run_coroutine(coro)
+        return self._simulation_app.run_coroutine(coro)
 
-        return super().run_coroutine(coro)
+    def add_object(self, world, obj, *, scenic_obj=None):
+        world.objects[scenic_obj.name] = obj
 
     def ensure_environment_mesh_paths(
         self,
@@ -229,19 +233,27 @@ class Experimental60Backend(IsaacBackend):
         from isaacsim.core.experimental.prims import RigidPrim, XformPrim
 
         prim_path = f"/World/{obj.name}"
+        asset_prim_path = f"{prim_path}/asset"
+
         usd_path = (
             self.asset_path(obj.isaac_asset_path)
             if obj.isaac_asset_path
             else os.path.abspath(obj.usd_path)
         )
-        stage_utils.add_reference_to_stage(usd_path=usd_path, path=prim_path)
+
+        stage_utils.define_prim(prim_path, "Xform")
+
+        stage_utils.add_reference_to_stage(usd_path=usd_path, path=asset_prim_path)
 
         scenic_position = scenic_utils.vectorToArray(obj.position)
         orientation = self.scenic_to_isaac_orientation(obj.orientation)
+
+        # Geometry is under /World/ObjectName/asset.
         geometry_paths = self._geometry_paths_under(prim_path)
         self._apply_collisions_to_geometry(geometry_paths)
 
         # Compute scale from Scenic dimensions to native USD dimensions.
+        # This should compute the bbox of the full parent, including the asset child.
         root_position, local_scale, native_size, native_center = (
             self.compute_usd_scale_and_root_position(
                 obj,
@@ -256,29 +268,33 @@ class Experimental60Backend(IsaacBackend):
                 prim_path,
                 positions=root_position,
                 orientations=orientation,
+                scales=local_scale,
                 reset_xform_op_properties=True,
             )
+
             if obj.mass is not None:
-                wrapper.set_masses(obj.mass)
+                wrapper.set_masses(np.asarray([obj.mass], dtype=np.float32))
+
             if obj.density is not None:
-                wrapper.set_densities(obj.density)
+                wrapper.set_densities(np.asarray([obj.density], dtype=np.float32))
+
             velocity = scenic_utils.vectorToArray(obj.velocity)
             wrapper.set_velocities(linear_velocities=velocity)
+
         else:
             wrapper = XformPrim(
                 prim_path,
                 positions=root_position,
                 orientations=orientation,
+                scales=local_scale,
                 reset_xform_op_properties=True,
             )
             self.disable_rigid_body(prim_path)
-        
-        wrapper.set_world_poses(positions=root_position, orientations=orientation)
-        wrapper.set_local_scales(local_scale)
 
         if obj.color:
             self.apply_visual_material(wrapper, obj, geometry_paths=geometry_paths)
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "object")
+
+        return wrapper
 
     def _geometry_paths_under(self, prim_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
@@ -329,6 +345,9 @@ class Experimental60Backend(IsaacBackend):
         import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.core.experimental.prims import Articulation
 
+        if getattr(obj, "wheel_controller", None) in {"differential", "holonomic", "ackermann"}:
+            return self.create_wheeled_robot(obj)
+
         prim_path = f"/World/{obj.name}"
         usd_path = (
             self.asset_path(obj.isaac_asset_path)
@@ -339,69 +358,145 @@ class Experimental60Backend(IsaacBackend):
         wrapper = Articulation(
             prim_path,
             positions=scenic_utils.vectorToArray(obj.position),
-            orientations=self.scenic_to_isaac_orientation(obj.orientation),
+            orientations=self.scenic_to_isaac_orientation(
+                obj.orientation, initial_rotation=obj.initial_rotation
+            ),
             reset_xform_op_properties=True,
         )
         if obj.control:
             obj.controller = obj.control
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation")
-
-    def create_create3(self, obj):
+        if obj.color:
+            self.apply_visual_material(wrapper, obj, geometry_paths=self._geometry_paths_under(prim_path))
+        return wrapper
+    
+    def create_wheeled_robot(self, obj):
         import isaacsim.core.experimental.utils.stage as stage_utils
-        from isaacsim.core.experimental.prims import Articulation
+        from isaacsim.robot.experimental.wheeled_robots.robots import (
+            WheeledRobot,
+            HolonomicRobotUsdSetup,
+        )
+        from isaacsim.robot.experimental.wheeled_robots.controllers import (
+            DifferentialController,
+            HolonomicController,
+            AckermannController,
+        )
 
         prim_path = f"/World/{obj.name}"
-        stage_utils.add_reference_to_stage(
-            usd_path=self.asset_path("Isaac/Robots/iRobot/Create3/create_3.usd"),
-            path=prim_path,
+        usd_path = (
+            self.asset_path(obj.isaac_asset_path)
+            if obj.isaac_asset_path
+            else os.path.abspath(obj.usd_path)
         )
-        wrapper = Articulation(
-            prim_path,
-            positions=scenic_utils.vectorToArray(obj.position),
-            orientations=self.scenic_to_isaac_orientation(obj.orientation),
-            reset_xform_op_properties=True,
-        )
-        metadata = {
-            "controller": "differential",
-            "wheel_radius": 0.03575,
-            "wheel_base": 0.233,
-            "wheel_dof_names": ["left_wheel_joint", "right_wheel_joint"],
-        }
-        if obj.color:
-            self.apply_visual_material(
-                wrapper, obj, geometry_paths=self._geometry_paths_under(prim_path)
-            )
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation", metadata)
 
-    def create_kaya(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
-        from isaacsim.core.experimental.prims import Articulation
-
-        prim_path = f"/World/{obj.name}"
-        stage_utils.add_reference_to_stage(
-            usd_path=self.asset_path("Isaac/Robots/NVIDIA/Kaya/kaya.usd"),
-            path=prim_path,
-        )
-        wrapper = Articulation(
-            prim_path,
+        wrapper = WheeledRobot(
+            paths=prim_path,
+            wheel_dof_names=obj.wheel_dof_names,
+            usd_path=usd_path,
             positions=scenic_utils.vectorToArray(obj.position),
-            orientations=self.scenic_to_isaac_orientation(
-                obj.orientation, initial_rotation=[np.pi / 2, 0, 0]
-            ),
-            reset_xform_op_properties=True,
+            orientations=self.scenic_to_isaac_orientation(obj.orientation, initial_rotation=obj.initial_rotation)
         )
-        metadata = {
-            "controller": "holonomic",
-            "wheel_radius": 0.04,
-            "base_radius": 0.125,
-            "wheel_dof_names": ["axle_0_joint", "axle_1_joint", "axle_2_joint"],
-            "wheel_angles": [0.0, 2.0 * np.pi / 3.0, 4.0 * np.pi / 3.0],
-        }
-        if obj.color:
-            self.apply_visual_material(
-                wrapper, obj, geometry_paths=self._geometry_paths_under(prim_path)
+
+        obj.wheel_dof_indices = wrapper.get_dof_indices(obj.wheel_dof_names)
+
+
+        if obj.wheel_controller == "differential":
+            obj.controller = DifferentialController(
+                wheel_radius=obj.wheel_radius,
+                wheel_base=obj.wheel_base,
             )
-        return ExperimentalObjectHandle(obj.name, prim_path, wrapper, "articulation", metadata)
+        elif obj.wheel_controller == "holonomic":
+            holonomic_setup = HolonomicRobotUsdSetup(
+                robot_prim_path=prim_path, 
+                com_prim_path=f"/World/{obj.name}/base_link/control_offset",
+            )
+            (
+                wheel_radius,
+                wheel_positions,
+                wheel_orientations,
+                mecanum_angles,
+                wheel_axis,
+                up_axis,
+            ) = holonomic_setup.get_holonomic_controller_params()
+
+            obj.controller = HolonomicController(
+                wheel_radius=wheel_radius,
+                wheel_positions=wheel_positions,
+                wheel_orientations=wheel_orientations,
+                mecanum_angles=mecanum_angles,
+                wheel_axis=wheel_axis,
+                up_axis=up_axis,
+                max_linear_speed=getattr(obj, "max_linear_speed", 0.5),
+                max_angular_speed=getattr(obj, "max_angular_speed", 0.8),
+                max_wheel_speed=getattr(obj, "max_wheel_speed", 10.0),
+            )
+        elif obj.wheel_controller == "ackermann":
+            steering_dof_names = getattr(obj, "steering_dof_names", None)
+            if not steering_dof_names:
+                raise ValueError(
+                    f"Ackermann robot {obj.name} requires steering_dof_names, "
+                    "usually [front_left_steering_joint, front_right_steering_joint]."
+                )
+
+            obj.steering_dof_names = steering_dof_names
+            obj.steering_dof_indices = wrapper.get_dof_indices(steering_dof_names)
+
+            # If the user only exposes obj.wheel_radius in Scenic, use it for both front/back.
+            front_wheel_radius = getattr(obj, "front_wheel_radius", obj.wheel_radius)
+            back_wheel_radius = getattr(obj, "back_wheel_radius", obj.wheel_radius)
+
+            obj.controller = AckermannController(
+                wheel_base=obj.wheel_base,
+                track_width=obj.track_width,
+                front_wheel_radius=front_wheel_radius,
+                back_wheel_radius=back_wheel_radius,
+            )
+        else:
+            obj.controller = obj.control
+
+        if obj.color:
+            self.apply_visual_material(wrapper, obj)
+        
+        return wrapper
+
+    def apply_robot_control(self, sim, obj, command):
+        wrapper = sim.world.get_object(obj.name)
+        if obj.controller is None:
+            return
+        if getattr(obj, "wheel_controller", None) in {"differential", "holonomic", "ackermann"}:
+            self.apply_wheeled_control(sim, obj, command)
+            return
+
+        action = obj.controller(command)
+        self._apply_articulation_action(wrapper, action)
+
+    def apply_wheeled_control(self, sim, obj, command):
+        wrapper = sim.world.get_object(obj.name)
+
+        if obj.controller is None:
+            return
+
+        wheel_controller = obj.wheel_controller
+
+        if wheel_controller in {"differential", "holonomic"}:
+            # Differential command: [linear_speed, angular_speed]
+            # Holonomic command: [forward_speed, lateral_speed, yaw_speed]
+            wrapper.apply_wheel_actions(obj.controller.forward(command))
+            return
+        elif wheel_controller == "ackermann":
+            # Ackermann command: [steering_angle, steering_angle_velocity, speed, acceleration, dt]
+            steering_positions, wheel_velocities = obj.controller.forward(command)
+
+            wrapper.set_dof_position_targets(
+                steering_positions,
+                dof_indices=obj.steering_dof_indices,
+            )
+            # obj.wheel_dof_names should be ordered as: [front_left, front_right, rear_left, rear_right]
+            wrapper.apply_wheel_actions(wheel_velocities)
+            return
+
+        # If the user supplied a custom controller that returns an existing ArticulationAction.
+        action = obj.controller(command)
+        self._apply_articulation_action(wrapper, action)
 
     def create_franka_panda(self, obj):
         import isaacsim.core.experimental.utils.stage as stage_utils
@@ -409,7 +504,10 @@ class Experimental60Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         root_position = self._franka_root_position(obj)
-        root_orientation = self.scenic_to_isaac_orientation(obj.orientation)
+        root_orientation = self.scenic_to_isaac_orientation(
+            obj.orientation,
+            initial_rotation=obj.initial_rotation,
+        )
 
         stage_utils.add_reference_to_stage(
             usd_path=self.asset_path(
@@ -418,45 +516,250 @@ class Experimental60Backend(IsaacBackend):
             path=prim_path,
             variants=[("Gripper", "AlternateFinger"), ("Mesh", "Performance")],
         )
+
         wrapper = Articulation(
             prim_path,
             positions=root_position,
             orientations=root_orientation,
             reset_xform_op_properties=True,
         )
+
         default_dof_positions = np.array(
             [0.012, -0.568, 0.0, -2.811, 0.0, 3.037, 0.741, 0.05, 0.05],
             dtype=float,
         )
+
         wrapper.set_default_state(dof_positions=default_dof_positions)
 
         end_effector = RigidPrim(f"{prim_path}/panda_hand")
         end_effector_link_index = wrapper.get_link_indices("panda_hand").list()[0]
-        metadata = {
+
+        obj._franka_metadata = {
+            "prim_path": prim_path,
             "end_effector": end_effector,
             "end_effector_link_index": end_effector_link_index,
             "arm_dof_indices": list(range(7)),
             "arm_dof_count": 7,
             "gripper_dof_indices": self._dof_indices(
-                wrapper, ["panda_finger_joint1", "panda_finger_joint2"]
+                wrapper,
+                ["panda_finger_joint1", "panda_finger_joint2"],
             ),
             "default_dof_positions": default_dof_positions,
             "open_gripper_positions": np.array([0.05, 0.05], dtype=float),
             "closed_gripper_positions": np.array([0.01, 0.01], dtype=float),
+            # Isaac quaternion convention: [w, x, y, z].
             "downward_orientation": np.array([0.0, 1.0, 0.0, 0.0], dtype=float),
         }
-        return ExperimentalObjectHandle(
-            obj.name,
-            prim_path,
-            wrapper,
-            "franka",
-            metadata,
-        )
+
+        obj._franka_pick_place_state = None
+
+        if obj.color:
+            self.apply_visual_material(
+                wrapper,
+                obj,
+                geometry_paths=self._geometry_paths_under(prim_path),
+            )
+
+        return wrapper
 
     def _franka_root_position(self, obj):
         position = scenic_utils.vectorToArray(obj.position)
         position[2] -= obj.height / 2
         return position
+    
+    def move_franka_pick_place(
+        self,
+        sim,
+        obj,
+        target_object,
+        goal_position,
+        end_effector_offset=None,
+        end_effector_orientation=None,
+    ):
+        franka = sim.world.get_object(obj.name)
+
+        state = getattr(obj, "_franka_pick_place_state", None)
+        if state is None:
+            state = FrankaPickPlaceState()
+            obj._franka_pick_place_state = state
+            self._reset_franka(obj, franka)
+
+        if state.done:
+            return
+
+        if end_effector_orientation is None:
+            end_effector_orientation = obj.end_effector_orientation
+
+        if end_effector_offset is None:
+            end_effector_offset = obj.end_effector_offset
+
+        end_effector_offset = np.asarray(end_effector_offset, dtype=float)
+
+        self._move_franka_pick_place_helper(
+            franka,
+            obj,
+            state,
+            sim,
+            target_object,
+            goal_position,
+            end_effector_offset,
+            end_effector_orientation,
+        )
+
+    def _move_franka_pick_place_helper(
+        self,
+        franka,
+        obj,
+        state,
+        sim,
+        target_object,
+        goal_position,
+        end_effector_offset,
+        end_effector_orientation=None,
+    ):
+        metadata = obj._franka_metadata
+
+        if state.pick_position is None:
+            target_wrapper = sim.world.get_object(target_object.name)
+            state.pick_position = target_wrapper.get_world_poses()[0].numpy()[0].copy()
+
+        if state.place_position is None:
+            state.place_position = scenic_utils.vectorToArray(goal_position).copy()
+
+        cube_position = state.pick_position
+        place_position = state.place_position
+
+        current_position, current_orientation = self._franka_end_effector_pose(obj)
+
+        if end_effector_orientation is not None:
+            state.end_effector_orientation = np.asarray(
+                end_effector_orientation,
+                dtype=float,
+            ).copy()
+        elif state.end_effector_orientation is None:
+            state.end_effector_orientation = metadata["downward_orientation"].copy()
+
+        orientation = state.end_effector_orientation
+
+        phases = [
+            (cube_position + np.array([0.0, 0.0, 0.20]), "open", 120),
+            (cube_position + np.array([0.0, 0.0, 0.10]), "open", 80),
+            (None, "closed", 50),
+            (cube_position + np.array([0.0, 0.0, 0.50]), "closed", 150),
+            (place_position + np.array([0.0, 0.0, 0.50]), "closed", 180),
+            (place_position + np.array([0.0, 0.0, 0.20]), "closed", 90),
+            (None, "open", 20),
+        ]
+
+        target, gripper_state, steps = phases[state.stage]
+
+        if target is not None:
+            self._move_franka_end_effector(
+                franka,
+                obj,
+                current_position=current_position,
+                current_orientation=current_orientation,
+                goal_position=np.asarray([target + end_effector_offset], dtype=float),
+                goal_orientation=np.asarray([orientation], dtype=float),
+            )
+
+        self._set_franka_gripper(franka, obj, gripper_state)
+
+        state.stage_steps += 1
+        if state.stage_steps > steps:
+            print(
+                f"Franka stage={state.stage}, steps={state.stage_steps}, "
+                f"target={target}, gripper={gripper_state}",
+                flush=True,
+            )
+
+            state.stage += 1
+            state.stage_steps = 0
+
+            if state.stage >= len(phases):
+                state.done = True
+
+    def _dof_indices(self, articulation, names):
+        dof_names = list(articulation.dof_names)
+        return [dof_names.index(name) for name in names]
+
+    def _reset_franka(self, obj, franka):
+        metadata = obj._franka_metadata
+
+        franka.reset_to_default_state()
+        franka.set_dof_position_targets(metadata["default_dof_positions"])
+        self._set_franka_gripper(franka, obj, "open")
+
+
+    def _franka_end_effector_pose(self, obj):
+        metadata = obj._franka_metadata
+        position, orientation = metadata["end_effector"].get_world_poses()
+        return position.numpy(), orientation.numpy()
+
+
+    def _move_franka_end_effector(
+        self,
+        franka,
+        obj,
+        current_position,
+        current_orientation,
+        goal_position,
+        goal_orientation=None,
+    ):
+        metadata = obj._franka_metadata
+
+        arm_dof_indices = metadata["arm_dof_indices"]
+        arm_dof_count = metadata["arm_dof_count"]
+
+        current_dof_positions = franka.get_dof_positions().numpy()
+        jacobian_matrices = franka.get_jacobian_matrices().numpy()
+
+        jacobian_end_effector = jacobian_matrices[
+            :,
+            metadata["end_effector_link_index"] - 1,
+            :,
+            :arm_dof_count,
+        ]
+
+        delta_dof_positions = _differential_inverse_kinematics(
+            jacobian_end_effector=jacobian_end_effector,
+            current_position=np.asarray(current_position, dtype=float).reshape(1, 3),
+            current_orientation=np.asarray(current_orientation, dtype=float).reshape(1, 4),
+            goal_position=np.asarray(goal_position, dtype=float).reshape(1, 3),
+            goal_orientation=(
+                None
+                if goal_orientation is None
+                else np.asarray(goal_orientation, dtype=float).reshape(1, 4)
+            ),
+        )
+
+        if current_dof_positions.ndim == 1:
+            dof_position_targets = (
+                current_dof_positions[arm_dof_indices] + delta_dof_positions[0]
+            )
+        else:
+            dof_position_targets = (
+                current_dof_positions[:, arm_dof_indices] + delta_dof_positions
+            )
+
+        franka.set_dof_position_targets(
+            dof_position_targets,
+            dof_indices=arm_dof_indices,
+        )
+
+
+    def _set_franka_gripper(self, franka, obj, state):
+        metadata = obj._franka_metadata
+
+        if state == "open":
+            positions = metadata["open_gripper_positions"]
+        elif state == "closed":
+            positions = metadata["closed_gripper_positions"]
+
+        franka.set_dof_position_targets(
+            positions,
+            dof_indices=metadata["gripper_dof_indices"],
+        )
 
     def create_ground_plane(self, obj):
         from isaacsim.core.experimental.objects import GroundPlane
@@ -468,205 +771,41 @@ class Experimental60Backend(IsaacBackend):
         )
         if obj.color:
             self.apply_visual_material(wrapper, obj)
-        return ExperimentalObjectHandle(obj.name, "/World/GroundPlane", wrapper, "ground")
+        return wrapper
 
-    def apply_robot_control(self, sim, obj, command):
-        handle = sim.world.get_object(obj.name)
-        if obj.controller is None:
-            return
-        action = obj.controller(command)
-        self._apply_articulation_action(handle.wrapper, action)
+    def apply_articulation_action(self, sim, obj, action):
+        wrapper = sim.world.get_object(obj.name)
+        self._apply_articulation_action(wrapper, action)
 
-    def apply_wheeled_control(self, sim, obj, command):
-        handle = sim.world.get_object(obj.name)
-        metadata = handle.metadata
-        if metadata.get("controller") == "differential":
-            throttle, steering = command
-            radius = metadata["wheel_radius"]
-            base = metadata["wheel_base"]
-            velocities = [
-                ((2.0 * throttle) - (steering * base)) / (2.0 * radius),
-                ((2.0 * throttle) + (steering * base)) / (2.0 * radius),
-            ]
-        elif metadata.get("controller") == "holonomic":
-            forward_speed, lateral_speed, yaw_speed = command
-            radius = metadata["wheel_radius"]
-            base_radius = metadata["base_radius"]
-            velocities = []
-            for angle in metadata["wheel_angles"]:
-                velocities.append(
-                    (
-                        math.sin(angle) * forward_speed
-                        + math.cos(angle) * lateral_speed
-                        + base_radius * yaw_speed
-                    )
-                    / radius
-                )
-        else:
-            raise RuntimeError(f"{obj.name} has no wheeled controller metadata")
+    def articulation_dof_names(self, sim, obj):
+        wrapper = sim.world.get_object(obj.name)
+        return list(wrapper.dof_names)
 
-        dof_indices = self._dof_indices(handle.wrapper, metadata["wheel_dof_names"])
-        handle.wrapper.set_dof_velocity_targets(velocities, dof_indices=dof_indices)
+    def get_object_pose(self, sim, obj):
+        wrapper = sim.world.get_object(obj.name)
+        position, orientation = wrapper.get_world_poses()
+        return position.numpy()[0], orientation.numpy()[0]
 
-    def move_franka_pick_place(
-        self,
-        sim,
-        obj,
-        target_object,
-        goal_position,
-        end_effector_offset=None,
-        end_effector_orientation=None,
-    ):
-        handle = sim.world.get_object(obj.name)
-
-        if obj.controller is None:
-            obj.controller = FrankaPickPlaceState()
-            self._reset_franka(handle)
-        if obj.controller.done:
-            return
-
-        if end_effector_orientation is None:
-            end_effector_orientation = obj.end_effector_orientation
-        if end_effector_offset is None:
-            end_effector_offset = obj.end_effector_offset
-
-        end_effector_offset = np.array(end_effector_offset, dtype=float)
-
-        self._move_franka_pick_place_helper(
-            handle,
-            obj.controller,
-            sim,
-            target_object,
-            goal_position,
-            end_effector_offset,
-            end_effector_orientation,
-        )
-
-    def _move_franka_pick_place_helper(
-        self,
-        handle,
-        state,
-        sim,
-        target_object,
-        goal_position,
-        end_effector_offset,
-        end_effector_orientation=None,
-    ):
-        if state.pick_position is None:
-            target_handle = sim.world.get_object(target_object.name)
-            state.pick_position = target_handle.wrapper.get_world_poses()[0].numpy()[0].copy()
-        if state.place_position is None:
-            state.place_position = scenic_utils.vectorToArray(goal_position).copy()
-
-        cube_position = state.pick_position
-        place = state.place_position
-        current_position, current_orientation = self._franka_end_effector_pose(handle)
-
-        if end_effector_orientation is not None:
-            state.end_effector_orientation = np.array(end_effector_orientation, dtype=float).copy()
-        elif state.end_effector_orientation is None:
-            state.end_effector_orientation = handle.metadata["downward_orientation"].copy()
-        orientation = state.end_effector_orientation
-
-        phases = [
-            (cube_position + np.array([0.0, 0.0, 0.2]), "open", 120),
-            (cube_position + np.array([0.0, 0.0, 0.1]), "open", 80),
-            (None, "closed", 50),
-            (cube_position + np.array([0.0, 0.0, 0.5]), "closed", 150),
-            (place + np.array([0.0, 0.0, 0.5]), "closed", 180),
-            (place + np.array([0.0, 0.0, 0.2]), "closed", 90),
-            (None, "open", 20),
-        ]
-
-        target, gripper, steps = phases[state.stage]
-        if target is not None:
-            self._move_franka_end_effector(
-                handle,
-                current_position,
-                current_orientation,
-                np.array([target + end_effector_offset], dtype=float),
-                np.array([orientation], dtype=float),
+    def set_object_pose(self, sim, obj, position, orientation=None):
+        wrapper = sim.world.get_object(obj.name)
+        position = np.array(position, dtype=float)
+        if orientation is None:
+            _, orientation = self.get_object_pose(sim, obj)
+        orientation = np.array(orientation, dtype=float)
+        wrapper.set_world_poses(positions=position, orientations=orientation)
+        if hasattr(wrapper, "set_velocities"):
+            wrapper.set_velocities(
+                linear_velocities=np.zeros(3, dtype=float),
+                angular_velocities=np.zeros(3, dtype=float),
             )
-
-        if gripper == "open":
-            self._set_franka_gripper(handle, "open")
-        else:
-            self._set_franka_gripper(handle, "closed")
-
-        state.stage_steps += 1
-        if state.stage_steps > steps:
-            target, gripper, steps = phases[state.stage]
-            print(
-                f"Franka stage={state.stage}, steps={state.stage_steps}, "
-                f"target={target}, gripper={gripper}"
-            )
-            state.stage += 1
-            state.stage_steps = 0
-            if state.stage >= len(phases):
-                state.done = True
-
-    def _reset_franka(self, handle):
-        handle.wrapper.reset_to_default_state()
-        handle.wrapper.set_dof_position_targets(
-            handle.metadata["default_dof_positions"]
-        )
-
-    def _franka_end_effector_pose(self, handle):
-        position, orientation = handle.metadata["end_effector"].get_world_poses()
-        return position.numpy(), orientation.numpy()
-
-    def _move_franka_end_effector(
-        self,
-        handle,
-        current_position,
-        current_orientation,
-        goal_position,
-        goal_orientation=None,
-    ):
-        franka = handle.wrapper
-        metadata = handle.metadata
-        current_dof_positions = franka.get_dof_positions().numpy()
-        jacobian_matrices = franka.get_jacobian_matrices().numpy()
-        jacobian_end_effector = jacobian_matrices[
-            :,
-            metadata["end_effector_link_index"] - 1,
-            :,
-            : metadata["arm_dof_count"],
-        ]
-        delta_dof_positions = _differential_inverse_kinematics(
-            jacobian_end_effector=jacobian_end_effector,
-            current_position=current_position,
-            current_orientation=current_orientation,
-            goal_position=np.asarray(goal_position, dtype=float).reshape(1, -1),
-            goal_orientation=(
-                None
-                if goal_orientation is None
-                else np.asarray(goal_orientation, dtype=float).reshape(1, -1)
-            ),
-        )
-        dof_position_targets = (
-            current_dof_positions[:, metadata["arm_dof_indices"]]
-            + delta_dof_positions
-        )
-        franka.set_dof_position_targets(
-            dof_position_targets,
-            dof_indices=metadata["arm_dof_indices"],
-        )
-
-    def _set_franka_gripper(self, handle, state):
-        positions = handle.metadata[f"{state}_gripper_positions"]
-        handle.wrapper.set_dof_position_targets(
-            positions,
-            dof_indices=handle.metadata["gripper_dof_indices"],
-        )
 
     def get_physics_properties(self, world, obj):
-        handle = world.get_object(obj.name)
-        position, orientation = handle.wrapper.get_world_poses()
+        wrapper = world.get_object(obj.name)
+        position, orientation = wrapper.get_world_poses()
         position = position.numpy()[0]
         orientation = orientation.numpy()[0]
         yaw, pitch, roll = self.isaac_quat_to_scenic_euler_angles(orientation)
-        linear_velocity, angular_velocity = handle.wrapper.get_velocities()
+        linear_velocity, angular_velocity = wrapper.get_velocities()
         linear_velocity = linear_velocity.numpy()[0]
         angular_velocity = angular_velocity.numpy()[0]
         lx, ly, lz = linear_velocity
@@ -683,27 +822,19 @@ class Experimental60Backend(IsaacBackend):
         }
 
     def _apply_articulation_action(self, articulation, action):
-        if not isinstance(action, IsaacArticulationAction):
-            if isinstance(action, dict):
-                action = IsaacArticulationAction(action)
-            else:
-                raise TypeError(
-                    f"{self.name} robot controls must return articulation_action(...) "
-                    "or a dict with joint position/velocity/effort fields"
-                )
-        kwargs = action.kwargs
-        dof_indices = kwargs.get("joint_indices", kwargs.get("dof_indices"))
-        if "joint_positions" in kwargs:
+        dof_indices = action.get("joint_indices", action.get("dof_indices"))
+        if "joint_positions" in action:
             articulation.set_dof_position_targets(
-                kwargs["joint_positions"], dof_indices=dof_indices
+                action["joint_positions"],
+                dof_indices=action.get("joint_position_indices", dof_indices),
             )
-        if "joint_velocities" in kwargs:
+        if "joint_velocities" in action:
             articulation.set_dof_velocity_targets(
-                kwargs["joint_velocities"], dof_indices=dof_indices
+                action["joint_velocities"],
+                dof_indices=action.get("joint_velocity_indices", dof_indices),
             )
-        if "joint_efforts" in kwargs:
-            articulation.set_dof_efforts(kwargs["joint_efforts"], dof_indices=dof_indices)
-
-    def _dof_indices(self, articulation, names):
-        dof_names = list(articulation.dof_names)
-        return [dof_names.index(name) for name in names]
+        if "joint_efforts" in action:
+            articulation.set_dof_efforts(
+                action["joint_efforts"],
+                dof_indices=action.get("joint_effort_indices", dof_indices),
+            )
