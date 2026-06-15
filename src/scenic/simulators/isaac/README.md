@@ -26,11 +26,17 @@ examples can be run with:
 
 `scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic --count 1`
 
+`scenic -S -b examples/isaacsim/robot/ur5e_example_core.scenic --count 1`
+
+`scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic --count 1`
+
 ## **Known Issues**
 
 1. There can still be small differences between Scenic geometry and the corresponding Isaac Sim USD geometry/colliders, especially for converted or complex assets. The current backend compensates for USD bounding-box offsets when placing assets, but scenarios using `mutate` can still expose unexpected intersections.
 
 2. Sometimes, repairing a complex converted mesh will not result in a reasonable volume. 
+
+3. The current Franka and UR5e manipulator primitives use hardcoded robot/gripper model values such as asset paths, end-effector frames, TCP offsets, default grasp orientations, gripper joints, gripper open/close targets, and contact parameters. These values should be updated in the backend when using a different robot asset or gripper variant.
 
 ## **Assets**
 

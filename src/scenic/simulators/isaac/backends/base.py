@@ -344,6 +344,9 @@ class IsaacBackend:
     def create_franka_panda(self, obj):
         raise NotImplementedError
 
+    def create_ur5e(self, obj):
+        raise NotImplementedError
+
     def create_ground_plane(self, obj):
         raise NotImplementedError
 
@@ -380,6 +383,30 @@ class IsaacBackend:
         raise NotImplementedError
 
     def get_franka_gripper_positions(self, sim, obj):
+        raise NotImplementedError
+
+    def franka_gripper_target_positions(self, opened):
+        raise NotImplementedError
+
+    def move_ur5e_end_effector(self, sim, obj, position, orientation=None):
+        raise NotImplementedError
+
+    def set_ur5e_gripper(self, sim, obj, opened):
+        raise NotImplementedError
+
+    def set_ur5e_arm_joint_positions(self, sim, obj, joint_positions):
+        raise NotImplementedError
+
+    def hold_ur5e_position(self, sim, obj):
+        raise NotImplementedError
+
+    def get_ur5e_end_effector_pose(self, sim, obj):
+        raise NotImplementedError
+
+    def get_ur5e_gripper_positions(self, sim, obj):
+        raise NotImplementedError
+
+    def ur5e_gripper_target_positions(self, opened):
         raise NotImplementedError
 
     def get_physics_properties(self, world, obj):

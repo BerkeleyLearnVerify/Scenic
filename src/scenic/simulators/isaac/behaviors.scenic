@@ -46,7 +46,7 @@ behavior PickPlaceObject(target_object, goal_position):
 # Generic manipulator primitives. Scenario-level behaviors should compose these
 # with `do ...` so the overall task is visible in the scenario file.
 
-behavior MoveEndEffectorTo(position, orientation=None, threshold=0.01,
+behavior MoveEndEffectorTo(position, orientation=None, threshold=0.035,
                            max_steps=None):
     sim = simulation()
     target = np.array(position, dtype=float).flatten()[:3]
@@ -65,7 +65,7 @@ behavior MoveEndEffectorTo(position, orientation=None, threshold=0.01,
 
 behavior OpenGripper(threshold=0.002, max_steps=100):
     sim = simulation()
-    target = np.array([0.05, 0.05], dtype=float)
+    target = np.array(self.get_gripper_target_positions(True), dtype=float)
     steps = 0
     while True:
         take OpenGripperAction()
@@ -80,7 +80,7 @@ behavior OpenGripper(threshold=0.002, max_steps=100):
 
 behavior CloseGripper(threshold=0.002, max_steps=100):
     sim = simulation()
-    target = np.array([0.01, 0.01], dtype=float)
+    target = np.array(self.get_gripper_target_positions(False), dtype=float)
     steps = 0
     while True:
         take CloseGripperAction()

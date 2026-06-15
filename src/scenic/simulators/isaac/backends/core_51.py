@@ -21,6 +21,39 @@ def _position_array(position):
     return np.asarray(position, dtype=float).reshape(-1)[:3]
 
 
+UR5E_ARM_DOF_NAMES = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint",
+]
+UR5E_DEFAULT_ARM_POSE = np.array(
+    [-np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, np.pi / 2.0, 0.0],
+    dtype=float,
+)
+UR5E_RMPFLOW_DOWNWARD_ORIENTATION = np.array(
+    [0.0, 0.70710678, 0.70710678, 0.0],
+    dtype=float,
+)
+UR5E_RMPFLOW_TCP_OFFSET = np.array([0.0, 0.0, 0.135], dtype=float)
+UR5E_GRIPPER_OPEN_POSITION = 0.0
+UR5E_GRIPPER_CLOSED_POSITION = np.deg2rad(40.0)
+UR5E_GRIPPER_FULLY_CLOSED_POSITION = 47.0
+UR5E_GRIPPER_CLOSE_VELOCITY = np.deg2rad(90.0)
+UR5E_GRIPPER_OPEN_VELOCITY = -np.deg2rad(45.0)
+UR5E_GRIPPER_MAX_FORCE = 5.0
+UR5E_GRIPPER_STIFFNESS = 0.0
+UR5E_GRIPPER_DAMPING = 5000.0
+UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC = 130.0
+UR5E_MIMIC_NATURAL_FREQUENCY = 0.0
+UR5E_MIMIC_DAMPING_RATIO = 0.0
+UR5E_OUTER_FINGER_PARALLEL_STIFFNESS = 0.05
+UR5E_GRIPPER_VARIANT = "Robotiq_2f_85"
+UR5E_GRIPPER_PRIM = "Gripper/Robotiq_2F_85"
+
+
 class Core51Backend(IsaacBackend):
     """Isaac Sim 5.1 backend implemented with the current Core API."""
 
@@ -340,6 +373,290 @@ class Core51Backend(IsaacBackend):
         wrapper.gripper.set_default_state(wrapper.gripper.joint_opened_positions)
         return wrapper
 
+    def create_ur5e(self, obj):
+        from isaacsim.core.utils.stage import add_reference_to_stage, get_current_stage
+        from isaacsim.robot.manipulators import SingleManipulator
+        from isaacsim.robot.manipulators.grippers import ParallelGripper
+
+        prim_path = f"/World/{obj.name}"
+        base_position = self._ur5e_base_position(obj)
+        robot_position = base_position
+        robot_prim = add_reference_to_stage(
+            usd_path=self.asset_path("Isaac/Robots/UniversalRobots/ur5e/ur5e.usd"),
+            prim_path=prim_path,
+        )
+        self._set_required_variant(robot_prim, "Gripper", UR5E_GRIPPER_VARIANT)
+
+        stage = get_current_stage()
+        end_effector_prim_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/base_link"
+        self._require_stage_prim(stage, end_effector_prim_path)
+        self._configure_ur5e_gripper_attachment(stage, prim_path)
+        self._configure_ur5e_default_joint_pose(stage, prim_path)
+        self._configure_ur5e_closed_loop_gripper(stage, prim_path)
+        self._configure_ur5e_gripper_drive(stage, prim_path)
+
+        gripper = ParallelGripper(
+            end_effector_prim_path=end_effector_prim_path,
+            joint_prim_names=["finger_joint"],
+            joint_opened_positions=np.array([UR5E_GRIPPER_OPEN_POSITION]),
+            joint_closed_positions=np.array([UR5E_GRIPPER_CLOSED_POSITION]),
+            use_mimic_joints=True,
+        )
+        wrapper = SingleManipulator(
+            prim_path=prim_path,
+            name=obj.name,
+            position=robot_position,
+            orientation=self.scenic_to_isaac_orientation(obj.orientation),
+            end_effector_prim_path=end_effector_prim_path,
+            gripper=gripper,
+        )
+        wrapper.gripper.set_default_state(wrapper.gripper.joint_opened_positions)
+        return wrapper
+
+    def _set_required_variant(self, prim, variant_name, selection):
+        variant_set = prim.GetVariantSet(variant_name)
+        if not variant_set or not variant_set.IsValid():
+            raise RuntimeError(f"{prim.GetPath()} has no {variant_name!r} variant set")
+        available = list(variant_set.GetVariantNames())
+        if selection not in available:
+            raise RuntimeError(
+                f"{prim.GetPath()} {variant_name!r} variant {selection!r} is missing"
+            )
+        variant_set.SetVariantSelection(selection)
+
+    def _require_stage_prim(self, stage, prim_path):
+        prim = stage.GetPrimAtPath(prim_path)
+        if not prim or not prim.IsValid():
+            raise RuntimeError(f"Required Isaac prim is missing: {prim_path}")
+        return prim
+
+    def _ur5e_base_position(self, obj):
+        position = scenic_utils.vectorToArray(obj.position)
+        position[2] -= obj.height / 2
+        return position
+
+    def _configure_ur5e_gripper_attachment(self, stage, prim_path):
+        from pxr import Gf, Sdf
+
+        joint = self._require_stage_prim(
+            stage, f"{prim_path}/joints/robot_gripper_joint"
+        )
+
+        def set_quat_attr(attr_name, values):
+            attr = joint.GetAttribute(attr_name)
+            if not attr or not attr.IsValid():
+                attr = joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Quatf)
+            attr.Set(
+                Gf.Quatf(
+                    float(values[0]),
+                    Gf.Vec3f(float(values[1]), float(values[2]), float(values[3])),
+                )
+            )
+
+        set_quat_attr("physics:localRot0", (0.70710677, 0.0, 0.0, 0.70710677))
+        set_quat_attr("physics:localRot1", (1.0, 0.0, 0.0, 0.0))
+
+    def _configure_ur5e_default_joint_pose(self, stage, prim_path):
+        from pxr import Sdf
+
+        for joint_name, angle_deg in zip(
+            UR5E_ARM_DOF_NAMES, np.rad2deg(UR5E_DEFAULT_ARM_POSE)
+        ):
+            joint = self._require_stage_prim(stage, f"{prim_path}/joints/{joint_name}")
+            for attr_name in (
+                "drive:angular:physics:targetPosition",
+                "state:angular:physics:position",
+            ):
+                attr = joint.GetAttribute(attr_name)
+                if not attr or not attr.IsValid():
+                    attr = joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
+                attr.Set(float(angle_deg))
+
+        gripper_joint = self._require_stage_prim(
+            stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints/finger_joint"
+        )
+        for attr_name in (
+            "drive:angular:physics:targetPosition",
+            "state:angular:physics:position",
+        ):
+            attr = gripper_joint.GetAttribute(attr_name)
+            if not attr or not attr.IsValid():
+                attr = gripper_joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
+            attr.Set(float(UR5E_GRIPPER_OPEN_POSITION))
+
+    def _configure_ur5e_gripper_drive(self, stage, prim_path):
+        from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
+
+        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}")
+        found_finger_joint = False
+
+        def set_attr(prim, attr_name, value, value_type):
+            attr = prim.GetAttribute(attr_name)
+            if not attr or not attr.IsValid():
+                attr = prim.CreateAttribute(attr_name, value_type)
+            attr.Set(float(value))
+            return attr
+
+        def set_drive_attrs(
+            prim,
+            max_force,
+            stiffness,
+            damping,
+            target_velocity=0.0,
+        ):
+            if "PhysicsDriveAPI:angular" not in list(prim.GetAppliedSchemas()):
+                UsdPhysics.DriveAPI.Apply(prim, "angular")
+            for attr_name, value in (
+                ("drive:angular:physics:maxForce", max_force),
+                ("drive:angular:physics:stiffness", stiffness),
+                ("drive:angular:physics:damping", damping),
+                ("drive:angular:physics:targetVelocity", target_velocity),
+            ):
+                attr = prim.GetAttribute(attr_name)
+                if not attr or not attr.IsValid():
+                    attr = prim.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
+                attr.Set(float(value))
+            drive_type = prim.GetAttribute("drive:angular:physics:type")
+            if not drive_type or not drive_type.IsValid():
+                drive_type = prim.CreateAttribute(
+                    "drive:angular:physics:type", Sdf.ValueTypeNames.Token
+                )
+            drive_type.Set("force")
+            joint_api = (
+                PhysxSchema.PhysxJointAPI(prim)
+                if prim.HasAPI(PhysxSchema.PhysxJointAPI)
+                else PhysxSchema.PhysxJointAPI.Apply(prim)
+            )
+            joint_api.CreateMaxJointVelocityAttr().Set(
+                float(UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC)
+            )
+
+        for prim in Usd.PrimRange(gripper_root):
+            name = prim.GetName()
+            if "Joint" not in str(prim.GetTypeName()) and not name.endswith("_joint"):
+                continue
+            for schema in list(prim.GetAppliedSchemas()):
+                if not schema.startswith("PhysxMimicJointAPI:"):
+                    continue
+                axis = schema.split(":", 1)[1]
+                set_attr(
+                    prim,
+                    f"physxMimicJoint:{axis}:naturalFrequency",
+                    UR5E_MIMIC_NATURAL_FREQUENCY,
+                    Sdf.ValueTypeNames.Float,
+                )
+                set_attr(
+                    prim,
+                    f"physxMimicJoint:{axis}:dampingRatio",
+                    UR5E_MIMIC_DAMPING_RATIO,
+                    Sdf.ValueTypeNames.Float,
+                )
+            if name == "finger_joint":
+                found_finger_joint = True
+                set_drive_attrs(
+                    prim,
+                    UR5E_GRIPPER_MAX_FORCE,
+                    UR5E_GRIPPER_STIFFNESS,
+                    UR5E_GRIPPER_DAMPING,
+                )
+                set_attr(prim, "physics:lowerLimit", 0.0, Sdf.ValueTypeNames.Float)
+                set_attr(
+                    prim,
+                    "physics:upperLimit",
+                    UR5E_GRIPPER_FULLY_CLOSED_POSITION,
+                    Sdf.ValueTypeNames.Float,
+                )
+            elif name in ("left_outer_finger_joint", "right_outer_finger_joint"):
+                set_drive_attrs(
+                    prim,
+                    UR5E_GRIPPER_MAX_FORCE,
+                    UR5E_OUTER_FINGER_PARALLEL_STIFFNESS,
+                    UR5E_GRIPPER_DAMPING,
+                )
+            elif "finger" in name or "knuckle" in name:
+                for attr_name in (
+                    "drive:angular:physics:maxForce",
+                    "drive:angular:physics:stiffness",
+                    "drive:angular:physics:damping",
+                    "drive:angular:physics:targetVelocity",
+                ):
+                    attr = prim.GetAttribute(attr_name)
+                    if attr and attr.IsValid():
+                        attr.Set(0.0)
+        if not found_finger_joint:
+            raise RuntimeError(f"Missing Robotiq finger_joint under {gripper_root.GetPath()}")
+
+    def _configure_ur5e_closed_loop_gripper(self, stage, prim_path):
+        from pxr import Gf, PhysxSchema, Sdf, Usd, UsdPhysics
+
+        base_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/base_link"
+        joint_root_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints"
+        self._require_stage_prim(stage, base_path)
+        joint_root = self._require_stage_prim(stage, joint_root_path)
+        for body_path in (
+            f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
+            f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+        ):
+            self._require_stage_prim(stage, body_path)
+
+        def set_attr(prim, attr_name, value, value_type):
+            attr = prim.GetAttribute(attr_name)
+            if not attr or not attr.IsValid():
+                attr = prim.CreateAttribute(attr_name, value_type)
+            attr.Set(value)
+            return attr
+
+        def configure_joint_common(prim, exclude_from_articulation):
+            set_attr(
+                prim,
+                "physics:excludeFromArticulation",
+                bool(exclude_from_articulation),
+                Sdf.ValueTypeNames.Bool,
+            )
+            set_attr(prim, "physics:jointEnabled", True, Sdf.ValueTypeNames.Bool)
+            if not prim.HasAPI(PhysxSchema.PhysxJointAPI):
+                PhysxSchema.PhysxJointAPI.Apply(prim)
+
+        passive_joint_specs = (
+            (
+                "left_inner_knuckle_joint",
+                f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
+                (0.0, -0.0127, 0.06142),
+                (0.5, 0.5, -0.5, -0.5),
+            ),
+            (
+                "right_inner_knuckle_joint",
+                f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+                (0.0, 0.0127, 0.06142),
+                (0.5, -0.5, 0.5, -0.5),
+            ),
+        )
+        for name, body_path, local_pos, local_rot in passive_joint_specs:
+            joint_path = f"{joint_root_path}/{name}"
+            joint_prim = stage.GetPrimAtPath(joint_path)
+            if not joint_prim.IsValid():
+                joint_prim = UsdPhysics.RevoluteJoint.Define(stage, joint_path).GetPrim()
+            joint = UsdPhysics.RevoluteJoint(joint_prim)
+            joint.GetBody0Rel().SetTargets([Sdf.Path(base_path)])
+            joint.GetBody1Rel().SetTargets([Sdf.Path(body_path)])
+            joint.CreateAxisAttr().Set(UsdPhysics.Tokens.z)
+            joint.CreateLocalPos0Attr().Set(Gf.Vec3f(*local_pos))
+            joint.CreateLocalPos1Attr().Set(Gf.Vec3f(*local_pos))
+            joint.CreateLocalRot0Attr().Set(
+                Gf.Quatf(local_rot[0], Gf.Vec3f(*local_rot[1:]))
+            )
+            joint.CreateLocalRot1Attr().Set(
+                Gf.Quatf(local_rot[0], Gf.Vec3f(*local_rot[1:]))
+            )
+            configure_joint_common(joint_prim, exclude_from_articulation=True)
+
+        for prim in Usd.PrimRange(joint_root):
+            if prim.GetName() in (
+                "left_inner_finger_knuckle_joint",
+                "right_inner_finger_knuckle_joint",
+            ):
+                configure_joint_common(prim, exclude_from_articulation=False)
+
     def create_ground_plane(self, obj):
         from isaacsim.core.api.objects import GroundPlane
 
@@ -419,7 +736,7 @@ class Core51Backend(IsaacBackend):
             policy = mg.ArticulationMotionPolicy(
                 manipulator,
                 rmp_flow,
-                getattr(sim, "timestep", getattr(self, "_physics_dt", 1.0 / 60.0)),
+                sim.timestep,
             )
             states[robot_name] = {
                 "controller": mg.MotionPolicyController(
@@ -499,6 +816,129 @@ class Core51Backend(IsaacBackend):
     def get_franka_gripper_positions(self, sim, obj):
         franka = self._franka(sim, obj)
         return np.asarray(franka.gripper.get_joint_positions(), dtype=float)
+
+    def franka_gripper_target_positions(self, opened):
+        if opened:
+            return np.array([0.05, 0.05], dtype=float)
+        return np.array([0.01, 0.01], dtype=float)
+
+    def _core_dof_indices(self, articulation, names):
+        dof_names = list(articulation.dof_names)
+        missing = [name for name in names if name not in dof_names]
+        if missing:
+            raise RuntimeError(f"{articulation.name} is missing required DOFs: {missing}")
+        return [dof_names.index(name) for name in names]
+
+    def _tcp_to_control_position(self, tcp_position, orientation, tcp_offset):
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        return _position_array(tcp_position) - self.rotate_vector_by_wxyz_quat(
+            orientation, tcp_offset
+        )
+
+    def _control_to_tcp_position(self, control_position, orientation, tcp_offset):
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        control_position = np.asarray(control_position, dtype=float).reshape(-1)[:3]
+        return control_position + self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
+
+    def _ur5e(self, sim, obj):
+        ur5e = sim.world.scene.get_object(obj.name)
+        if not hasattr(obj, "_core_ur5e_primitive_ready"):
+            arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+            ur5e.set_joint_positions(
+                UR5E_DEFAULT_ARM_POSE,
+                joint_indices=np.asarray(arm_dof_indices, dtype=np.int32),
+            )
+            ur5e.gripper.set_joint_positions(ur5e.gripper.joint_opened_positions)
+            obj._core_ur5e_primitive_ready = True
+        return ur5e
+
+    def move_ur5e_end_effector(self, sim, obj, position, orientation=None):
+        ur5e = self._ur5e(sim, obj)
+        state = self._motion_policy_state(sim, obj, ur5e, "UR5e")
+        self._sync_motion_policy_base(ur5e, state["rmp_flow"])
+        if orientation is None:
+            orientation = UR5E_RMPFLOW_DOWNWARD_ORIENTATION
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        control_position = self._tcp_to_control_position(
+            position, orientation, UR5E_RMPFLOW_TCP_OFFSET
+        )
+        action = state["controller"].forward(
+            target_end_effector_position=control_position,
+            target_end_effector_orientation=orientation,
+        )
+        ur5e.apply_action(action)
+
+    def set_ur5e_gripper(self, sim, obj, opened):
+        ur5e = self._ur5e(sim, obj)
+        velocity = UR5E_GRIPPER_OPEN_VELOCITY if opened else UR5E_GRIPPER_CLOSE_VELOCITY
+        indices = self._core_dof_indices(ur5e, ["finger_joint"])
+        ur5e.get_articulation_controller().switch_dof_control_mode(
+            dof_index=indices[0],
+            mode="velocity",
+        )
+        from isaacsim.core.utils.types import ArticulationAction
+
+        action = ArticulationAction(
+            joint_velocities=np.array([velocity], dtype=float),
+            joint_indices=np.asarray(indices, dtype=np.int32),
+        )
+        ur5e.apply_action(action)
+
+    def set_ur5e_arm_joint_positions(self, sim, obj, joint_positions):
+        ur5e = self._ur5e(sim, obj)
+        joints = np.asarray(joint_positions, dtype=float).reshape(-1)
+        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+        if len(joints) > len(arm_dof_indices):
+            raise RuntimeError("UR5e arm joint target has more than 6 positions")
+        targets = [None] * ur5e.num_dof
+        for index, value in zip(arm_dof_indices, joints):
+            targets[index] = value
+        from isaacsim.core.utils.types import ArticulationAction
+
+        ur5e.apply_action(ArticulationAction(joint_positions=targets))
+
+    def hold_ur5e_position(self, sim, obj):
+        ur5e = self._ur5e(sim, obj)
+        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+        current = np.asarray(ur5e.get_joint_positions(), dtype=float)
+        targets = [None] * ur5e.num_dof
+        for index in arm_dof_indices:
+            targets[index] = current[index]
+        from isaacsim.core.utils.types import ArticulationAction
+
+        ur5e.apply_action(ArticulationAction(joint_positions=targets))
+
+    def get_ur5e_end_effector_pose(self, sim, obj):
+        ur5e = self._ur5e(sim, obj)
+        state = self._motion_policy_state(sim, obj, ur5e, "UR5e")
+        self._sync_motion_policy_base(ur5e, state["rmp_flow"])
+        active_joints = state["policy"].get_active_joints_subset().get_joint_positions()
+        position, orientation = state["rmp_flow"].get_end_effector_pose(active_joints)
+        position = _as_array(position).reshape(-1)[:3]
+        orientation = _as_array(orientation)
+        if orientation.shape == (3, 3):
+            from isaacsim.core.utils.rotations import rot_matrix_to_quat
+
+            orientation = rot_matrix_to_quat(orientation)
+        orientation = orientation.reshape(-1)[:4]
+        return (
+            self._control_to_tcp_position(
+                position,
+                orientation,
+                UR5E_RMPFLOW_TCP_OFFSET,
+            ),
+            orientation,
+        )
+
+    def get_ur5e_gripper_positions(self, sim, obj):
+        ur5e = self._ur5e(sim, obj)
+        positions = np.asarray(ur5e.gripper.get_joint_positions(), dtype=float)
+        return positions.reshape(-1)
+
+    def ur5e_gripper_target_positions(self, opened):
+        if opened:
+            return np.array([UR5E_GRIPPER_OPEN_POSITION], dtype=float)
+        return np.array([UR5E_GRIPPER_CLOSED_POSITION], dtype=float)
 
     def get_physics_properties(self, world, obj):
         isaac_obj = world.scene.get_object(obj.name)

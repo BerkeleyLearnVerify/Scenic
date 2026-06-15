@@ -156,6 +156,40 @@ class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
     def get_gripper_positions(self, sim):
         return sim.backend.get_franka_gripper_positions(sim, self)
 
+    def get_gripper_target_positions(self, opened):
+        return isaac_backend.franka_gripper_target_positions(opened)
+
+class UR5e(IsaacSimRobot, _ManipulatorRobot):
+
+    shape: BoxShape()
+    width: 0.4
+    length: 0.4
+    height: 0.515
+
+    def create(self):
+        return isaac_backend.create_ur5e(self)
+
+    def move_to_pose(self, sim, position, orientation=None):
+        sim.backend.move_ur5e_end_effector(sim, self, position, orientation)
+
+    def set_gripper(self, sim, opened):
+        sim.backend.set_ur5e_gripper(sim, self, opened)
+
+    def set_joint_positions(self, sim, joint_positions):
+        sim.backend.set_ur5e_arm_joint_positions(sim, self, joint_positions)
+
+    def hold_position(self, sim):
+        sim.backend.hold_ur5e_position(sim, self)
+
+    def get_ee_pose(self, sim):
+        return sim.backend.get_ur5e_end_effector_pose(sim, self)
+
+    def get_gripper_positions(self, sim):
+        return sim.backend.get_ur5e_gripper_positions(sim, self)
+
+    def get_gripper_target_positions(self, opened):
+        return isaac_backend.ur5e_gripper_target_positions(opened)
+
 class GroundPlane(IsaacSimObject):
 
     width: 5
