@@ -19,11 +19,12 @@ When running Isaac Sim examples from the command line, use the `-S` flag:
 
 `scenic -S -b examples/isaacsim/robot/create3.scenic --count 1`
 
-Some examples use a non-default backend. For example,
-`examples/isaacsim/robot/franka_move_to.scenic` sets
-`param isaacBackend = "experimental_60"` and can be run with:
+Some examples use a non-default backend. For example, the Franka primitive
+examples can be run with:
 
-`scenic -S -b examples/isaacsim/robot/franka_move_to.scenic --count 1`
+`scenic -S -b examples/isaacsim/robot/franka_example_core.scenic --count 1`
+
+`scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic --count 1`
 
 ## **Known Issues**
 

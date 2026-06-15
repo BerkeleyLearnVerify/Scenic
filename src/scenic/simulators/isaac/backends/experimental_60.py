@@ -450,6 +450,7 @@ class Experimental60Backend(IsaacBackend):
             "open_gripper_positions": np.array([0.05, 0.05], dtype=float),
             "closed_gripper_positions": np.array([0.01, 0.01], dtype=float),
             "downward_orientation": np.array([0.0, 1.0, 0.0, 0.0], dtype=float),
+            "tcp_offset": np.array([0.0, 0.0, 0.0877], dtype=float),
         }
         return ExperimentalObjectHandle(
             obj.name,
@@ -626,6 +627,18 @@ class Experimental60Backend(IsaacBackend):
         position, orientation = handle.metadata["end_effector"].get_world_poses()
         return position.numpy(), orientation.numpy()
 
+    def _franka_tcp_position(self, handle, control_position, orientation):
+        tcp_offset = handle.metadata["tcp_offset"]
+        control_position = np.asarray(control_position, dtype=float).reshape(-1)[:3]
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        return control_position + self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
+
+    def _franka_control_position(self, handle, tcp_position, orientation):
+        tcp_offset = handle.metadata["tcp_offset"]
+        tcp_position = _position_array(tcp_position)
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        return tcp_position - self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
+
     def _move_franka_end_effector(
         self,
         handle,
@@ -677,11 +690,13 @@ class Experimental60Backend(IsaacBackend):
         current_position, current_orientation = self._franka_end_effector_pose(handle)
         if orientation is None:
             orientation = handle.metadata["downward_orientation"]
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
+        goal_position = self._franka_control_position(handle, position, orientation)
         self._move_franka_end_effector(
             handle,
             current_position,
             current_orientation,
-            np.array([_position_array(position)], dtype=float),
+            np.array([goal_position], dtype=float),
             np.array([orientation], dtype=float),
         )
 
@@ -714,9 +729,10 @@ class Experimental60Backend(IsaacBackend):
     def get_franka_end_effector_pose(self, sim, obj):
         handle = sim.world.get_object(obj.name)
         position, orientation = self._franka_end_effector_pose(handle)
+        orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return (
-            np.asarray(position, dtype=float).reshape(-1)[:3],
-            np.asarray(orientation, dtype=float).reshape(-1)[:4],
+            self._franka_tcp_position(handle, position, orientation),
+            orientation,
         )
 
     def get_franka_gripper_positions(self, sim, obj):

@@ -5,10 +5,10 @@ machine via ``PickPlaceObject``), this example lays out each task step directly
 as a Scenic behavior sequence.
 
 Run with:
-    scenic -S -b examples/isaacsim/robot/franka_move_to.scenic
+    scenic -S -b examples/isaacsim/robot/franka_example_core.scenic
 """
 
-param isaacBackend = "experimental_60"
+param isaacBackend = "core_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 
 duration = 60
@@ -17,7 +17,6 @@ binHeight = 0.1475
 hoverHeight = 0.3
 retractHeight = 0.2
 releaseGap = 0.02
-handToFingertips = 0.0877
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
@@ -48,34 +47,34 @@ small_bin = new IsaacBin on table, at BIN_POSITION
 
 place_pos = (small_bin.x, small_bin.y, cube.z)
 
-def handTargetForFingertips(pos):
-    return (pos[0], pos[1], pos[2] + handToFingertips)
+def endEffectorTarget(pos):
+    return pos
 
 behavior FrankaMoveToPickPlace(target_object, place_pos):
     pick_pos = (target_object.x, target_object.y, target_object.z)
-    home = handTargetForFingertips((
+    home = endEffectorTarget((
         0.30,
         0.0,
         pick_pos[2] + hoverHeight,
     ))
-    hover_pick = handTargetForFingertips((
+    hover_pick = endEffectorTarget((
         pick_pos[0],
         pick_pos[1],
         pick_pos[2] + hoverHeight,
     ))
-    at_pick = handTargetForFingertips(pick_pos)
+    at_pick = endEffectorTarget(pick_pos)
 
     release_pos = (
         place_pos[0],
         place_pos[1],
         place_pos[2] + releaseGap,
     )
-    hover_place = handTargetForFingertips((
+    hover_place = endEffectorTarget((
         place_pos[0],
         place_pos[1],
         place_pos[2] + retractHeight,
     ))
-    at_place = handTargetForFingertips(release_pos)
+    at_place = endEffectorTarget(release_pos)
 
     do MoveEndEffectorTo(home)
     do OpenGripper()

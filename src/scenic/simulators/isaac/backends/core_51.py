@@ -7,6 +7,20 @@ from scenic.simulators.isaac.backends.base import IsaacArticulationAction, Isaac
 import scenic.simulators.isaac.utils as scenic_utils
 
 
+def _as_array(value):
+    if hasattr(value, "detach"):
+        value = value.detach().cpu()
+    if hasattr(value, "numpy"):
+        value = value.numpy()
+    return np.asarray(value, dtype=float)
+
+
+def _position_array(position):
+    if hasattr(position, "x") and hasattr(position, "y") and hasattr(position, "z"):
+        return np.array([position.x, position.y, position.z], dtype=float)
+    return np.asarray(position, dtype=float).reshape(-1)[:3]
+
+
 class Core51Backend(IsaacBackend):
     """Isaac Sim 5.1 backend implemented with the current Core API."""
 
@@ -15,6 +29,7 @@ class Core51Backend(IsaacBackend):
     def create_world(self, timestep):
         from isaacsim.core.api import World
 
+        self._physics_dt = timestep
         return World(
             stage_units_in_meters=1.0,
             physics_dt=timestep,
@@ -385,6 +400,105 @@ class Core51Backend(IsaacBackend):
             end_effector_orientation=end_effector_orientation,
         )
         franka.apply_action(actions)
+
+    def _motion_policy_state(self, sim, obj, manipulator, robot_name):
+        states = getattr(obj, "_core_motion_policy_states", None)
+        if states is None:
+            states = {}
+            obj._core_motion_policy_states = states
+        if robot_name not in states:
+            import isaacsim.robot_motion.motion_generation as mg
+
+            config = mg.interface_config_loader.load_supported_motion_policy_config(
+                robot_name, "RMPflow"
+            )
+            if config is None:
+                raise RuntimeError(f"{robot_name} has no supported RMPflow config")
+            rmp_flow = mg.lula.motion_policies.RmpFlow(**config)
+            self._sync_motion_policy_base(manipulator, rmp_flow)
+            policy = mg.ArticulationMotionPolicy(
+                manipulator,
+                rmp_flow,
+                getattr(sim, "timestep", getattr(self, "_physics_dt", 1.0 / 60.0)),
+            )
+            states[robot_name] = {
+                "controller": mg.MotionPolicyController(
+                    name=f"{obj.name}_{robot_name}_rmpflow",
+                    articulation_motion_policy=policy,
+                ),
+                "policy": policy,
+                "rmp_flow": rmp_flow,
+            }
+        return states[robot_name]
+
+    def _sync_motion_policy_base(self, manipulator, rmp_flow):
+        position, orientation = manipulator.get_world_pose()
+        rmp_flow.set_robot_base_pose(
+            robot_position=position,
+            robot_orientation=orientation,
+        )
+
+    def _franka(self, sim, obj):
+        franka = sim.world.scene.get_object(obj.name)
+        if not getattr(obj, "_core_franka_primitive_ready", False):
+            franka.gripper.set_joint_positions(franka.gripper.joint_opened_positions)
+            obj._core_franka_primitive_ready = True
+        return franka
+
+    def move_franka_end_effector(self, sim, obj, position, orientation=None):
+        franka = self._franka(sim, obj)
+        state = self._motion_policy_state(sim, obj, franka, "Franka")
+        self._sync_motion_policy_base(franka, state["rmp_flow"])
+        if orientation is None:
+            orientation = np.array([0.0, 1.0, 0.0, 0.0], dtype=float)
+        action = state["controller"].forward(
+            target_end_effector_position=_position_array(position),
+            target_end_effector_orientation=np.asarray(orientation, dtype=float),
+        )
+        franka.apply_action(action)
+
+    def set_franka_gripper(self, sim, obj, opened):
+        franka = self._franka(sim, obj)
+        action = franka.gripper.forward(action="open" if opened else "close")
+        franka.apply_action(action)
+
+    def set_franka_arm_joint_positions(self, sim, obj, joint_positions):
+        franka = self._franka(sim, obj)
+        joints = np.asarray(joint_positions, dtype=float).reshape(-1)
+        targets = [None] * franka.num_dof
+        for index, value in enumerate(joints[:7]):
+            targets[index] = value
+        from isaacsim.core.utils.types import ArticulationAction
+
+        franka.apply_action(ArticulationAction(joint_positions=targets))
+
+    def hold_franka_position(self, sim, obj):
+        franka = self._franka(sim, obj)
+        current = np.asarray(franka.get_joint_positions(), dtype=float)
+        targets = [None] * franka.num_dof
+        for index in range(min(7, len(current))):
+            targets[index] = current[index]
+        from isaacsim.core.utils.types import ArticulationAction
+
+        franka.apply_action(ArticulationAction(joint_positions=targets))
+
+    def get_franka_end_effector_pose(self, sim, obj):
+        franka = self._franka(sim, obj)
+        state = self._motion_policy_state(sim, obj, franka, "Franka")
+        self._sync_motion_policy_base(franka, state["rmp_flow"])
+        active_joints = state["policy"].get_active_joints_subset().get_joint_positions()
+        position, orientation = state["rmp_flow"].get_end_effector_pose(active_joints)
+        position = _as_array(position).reshape(-1)[:3]
+        orientation = _as_array(orientation)
+        if orientation.shape == (3, 3):
+            from isaacsim.core.utils.rotations import rot_matrix_to_quat
+
+            orientation = rot_matrix_to_quat(orientation)
+        return position, orientation.reshape(-1)[:4]
+
+    def get_franka_gripper_positions(self, sim, obj):
+        franka = self._franka(sim, obj)
+        return np.asarray(franka.gripper.get_joint_positions(), dtype=float)
 
     def get_physics_properties(self, world, obj):
         isaac_obj = world.scene.get_object(obj.name)
