@@ -10,13 +10,14 @@ Run with:
 
 param isaacBackend = "experimental_60"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
-param duration = 60
-param cubeSize = 0.0515
-param binHeight = 0.1475
-param hoverHeight = 0.3
-param retractHeight = 0.2
-param releaseGap = 0.02
-param handToFingertips = 0.0877
+
+duration = 60
+cubeSize = 0.0515
+binHeight = 0.1475
+hoverHeight = 0.3
+retractHeight = 0.2
+releaseGap = 0.02
+handToFingertips = 0.0877
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
@@ -28,15 +29,15 @@ BIN_POSITION = (0.3, -0.3)
 class IsaacBin(IsaacSimObject):
     length: 0.3
     width: 0.2
-    height: globalParameters.binHeight
+    height: binHeight
     physics: False
     shape: BoxShape()
     isaac_asset_path: "Isaac/Props/KLT_Bin/small_KLT.usd"
 
 class PickCube(IsaacSimObject):
-    width: globalParameters.cubeSize
-    length: globalParameters.cubeSize
-    height: globalParameters.cubeSize
+    width: cubeSize
+    length: cubeSize
+    height: cubeSize
     mass: 0.05
     color: (1, 0, 0)
     shape: BoxShape()
@@ -48,31 +49,31 @@ small_bin = new IsaacBin on table, at BIN_POSITION
 place_pos = (small_bin.x, small_bin.y, cube.z)
 
 def handTargetForFingertips(pos):
-    return (pos[0], pos[1], pos[2] + globalParameters.handToFingertips)
+    return (pos[0], pos[1], pos[2] + handToFingertips)
 
 behavior FrankaMoveToPickPlace(target_object, place_pos):
     pick_pos = (target_object.x, target_object.y, target_object.z)
     home = handTargetForFingertips((
         0.30,
         0.0,
-        pick_pos[2] + globalParameters.hoverHeight,
+        pick_pos[2] + hoverHeight,
     ))
     hover_pick = handTargetForFingertips((
         pick_pos[0],
         pick_pos[1],
-        pick_pos[2] + globalParameters.hoverHeight,
+        pick_pos[2] + hoverHeight,
     ))
     at_pick = handTargetForFingertips(pick_pos)
 
     release_pos = (
         place_pos[0],
         place_pos[1],
-        place_pos[2] + globalParameters.releaseGap,
+        place_pos[2] + releaseGap,
     )
     hover_place = handTargetForFingertips((
         place_pos[0],
         place_pos[1],
-        place_pos[2] + globalParameters.retractHeight,
+        place_pos[2] + retractHeight,
     ))
     at_place = handTargetForFingertips(release_pos)
 
@@ -103,4 +104,4 @@ require 0.42 <= distance from cube to ego <= 0.82
 require 0.25 <= distance from small_bin to ego <= 0.82
 require distance from cube to small_bin > 0.38
 
-terminate after globalParameters.duration seconds
+terminate after duration seconds
