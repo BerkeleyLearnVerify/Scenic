@@ -49,10 +49,10 @@ def orderedEnds(cr, m):
 
 straightManeuverCrossingTriples = []
 for inter in network.intersections:
-    for m in inter.maneuvers:
-        if m.type != ManeuverType.STRAIGHT:
-            continue
-        for cr in m.connectingLane.road.crossings:
+    for cr in inter.crossings:
+        for m in cr.conflictingManeuvers:
+            if m.type != ManeuverType.STRAIGHT:
+                continue
             near, far = orderedEnds(cr, m)
             straightManeuverCrossingTriples.append((inter, m, cr, near, far))
 chosen = Uniform(*straightManeuverCrossingTriples)

@@ -726,6 +726,18 @@ class PedestrianCrossing(_ContainsCenterline, LinearElement):
     startSidewalk: Sidewalk
     endSidewalk: Sidewalk
 
+    @property
+    @utils.cached
+    def conflictingManeuvers(self) -> Tuple[Maneuver]:
+        """Maneuvers whose connecting lanes intersect this crossing."""
+        if not isinstance(self.parent, Intersection):
+            return ()
+        conflicts = []
+        for maneuver in self.parent.maneuvers:
+            if maneuver.connectingLane.centerline.intersects(self.centerline):
+                conflicts.append(maneuver)
+        return tuple(conflicts)
+
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Shoulder(_ContainsCenterline, LinearElement):

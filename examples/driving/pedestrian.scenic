@@ -6,8 +6,8 @@ To run this file using the Carla simulator:
     scenic examples/driving/pedestrian.scenic --2d --model scenic.simulators.carla.model --simulate
 '''
 
-param map = localPath('../../assets/maps/CARLA/Town03.xodr')
-param carla_map = 'Town03'
+param map = localPath('../../assets/maps/CARLA/Town01.xodr')
+param carla_map = 'Town01'
 model scenic.domains.driving.model
 
 select_road = Uniform(*network.roads)

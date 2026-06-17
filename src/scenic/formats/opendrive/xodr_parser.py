@@ -2136,6 +2136,7 @@ class RoadMap:
             allRoads, seenRoads = [], set()
             allSignals, seenSignals = [], set()
             maneuversForLane = defaultdict(list)
+            junctionCrossings, seenConnectingRoads = [], set()
             for connection in junction.connections:
                 incomingID = connection.incoming_id
                 incomingRoad = mainRoads.get(incomingID)
@@ -2146,6 +2147,10 @@ class RoadMap:
                 connectingRoad = connectingRoads.get(connectingID)
                 if not connectingRoad:
                     continue  # connecting road has no drivable lanes; skip it
+
+                if connectingID not in seenConnectingRoads:
+                    seenConnectingRoads.add(connectingID)
+                    junctionCrossings.extend(connectingRoad.crossings)
 
                 for signal in connectingRoad.signals:
                     if signal.openDriveID not in seenSignals:
@@ -2269,12 +2274,14 @@ class RoadMap:
                 outgoingLanes=cyclicOrder(allOutgoingLanes, contactStart=True),
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
-                crossings=(),  # TODO add these
+                crossings=tuple(junctionCrossings),
             )
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
                 object.__setattr__(maneuver, "intersection", intersection)
+            for crossing in junctionCrossings:
+                crossing.parent = intersection
 
         # Hook up road-intersection links
         for rid, oldRoad in self.roads.items():
