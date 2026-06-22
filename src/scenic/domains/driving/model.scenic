@@ -313,6 +313,10 @@ class Vehicle(DrivingObject):
     width: 2
     length: 4.5
     color: Color.defaultCarColor()
+
+    lateralController: None
+    longitudinalController: None
+
     wheelbase: 0.6*self.length
     maxSteeringAngle: 40 deg
     wheelDiameter: 0.7
@@ -325,6 +329,14 @@ class Vehicle(DrivingObject):
     @property
     def isVehicle(self):
         return True
+
+    def startDynamicSimulation(self):
+        defaultLongitudinalController, defaultLateralController = simulation().getLaneFollowingControllers(self)
+
+        if self.longitudinalController is None:
+            self.longitudinalController = defaultLongitudinalController
+        if self.lateralController is None:
+            self.lateralController = defaultLateralController
 
 class Car(Vehicle):
     """A car."""

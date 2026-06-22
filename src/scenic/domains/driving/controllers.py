@@ -26,27 +26,23 @@ from scenic.core.vectors import Vector
 
 class LongitudinalController(ABC):
     @abstractmethod
-    def computeThrottle(self):
+    def computeThrottle(self, trajectory, veh):
         pass
 
 
 class LateralController(ABC):
-    def __init__(self):
-        super().__init__()
-        self.lastSteerAngle = None
-
     @abstractmethod
-    def computeSteering(self, trajectory, obj):
+    def computeSteering(self, trajectory, veh):
         pass
 
 
 class PIDController:
-    def __init__(self, K_P, K_D, K_I, dt):
+    def __init__(self, dt, *, K_P, K_D, K_I, wg):
         super().__init__()
+        self.dt = dt
         self.kp = K_P
         self.ki = K_I
         self.kd = K_D
-        self.dt = dt
         self.i_term = 0
         self.last_error = None
         self.windup_guard = 0.5 / self.ki if self.ki != 0 else 0
@@ -58,71 +54,73 @@ class PIDController:
         self.i_term = np.clip(self.i_term, -self.windup_guard, self.windup_guard)
         d_term = (error - self.last_error) / self.dt if self.last_error else 0
 
-        print(f"Error: {error}, LastError: {self.last_error}")
         # Remember last error for next calculation
         self.last_error = error
 
         output = (self.kp * p_term) + (self.ki * self.i_term) + (self.kd * d_term)
         clipped_output = np.clip(output, -1, 1)
-        print(f"p_term: {p_term}")
-        print(f"i_term: {self.i_term}")
-        print(f"d_term: {d_term}")
-        print(f"PID Output: {output}")
-        print(f"PID Clipped Output: {clipped_output}")
         return clipped_output
 
 
-class PIDLongitudinalController(PIDController):
+class PIDLongitudinalController(PIDController, LongitudinalController):
     """Longitudinal control using a PID to reach a target speed.
 
     Arguments:
+        dt: time step
         K_P: Proportional gain
         K_D: Derivative gain
         K_I: Integral gain
-        dt: time step
+        wg: The windup guard's cap on the integral components contribution
+            to the total control signal.
     """
 
-    def __init__(self, K_P=0.5, K_D=0.1, K_I=0.2, dt=0.1):
-        super().__init__(K_P, K_D, K_I, dt)
+    def __init__(self, dt=0.1, *, K_P=0.5, K_D=0.1, K_I=0.2, wg=0.5):
+        super().__init__(dt=dt, K_P=K_P, K_D=K_D, K_I=K_I, wg=wg)
+
+    def computeThrottle(self, trajectory, veh):
+        curr_time = trajectory.getRelativeTime(veh.position)
+        ts_dist = trajectory.getTimedDistance(curr_time, curr_time + trajectory.ts)
+        target_speed = ts_dist / trajectory.ts
+
+        cte = target_speed - veh.speed
+        return self.run_step(cte)
 
 
 class PIDLateralController(PIDController, LateralController):
     """Lateral control using a PID to track a trajectory.
 
     Arguments:
+        dt: time step
         K_P: Proportional gain
         K_D: Derivative gain
         K_I: Integral gain
-        dt: time step
+        wg: The windup guard's cap on the integral components contribution
+            to the total control signal.
     """
 
-    def __init__(self, K_P=0.3, K_D=0.2, K_I=0, dt=0.1):
-        super().__init__(K_P, K_D, K_I, dt)
+    def __init__(self, dt=0.1, *, K_P=0.3, K_D=0.2, K_I=0, wg=0):
+        super().__init__(dt=dt, K_P=K_P, K_D=K_D, K_I=K_I, wg=wg)
 
-    def computeSteering(self, trajectory, obj):
-        assert isinstance(trajectory, PolylineRegion)
-        cte = trajectory.signedDistanceTo(obj.position)
-        # TODO: opposite traffic check?
+    def computeSteering(self, trajectory, veh):
+        cte = trajectory.signedDistanceTo(veh.position)
         steer_angle = self.run_step(cte)
-        self.lastSteerAngle = steer_angle
         return steer_angle
 
 
 class PurePursuitLateralController(LateralController):
-    def __init__(self, lookaheadDistance=lambda obj: obj.speed + 1):
+    def __init__(self, lookaheadDistance=lambda veh: veh.speed + 1):
         super().__init__()
         self.lookaheadDistance = lookaheadDistance
         self._lastTargetPoint = None
 
-    def _findTargetPoint(self, trajectory, obj, lookaheadDistance):
-        assert isinstance(trajectory, PolylineRegion)
-        traj_line_string = toPolygon(trajectory)
+    def _findTargetPoint(self, trajectory, veh, lookaheadDistance):
+        traj_line_string = toPolygon(trajectory.polyline)
 
         # Find candidate target points
-        obj_pt = ShapelyPoint(*obj.position)
-        obj_traj_dist = traj_line_string.project(obj_pt)
+        veh_pt = ShapelyPoint(*veh.position)
+        veh_traj_dist = traj_line_string.project(veh_pt)
         forward_traj = shapely.ops.substring(
-            traj_line_string, obj_traj_dist, traj_line_string.length
+            traj_line_string, veh_traj_dist, traj_line_string.length
         )
         lookahead_circle = toPolygon(
             CircularRegion(forward_traj.coords[0], lookaheadDistance)
@@ -135,13 +133,16 @@ class PurePursuitLateralController(LateralController):
             if self._lastTargetPoint:
                 target_point = self._lastTargetPoint
             else:
-                target_point = trajectory.project(obj.position)
+                target_point = trajectory.polyline.project(veh.position)
+
+            # Our target point isn't actually at the correct lookaheadDistance, so we need to update it.
+            lookaheadDistance = shapely.distance(veh_pt, target_point)
         elif isinstance(intersection_geometry, ShapelyPoint):
             target_point = intersection_geometry
         elif isinstance(intersection_geometry, MultiPoint):
             # There are multiple candidate target points. Pick the one that appears first on the path.
             target_point = sorted(
-                intersection_geometry.geoms, key=lambda pt: shapely.distance(pt, obj_pt)
+                intersection_geometry.geoms, key=lambda pt: traj_line_string.project(pt)
             )[0]
         else:
             # We've gotten something strange. Fall back to a representative point as the target.
@@ -151,25 +152,17 @@ class PurePursuitLateralController(LateralController):
         self._lastTargetPoint = target_point
         return Vector(target_point.x, target_point.y)
 
-    def computeSteering(self, trajectory, obj):
+    def computeSteering(self, trajectory, veh, simulation):
         # Compute target steering angle
-        lookaheadDistance = self.lookaheadDistance(obj)
-        targetPoint = self._findTargetPoint(trajectory, obj, lookaheadDistance)
-        alpha = obj.angleTo(targetPoint) - obj.heading
-        delta = -math.atan2(2 * obj.wheelbase * math.sin(alpha), lookaheadDistance)
+        lookaheadDistance = self.lookaheadDistance(veh)
+        targetPoint = self._findTargetPoint(trajectory, veh, lookaheadDistance)
+        rw_position = veh.position.offsetRotated(
+            veh.heading, Vector(0, -0.5 * veh.wheelbase, 0)
+        )
+        alpha = rw_position.angleTo(targetPoint) - veh.heading
+        delta = -math.atan2(2 * veh.wheelbase * math.sin(alpha), lookaheadDistance)
 
         # Convert target steering angle to relative value in [-1, 1]
-        rel_steering_angle = np.clip(delta / obj.maxSteeringAngle, -1, 1)
+        rel_steering_angle = np.clip(delta / veh.maxSteeringAngle, -1, 1)
 
-        # DEBUG
-        print(f"SPEED: {obj.speed}")
-        print(f"ALPHA: {delta}")
-        print(f"DELTA: {rel_steering_angle}")
-        print(f"RELATIVE STEERING ANGLE: {rel_steering_angle}")
-        # import pygame
-        # pygame.draw.circle(self.simulation.screen, (0,1,0), self.simulation.scenicToScreenVal(targetPoint), 5)
-        # pygame.display.update()
-        # import time
-        # time.sleep(0.2)
-        self.lastSteerAngle = rel_steering_angle
         return rel_steering_angle
