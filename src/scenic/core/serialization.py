@@ -553,7 +553,7 @@ def toOpenScenario(
         for t, states in enumerate(simulation.trajectory):
             action_positions.append(
                 pos_to_WorldPosition(
-                    obj, states.positions[obj_i], states.orientations[obj_i].heading
+                    obj, states.positions[obj_i], states.orientations[obj_i].yaw
                 )
             )
             action_times.append(simulation.timestep * t)
