@@ -34,7 +34,7 @@ class SetAutoPilotAction(Action):
         self.active_autopilot = active_autopilot
 
     def canBeTakenBy(self,agent):
-        return isinstance(agent, BackgroundDriver)
+        return isinstance(agent, (Vehicle, BackgroundDriver))
 
     def applyTo(self, obj, sim):
         obj.setAutoPilot(self.active_autopilot)
@@ -50,3 +50,5 @@ class SetAccelerationAction:
         
     def applyTo(self, obj, sim):
         obj.setAcceleration()
+
+
