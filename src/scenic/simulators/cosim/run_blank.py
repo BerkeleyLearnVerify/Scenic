@@ -2,7 +2,7 @@ import sys
 import os
 import argparse
 import time
-from utils.util import read_run_config, prepare_sim_dirs, run_simulations, run_simulations_in_background, run_simulation_in_docker 
+from Scenic.src.scenic.simulators.metsr.util import read_run_config, prepare_sim_dirs, run_simulations, run_simulations_in_background, run_simulation_in_docker 
 
 # use case: python run_blank.py -r configs/run_cosim_blank.json -v
 def get_arguments(argv):
