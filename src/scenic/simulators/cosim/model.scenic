@@ -34,7 +34,8 @@ simulator CosimSimulator(
     xml_map = globalParameters.xml_path,
     map_path = globalParameters.map,
     timestep = globalParameters.timestep,
-    bubble_size = globalParameters.bubble_size
+    bubble_size = globalParameters.bubble_size,
+    run_name = globalParameters.run_name
     )
 
 param startTime = 6*60*60
@@ -77,6 +78,9 @@ class Car(Vehicle):
                 if 0 < d < minDist:
                     minDist = d
         return minDist
+
+    def setAutoPilot(self, active_autopilot):
+        self.autopilot_action = active_autopilot
     
 
 class EgoCar(Car):
@@ -127,7 +131,7 @@ behavior DisableAutoPilotThenDrive():
 behavior SetAndFollowTrajectoryBehavior(target_speed, turn_speed):
     trajectory = self.trajectory
     do FollowTrajectoryBehavior(trajectory=trajectory, target_speed=target_speed, turn_speed=turn_speed)
-        
+
 behavior StateBehavior(state_map, eval_func, verbose=False):
     """
     docstring for StateBehavior
@@ -166,11 +170,10 @@ behavior FollowSingleTrajectoryBehavior(target_speed = 10, trajectory = None, tu
     """
     if trajectory is None:
         if not hasattr(self, "trajectory"):
-             self.trajectory = None
-        state_map = {False: WaitBehavior(), True: SetAndFollowTrajectoryBehavior(target_speed=target_speed, turn_speed=turn_speed)}
-        state_func = lambda: bool(self.trajectory is not None and self.carla_actor_flag)
+            self.trajectory = None
+            take SetAutoPilotAction(True)
         while True:
-            do StateBehavior(state_map, state_func)
+            do WaitBehavior()
     else:
         state_map = {False: SetAutoPilotAndWait(trajectory), True: FollowTrajectoryBehavior(target_speed=target_speed,trajectory=trajectory, turn_speed=turn_speed)}
         state_func = lambda: self.carla_actor_flag
