@@ -86,18 +86,16 @@ def test_mapping(map, test_pairs):
 
 def within_threshold_to(object, cars, verbose=False) -> bool:
     is_close = False
-    # if verbose:
-    #     print(f"checking distance between obj: {object} and cars {[(car.name, car.position) for car in cars]}")
     object_pos = np.array(object.position)
     obj_distances = {}
     for car in cars:
         if car != object:
             threshold = 1.2 * object.length
-            dist = np.linalg.norm(np.array(car.position) - object_pos)
+            dist = np.linalg.norm(np.array(car.position[:2]) - object_pos[:2])
             if dist < threshold:
                 is_close=True
             obj_distances[car.name] = dist
-    if verbose and is_close:
+    if verbose:
         print(f"Min Distance for {object} was: {min(obj_distances.values())}")
     return is_close
 
@@ -119,37 +117,14 @@ def get_carla_light_state(light) -> dict:
     
     return light_state_dict
 
-def disable_carla_autopilot(self, obj) -> bool:
+def disable_carla_autopilot(obj, tm) -> bool:
     if hasattr(obj, 'carlaActor'):
         if obj.carlaActor != None:
-            obj.carlaActor.set_autopilot(False)
+            obj.carlaActor.set_autopilot(False, tm.get_port())
             return True
     else:
         return False
-    
-def _snapToGround(world, location, blueprint):
-    """Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
-    waypoint = world.get_map().get_waypoint(location)
-    # patch to avoid the spawn error issue with vehicles and walkers.
-    z_offset = 0
-    if blueprint is not None and ("vehicle" in blueprint or "walker" in blueprint):
-        z_offset = 0.5
 
-    location.z = waypoint.transform.location.z + z_offset
-    return location
-    
-def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
-    if snapToGround:
-        assert world is not None
-        return _snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
-    return carla.Location(pos.x, -pos.y, pos.z)
-
-def scenicToCarlaRotation(orientation):
-    # CARLA uses intrinsic yaw, pitch, roll rotations (in that order), like Scenic,
-    # but with yaw being left-handed and with zero yaw being East.
-    yaw, pitch, roll = orientation.r.as_euler("ZXY", degrees=True)
-    yaw = -yaw - 90
-    return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
             
 if __name__ == "__main__":
 
