@@ -1,260 +1,39 @@
-import datetime
-import json
-import time
-import threading
-
-from .util import *
-from websockets.sync.client import connect
-import networkx as nx
-
-
-"""
-Implementation of the remote data client
-
-A client directly communicates with a specific METSR-SIM server.
-
-Acknowledgement: Eric Vin for helping with the revision of the code
-"""
-
-# 2. listerize the query and control function by adding a for loop (is list, go for list, otherwise make it a list with one element)
-
-class METSRClient:
-
-    def __init__(self, host, port, sim_folder = None, manager = None, max_connection_attempts = 5, timeout = 30, verbose = False):
-        super().__init__()
-
-        # Websocket config
-        self.host = host
-        self.port = port
-        self.uri = f"ws://{host}:{port}"
-
-        self.sim_folder = sim_folder # this is required for open the visualization server
-        self.state = "connecting"
-        self.timeout = timeout  # time out for resending the same message if no response
-        self.verbose = verbose
-        self._messagesLog = []
-
-        # a pointer to the manager, for HPC usage that one manager controls multiple clients
-        self.manager = manager
-
-        # visualization server and event
-        self.viz_server = None
-        self.viz_event = None
- 
-        # Track the tick of the corresponding simulator
-        self.current_tick = None
-
-        # Establish connectionimport json
 import os
-import time
 import threading
+import time
 from datetime import datetime
-from websockets.sync.client import connect
-# from utils.util import *
+
 import networkx as nx
+import json
+from websockets.sync.client import connect
 
-# str_list_to_int_list = str_list_mapper_gen(int)
-# str_list_to_float_list = str_list_mapper_gen(float)
+from .util import (
+    VEHICLE_SENSOR_CV2X,
+    VEHICLE_SENSOR_DSRC,
+    VEHICLE_SENSOR_MOBILE_DEVICE,
+    VEHICLE_SENSOR_TYPES,
+    _as_list,
+    _broadcast,
+    _configured_trajectory_roots,
+    _is_sequence,
+    _latest_trajectory_directory,
+    _looks_like_centerline,
+    _normalize_sensor_type,
+    _read_trajectory_manifest,
+    _request_id_from_record,
+    _request_zone_from_record,
+    _resolve_trajectory_root,
+    _set_road_reference,
+    _trajectory_format_name,
+    _trajectory_format_score,
+    _trajectory_manifest_summary,
+    run_visualization_server,
+    stop_visualization_server,
+    str_list_mapper_gen,
+)
 
-
-def _is_sequence(value):
-    return isinstance(value, (list, tuple))
-
-
-def _as_list(value):
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    return [value]
-
-
-def _broadcast(value, length):
-    if length == 1:
-        return [value]
-    if _is_sequence(value) and len(value) == length:
-        return list(value)
-    return [value] * length
-
-
-def _looks_like_centerline(value):
-    if not _is_sequence(value) or len(value) == 0:
-        return False
-    first_point = value[0]
-    if not _is_sequence(first_point) or len(first_point) < 2:
-        return False
-    return not _is_sequence(first_point[0])
-
-
-def _set_road_reference(record, field_prefix, value):
-    if value is None:
-        return
-    if _is_sequence(value) and not isinstance(value, str):
-        record[field_prefix + "Roads"] = list(value)
-    else:
-        record[field_prefix + "Road"] = value
-
-
-def _read_property_values(properties_path):
-    values = {}
-    try:
-        with open(properties_path, "r") as properties_file:
-            for raw_line in properties_file:
-                line = raw_line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                values[key.strip()] = value.strip()
-    except OSError:
-        pass
-    return values
-
-
-def _read_trajectory_manifest(directory):
-    manifest_path = os.path.join(directory, "manifest.json")
-    try:
-        with open(manifest_path, "r") as manifest_file:
-            return json.load(manifest_file)
-    except (OSError, json.JSONDecodeError):
-        return None
-
-
-def _resolve_trajectory_root(sim_folder, configured_path):
-    if not configured_path:
-        return None
-    configured_path = os.path.normpath(configured_path)
-    if os.path.isabs(configured_path):
-        return configured_path
-    return os.path.join(sim_folder, configured_path)
-
-
-def _configured_trajectory_roots(sim_folder):
-    properties = _read_property_values(os.path.join(sim_folder, "data", "Data.properties"))
-    roots = []
-    for key in ("TRAJECTORY_BINARY_DEFAULT_PATH", "JSON_DEFAULT_PATH"):
-        root = _resolve_trajectory_root(sim_folder, properties.get(key))
-        if root and root not in roots:
-            roots.append(root)
-
-    default_root = os.path.join(sim_folder, "trajectory_output")
-    if default_root not in roots:
-        roots.append(default_root)
-    return roots
-
-
-def _trajectory_format_score(directory):
-    try:
-        names = os.listdir(directory)
-    except OSError:
-        return 0
-
-    if "manifest.json" in names:
-        return 3
-    lowered = [name.lower() for name in names]
-    if any(name.endswith(".bin") for name in lowered):
-        return 2
-    if any(name.endswith(".json") for name in lowered):
-        return 1
-    return 0
-
-
-def _trajectory_format_name(directory):
-    manifest = _read_trajectory_manifest(directory)
-    if manifest is not None:
-        output_format = manifest.get("format", "binary")
-        version = manifest.get("version")
-        sparse_frame_groups = manifest.get("sparseFrameGroups") or []
-        sparse_suffix = " sparse" if sparse_frame_groups else ""
-        if version is not None:
-            return f"{output_format} v{version}{sparse_suffix}"
-        return f"{output_format}{sparse_suffix}"
-
-    score = _trajectory_format_score(directory)
-    if score >= 2:
-        return "binary"
-    if score == 1:
-        return "JSON"
-    return "trajectory"
-
-
-def _trajectory_manifest_summary(directory, manifest):
-    chunks = manifest.get("chunks", [])
-    active_chunk = manifest.get("activeChunk", {})
-    road_dictionary = manifest.get("roadIdDictionary", [])
-    zone_dictionary = manifest.get("zoneDictionary", [])
-    charging_station_dictionary = manifest.get("chargingStationDictionary", [])
-    schemas = manifest.get("schemas", {})
-    frame_groups = manifest.get("frameGroups", [])
-    sparse_frame_groups = manifest.get("sparseFrameGroups") or []
-    sparse_frame_group_mode = manifest.get("sparseFrameGroupMode")
-
-    return {
-        "directory": directory,
-        "manifest_path": os.path.join(directory, "manifest.json"),
-        "format": manifest.get("format"),
-        "version": manifest.get("version"),
-        "byte_order": manifest.get("byteOrder"),
-        "coord_scale": manifest.get("coordScale"),
-        "initial_x": manifest.get("initialX"),
-        "initial_y": manifest.get("initialY"),
-        "tick_interval": manifest.get("tickInterval"),
-        "link_snapshot_interval": manifest.get("linkSnapshotInterval"),
-        "chunk_tick_limit": manifest.get("chunkTickLimit"),
-        "chunk_count": len(chunks),
-        "active_chunk": active_chunk,
-        "road_count": len(road_dictionary),
-        "zone_count": len(zone_dictionary),
-        "charging_station_count": len(charging_station_dictionary),
-        "frame_groups": frame_groups,
-        "sparse_frame_groups": sparse_frame_groups,
-        "sparse_frame_group_mode": sparse_frame_group_mode,
-        "has_sparse_frame_groups": bool(sparse_frame_groups),
-        "has_sparse_zone_frames": "zone" in sparse_frame_groups,
-        "has_sparse_charging_station_frames": "chargingStation" in sparse_frame_groups,
-        "schema_names": sorted(schemas.keys()),
-        "has_zone_attributes": bool(zone_dictionary) or "zone" in schemas,
-        "has_charging_station_attributes": (
-            bool(charging_station_dictionary) or "chargingStation" in schemas
-        ),
-        "has_split_energy_fields": (
-            "frameHeader" in schemas
-            and any("energyPrivateEV" in field for field in schemas["frameHeader"])
-        ),
-    }
-
-
-def _latest_trajectory_directory(root, prefer_binary=True):
-    if root is None or not os.path.isdir(root):
-        return None
-
-    candidates = []
-    root_score = _trajectory_format_score(root)
-    if root_score > 0:
-        candidates.append((root_score, os.path.getmtime(root), root))
-
-    for name in os.listdir(root):
-        candidate = os.path.join(root, name)
-        if not os.path.isdir(candidate):
-            continue
-        score = _trajectory_format_score(candidate)
-        if score > 0:
-            candidates.append((score, os.path.getmtime(candidate), candidate))
-
-    if not candidates:
-        subdirs = [
-            os.path.join(root, name)
-            for name in os.listdir(root)
-            if os.path.isdir(os.path.join(root, name))
-        ]
-        if not subdirs:
-            return None
-        return max(subdirs, key=os.path.getmtime)
-
-    if prefer_binary:
-        binary_candidates = [candidate for candidate in candidates if candidate[0] >= 2]
-        if binary_candidates:
-            return max(binary_candidates, key=lambda item: item[1])[2]
-
-    return max(candidates, key=lambda item: item[1])[2]
-
+str_list_to_int_list = str_list_mapper_gen(int)
+str_list_to_float_list = str_list_mapper_gen(float)
 
 """
 Implementation of the remote data client
@@ -267,6 +46,10 @@ Acknowledgement: Eric Vin for helping with the revision of the code
 # 2. listerize the query and control function by adding a for loop (is list, go for list, otherwise make it a list with one element)
 
 class METSRClient:
+    SENSOR_DSRC = VEHICLE_SENSOR_DSRC
+    SENSOR_CV2X = VEHICLE_SENSOR_CV2X
+    SENSOR_MOBILE_DEVICE = VEHICLE_SENSOR_MOBILE_DEVICE
+    VEHICLE_SENSOR_TYPES = VEHICLE_SENSOR_TYPES
 
     def __init__(
             self,
@@ -390,14 +173,37 @@ class METSRClient:
             self._logMessage("SENT", msg)
         self.ws.send(json.dumps(msg))
 
-    def receive_msg(self, ignore_heartbeats, waiting_forever = True, return_ready = False):
+    def _update_current_tick_from_message(self, msg):
+        msg_type = msg.get("TYPE")
+        if msg_type not in {"STEP", "ANS_tick", "CTRL_load", "CTRL_reset"}:
+            return False
+        tick_value = msg.get("TICK", msg.get("tick"))
+        if tick_value is None:
+            return False
+        server_tick = int(tick_value)
+        if msg_type in {"CTRL_load", "CTRL_reset"}:
+            self.current_tick = server_tick
+            return True
+        if self.current_tick is None or server_tick > int(self.current_tick):
+            self.current_tick = server_tick
+            return True
+        return False
+
+    def receive_msg(
+            self,
+            ignore_heartbeats,
+            waiting_forever = True,
+            return_ready = False,
+            print_timeout = True,
+            timeout = None):
+        timeout = self.timeout if timeout is None else timeout
         start_time = time.time()
         while True:
             fatal_error = self._fatal_log_error()
             if fatal_error:
                 raise RuntimeError(fatal_error)
             try:
-                raw_msg = self.ws.recv(timeout = min(5, max(1, self.timeout)))
+                raw_msg = self.ws.recv(timeout = min(5, max(0.1, timeout)))
 
                 # Decode the json string
                 msg = json.loads(str(raw_msg))
@@ -410,6 +216,8 @@ class METSRClient:
                     raise RuntimeError("No type field in received message")
                 if msg["TYPE"].split("_")[0] not in {"STEP", "ANS", "CTRL", "ATK"}:
                     raise RuntimeError("Uknown message type: " + str(msg["TYPE"]))
+
+                self._update_current_tick_from_message(msg)
 
                 # Allow tick()
                 if msg["TYPE"] in {"ANS_ready"}:
@@ -437,8 +245,9 @@ class METSRClient:
                 self.state = "failed"
                 raise RuntimeError(f"Error while receiving message from METS-R SIM at {self.uri}: {exc}") from exc
             
-            if time.time() - start_time > self.timeout and not waiting_forever:
-                print("Timeout while waiting for message.")
+            if time.time() - start_time > timeout and not waiting_forever:
+                if print_timeout:
+                    print("Timeout while waiting for message.")
                 return None
             
     def send_receive_msg(self, msg, ignore_heartbeats, max_attempts=5): 
@@ -450,9 +259,16 @@ class METSRClient:
                     num_attempts += 1
                     self.send_msg(msg)
                     if(max_attempts > 0):
-                        res = self.receive_msg(ignore_heartbeats=ignore_heartbeats, waiting_forever=False)
+                        res = self.receive_msg(
+                            ignore_heartbeats=ignore_heartbeats,
+                            waiting_forever=False,
+                            print_timeout=False,
+                        )
                         if num_attempts >= max_attempts:
-                            raise TimeoutError(f"No response received for '{msg.get('TYPE', 'unknown')}' after {max_attempts} attempts")
+                            raise TimeoutError(
+                                f"No response received for '{msg.get('TYPE', 'unknown')}' "
+                                f"after {max_attempts} attempts; last STEP tick seen was {self.current_tick}"
+                            )
                     else:
                         res = self.receive_msg(ignore_heartbeats=ignore_heartbeats, waiting_forever=True)
             except KeyboardInterrupt:
@@ -460,13 +276,68 @@ class METSRClient:
                 return None  # Return None to indicate the operation was interrupted
             return res
 
-    def tick(self, step_num = 1, wait_forever = False, retry_interval = None, max_wait_seconds = None):
-        """Advance the simulator and wait until the requested tick is reached."""
+    def _apply_tick_response(self, res):
+        if res.get("TYPE") != "ANS_tick":
+            raise RuntimeError(f"Expected ANS_tick, received {res.get('TYPE')}")
+        if res.get("CODE", "OK") != "OK":
+            raise RuntimeError(f"METS-R SIM rejected QUERY_tick: {res}")
+        if "TICK" not in res:
+            raise RuntimeError(f"METS-R SIM QUERY_tick response is missing TICK: {res}")
+        self._update_current_tick_from_message(res)
+        return int(res["TICK"])
+
+    def _query_tick_locked(self, timeout = None):
+        """Query server tick while self.lock is already held."""
+        before_tick = self.current_tick
+        self.send_msg({"TYPE": "QUERY_tick"})
+        res = self.receive_msg(
+            ignore_heartbeats=True,
+            waiting_forever=False,
+            print_timeout=False,
+            timeout=min(5, max(0.1, self.timeout if timeout is None else timeout)),
+        )
+        if res is None:
+            if before_tick != self.current_tick:
+                return int(self.current_tick)
+            return None
+        return self._apply_tick_response(res)
+
+    def query_tick(self):
+        """Return the current simulation tick reported by METS-R SIM."""
+        res = self.send_receive_msg({"TYPE": "QUERY_tick"}, ignore_heartbeats=True)
+        return self._apply_tick_response(res)
+
+    def query_tick_status(self):
+        """Return server-side stepping status.
+
+        Recent METS-R SIM versions include active-road stepping fields such as
+        ``activeRoadStepping`` and ``activeRoadCount`` when that scheduler mode
+        is enabled.
+        """
+        res = self.send_receive_msg({"TYPE": "QUERY_stepStatus"}, ignore_heartbeats=True)
+        return res
+
+    def tick(
+            self,
+            step_num = 1,
+            wait_forever = False,
+            retry_interval = None,
+            max_wait_seconds = None,
+            poll_timeout = 5,
+            max_stalled_seconds = None):
+        """Advance the simulator and wait until the requested tick is reached.
+
+        ``wait_forever`` keeps tolerating slow steps, but it should not hide a
+        dead server or a permanently stalled tick. Progress is therefore based
+        on the server tick actually increasing, not just on receiving a reply.
+        """
         assert self.current_tick is not None, "self.current_tick is None. Maybe there is another METS-R SIM instance unclosed."
 
         step_num = int(step_num)
         if step_num < 1:
             raise ValueError("step_num must be a positive integer")
+
+        poll_timeout = min(max(0.1, float(poll_timeout)), max(0.1, float(self.timeout)))
 
         with self.lock:
             start_tick = int(self.current_tick)
@@ -476,7 +347,13 @@ class METSRClient:
             last_send_time = overall_start
 
             if retry_interval is None:
-                retry_interval = self.timeout
+                retry_interval = min(float(self.timeout), 30.0)
+
+            if not wait_forever and max_wait_seconds is None:
+                max_wait_seconds = self.timeout
+
+            if wait_forever and max_stalled_seconds is None:
+                max_stalled_seconds = max(60.0, min(float(self.timeout), 300.0))
 
             def send_step_request():
                 nonlocal last_send_time
@@ -501,20 +378,52 @@ class METSRClient:
 
                 # Always use a bounded receive here so wait_forever=True can still retry
                 # the STEP request instead of blocking forever on a missed heartbeat.
-                res = self.receive_msg(ignore_heartbeats=False, waiting_forever=False)
+                tick_before_receive = int(self.current_tick)
+                res = self.receive_msg(
+                    ignore_heartbeats=False,
+                    waiting_forever=False,
+                    print_timeout=False,
+                    timeout=poll_timeout,
+                )
                 now = time.time()
+                if int(self.current_tick) > tick_before_receive:
+                    last_progress_time = now
 
                 if int(self.current_tick) >= target_tick:
                     break
 
+                if (
+                        max_stalled_seconds is not None
+                        and now - last_progress_time > max_stalled_seconds):
+                    raise TimeoutError(
+                        f"METS-R SIM made no tick progress for "
+                        f"{now - last_progress_time:.1f} seconds while waiting for "
+                        f"tick {target_tick}; last server tick was {self.current_tick}. "
+                        "The simulator or WebSocket server is likely stalled."
+                    )
+
                 if res is None:
+                    tick_before_query = int(self.current_tick)
+                    synced_tick = self._query_tick_locked()
+                    now = time.time()
+                    if synced_tick is not None and int(self.current_tick) > tick_before_query:
+                        last_progress_time = now
+
+                    if int(self.current_tick) >= target_tick:
+                        break
+
                     if not wait_forever:
                         raise TimeoutError(
                             f"Timed out waiting for METS-R SIM to reach tick {target_tick}; "
                             f"last received tick was {self.current_tick}"
                         )
 
-                    if retry_interval is not None and now - max(last_send_time, last_progress_time) >= retry_interval:
+                    should_retry_step = (
+                        retry_interval is None
+                        or int(self.current_tick) > tick_before_query
+                        or now - max(last_send_time, last_progress_time) >= retry_interval
+                    )
+                    if should_retry_step:
                         if self.verbose:
                             print(
                                 f"Still waiting for STEP tick {target_tick}; "
@@ -523,8 +432,27 @@ class METSRClient:
                         send_step_request()
                     continue
 
+                if res["TYPE"] == "ANS_tick":
+                    continue
+
                 if res["TYPE"] != "STEP":
                     raise RuntimeError(f"Expected STEP while ticking, received {res['TYPE']}")
+
+                if res.get("CODE") == "KO":
+                    tick_before_query = int(self.current_tick)
+                    synced_tick = self._query_tick_locked()
+                    now = time.time()
+                    if synced_tick is not None and int(self.current_tick) > tick_before_query:
+                        last_progress_time = now
+                    if int(self.current_tick) >= target_tick:
+                        break
+                    if not wait_forever:
+                        raise RuntimeError(
+                            f"METS-R SIM rejected STEP request for tick {target_tick}; "
+                            f"server reported tick {self.current_tick}"
+                        )
+                    send_step_request()
+                    continue
 
                 step_tick = int(res["TICK"])
                 if step_tick < int(self.current_tick):
@@ -569,8 +497,7 @@ class METSRClient:
                                    5 = CRUISING_TRIP
                                    6 = PICKUP_TRIP
                                    7 = ACCESSIBLE_RELOCATION_TRIP
-                                   8 = PRIVATE_TRIP
-                                   9 = CHARGING_RETURN_TRIP,
+                                   8 = PRIVATE_TRIP,
               'x':       <float> network-CRS x coordinate (or lon if transform_coords=True),
               'y':       <float> network-CRS y coordinate (or lat if transform_coords=True),
               'z':       <float> elevation,
@@ -581,7 +508,9 @@ class METSRClient:
                                  (only present when vehicle is on a road),
               'lane':    <int>   lane index on that road (present when on a lane),
               'dist':    <float> distance to the next downstream junction (m)
-                                 (present when on a lane)
+                                 (present when on a lane),
+              'currentParkingRoad': <int> internal road ID where the vehicle is
+                                     parked or has reserved parking, when set
             }
 
         Parameters
@@ -629,14 +558,18 @@ class METSRClient:
                                    5 = CRUISING_TRIP  – cruising without a passenger
                                    6 = PICKUP_TRIP    – en-route to pick up a passenger
                                    7 = ACCESSIBLE_RELOCATION_TRIP – repositioning but still assignable
-                                   9 = CHARGING_RETURN_TRIP – returning from charging,
+                                   -1 = NONE_OF_THE_ABOVE – not on network, idle, or in an unrecognized state
               'x':        <float> network-CRS x coordinate,
               'y':        <float> network-CRS y coordinate,
               'z':        <float> elevation,
               'origin':   <int>   current origin zone ID,
               'dest':     <int>   current destination zone ID
                                   (negative → heading to a charging station),
-              'pass_num': <int>   number of passengers currently on board
+              'pass_num': <int>   number of passengers currently on board,
+              'remainingDistance': <float> remaining active-trip distance in meters,
+              'remainingDistanceMiles': <float> remaining active-trip distance in miles,
+              'currentParkingRoad': <int> internal road ID where the taxi is
+                                     parked or has reserved parking, when set
             }
 
         Parameters
@@ -671,7 +604,35 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_availableTaxis", res["TYPE"]
         return res
-        
+
+    def query_almost_finished_taxis(
+            self,
+            distance_threshold_miles = None,
+            distance_threshold_meters = None,
+            zoneID = None):
+        """Query occupied taxis expected to become available soon.
+
+        The simulator filters to occupied taxis with one onboard request, no
+        queued pickup requests, and remaining trip distance below the supplied
+        threshold. A ``zoneID`` filter selects the request destination zone.
+        """
+        msg = {"TYPE": "QUERY_almostFinishedTaxis"}
+        params = {}
+        if distance_threshold_meters is not None:
+            params["distanceThresholdMeters"] = distance_threshold_meters
+        elif distance_threshold_miles is not None:
+            params["distanceThresholdMiles"] = distance_threshold_miles
+        if zoneID is not None:
+            params["zoneID"] = zoneID
+        if params:
+            msg["DATA"] = params
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_almostFinishedTaxis", res["TYPE"]
+        return res
+
+    queryAlmostFinishedTaxis = query_almost_finished_taxis
+    query_almostFinishedTaxis = query_almost_finished_taxis
+         
     def query_bus(self, id = None):
         """Query the state of one or more electric buses.
 
@@ -735,6 +696,8 @@ class METSRClient:
               'length':           <float> road length (m),
               'energy_consumed':  <float> cumulative energy consumed on this road (kWh),
               'down_stream_road': <list>  list of downstream road orig-IDs,
+              'parking_capacity': <int>   parking capacity on this road,
+              'parked_num':       <int>   current parked or reserved vehicles,
               'enteringVehicleQueue': <list[int]> vehicle IDs waiting to enter
                                          this road, useful for co-sim roads
             }
@@ -800,7 +763,7 @@ class METSRClient:
             Use ``-1`` (default) to get the road's overall start/end points
             instead of a per-lane polyline.
         transform_coords : bool | list[bool]
-            ``True`` to return WGS-84 lon/lat instead of network CRS.
+            ``True`` to return network CRS lon/lat instead of WGS-84.
         """
         my_msg = {"TYPE": "QUERY_centerLine"}
         if id is not None:
@@ -891,6 +854,47 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_request", res["TYPE"]
         return res
+
+    def _infer_request_zone_id(self, reqID):
+        response = self.query_request(reqID)
+        for record in response.get("DATA", []):
+            zone_id = _request_zone_from_record(record)
+            if zone_id is not None:
+                return zone_id
+        return None
+
+    def query_pickup_taxi_info(self, reqID=None):
+        """Query taxi requests that have been matched but not picked up.
+
+        METS-R SIM added this endpoint with the cancellation API. Passing
+        ``reqID`` filters the result to one or more request IDs.
+        """
+        msg = {"TYPE": "QUERY_pickupTaxiInfo"}
+        if reqID is not None:
+            msg["DATA"] = _as_list(reqID)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_pickupTaxiInfo", res["TYPE"]
+        return res
+
+    queryPickupTaxiInfo = query_pickup_taxi_info
+    query_pickupTaxiInfo = query_pickup_taxi_info
+
+    def query_occupied_taxi_info(self, reqID=None):
+        """Query taxi requests that are already on board a taxi.
+
+        Passing ``reqID`` filters the result to one or more request IDs.
+        Cancellation eligibility is reported by the simulator in the response
+        to :meth:`cancel_requests`.
+        """
+        msg = {"TYPE": "QUERY_occupiedTaxiInfo"}
+        if reqID is not None:
+            msg["DATA"] = _as_list(reqID)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "ANS_occupiedTaxiInfo", res["TYPE"]
+        return res
+
+    queryOccupiedTaxiInfo = query_occupied_taxi_info
+    query_occupiedTaxiInfo = query_occupied_taxi_info
 
     def query_signal(self, id = None):
         """Query the phase state of one or more traffic signals.
@@ -1233,7 +1237,7 @@ class METSRClient:
         return res
 
     def query_road_weights(self, roadID = None):
-        """Query the routing-graph edge weight of one or more roads.
+        """Query the routing-graph edge weight in seconds for one or more roads.
 
         Without ``roadID`` returns all road/edge IDs::
 
@@ -1246,9 +1250,9 @@ class METSRClient:
               'r_type':          <int>   road type code,
               'avg_travel_time': <float> recent mean travel time (s),
               'length':          <float> road length (m),
-              'weight':          <float> current edge weight used by the
-                                         router (typically travel time, may
-                                         be overridden via
+              'weight':          <float> current edge weight in seconds used
+                                         by the router (typically travel time,
+                                         may be overridden via
                                          :meth:`update_edge_weight`)
             }
 
@@ -1533,21 +1537,65 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
-    # teleport vehicle to a target location specified by road, lane, and distance to the downstream junction
-    def teleport_trace_replay_vehicle(self, vehID, roadID, laneID, dist, private_veh = False):
+    # teleport vehicle to a target location specified by road/lane plus distance or projected coordinates
+    def teleport_trace_replay_vehicle(
+            self,
+            vehID,
+            roadID,
+            laneID,
+            dist = None,
+            private_veh = False,
+            x = None,
+            y = None,
+            transform_coords = False):
+        """Teleport trace-replay vehicles by lane distance or by coordinates.
+
+        ``dist`` is the distance to the downstream junction. Recent METS-R SIM
+        versions also accept ``x``/``y`` coordinates, which are projected onto
+        the target lane by the simulator; set ``transform_coords=True`` when
+        those coordinates need the simulator CRS transform.
+        """
         msg = {
                 "TYPE": "CTRL_teleportTraceReplayVeh",
                 "DATA": []
                 }
-        if not isinstance(vehID, list):
-            vehID = [vehID]
-            roadID = [roadID]
-            laneID = [laneID]
-            dist = [dist]
-        if not isinstance(private_veh, list):
-            private_veh = [private_veh] * len(vehID)
-        for vehID, roadID, laneID, dist, private_veh in zip(vehID, roadID, laneID, dist, private_veh):
-            msg["DATA"].append({"vehID": vehID, "roadID": roadID, "laneID": laneID, "dist": dist, "vehType": private_veh})
+        veh_ids = _as_list(vehID)
+        count = len(veh_ids)
+
+        def _field_values(value, name):
+            if _is_sequence(value):
+                values = list(value)
+                assert len(values) == count, f"{name} must have the same length as vehID"
+                return values
+            return [value] * count
+
+        road_ids = _field_values(roadID, "roadID")
+        lane_ids = _field_values(laneID, "laneID")
+        dists = _field_values(dist, "dist")
+        private_flags = _field_values(private_veh, "private_veh")
+        xs = _field_values(x, "x")
+        ys = _field_values(y, "y")
+        transform_flags = _field_values(transform_coords, "transform_coords")
+
+        for veh_id, road_id, lane_id, dist_value, private_flag, x_value, y_value, transform_flag in zip(
+                veh_ids, road_ids, lane_ids, dists, private_flags, xs, ys, transform_flags):
+            record = {
+                "vehID": veh_id,
+                "roadID": road_id,
+                "laneID": lane_id,
+                "vehType": private_flag,
+            }
+            if x_value is not None or y_value is not None:
+                if x_value is None or y_value is None:
+                    raise ValueError("Both x and y are required for coordinate trace replay teleport")
+                record["x"] = x_value
+                record["y"] = y_value
+                record["transformCoord"] = transform_flag
+            elif dist_value is not None:
+                record["dist"] = dist_value
+            else:
+                raise ValueError("teleport_trace_replay_vehicle requires dist or x/y")
+            msg["DATA"].append(record)
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_teleportTraceReplayVeh", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
@@ -1611,33 +1659,56 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
     
-    # update the sensor type of specified vehicle
     def update_vehicle_sensor_type(self, vehID, sensorType, private_veh = False):
+        """Update vehicle sensor type used by V2X/DSRC data collection.
+
+        ``sensorType`` may be the simulator integer code or a readable alias:
+        ``0``/``"dsrc"``, ``1``/``"cv2x"``, or
+        ``2``/``"mobile_device"``. DSRC and C-V2X vehicles emit BSM-style
+        safety records when ``V2X = true``; mobile-device vehicles emit link
+        travel-time and energy probe records.
+        """
         msg = {
                 "TYPE": "CTRL_updateVehicleSensorType",
                 "DATA": []
                 }
-        if not isinstance(vehID, list):
-            vehID = [vehID]
-        if not isinstance(private_veh, list):
+        vehID = _as_list(vehID)
+        if not _is_sequence(private_veh):
             private_veh = [private_veh] * len(vehID)
-        if not isinstance(sensorType, list):
+        else:
+            private_veh = list(private_veh)
+        if not _is_sequence(sensorType):
             sensorType = [sensorType] * len(vehID)
+        else:
+            sensorType = list(sensorType)
+        assert len(vehID) == len(sensorType) == len(private_veh), \
+            "vehID, sensorType, and private_veh must have the same length"
         for vehID, sensorType, private_veh in zip(vehID, sensorType, private_veh):
-            msg["DATA"].append({"vehID": vehID, "sensorType": sensorType, "vehType": private_veh})
+            msg["DATA"].append({
+                "vehID": vehID,
+                "sensorType": _normalize_sensor_type(sensorType),
+                "vehType": private_veh,
+            })
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_updateVehicleSensorType", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
+
+    set_vehicle_sensor_type = update_vehicle_sensor_type
+    updateVehicleSensorType = update_vehicle_sensor_type
     
     # Match available taxi(s) to existing pending request(s).
     def dispatch_taxi(self, vehID, reqID):
         """Dispatch taxi(s) to serve already-pending request(s).
 
-        The latest METS-R SIM Control API separates request creation from
-        dispatching. Use ``add_taxi_requests`` or
-        ``add_taxi_requests_between_roads`` first, read the returned ``reqID``,
-        then pass ``vehID`` and ``reqID`` here.
+        The METS-R SIM Control API separates request creation from dispatching.
+        Use ``add_taxi_requests`` or ``add_taxi_requests_between_roads`` first,
+        read the returned ``reqID``, then pass ``vehID`` and ``reqID`` here.
+
+        Recent METS-R SIM versions can release a parked taxi from parking,
+        queue the request after an unfinished passenger-free trip, and return
+        fields such as ``remainingCapacity``, ``requestPassengers``, and
+        ``parkingReservationReleased`` in each response record.
         """
         msg = {
                 "TYPE": "CTRL_dispatchTaxi",
@@ -1656,8 +1727,78 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
 
+    def cancel_requests(self, reqID, zoneID=None):
+        """Cancel one or more taxi/bus requests.
+
+        The latest METS-R SIM control API uses ``CTRL_cancelRequests`` and
+        requires the request's origin zone for each record. ``reqID`` may be a
+        scalar request ID, a list of request IDs, a request record, or a list
+        of request records containing request ID and origin-zone fields. When
+        ``zoneID`` is omitted, the client attempts to infer it with
+        :meth:`query_request`.
+
+        The returned ``DATA`` list contains per-request ``STATUS``/``WARN``
+        details from the simulator; a top-level ``CODE`` of ``OK`` only means
+        the control message itself was processed.
+        """
+        if zoneID is None and isinstance(reqID, dict):
+            request_records = [reqID]
+        elif (
+            zoneID is None
+            and _is_sequence(reqID)
+            and all(isinstance(record, dict) for record in reqID)
+        ):
+            request_records = list(reqID)
+        else:
+            request_ids = [_request_id_from_record(record) for record in _as_list(reqID)]
+            if zoneID is None:
+                zone_ids = [None] * len(request_ids)
+            elif _is_sequence(zoneID):
+                zone_ids = list(zoneID)
+            else:
+                zone_ids = [zoneID] * len(request_ids)
+            assert len(request_ids) == len(zone_ids), \
+                "reqID and zoneID must have the same length"
+            request_records = [
+                {"reqID": rid, "zoneID": zid}
+                for rid, zid in zip(request_ids, zone_ids)
+            ]
+
+        msg = {"TYPE": "CTRL_cancelRequests", "DATA": []}
+        missing_zone_ids = []
+        for record in request_records:
+            rid = _request_id_from_record(record)
+            zid = _request_zone_from_record(record)
+            if rid is None:
+                raise ValueError("reqID is required for cancel_requests")
+            if zid is None:
+                zid = self._infer_request_zone_id(rid)
+            if zid is None:
+                missing_zone_ids.append(rid)
+                continue
+            msg["DATA"].append({"reqID": rid, "zoneID": zid})
+
+        if missing_zone_ids:
+            raise ValueError(
+                "zoneID is required for cancel_requests; could not infer it "
+                "for reqID(s): {}".format(missing_zone_ids)
+            )
+
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_cancelRequests", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    cancel_request = cancel_requests
+    cancelRequests = cancel_requests
+
     def reposition_taxi(self, vehID, zoneID):
-        """Reposition idle/cruising taxi(s) to destination zone(s)."""
+        """Reposition idle/cruising taxi(s) to destination zone(s).
+
+        If the taxi was already traveling to reserved parking, the simulator can
+        release that reservation and report ``parkingReservationReleased`` in
+        the response record.
+        """
         msg = {"TYPE": "CTRL_repositionTaxi", "DATA": []}
         if not isinstance(vehID, list):
             vehID = [vehID]
@@ -1671,6 +1812,47 @@ class METSRClient:
         assert res["TYPE"] == "CTRL_repositionTaxi", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
+
+    def go_parking(self, vehID, zoneID=None, roadID=None):
+        """Send idle taxi(s) to park at a target zone or road.
+
+        Provide ``zoneID``, ``roadID``, or both. If only ``zoneID`` is supplied,
+        METS-R SIM samples a parking road in that zone. If only ``roadID`` is
+        supplied, the zone is inferred from the road. When both are supplied,
+        the road must belong to the zone and have available parking capacity.
+        """
+        msg = {"TYPE": "CTRL_goParking", "DATA": []}
+        vehID = _as_list(vehID)
+        if zoneID is None:
+            zoneID = [None] * len(vehID)
+        elif not _is_sequence(zoneID):
+            zoneID = [zoneID] * len(vehID)
+        else:
+            zoneID = list(zoneID)
+        if roadID is None:
+            roadID = [None] * len(vehID)
+        elif not _is_sequence(roadID):
+            roadID = [roadID] * len(vehID)
+        else:
+            roadID = list(roadID)
+        assert len(vehID) == len(zoneID) == len(roadID), \
+            "vehID, zoneID, and roadID must have the same length"
+
+        for vid, zid, rid in zip(vehID, zoneID, roadID):
+            if zid is None and rid is None:
+                raise ValueError("zoneID or roadID is required for go_parking")
+            record = {"vehID": vid}
+            if zid is not None:
+                record["zoneID"] = zid
+            if rid is not None:
+                record["roadID"] = rid
+            msg["DATA"].append(record)
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_goParking", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    goParking = go_parking
     
     def add_taxi_requests(self, zoneID, dest, num, max_waiting_time = None, maxWaitingTime = None):
         """Add one or more pending taxi requests.
@@ -1731,7 +1913,8 @@ class METSRClient:
     
     # assign bus
     def add_bus_route(self, routeName, zone, road, paths = None):
-        if paths is None:
+        has_paths = paths is not None
+        if not has_paths:
             msg = {
                     "TYPE": "CTRL_addBusRoute",
                     "DATA": []
@@ -1745,17 +1928,20 @@ class METSRClient:
             routeName = [routeName]
             zone = [zone]
             road = [road]
-            if path != None:
+            if has_paths:
                 paths = [paths]
-        if paths is None:
-            for routeName, zone, road, paths in zip(routeName, zone, road, paths):
+        elif has_paths and not isinstance(paths, list):
+            paths = [paths] * len(routeName)
+
+        if not has_paths:
+            for routeName, zone, road in zip(routeName, zone, road):
                 msg["DATA"].append({"routeName": routeName, "zones": zone, "roads": road})
         else:
             for routeName, zone, road, paths in zip(routeName, zone, road, paths):
                 msg["DATA"].append({"routeName": routeName, "zones": zone, "roads": road, "paths": paths})
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
 
-        if paths is None:
+        if not has_paths:
             assert res["TYPE"] == "CTRL_addBusRoute", res["TYPE"]
         else:
             assert res["TYPE"] == "CTRL_addBusRouteWithPath", res["TYPE"]
@@ -1913,6 +2099,39 @@ class METSRClient:
         assert res["TYPE"] == "CTRL_updateEdgeWeight", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
+
+    def update_road_parking_capacity(
+            self, roadID, parking_capacity=None, parkingCapacity=None, capacity=None):
+        """Update parking capacity for one or more roads.
+
+        ``parking_capacity`` is the preferred Python argument. ``parkingCapacity``
+        and ``capacity`` are accepted to mirror the METS-R SIM Control API
+        aliases.
+        """
+        if parking_capacity is None:
+            parking_capacity = parkingCapacity
+        if parking_capacity is None:
+            parking_capacity = capacity
+        if parking_capacity is None:
+            raise ValueError("parking_capacity is required")
+
+        msg = {"TYPE": "CTRL_updateRoadParkingCapacity", "DATA": []}
+        roadID = _as_list(roadID)
+        if not _is_sequence(parking_capacity):
+            parking_capacity = [parking_capacity] * len(roadID)
+        else:
+            parking_capacity = list(parking_capacity)
+        assert len(roadID) == len(parking_capacity), \
+            "roadID and parking_capacity must have the same length"
+
+        for rid, cap in zip(roadID, parking_capacity):
+            msg["DATA"].append({"roadID": rid, "parkingCapacity": cap})
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] == "CTRL_updateRoadParkingCapacity", res["TYPE"]
+        assert res["CODE"] == "OK", res["CODE"]
+        return res
+
+    updateRoadParkingCapacity = update_road_parking_capacity
     
     # update charging station prices
     def update_charging_prices(self, stationID, stationType, price):
@@ -2098,11 +2317,13 @@ class METSRClient:
     # Dynamically add one or more roads and generated lanes.
     # centerline: [[x, y], ...] or [[x, y, z], ...] per road.
     # upstream_road/downstream_road: road orig_id string or list of orig_id strings.
+    # parking_capacity: optional road-level parking slots.
     # Pass roads=[{...}] to send fully formed simulator records directly.
     def add_roads(self, centerline=None, upstream_road=None, downstream_road=None,
                   orig_id=None, road_type=None, control_type=None,
                   upstream_control_type=None, downstream_control_type=None,
-                  num_lanes=1, lane_width=None, transform_coord=False, roads=None):
+                  num_lanes=1, lane_width=None, transform_coord=False, roads=None,
+                  parking_capacity=None):
         msg = {"TYPE": "CTRL_addRoads", "DATA": []}
 
         if roads is not None:
@@ -2128,11 +2349,12 @@ class METSRClient:
             lane_counts = _broadcast(num_lanes, count)
             lane_widths = _broadcast(lane_width, count)
             transform_coords = _broadcast(transform_coord, count)
+            parking_capacities = _broadcast(parking_capacity, count)
 
-            for cl, oid, up, down, r_type, c_type, up_control, down_control, lane_count, width, tc in zip(
+            for cl, oid, up, down, r_type, c_type, up_control, down_control, lane_count, width, tc, pcap in zip(
                     centerlines, orig_ids, upstream_roads, downstream_roads, road_types,
                     control_types, upstream_control_types, downstream_control_types,
-                    lane_counts, lane_widths, transform_coords):
+                    lane_counts, lane_widths, transform_coords, parking_capacities):
                 record = {
                     "centerline": cl,
                     "numLanes": lane_count,
@@ -2152,6 +2374,8 @@ class METSRClient:
                     record["downStreamControlType"] = down_control
                 if width is not None:
                     record["laneWidth"] = width
+                if pcap is not None:
+                    record["parkingCapacity"] = pcap
                 msg["DATA"].append(record)
 
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
@@ -2253,7 +2477,8 @@ class METSRClient:
     # Command vehicle(s) to interrupt current activity and go charge.
     # veh_type: True = private EV, False = public taxi.
     # charger_type: ChargingStation.L2 / L3 / BUS.
-    # cs_id: 0 = auto-select nearest station; negative int = specific station ID.
+    # cs_id: 0 = auto-select (nearest for public taxis/buses, cheapest usable
+    # station for private EVs); nonzero int = specific station ID.
     # After charging the vehicle returns to its pre-charging destination.
     def go_charging(self, vehID, veh_type, charger_type, cs_id=0):
         msg = {"TYPE": "CTRL_goCharging", "DATA": []}
@@ -2283,9 +2508,12 @@ class METSRClient:
         assert res["TYPE"] == "CTRL_reset", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
 
-        self.current_tick = -1
-        self.tick()
-        assert self.current_tick == 0
+        if "TICK" in res or "tick" in res:
+            self.current_tick = int(res.get("TICK", res.get("tick")))
+        else:
+            self.current_tick = -1
+            self.tick()
+            assert self.current_tick == 0
 
         # if viz is running, stop and restart it
         if self.viz_server is not None:
@@ -2304,12 +2532,31 @@ class METSRClient:
         assert res["CODE"] == "OK", res["CODE"]
         return res
 
-    # load the simulation instance to zip
-    def load(self, filename):
-        msg = {"TYPE": "CTRL_load", "DATA": {"path": filename}}
+    def load(self, filename, reload_network=True):
+        """Restore the simulator from a saved snapshot.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the ``.zip`` snapshot previously written by :meth:`save`.
+        reload_network : bool
+            When ``True`` the simulator fully rebuilds the road
+            network and all facilities from the archive.  When ``False`` the
+            simulator skips network and facility reconstruction and only
+            restores agent state, which is substantially faster when the
+            snapshot was taken from the same running instance (e.g. to replay
+            an experiment from a preheated checkpoint).  The response includes
+            a ``fastLoad`` field confirming whether fast restoration was used.
+        """
+        msg = {"TYPE": "CTRL_load", "DATA": {"path": filename, "reloadNetwork": bool(reload_network)}}
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "CTRL_load", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
+        if "TICK" in res or "tick" in res:
+            self.current_tick = int(res.get("TICK", res.get("tick")))
+        else:
+            synced_tick = self.query_tick()
+            self.current_tick = int(synced_tick)
         return res
 
     # terminate the simulation
