@@ -46,7 +46,7 @@ class network_cache():
             scenic_road = road_lane.split("_")[0]
             for metsr_map in road_lane_map:
                 metsr_road  = metsr_map.split("_")[0]
-                if metsr_road in self.metsr_represented_roads["id_list"]:
+                if metsr_road in self.metsr_represented_roads:
                     if scenic_road not in self.scenic_to_metsr_map_roads:
                         self.scenic_to_metsr_map_roads[scenic_road] = set()
                         self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
@@ -63,6 +63,7 @@ class network_cache():
                                 all_scenic_roads_connected_too[metsr_road].append(scenic_road)
                 else:
                     self.intersection_road_links.add(metsr_road)
+
         
         for road_lane in self.scenic_to_metsr_map_lanes.keys():
             scenic_road = road_lane.split("_")[0]
@@ -83,6 +84,19 @@ class network_cache():
 
     """Helpers for generating or collecting map data"""
     
+    def _nearest_lane(self, obj: Object) -> Lane | None:
+        
+        if obj in self.obj_lane_cache:
+            lane = self.obj_lane_cache[obj]
+            if lane.containsPoint(obj.position):
+                return lane
+        
+        nearest_lane = obj._lane
+        if nearest_lane is not None:
+            self.obj_lane_cache[obj] = nearest_lane
+        
+        return nearest_lane
+
     def _nearest_road(self, obj: Object, allow_offroad: bool=True, radius_size: int = 50) -> Road | None:
         """
             Docstring for _nearest_road
