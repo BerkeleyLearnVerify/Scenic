@@ -16,6 +16,7 @@ import math
 import random
 import scenic.simulators.cosim.utils.utils as _utils
 import scenic.simulators.carla.utils.utils as utils
+import pandas as pd
 
 from .utils.network_helper import network_cache
 from .utils.global_route_planner import GlobalRoutePlanner
@@ -45,7 +46,8 @@ class CosimSimulator(DrivingSimulator):
         timeout=20,
         verbose=False,
         render=True,
-        record=""
+        record="",
+        run_name=None
     ):
         super().__init__()
 
@@ -60,6 +62,7 @@ class CosimSimulator(DrivingSimulator):
         self.bubble_size = bubble_size
         self.render= render
         self.record = record
+        self.run_name = run_name
 
         # Setting up the Carla Simulator
         verbosePrint(f"Connection to CARLA on port {carla_port}")
@@ -130,6 +133,7 @@ class CosimSimulator(DrivingSimulator):
             record=self.record,
             mappings=self.xml_to_xodr_map,
             xml_to_xodr_intersections = self.xml_to_xodr_intersections,
+            run_name= self.run_name,
             **kwargs,
         )
     def destroy(self):
@@ -142,7 +146,7 @@ class CosimSimulator(DrivingSimulator):
         self.tm.set_synchronous_mode(False)
 
 class CosimSimulation(DrivingSimulation):
-    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections, bubble_size=100,  **kwargs ):
+    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, **kwargs ):
     
         # Carla and metrs simulators
         self.carla_client = carla_client
@@ -182,6 +186,9 @@ class CosimSimulation(DrivingSimulation):
         self.spawn_points = self.carla_world.get_map().get_spawn_points()
         self.completed_route = {}
         self.metsr_road_cache = {}
+        self.road_pop_density = {}
+        self.grp = None
+        self.run_name = run_name
 
         # For tracking / data collection
         self.bubble_sizes = []
@@ -199,13 +206,14 @@ class CosimSimulation(DrivingSimulation):
         """
         # Updated version takes no arguements
         self.metsr_client.reset() 
-        valid_metsr_roads = self.metsr_client.query_road()['id_list']
-
-        print(f"All metsr recognized roads: {valid_metsr_roads}")
+        self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
         self.network_helper = network_cache(self.workspace,
                                             self.scenic_to_metsr_map,
-                                            valid_metsr_roads)
+                                            self.valid_metsr_roads)
+        
+        world_map = self.carla_world.get_map()
+        self.grp = GlobalRoutePlanner(world_map, sampling_resolution=2.0)
 
         weather = self.scene.params.get("weather")
         if weather is not None:
@@ -215,6 +223,7 @@ class CosimSimulation(DrivingSimulation):
                 self.carla_world.set_weather(carla.WeatherParameters(**weather))
 
         # Setup HUD
+        # self.render=False
         if self.render:
             self.displayDim = (1280, 720)
             self.displayClock = pygame.time.Clock()
@@ -228,6 +237,7 @@ class CosimSimulation(DrivingSimulation):
             self.cameraManager = None
 
         if self.record:
+            print(f"starting recording")
             if not os.path.exists(self.record):
                 os.mkdir(self.record)
             name = "{}/scenario{}.log".format(self.record, self.scenario_number)
@@ -302,6 +312,7 @@ class CosimSimulation(DrivingSimulation):
         
    
         self.metsr_client.update_vehicle_route(self.getMetsrPrivateVehId(obj), route['road_list'], private_veh=True)
+
 
         
    
@@ -440,6 +451,7 @@ class CosimSimulation(DrivingSimulation):
         # Track autopilot behaviors TODO redundant?
         obj.active_autopilot = False
         obj.autopilot_action = False
+        obj.trip_start = 0
 
     def spawn_ego(self,obj: Object) -> None:
         """
@@ -614,6 +626,7 @@ class CosimSimulation(DrivingSimulation):
             (3): Tick both clients and synchronize states
             (4): Compute new bubble region 
         """
+        self.road_pop_density = {road: 0 for road in self.valid_metsr_roads}
 
         # (1): Update the high fidelity region based on the ego's new locatin
         bubble_roads = self._get_bubble_roads()
@@ -638,13 +651,37 @@ class CosimSimulation(DrivingSimulation):
        
         self.bubble_sizes.append(len(self.carla_actors))
         self.total_active_vehicles.append(len(self.objects) - (len(self.frozen_vehicles) + len(self.bubble_spawn_queue)))
-        self.count += 1
-        if self.count % 100 == 0: 
+        if self.count % 200 == 0: 
             print(f"Step: {self.count}. Total actors: {len(self.objects)}, bubble queue:{len(self.bubble_spawn_queue)} ")
             print(f"Total active vehicles: {self.total_active_vehicles[-1]}, frozen vehicles {len(self.frozen_vehicles)}")
             print(f"Total bubble actors: {len(self.carla_actors) + len(self.bubble_spawn_queue)}")
             print(f"Completed routes: {len(list(self.completed_route.keys()))}")
-                
+            print(f"Road densities: {self.road_pop_density}")
+        
+        if self.count % 50 == 0:
+            out_file = self.run_name + "_veh_data.csv"
+
+            data_dict_at_i = {
+                "active_vehicles": self.total_active_vehicles[-1],
+                "bubble_actors" : len(self.carla_actors), 
+                "bubble_queue": len(self.bubble_spawn_queue),
+                "completed_routes": len(list(self.completed_route.keys())),
+                **self.road_pop_density
+            }
+            final_df = pd.DataFrame([data_dict_at_i])
+            del data_dict_at_i
+
+            if self.count == 0:
+                os.makedirs(os.path.dirname(out_file), exist_ok=True)
+                final_df.to_csv(out_file,
+                                mode="w",
+                                header=True)
+            else:
+                final_df.to_csv(out_file,
+                                mode="a",
+                                header=False)
+            
+        self.count += 1
         # (4): Compute new bubble region and process behavior interrupts
         self.ego.bubble = CircularRegion(center=[self.objects[0].x, self.objects[0].y], radius=self.bubble_size)
 
@@ -748,10 +785,9 @@ class CosimSimulation(DrivingSimulation):
                     self.metsr_client.enter_next_road(vehID, roadID=road_id, private_veh = True)
                     if road_id == veh_data["destRoad"]:
                         self.completed_route[obj] = True
-                    else:
-                        print(f'Obj: {obj.name}, prev: {veh_data["roadID"]}, curr: {road_id} dest: {veh_data["destRoad"]}, position: {obj.position}')
-                    
-            bearing = get_metsr_rotation(obj.carlaActor.get_transform().rotation.yaw)
+                        obj.finished_route = self.count
+          
+            bearing = _utils.get_metsr_rotation(obj.carlaActor.get_transform().rotation.yaw)
             # Check if objects are desynchronized
             if not math.isclose(loc.x, veh_data['x']) or not math.isclose(-loc.y, veh_data['y']):
                 self.metsr_client.teleport_cosim_vehicle(vehID, loc.x, -loc.y, bearing=bearing, private_veh = True, transform_coords = True)
@@ -760,13 +796,13 @@ class CosimSimulation(DrivingSimulation):
         """
             Docstring for identify_nearest_road
 
-            :param obj:
-            :rtype obj:
-            :param roads:
-            :rtype roads:
+            :param obj: vehicle to identify road for 
+            :rtype obj:  Object
+            :param roads: List of roads which obj's curr lane maps to
+            :rtype roads: List[str]
 
             Given a non-unique mapping between road formats selected the target road based on object distance to the start 
-            line
+            lane
         
         """
         roads = [road_lane.split("_")[0] for road_lane in roads]
@@ -777,6 +813,7 @@ class CosimSimulation(DrivingSimulation):
                 continue
             elif road not in self.metsr_road_cache:
                 start = self.metsr_client.query_centerline(road,lane_index=0,transform_coords=True)["DATA"][0]["centerline"][0]
+                self.metsr_road_cache[road] = start
             else:
                 start = self.metsr_road_cache[road]
             
@@ -784,7 +821,6 @@ class CosimSimulation(DrivingSimulation):
             if dist < best_dist:
                 best_dist = dist
                 best_road = road
-            self.metsr_road_cache[road] = start
         
         return best_road
 
@@ -844,12 +880,15 @@ class CosimSimulation(DrivingSimulation):
             # Skip vehicles which have not entered the roadway or have completed their route 
             if ('roadID' not in veh_data) or obj in self.completed_route:
                 if obj.carla_actor_flag:
-                    print(f"removing obj: {obj.name} after completing route!")
                     self.remove_bubble_object(obj)
                 else:
                     if obj not in self.completed_route:
                         self.completed_route[obj] = True
+                        obj.finished_route = self.count
                 continue
+            else:
+                if obj not in self.bubble_spawn_queue:  
+                    self.road_pop_density[veh_data['roadID']] += 1
 
             outside_bubble = False
             road = self.network_helper._nearest_road(obj)
@@ -903,7 +942,6 @@ class CosimSimulation(DrivingSimulation):
             if key not in self.network_helper.intersection_road_links: # Skip roads not recognized by metsr
                 self.carla_control_roads[key] = True    # Keep track of frozen lanes
                 self.metsr_client.set_cosim_road(key)
-                # print(f"Freezing road: {key}")
             
 
     def release_roads(self,keys: list[str]) -> None:
@@ -921,7 +959,6 @@ class CosimSimulation(DrivingSimulation):
             if key not in self.network_helper.intersection_road_links: # Skip roads not recognized by metsr
                 del self.carla_control_roads[key] # Remove frozen lane from record
                 self.metsr_client.release_cosim_road(key)
-                # print(f"Releasing road: {key}")
 
     def destroy_carla_obj(self,obj) -> None:
         """
@@ -948,7 +985,7 @@ class CosimSimulation(DrivingSimulation):
         :type obj: Car
         """
         if obj.autopilot_action and obj.active_autopilot:
-            obj.active_autopilot = not(_utils.disable_carla_autopilot(obj))
+            obj.active_autopilot = not(_utils.disable_carla_autopilot(obj, self.tm))
             obj.trajectory = None   
         if destroy:
             self.destroy_carla_obj(obj)
@@ -963,6 +1000,11 @@ class CosimSimulation(DrivingSimulation):
         
         Destroy both simulators instances i.e (METSR, CARLA)
         """
+        print(f"Logging trip times")
+        print(f"="*25)
+        self._log_trip_times()
+        print(f"="*25)
+
         # METSR destroy
         if self.metsr_client.verbose:
             print("Client Messages Log:")
@@ -984,6 +1026,7 @@ class CosimSimulation(DrivingSimulation):
             self.cameraManager.destroy_sensor()
 
         self.carla_client.stop_recorder()
+
         super().destroy()
 
     def map_scenic_to_metsr_road(self, road: Road) -> list[str]:
@@ -1035,20 +1078,22 @@ class CosimSimulation(DrivingSimulation):
         for obj in self.agents:
             if obj.carla_actor_flag: # Processing CARLA actors
                 if not obj.autopilot_action and obj.active_autopilot: # Disable autopilot first to enable smooth transitions
-                    if not hasattr(obj, "trajectory"):
-                        obj.active_autopilot = not(_utils.disable_carla_autopilot(obj))
-                        # print(f"Disabling autopilot for obj: {obj}")
+                    obj.active_autopilot = not(_utils.disable_carla_autopilot(obj, self.tm))
                 elif obj.autopilot_action and not obj.active_autopilot:
                     if not hasattr(obj, "trajectory"):
                         obj.active_autopilot = self.initiate_autopilot(obj)
                         obj._control = None # TODO What does this do? 
                     elif obj.trajectory is None:
-                        # print(f"Generating trajectory for obj: {obj.name}")
                         obj.trajectory = self.metsr_trajectory_to_carla(obj)
                         self.tm.set_path(obj.carlaActor, obj.trajectory)
                         self.initiate_autopilot(obj)
                         obj.active_autopilot = True 
-                        obj.autopilot_action = True                
+                        obj.autopilot_action = True
+                    else:
+                        self.tm.set_path(obj.carlaActor, obj.trajectory)
+                        self.initiate_autopilot(obj) 
+                        obj.active_autopilot = True
+                        obj.autopilot_action = True             
                 else:
                     ctrl = obj._control
                     if ctrl is not None:
@@ -1103,16 +1148,11 @@ class CosimSimulation(DrivingSimulation):
         """
         end = route[-1]
         target_end = self.metsr_client.query_centerline(end,lane_index=0,transform_coords=True)["DATA"][0]["centerline"][1]
-        print(f'Target end location for obj: {obj.name} is {end} with pos: {target_end}')
-
 
         target_start = carla.Location(obj.position.x, -obj.position.y, 0) # convert METS-R points to CARLA
         target_end = carla.Location(target_end[0], -target_end[1], 0)
-
-        world_map = self.carla_world.get_map()
-
-        grp = GlobalRoutePlanner(world_map, sampling_resolution=5.0)
-        route = grp.trace_route(target_start, target_end)
+        
+        route = self.grp.trace_route(target_start, target_end)
 
         locations = [wp.transform.location for wp, _ in route]
         return locations
@@ -1160,3 +1200,19 @@ class CosimSimulation(DrivingSimulation):
         self.metsr_client.save(save_file)
 
 
+
+    def _log_trip_times(self, file_name=None):
+        """
+            docstring for _log_trip_times
+            
+            :param file_name: target location and name for logs
+            :rtype file_name: str
+
+            Generate csv file containing total time to route completion for each vehicle 
+        """
+        out_file = file_name if file_name else f"{self.run_name}_trip_logs.csv"
+        trip_dict = {obj.name: obj.finished_route  - obj.trip_start  if hasattr(obj, "finished_route") else None for obj in self.objects[1:]}
+        trip_df = pd.DataFrame([trip_dict])
+
+        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+        trip_df.to_csv(out_file)
