@@ -290,11 +290,12 @@ class Vehicle(DrivingObject):
             times the length of the vehicle.
         maxSteeringAngle: The maximum steering angle of the vehicle. The full steering range would be
             two times this value, going from (-maxSteeringAngle, maxSteeringAngle). Default value
-            30 degrees.
+            35 degrees.
         wheelDiameter: The diameter of the *entire* wheel (including the tire). Default value is 0.7 meters.
         trackWidth: Distance between the vehicle's wheels when pointed straight ahead. Default value
             is 0.85 times the width of the vehicle.
-        groundClearance: Default value is half the wheel diameter.
+        groundClearance: The distance between the bottom of the vehicle's chassis and the ground. Default
+            value is half the wheel diameter.
         maxSpeed: The maximum rated speed of the vehicle. Default value is 45 meters per second (~100 mph).
             This value is not enforced by Scenic and is provided simply for other tools to reference (e.g.
             exporting to OpenScenarioXML).

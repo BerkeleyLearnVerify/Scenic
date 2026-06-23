@@ -398,18 +398,16 @@ Serializer.addCodec(str, writeStr, readStr)
 
 
 def toOpenScenario(
-    simulationResult,
+    simulation,
     scenario,
-    scene,
     mapPath=None,
     scenarioName="ScenicScenario",
 ):
-    """Export a `SimulationResult` as a `scenariogeneration.xosc.scenario <https://pyoscx.github.io/scenariogeneration/xosc/scenario.html>`_ object.
+    """Export a `Simulation` as a `scenariogeneration.xosc.scenario <https://pyoscx.github.io/scenariogeneration/xosc/scenario.html>`_ object.
 
     Args:
-        simulationResult: The `SimulationResult` to be exported to XOSC
-        scenario: The scenario from which simulationResult was sampled.
-        scene: The scene from which simulationResult was sampled.
+        simulation: The `Simulation` to be exported to XOSC
+        scenario: The scenario from which simulation was sampled.
         mapPath: The path to the XODR map used to run the simulation. If
             one is not provided the `map` param of the scenario is used.
         scenarioName: The name of the scenario in the generated XOSC file.
@@ -421,6 +419,11 @@ def toOpenScenario(
         raise ModuleNotFoundError(
             "The `scenariogeneration` package is required to use Scenic's XOSC export functionality."
         ) from e
+
+    if simulation.result is None:
+        raise RuntimeError("Cannot export incomplete scenario to OpenScenario XML")
+
+    scene = simulation.scene
 
     # Create catalog
     xosc_catalog = xosc.Catalog()
@@ -434,17 +437,15 @@ def toOpenScenario(
             raise ValueError(
                 "No `mapPath` provided and scenario does not have a `map` parameter defined."
             )
-        mapPath = (
-            mapPath if mapPath is not None else os.path.abspath(scenario.params["map"])
-        )
+        mapPath = os.path.abspath(scenario.params["map"])
     xosc_road = xosc.RoadNetwork(roadfile=mapPath)
 
     # Create entitities
     entities = xosc.Entities()
     xosc_objects = {}
     for obj_i, obj in enumerate(scene.objects):
-        if hasattr(obj, "isVehicle") and obj.isVehicle:
-            obj_name = obj.name if hasattr(obj, "name") else f"Vehicle{obj_i}"
+        if getattr(obj, "isVehicle", False):
+            obj_name = getattr(obj, "name", f"Vehicle{obj_i}")
             veh_bb = xosc.BoundingBox(
                 obj.width,
                 obj.length,
@@ -482,8 +483,8 @@ def toOpenScenario(
                 max_deceleration_rate=None,
                 role=None,
             )
-        elif hasattr(obj, "isPedestrian") and obj.isPedestrian:
-            obj_name = obj.name if hasattr(obj, "name") else f"Pedestrian{obj_i}"
+        elif getattr(obj, "isPedestrian", False):
+            obj_name = getattr(obj, "name", f"Pedestrian{obj_i}")
             ped_bb = xosc.BoundingBox(
                 obj.width,
                 obj.length,
@@ -531,7 +532,7 @@ def toOpenScenario(
 
     for obj, xosc_obj in xosc_objects.items():
         obj_init_action = xosc.TeleportAction(
-            pos_to_WorldPosition(obj, obj.position, obj.yaw)
+            pos_to_WorldPosition(obj, obj.position, obj.heading)
         )
         init.add_init_action(xosc_obj.name, obj_init_action)
 
@@ -549,13 +550,13 @@ def toOpenScenario(
     for obj_i, (obj, xosc_obj) in enumerate(xosc_objects.items()):
         action_times = []
         action_positions = []
-        for t, states in enumerate(simulationResult.trajectory):
+        for t, states in enumerate(simulation.trajectory):
             action_positions.append(
                 pos_to_WorldPosition(
-                    obj, states.positions[obj_i], states.orientations[obj_i].yaw
+                    obj, states.positions[obj_i], states.orientations[obj_i].heading
                 )
             )
-            action_times.append(simulationResult.timestep * t)
+            action_times.append(simulation.timestep * t)
 
         polyline = xosc.Polyline(time=action_times, positions=action_positions)
         trajectory = xosc.Trajectory(name=f"Trajectory_{xosc_obj.name}", closed=False)
@@ -597,7 +598,7 @@ def toOpenScenario(
             0,
             xosc.ConditionEdge.rising,
             xosc.SimulationTimeCondition(
-                simulationResult.currentRealTime, xosc.Rule.greaterThan
+                simulation.currentRealTime, xosc.Rule.greaterThan
             ),
             "stop",
         ),
