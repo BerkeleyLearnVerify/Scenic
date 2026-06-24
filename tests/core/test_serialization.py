@@ -13,8 +13,14 @@ import sys
 import numpy
 import pytest
 
-from scenic.core.serialization import SerializationError, Serializer, deterministicHash
+from scenic.core.serialization import (
+    SerializationError,
+    Serializer,
+    deterministicHash,
+    toOpenScenario,
+)
 from scenic.core.simulators import DivergenceError, DummySimulator
+from tests.simulators.metadrive.test_metadrive import getMetadriveSimulator
 from tests.utils import (
     areEquivalent,
     compileScenic,
@@ -507,3 +513,45 @@ def test_deterministic_hash_non_scalar_values():
     digest2 = deterministicHash(mapping2)
     # Non-scalar values should hash in a stable way, independent of identity.
     assert digest1 == digest2
+
+
+def test_xosc_export(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        behavior DriveAndBrakeForPedestrians():
+            try:
+                do FollowLaneBehavior()
+            interrupt when withinDistanceToAnyPedestrians(self, 10):
+                take SetThrottleAction(0), SetBrakeAction(1)
+
+        behavior CrossRoad():
+            while distance from self to ego > 15:
+                wait
+            take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(1)
+
+        ego = new Car with behavior DriveAndBrakeForPedestrians()
+
+        rightCurb = ego.laneGroup.curb
+        spot = new OrientedPoint on visible rightCurb
+
+        parkedCar = new Car right of spot by 1, with regionContainedIn None
+
+        require distance from ego to parkedCar > 30
+
+        new Pedestrian ahead of parkedCar by 3,
+            facing 90 deg relative to parkedCar,
+            with behavior CrossRoad()
+
+        terminate after 30 seconds
+    """
+
+    scenario = compileScenic(code, mode2D=True, params={"map": openDrivePath})
+    scene, _ = scenario.generate()
+    simulationResult = simulator.simulate(scene)
+    assert simulationResult is not None
+    xosc_scenario = toOpenScenario(simulationResult, scenario, scene)

@@ -188,6 +188,25 @@ def test_behavior_take_empty_tuple():
     assert tuple(actions) == (None, 7)
 
 
+def test_parallel_behaviors():
+    scenario = compileScenic(
+        """
+        behavior Fizz():
+            take "Fizz"
+
+        behavior Buzz():
+            take "Buzz"
+
+        behavior Foo():
+            take "Start"
+            do Buzz(), Fizz()
+        ego = new Object with behavior Foo
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == (("Start",), ("Buzz", "Fizz"))
+
+
 # Various errors
 
 
@@ -768,19 +787,6 @@ def test_behavior_invoke_mistyped():
     )
     with pytest.raises(TypeError):
         sampleActions(scenario)
-
-
-def test_behavior_invoke_multiple():
-    with pytest.raises(ScenicSyntaxError):
-        compileScenic(
-            """
-            behavior Foo():
-                take 5
-            behavior Bar():
-                do Foo(), Foo()
-            ego = new Object with behavior Bar
-            """
-        )
 
 
 def test_behavior_tuple_invalid():

@@ -1249,9 +1249,9 @@ class ScenicToPythonTransformer(Transformer):
 
     @context(Context.DYNAMIC)
     def visit_Do(self, node: s.Do):
-        if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
+        if self.inMonitor and len(node.elts) > 1:
             raise self.makeSyntaxError(
-                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}",
+                f"`do` can only take one action inside a monitor",
                 node,
             )
         return self.makeDoLike(node, node.elts)
