@@ -40,8 +40,4 @@ examples can be run with:
 
 ## **Assets**
 
-A local copy of Isaac Sim assets can be obtained [here](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release). To convert assets from USD to glTF, the `usd_to_mesh.py` script can be used under `scenic/simulators/isaac`. Example usage for a folder of assets looks like:
-
-`python src/scenic/simulators/isaac/usd_to_mesh.py --folders /path/to/assets --environments warehouse.usd`
-
-In this example, we convert a folder of usd assets to glTF, and we specify that one of the assets in the folder is an environment. For each environment file, a JSON info file will generated. The generated files will be located at `/path/to/assets_converted`. Important note: USD environment files must be flattened by the user before they are converted (the process involves moving Prims, which requires a flattened usd file).
+A local copy of Isaac Sim assets can be obtained [here](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release).
