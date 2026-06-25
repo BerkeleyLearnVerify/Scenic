@@ -68,6 +68,7 @@ __all__ = (
     "ApparentHeading",
     "RelativePosition",
     "DistanceFrom",
+    "MinDistanceFrom",
     "DistancePast",
     "Follow",
     "AngleTo",
@@ -1308,6 +1309,18 @@ def DistanceFrom(X, Y=None):
         Y, (Vector, Region), '"distance from X to Y" with Y neither a vector nor region'
     )
     return X.distanceTo(Y)
+
+
+def MinDistanceFrom(X, Y=None):
+    """The :grammar:`minimum distance from <object> [to <object>]` operator.
+
+    If the :grammar:`to <object>` is omitted, the ego is used.
+    """
+    X = toTypes(X, (Object,), '"minimum distance from X to Y" with X not an Object')
+    if Y is None:
+        Y = ego()
+    Y = toTypes(Y, (Object,), '"minimum distance from X to Y" with Y not an Object')
+    return X.minimumDistanceTo(Y)
 
 
 def DistancePast(X, Y=None):
