@@ -13,6 +13,7 @@ import sys
 import typing
 import warnings
 import weakref
+import random
 
 import numpy
 import trimesh
@@ -393,3 +394,9 @@ else:
                 wrapped = wrapped.__wrapped__
             globalns = getattr(wrapped, "__globals__", {})
         return typing.get_type_hints(obj, globalns, localns)
+
+
+def setSeed(seed):
+    """Set the random seed used by Scenic"""
+    random.seed(seed)
+    numpy.random.seed(seed)
