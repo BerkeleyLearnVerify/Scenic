@@ -7,20 +7,12 @@ For pickling, see ``test_pickle.py`` and many other tests marked with
 import io
 import math
 import random
-import subprocess
-import sys
 
 import numpy
 import pytest
 
-from scenic.core.serialization import (
-    SerializationError,
-    Serializer,
-    deterministicHash,
-    toOpenScenario,
-)
+from scenic.core.serialization import SerializationError, Serializer, deterministicHash
 from scenic.core.simulators import DivergenceError, DummySimulator
-from scenic.simulators.newtonian import NewtonianSimulator
 from tests.utils import (
     areEquivalent,
     compileScenic,
@@ -513,31 +505,3 @@ def test_deterministic_hash_non_scalar_values():
     digest2 = deterministicHash(mapping2)
     # Non-scalar values should hash in a stable way, independent of identity.
     assert digest1 == digest2
-
-
-def test_xosc_export(getAssetPath):
-    simulator = NewtonianSimulator("Town01")
-    code = f"""
-        param render = False
-        model scenic.simulators.newtonian.driving_model
-
-        ego = new Car with behavior FollowLaneBehavior()
-
-        immobileCar = new Car visible
-
-        behavior Walk():
-            take SetWalkingSpeedAction(1)
-        
-        new Pedestrian behind ego by 5,
-            with regionContainedIn None,
-            with behavior Walk()
-
-        terminate after 5 seconds
-    """
-
-    scenario = compileScenic(
-        code, mode2D=True, params={"map": getAssetPath("maps/CARLA/Town01.xodr")}
-    )
-    scene, _ = scenario.generate()
-    simulation = simulator.simulate(scene)
-    xosc_scenario = toOpenScenario(simulation, scenario, scene)

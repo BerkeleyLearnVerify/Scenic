@@ -477,7 +477,7 @@ def instantiateSimulator(factory, params):
 
 def beginSimulation(sim):
     global currentSimulation, currentScenario, inInitialScenario, runningScenarios
-    global _globalParameters
+    global _globalParameters, mode2D
     if isActive():
         raise RuntimeError("tried to start simulation during Scenic compilation!")
     assert currentSimulation is None
@@ -489,6 +489,7 @@ def beginSimulation(sim):
     inInitialScenario = currentScenario._setup is None
     currentScenario._bindTo(sim.scene)
     _globalParameters = dict(sim.scene.params)
+    mode2D = currentSimulation.scene.compileOptions.mode2D
 
     # rebind globals that could be referenced by behaviors to their sampled values
     for modName, (
@@ -502,12 +503,13 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
     global currentSimulation, currentScenario, currentBehavior, runningScenarios
-    global _globalParameters
+    global _globalParameters, mode2D
     currentSimulation = None
     currentScenario = None
     runningScenarios = []
     currentBehavior = None
     _globalParameters = {}
+    mode2D = False
 
     for modName, (
         namespace,
