@@ -164,17 +164,15 @@ def _scenarioFromStream(
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
-        try:
-            with topLevelNamespace(path) as namespace:
-                veneer.activate(compileOptions, namespace)
-                compileStream(stream, namespace, compileOptions, filename)
-        finally:
-            if not _cacheImports:
-                purgeModulesUnsafeToCache(oldModules)
+        with topLevelNamespace(path) as namespace:
+            veneer.activate(compileOptions, namespace)
+            compileStream(stream, namespace, compileOptions, filename)
         # Construct a Scenario from the resulting namespace
         return constructScenarioFrom(namespace, scenario)
     finally:
         veneer.deactivate()
+        if not _cacheImports:
+            purgeModulesUnsafeToCache(oldModules)
 
 
 @contextmanager
