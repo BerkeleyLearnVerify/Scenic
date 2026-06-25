@@ -165,12 +165,14 @@ def _scenarioFromStream(
     oldModules = list(sys.modules.keys())
     try:
         with topLevelNamespace(path) as namespace:
+            veneer.activate(compileOptions, namespace)
             compileStream(stream, namespace, compileOptions, filename)
+        # Construct a Scenario from the resulting namespace
+        return constructScenarioFrom(namespace, scenario)
     finally:
+        veneer.deactivate()
         if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
-    # Construct a Scenario from the resulting namespace
-    return constructScenarioFrom(namespace, scenario)
 
 
 @contextmanager
@@ -274,53 +276,50 @@ def compileStream(stream, namespace, compileOptions, filename):
     if errors.verbosityLevel >= 2:
         veneer.verbosePrint(f"  Compiling Scenic module from {filename}...")
         startTime = time.time()
-    veneer.activate(compileOptions, namespace)
-    try:
-        # Execute preamble
-        exec(compile(preamble, "<veneer>", "exec"), namespace)
-        namespace[namespaceReference] = namespace
 
-        # Parse the source
-        source = stream.read().decode("utf-8")
-        scenic_tree = parse_string(source, "exec", filename=filename)
+    # Execute preamble
+    exec(compile(preamble, "<veneer>", "exec"), namespace)
+    namespace[namespaceReference] = namespace
 
-        if dumpScenicAST:
-            print(f"### Begin Scenic AST of {filename}")
-            print(dump(scenic_tree, include_attributes=False, indent=4))
-            print("### End Scenic AST")
+    # Parse the source
+    source = stream.read().decode("utf-8")
+    scenic_tree = parse_string(source, "exec", filename=filename)
 
-        # Compile the Scenic AST into a Python AST
-        tree, requirements = compileScenicAST(scenic_tree, filename=filename)
-        astHasher = hashlib.blake2b(digest_size=4)
-        astHasher.update(ast.dump(tree).encode())
+    if dumpScenicAST:
+        print(f"### Begin Scenic AST of {filename}")
+        print(dump(scenic_tree, include_attributes=False, indent=4))
+        print("### End Scenic AST")
 
-        if dumpFinalAST:
-            print(f"### Begin final AST of {filename}")
-            print(dump(tree, include_attributes=True, indent=4))
-            print("### End final AST")
+    # Compile the Scenic AST into a Python AST
+    tree, requirements = compileScenicAST(scenic_tree, filename=filename)
+    astHasher = hashlib.blake2b(digest_size=4)
+    astHasher.update(ast.dump(tree).encode())
 
-        pythonSource = astToSource(tree)
-        if dumpASTPython:
-            if pythonSource is None:
-                raise RuntimeError(
-                    "dumping the Python equivalent of the AST"
-                    " requires the astor package"
-                )
-            print(f"### Begin Python equivalent of final AST of {filename}")
-            print(pythonSource)
-            print("### End Python equivalent of final AST")
+    if dumpFinalAST:
+        print(f"### Begin final AST of {filename}")
+        print(dump(tree, include_attributes=True, indent=4))
+        print("### End final AST")
 
-        # Compile the Python AST tree
-        code = compileTranslatedTree(tree, filename)
+    pythonSource = astToSource(tree)
+    if dumpASTPython:
+        if pythonSource is None:
+            raise RuntimeError(
+                "dumping the Python equivalent of the AST" " requires the astor package"
+            )
+        print(f"### Begin Python equivalent of final AST of {filename}")
+        print(pythonSource)
+        print("### End Python equivalent of final AST")
 
-        # Execute it
-        executeCodeIn(code, namespace)
+    # Compile the Python AST tree
+    code = compileTranslatedTree(tree, filename)
 
-        # Extract scenario state from veneer and store it
-        astHash = astHasher.digest()
-        storeScenarioStateIn(namespace, requirements, astHash, compileOptions)
-    finally:
-        veneer.deactivate()
+    # Execute it
+    executeCodeIn(code, namespace)
+
+    # Extract scenario state from veneer and store it
+    astHash = astHasher.digest()
+    storeScenarioStateIn(namespace, requirements, astHash, compileOptions)
+
     if errors.verbosityLevel >= 2:
         totalTime = time.time() - startTime
         veneer.verbosePrint(f"  Compiled Scenic module in {totalTime:.4g} seconds.")

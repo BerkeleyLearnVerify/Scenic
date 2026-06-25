@@ -7,8 +7,6 @@ For pickling, see ``test_pickle.py`` and many other tests marked with
 import io
 import math
 import random
-import subprocess
-import sys
 
 import numpy
 import pytest
