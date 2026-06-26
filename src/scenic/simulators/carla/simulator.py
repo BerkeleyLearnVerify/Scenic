@@ -38,6 +38,7 @@ class CarlaSimulator(DrivingSimulator):
         record="",
         timestep=0.1,
         traffic_manager_port=None,
+        bubble_size=None,
     ):
         super().__init__()
         verbosePrint(f"Connecting to CARLA on port {port}")
@@ -54,7 +55,7 @@ class CarlaSimulator(DrivingSimulator):
                     self.world = self.client.generate_opendrive_world(odr_file.read())
             else:
                 raise RuntimeError("CARLA only supports OpenDrive maps")
-        self.timestep = timestep
+            
 
         if traffic_manager_port is None:
             traffic_manager_port = port + 6000
@@ -64,13 +65,21 @@ class CarlaSimulator(DrivingSimulator):
         # Set to synchronous with fixed timestep
         settings = self.world.get_settings()
         settings.synchronous_mode = True
-        settings.fixed_delta_seconds = timestep  # NOTE: Should not exceed 0.1
+        self.timestep = timestep
+        if timestep > 0.1:
+            settings.fixed_delta_seconds = .1 # NOTE: Should not exceed 0.1
+        else:
+            settings.fixed_delta_seconds = timestep
         self.world.apply_settings(settings)
         verbosePrint("Map loaded in simulator.")
 
         self.render = render  # visualization mode ON/OFF
         self.record = record  # whether to use the carla recorder
         self.scenario_number = 0  # Number of the scenario executed
+        if bubble_size is not None:
+            self.bubble_size = bubble_size
+        else:
+            self.bubble_size=None
 
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -88,6 +97,7 @@ class CarlaSimulator(DrivingSimulator):
             self.record,
             self.scenario_number,
             timestep=self.timestep,
+            bubble_size = self.bubble_size,
             **kwargs,
         )
 
@@ -101,7 +111,7 @@ class CarlaSimulator(DrivingSimulator):
 
 
 class CarlaSimulation(DrivingSimulation):
-    def __init__(self, scene, client, tm, render, record, scenario_number, **kwargs):
+    def __init__(self, scene, client, tm, render, record, scenario_number,timestep,bubble_size=None,**kwargs):
         self.client = client
         self.world = self.client.get_world()
         self.map = self.world.get_map()
@@ -110,11 +120,28 @@ class CarlaSimulation(DrivingSimulation):
         self.render = render
         self.record = record
         self.scenario_number = scenario_number
-        self.cameraManager = None
+        self.cameraManager = None        
+        if timestep > .1:
+            self.sim_ticks_per = (int(round(timestep/.1)))
+            assert math.isclose(self.sim_ticks_per, timestep / 0.1)
+        else:
+            self.sim_ticks_per = 1
+        self.timestep=timestep
+        print(f"Setting sim_ticks_per as: {self.sim_ticks_per} and timestep as: {timestep}")
 
-        super().__init__(scene, **kwargs)
+        if bubble_size is not None:
+            self.bubble_size = bubble_size
+            self.hybrid_physics = True
+        else:
+            self.hybrid_physics = False
+        self.total_spawned_actors = 0
+        self.steps_taken = 0
+
+
+        super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
+        print("Instantiating new simulator instance")
         weather = self.scene.params.get("weather")
         if weather is not None:
             if isinstance(weather, str):
@@ -151,6 +178,11 @@ class CarlaSimulation(DrivingSimulation):
             camIndex = 0
             camPosIndex = 0
             egoActor = self.objects[0].carlaActor
+            if self.hybrid_physics:
+                egoActor.role_name = "hero"
+                self.tm.set_hybrid_physics_mode(True)
+                self.tm.set_hybrid_physics_radius(self.bubble_size)
+
             self.cameraManager = visuals.CameraManager(self.world, egoActor, self.hud)
             self.cameraManager._transform_index = camPosIndex
             self.cameraManager.set_sensor(camIndex)
@@ -172,6 +204,7 @@ class CarlaSimulation(DrivingSimulation):
                     f"object {obj} cannot have a nonzero initial speed "
                     "(this is not yet possible in CARLA)"
                 )
+            
 
     def createObjectInSimulator(self, obj):
         # Extract blueprint
@@ -222,7 +255,8 @@ class CarlaSimulation(DrivingSimulation):
         # Create Carla actor
         carlaActor = self.world.try_spawn_actor(blueprint, transform)
         if carlaActor is None:
-            raise SimulationCreationError(f"Unable to spawn object {obj}")
+            # raise SimulationCreationError(f"Unable to spawn object {obj}")
+            return None
         obj.carlaActor = carlaActor
 
         carlaActor.set_simulate_physics(obj.physics)
@@ -236,6 +270,8 @@ class CarlaSimulation(DrivingSimulation):
             obj.length = ex * 2 if ex > 0 else obj.length
             obj.height = ez * 2 if ez > 0 else obj.height
             carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
+            if obj.behavior is None:# set Autopilot for CARLA TESTS 
+                carlaActor.set_autopilot(True, self.tm.get_port())
         elif isinstance(carlaActor, carla.Walker):
             carlaActor.apply_control(carla.WalkerControl())
             # spawn walker controller
@@ -248,6 +284,7 @@ class CarlaSimulation(DrivingSimulation):
                     f"Unable to spawn carla controller for object {obj}"
                 )
             obj.carlaController = controller
+        self.total_spawned_actors += 1
         return carlaActor
 
     def executeActions(self, allActions):
@@ -262,54 +299,72 @@ class CarlaSimulation(DrivingSimulation):
 
     def step(self):
         # Run simulation for one timestep
-        self.world.tick()
-
+        for _ in range(self.sim_ticks_per):
+            self.world.tick()
+        self.steps_taken += 1
         # Render simulation
         if self.render:
             self.cameraManager.render(self.display)
             pygame.display.flip()
 
+        if self.steps_taken % 100== 0:
+            print(f"Total spawned actors at step: {self.steps_taken} spawned actors is: {self.total_spawned_actors}")
+            print(f"Total objects: {len(self.objects)}")
+
     def getProperties(self, obj, properties):
         # Extract Carla properties
-        carlaActor = obj.carlaActor
-        currTransform = carlaActor.get_transform()
-        currLoc = currTransform.location
-        currRot = currTransform.rotation
-        currVel = carlaActor.get_velocity()
-        currAngVel = carlaActor.get_angular_velocity()
+        if hasattr(obj, "carlaActor"):
+            if obj.carlaActor is not None:
+                if obj.carlaActor.is_alive:    
+                    carlaActor = obj.carlaActor
+                    currTransform = carlaActor.get_transform()
+                    currLoc = currTransform.location
+                    currRot = currTransform.rotation
+                    currVel = carlaActor.get_velocity()
+                    currAngVel = carlaActor.get_angular_velocity()
 
-        # Prepare Scenic object properties
-        position = utils.carlaToScenicPosition(currLoc)
-        velocity = utils.carlaToScenicPosition(currVel)
-        speed = math.hypot(*velocity)
-        angularSpeed = utils.carlaToScenicAngularSpeed(currAngVel)
-        angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
-        globalOrientation = utils.carlaToScenicOrientation(currRot)
-        yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
-        elevation = utils.carlaToScenicElevation(currLoc)
+                    # Prepare Scenic object properties
+                    position = utils.carlaToScenicPosition(currLoc)
+                    velocity = utils.carlaToScenicPosition(currVel)
+                    speed = math.hypot(*velocity)
+                    angularSpeed = utils.carlaToScenicAngularSpeed(currAngVel)
+                    angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
+                    globalOrientation = utils.carlaToScenicOrientation(currRot)
+                    # SANITY CHECk
+                    # Check CARLA outputs for hybrid vrs non
+                    #   parentOrientation & currRot 
 
-        values = dict(
-            position=position,
-            velocity=velocity,
-            speed=speed,
-            angularSpeed=angularSpeed,
-            angularVelocity=angularVelocity,
-            yaw=yaw,
-            pitch=pitch,
-            roll=roll,
-            elevation=elevation,
-        )
-        return values
+                    yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
+                    elevation = utils.carlaToScenicElevation(currLoc)
+
+                    values = dict(
+                        position=position,
+                        velocity=velocity,
+                        speed=speed,
+                        angularSpeed=angularSpeed,
+                        angularVelocity=angularVelocity,
+                        yaw=yaw,
+                        pitch=pitch,
+                        roll=roll,
+                        elevation=elevation,
+                    )
+                    return values
+        else:
+            return None
 
     def destroy(self):
         for obj in self.objects:
-            if obj.carlaActor is not None:
-                if isinstance(obj.carlaActor, carla.Vehicle):
-                    obj.carlaActor.set_autopilot(False, self.tm.get_port())
-                if isinstance(obj.carlaActor, carla.Walker):
-                    obj.carlaController.stop()
-                    obj.carlaController.destroy()
-                obj.carlaActor.destroy()
+            if hasattr(obj, "carlaActor"):
+                if obj.carlaActor is not None:
+                    if obj.carlaActor.is_alive: 
+                        if obj.carlaActor is not None:
+                            if isinstance(obj.carlaActor, carla.Vehicle):
+                                obj.carlaActor.set_autopilot(False, self.tm.get_port())
+                            if isinstance(obj.carlaActor, carla.Walker):
+                                obj.carlaController.stop()
+                                obj.carlaController.destroy()
+                            obj.carlaActor.destroy()
+            
         if self.render and self.cameraManager:
             self.cameraManager.destroy_sensor()
 

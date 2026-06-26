@@ -99,6 +99,7 @@ param weather = Uniform(
     'HardRainSunset'
 )
 param snapToGroundDefault = is2DMode()
+param bubble_size = None
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
@@ -108,7 +109,8 @@ simulator CarlaSimulator(
     timeout=int(globalParameters.timeout),
     render=bool(globalParameters.render),
     record=globalParameters.record,
-    timestep=float(globalParameters.timestep)
+    timestep=float(globalParameters.timestep),
+    bubble_size=globalParameters.bubble_size,
 )
 
 class CarlaActor(DrivingObject):
