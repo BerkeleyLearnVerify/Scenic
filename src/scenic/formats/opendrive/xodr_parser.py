@@ -712,6 +712,7 @@ class Road:
                     lane=None,  # will set these later
                     group=None,
                     road=None,
+                    id=id_,
                     openDriveID=id_,
                     isForward=id_ < 0,
                 )
