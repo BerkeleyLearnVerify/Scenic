@@ -586,7 +586,7 @@ class RoadSection(LinearElement):
     forwardLanes: Tuple[LaneSection] = ()  # as above
     backwardLanes: Tuple[LaneSection] = ()  # as above
 
-    lanesByOpenDriveID: Dict[LaneSection]
+    lanesByOpenDriveID: dict[LaneSection]
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -844,7 +844,7 @@ class Network:
     """
 
     #: All network elements, indexed by unique ID.
-    elements: Dict[str, NetworkElement]
+    elements: dict[str, NetworkElement]
 
     #: All ordinary roads in the network (i.e. those not part of an intersection).
     roads: Tuple[Road]
@@ -1295,7 +1295,7 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self, labelIncomingLanes=False):
+    def show(self, labelIncomingLanes=False, bubble_roads=None, ego_position=None, metsr_road_lines=None):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
@@ -1306,11 +1306,16 @@ class Network:
                 intersections with their indices in ``incomingLanes``.
         """
         import matplotlib.pyplot as plt
+        from matplotlib.patches import Circle
 
         self.walkableRegion.show(plt, style="-", color="#00A0FF")
         self.shoulderRegion.show(plt, style="-", color="#606060")
         for road in self.roads:
             road.show(plt, style="r-")
+            if road in bubble_roads:
+                color="black"
+            else:
+                color="yellow"
             for lane in road.lanes:  # will loop only over lanes of main roads
                 lane.leftEdge.show(plt, style="r--")
                 lane.rightEdge.show(plt, style="r--")
@@ -1333,10 +1338,11 @@ class Network:
                     headlength=4.5,
                     scale=0.06,
                     units="dots",
-                    color="#A0A0A0",
+                    color=color,
                 )
         for lane in self.lanes:  # draw centerlines of all lanes (including connecting)
-            lane.centerline.show(plt, style=":", color="#A0A0A0")
+            color = "#A0A0A0" if lane.road not in bubble_roads else "m"
+            lane.centerline.show(plt, style=":", color=color)
         self.intersectionRegion.show(plt, style="g")
         if labelIncomingLanes:
             for intersection in self.intersections:
@@ -1344,3 +1350,37 @@ class Network:
                     x, y, _ = lane.centerline[-1]
                     plt.plot([x], [y], "*b")
                     plt.annotate(str(i), (x, y))
+        
+        ax = plt.gca()
+        for attr in ["ego_circle", "ego_point"]:
+            if hasattr(self, attr):
+                getattr(self, attr).remove()
+
+        if hasattr(self, "road_points"):
+            [p.remove() for p in self.road_points]
+
+        if ego_position:
+            x, y = ego_position[:2]
+
+            self.ego_point, = plt.plot(
+                x, y,
+                marker='o',
+                color='#ff00ff',
+                markersize=10
+            )
+
+            self.ego_circle = Circle((x, y), 100, fill=False, color='#ff00ff')
+            ax.add_patch(self.ego_circle)
+
+        self.road_points = [
+            plt.plot(
+                line[0], line[1],
+                marker='o',
+                color='#dfff00',
+                markersize=6
+            )[0]
+            for road in metsr_road_lines or []
+            for line in road
+        ]  #  point
+
+
