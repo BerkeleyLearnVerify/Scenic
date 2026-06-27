@@ -148,3 +148,8 @@ simulation.gif
 test.ipynb
 test.sh
 output.txt
+pyinst*
+*.txt
+
+*.gif
+*.png
