@@ -142,7 +142,10 @@ dmypy.json
 # generated parser
 src/scenic/syntax/parser.py
 
+# generated media/output
 simulation.gif
+metadrive_gifs/
+
 
 # Random
 test.ipynb

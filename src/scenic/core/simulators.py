@@ -86,6 +86,7 @@ class Simulator(abc.ABC):
         maxIterations=1,
         *,
         timestep=None,
+        name=None,
         verbosity=None,
         raiseGuardViolations=False,
         replay=None,
@@ -109,6 +110,8 @@ class Simulator(abc.ABC):
                 default provided by the simulator interface. Some interfaces may not
                 allow arbitrary time step lengths or may require the timestep to be set
                 when creating the `Simulator` and not customized per-simulation.
+            name (str): Name of the simulation, if any. Used to identify the simulation
+                when saving records to files and in debugging messages.
             verbosity (int): If not `None`, override Scenic's global verbosity level
                 (from the :option:`--verbosity` option or `scenic.setDebuggingOptions`).
             raiseGuardViolations (bool): Whether violations of preconditions/invariants
@@ -181,10 +184,14 @@ class Simulator(abc.ABC):
         simulation = None
         while not simulation and (maxIterations is None or iterations < maxIterations):
             iterations += 1
+            if maxIterations == 1:
+                simName = str(name) if name else "1"
+            else:
+                simName = f"{name}.{iterations}" if name else str(iterations)
             simulation = self._runSingleSimulation(
                 scene,
                 maxSteps,
-                name=iterations,
+                name=simName,
                 verbosity=verbosity,
                 timestep=timestep,
                 raiseGuardViolations=raiseGuardViolations,
@@ -378,15 +385,10 @@ class Simulation(abc.ABC):
             # Run the simulation.
             terminationType, terminationReason = self._run(dynamicScenario, maxSteps)
 
-            # Stop all remaining scenarios.
-            # (and reject if some 'require eventually' condition was never satisfied)
+            # Stop all remaining scenarios (and handle their `record final` statements;
+            # also reject if some `require eventually` condition was never satisfied).
             for scenario in tuple(reversed(veneer.runningScenarios)):
                 scenario._stop("simulation terminated")
-
-            # Record finally-recorded values.
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
-            for name, val in values.items():
-                self.records[name] = val
 
             # Package up simulation results into a compact object.
             result = SimulationResult(
@@ -430,8 +432,16 @@ class Simulation(abc.ABC):
             terminationReason = dynamicScenario._step()
             terminationType = TerminationType.scenarioComplete
 
+            # Update observations of objects with sensors
+            for obj in self.objects:
+                if not obj.sensors:
+                    continue
+                obj.observations.update(
+                    {key: sensor.getObservation() for key, sensor in obj.sensors.items()}
+                )
+
             # Record current state of the simulation
-            self.recordCurrentState()
+            self._recordCurrentState()
 
             # Run monitors
             newReason = dynamicScenario._runMonitors()
@@ -585,22 +595,18 @@ class Simulation(abc.ABC):
         """
         raise NotImplementedError
 
-    def recordCurrentState(self):
-        dynamicScenario = self.scene.dynamicScenario
-        records = self.records
-
-        # Record initially-recorded values
-        if self.currentTime == 0:
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
-            for name, val in values.items():
-                records[name] = val
-
-        # Record time-series values
-        values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
-        for name, val in values.items():
-            records[name].append((self.currentTime, val))
+    def _recordCurrentState(self):
+        # Record values of `record initial` and `record` statements.
+        # (calls _record and _recordTimeSeries below)
+        self.scene.dynamicScenario._updateRecords()
 
         self.trajectory.append(self.currentState())
+
+    def _record(self, name, value):
+        self.records[name] = value
+
+    def _recordTimeSeries(self, name, value):
+        self.records[name].append((self.currentTime, value))
 
     def replayCanContinue(self):
         if not self.replaying:

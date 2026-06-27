@@ -20,6 +20,7 @@ For details on the syntax for functions, loops, etc. inherited from Python, see 
     reference/distributions
     reference/statements
     reference/classes
+    reference/sensors
     reference/specifiers
     reference/operators
     reference/functions

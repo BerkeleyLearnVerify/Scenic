@@ -119,15 +119,15 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(mark)
 
 
-def pytest_ignore_collect(path, config):
+def pytest_ignore_collect(collection_path, config):
     """
     Some test files use Python syntax (e.g., structural pattern matching) that is only available in newer versions of Python.
     To avoid syntax errors on older versions, put `# pytest: python>=x.y` where x and y represent major and minor versions, respectively,
     required to run the test file.
     """
-    if path.isfile() and path.ext in (".py", ".scenic"):
+    if collection_path.is_file() and collection_path.suffix in (".py", ".scenic"):
         firstLine = ""
-        with path.open() as f:
+        with collection_path.open() as f:
             firstLine = f.readline()
         m = re.search(
             r"^#\s*pytest:\s*python\s*>=\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$", firstLine

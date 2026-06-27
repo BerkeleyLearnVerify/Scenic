@@ -222,7 +222,7 @@ class Ground(WebotsObject):
 
             side_path = trimesh.path.Path3D(entities=[trimesh.path.entities.Line(side_indices)], vertices=vertices)
 
-            flat_side_path, transform = side_path.to_planar(to_2D=None, normal=None, check=True)
+            flat_side_path, transform = side_path.to_2D(to_2D=None, normal=None, check=True)
             side_vertices_2d, side_faces = flat_side_path.triangulate()
 
             side_vertices_3d = trimesh.transformations.transform_points(
