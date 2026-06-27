@@ -33,9 +33,9 @@ class OpenDriveWarning(UserWarning):
 def warn(message):
     warnings.warn(message, OpenDriveWarning, stacklevel=2)
 
-# helper function to convert <speed> element to m/s
-# might not be necessary either
-def parse_speed_to_mps(speed_elem):
+# Semantic tags and speed limits from OpenDRIVE <type>/<speed> and junction metadata.
+
+def speed_to_mps(speed_elem):
     """Convert an OpenDRIVE ``<speed>`` element to m/s."""
     raw = speed_elem.get("max")
     if raw in ("no limit", "undefined"):
@@ -52,14 +52,7 @@ def parse_speed_to_mps(speed_elem):
         raise ValueError(f"unsupported speed unit: {unit!r}") 
 
 
-# OpenDRIVE road ``type`` attribute values -> Scenic ``tags`` on ``NetworkElement``.
-# Everything else (rural, bicycle) is mapped to the same value. 
-# This part may not even be necessary
-ROAD_TYPE_MAP = {"motorway": "highway",}
-
-# helper function to get the primary type record
-# key=lambda record: record[0] means the type record with the smallest s
-def _primary_type_record(type_records):
+def __primary_type_record(type_records):
     """Return the type record starting at the smallest s (usually s=0)."""
     if not type_records:
         return None
@@ -68,37 +61,87 @@ def _primary_type_record(type_records):
 
 def speed_limit_from_type_records(type_records):
     """Road speed limit in m/s from parsed ``<type>``/``<speed>`` records."""
-    record = _primary_type_record(type_records)
+    record = __primary_type_record(type_records)
     return None if record is None else record[2]
 
 
 def scenic_tags_from_type_records(type_records):
-    """Scenic semantic tags from parsed road ``<type>`` records."""
-    record = _primary_type_record(type_records)
-    if record is None:
-        return frozenset()
-    open_drive_type = record[1]
-    #normalize the open drive type to a scenic tag
-    tag = ROAD_TYPE_MAP.get(open_drive_type, open_drive_type)
-    return frozenset({tag}) if tag else frozenset()
+    """Scenic semantic tags from all parsed road ``<type>`` records."""
+    tags = set()
+    for _, open_drive_type, _ in type_records:
+        if open_drive_type:
+            tags.add(open_drive_type)
+    return frozenset(tags)
 
 
-_SPEED_LIMIT_PROPAGATION_TYPES = (
+def merge_scenic_tags(*tag_sets):
+    """Combine tags from road ``<type>`` records and junction metadata."""
+    tags = set()
+    for tag_set in tag_sets:
+        if tag_set:
+            tags.update(tag_set)
+    return frozenset(tags)
+
+
+def _junction_tags(junction):
+    """Tags taken directly from a junction's OpenDRIVE ``type`` and ``name``."""
+    tags = set()
+    if junction.type_ and junction.type_ != "default":
+        tags.add(junction.type_)
+    if junction.name:
+        tags.add(junction.name)
+    return tags
+
+
+def assign_semantic_tags(road_map):
+    """Populate ``Road.extra_tags`` from junction type and name."""
+    extra = {road_id: set() for road_id in road_map.roads}
+
+    for jid, junction in road_map.junctions.items():
+        tags = _junction_tags(junction)
+        if not tags:
+            continue
+        for road_id, road in road_map.roads.items():
+            if road.junction == jid:
+                extra[road_id].update(tags)
+            elif road.junction is None and (
+                road.predecessor == jid or road.successor == jid
+            ):
+                extra[road_id].update(tags)
+
+    for road_id, road in road_map.roads.items():
+        road.extra_tags = frozenset(extra[road_id])
+
+
+_ROAD_PROPAGATION_TYPES = (
     roadDomain.LaneGroup,
     roadDomain.RoadSection,
     roadDomain.LaneSection,
     roadDomain.Lane,
 )
 
-
+# later - better to have types specific to portions of the road
 def propagate_speed_limit(speed_limit, elements):
-    """Copy a road speed limit down the lane hierarchy."""
+    """Copy a road speed limit down to lane groups, sections, and lanes."""
     if speed_limit is None:
         return
     for element in elements:
-        if isinstance(element, _SPEED_LIMIT_PROPAGATION_TYPES):
+        if isinstance(element, _ROAD_PROPAGATION_TYPES):
             if element.speedLimit is None:
                 element.speedLimit = speed_limit
+
+
+def propagate_tags(tags, elements):
+    """Copy road semantic tags down to lane groups, sections, and lanes."""
+    if not tags:
+        return
+    for element in elements:
+        if isinstance(element, _ROAD_PROPAGATION_TYPES):
+            if not element.tags:
+                element.tags = tags
+
+
+parse_speed_to_mps = speed_to_mps
 
 
 def buffer_union(polys, tolerance=0.01):
@@ -441,9 +484,10 @@ class Junction:
             # dict mapping incoming to connecting lane ids (empty = identity mapping)
             self.lane_links = lane_links
 
-    def __init__(self, id_, name):
+    def __init__(self, id_, name, type_="default"):
         self.id_ = id_
         self.name = name
+        self.type_ = type_
         self.connections = []
         # Ids of roads that are paths within junction:
         self.paths = []
@@ -461,7 +505,7 @@ class Road:
         self.name = name
         self.id_ = id_
         self.length = length
-        self.junction = junction if junction != "-1" else None
+        self.junction = int(junction) if junction != "-1" else None
         self.predecessor = None
         self.successor = None
         self.signals = []  # List of Signal objects.
@@ -487,6 +531,7 @@ class Road:
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
         self.type_records = []  # [(s, openDriveRoadType, speedLimitMps), ...]
+        self.extra_tags = frozenset()
 
     def get_ref_line_offset(self, s):
         if not self.offset:
@@ -837,11 +882,14 @@ class Road:
     def toScenicRoad(self, tolerance):
         assert self.sec_points
         road_speed_limit = speed_limit_from_type_records(self.type_records)
-        road_tags = scenic_tags_from_type_records(self.type_records)
+        road_tags = merge_scenic_tags(
+            scenic_tags_from_type_records(self.type_records),
+            self.extra_tags,
+        )
         if len(self.type_records) > 1:
             warn(
                 f"road {self.id_} has {len(self.type_records)} type segments;"
-                " using the segment with smallest s for speedLimit and tags"
+                " using the segment with smallest s for speedLimit"
             )
         allElements = []
         # Create lane and road sections
@@ -1273,6 +1321,7 @@ class Road:
         )
         allElements.append(road)
         propagate_speed_limit(road_speed_limit, allElements)
+        propagate_tags(road_tags, allElements)
 
         # Set up parent references
         if forwardGroup:
@@ -1563,7 +1612,7 @@ class RoadMap:
 
         # parse junctions
         for j in root.iter("junction"):
-            junction = Junction(int(j.get("id")), j.get("name"))
+            junction = Junction(int(j.get("id")), j.get("name"), j.get("type", "default"))
             for c in j.iter("connection"):
                 ty = c.get("type", "default")
                 if ty != "default":
@@ -1609,12 +1658,13 @@ class RoadMap:
             else:
                 pred_link = succ_link = None
 
+            # 2.3 Handle type and speed parsing
             for type_elem in r.findall("type"):
                 s = float(type_elem.get("s"))
                 road_type = type_elem.get("type")
                 speed_elem = type_elem.find("speed")
                 speed_mps = (
-                    parse_speed_to_mps(speed_elem)
+                    speed_to_mps(speed_elem)
                     if speed_elem is not None
                     else None
                 )
@@ -1808,6 +1858,7 @@ class RoadMap:
 
     def toScenicNetwork(self):
         assert self.intersection_region is not None
+        assign_semantic_tags(self)
 
         # Prepare registry of network elements
         allElements = {}
