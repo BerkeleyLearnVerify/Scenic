@@ -24,8 +24,5 @@ class IsaacAssetBox(IsaacSimObject):
 
 test_asset = new IsaacAssetBox on simple_room_table
 
-print(f"TEST ASSET POS:")
-print(test_asset.position)
-
 reference_toy = new Toy right of test_asset by 0.35,
     with physics False

@@ -5,9 +5,10 @@ _BACKENDS = {
     "core_51": "scenic.simulators.isaac.backends.core_51:Core51Backend",
     "experimental_51": "scenic.simulators.isaac.backends.experimental_51:Experimental51Backend",
     "experimental_60": "scenic.simulators.isaac.backends.experimental_60:Experimental60Backend",
+    "lab": "scenic.simulators.isaac.backends.lab:LabBackend",
 }
 _INSTANCES = {}
-DEFAULT_BACKEND_NAME = "core_51"
+DEFAULT_BACKEND_NAME = "experimental_60"
 _DEFAULT_BACKEND = DEFAULT_BACKEND_NAME
 
 

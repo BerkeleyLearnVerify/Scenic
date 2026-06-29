@@ -1,14 +1,22 @@
 import math
 import os
-
 import numpy as np
 
-from scenic.simulators.isaac.backends.base import IsaacArticulationAction, IsaacBackend
+from scenic.simulators.isaac.backends.base import IsaacBackend
 import scenic.simulators.isaac.utils as scenic_utils
 
 
+class _AckermannControllerAdapter:
+    def __init__(self, controller):
+        self.controller = controller
+
+    def forward(self, command):
+        action = self.controller.forward(command=command)
+        return action.joint_positions, action.joint_velocities
+
+
 class Core51Backend(IsaacBackend):
-    """Isaac Sim 5.1 backend implemented with the current Core API."""
+    """Isaac Sim 5.1.0 backend implemented with the current Core API."""
 
     name = "core_51"
 
@@ -45,6 +53,17 @@ class Core51Backend(IsaacBackend):
             isaac_obj = world.scene.get_object(obj.name)
             if hasattr(isaac_obj, "initialize"):
                 isaac_obj.initialize()
+            if getattr(obj, "wheel_controller", None) in {
+                "differential",
+                "holonomic",
+                "ackermann",
+            }:
+                obj.wheel_dof_indices = list(isaac_obj.wheel_dof_indices)
+                if obj.wheel_controller == "ackermann":
+                    obj.steering_dof_indices = [
+                        isaac_obj.get_dof_index(name)
+                        for name in obj.steering_dof_names
+                    ]
 
     def play_world(self, world):
         world.play()
@@ -62,7 +81,7 @@ class Core51Backend(IsaacBackend):
 
         World.clear_instance()
 
-    def add_object(self, world, obj):
+    def add_object(self, world, obj, *, scenic_obj=None):
         world.scene.add(obj)
 
     def ensure_environment_mesh_paths(
@@ -201,6 +220,13 @@ class Core51Backend(IsaacBackend):
         from isaacsim.core.api.robots import Robot
         from isaacsim.core.utils.stage import add_reference_to_stage
 
+        if getattr(obj, "wheel_controller", None) in {
+            "differential",
+            "holonomic",
+            "ackermann",
+        }:
+            return self.create_wheeled_robot(obj)
+
         if obj.control:
             obj.controller = self.create_controller(
                 obj.control, f"{obj.name}_controller"
@@ -217,78 +243,91 @@ class Core51Backend(IsaacBackend):
             prim_path=prim_path,
             name=obj.name,
             position=scenic_utils.vectorToArray(obj.position),
-            orientation=self.scenic_to_isaac_orientation(obj.orientation),
-        )
-
-    def create_create3(self, obj):
-        from isaacsim.robot.wheeled_robots.controllers.differential_controller import (
-            DifferentialController,
-        )
-        from isaacsim.robot.wheeled_robots.robots import WheeledRobot
-
-        obj.controller = DifferentialController(
-            name=f"{obj.name}_controller",
-            wheel_radius=0.03575,
-            wheel_base=0.233,
-        )
-        wrapper = WheeledRobot(
-            prim_path=f"/World/{obj.name}",
-            name=obj.name,
-            create_robot=True,
             orientation=self.scenic_to_isaac_orientation(
-                obj.orientation, initial_rotation=[0, 0, 0]
+                obj.orientation, initial_rotation=obj.initial_rotation
             ),
-            position=scenic_utils.vectorToArray(obj.position),
-            usd_path=self.asset_path("Isaac/Robots/iRobot/Create3/create_3.usd"),
-            wheel_dof_names=["left_wheel_joint", "right_wheel_joint"],
         )
-        if obj.color:
-            self.apply_visual_material(wrapper, obj)
-        return wrapper
 
-    def create_kaya(self, obj):
-        from isaacsim.robot.wheeled_robots.controllers.holonomic_controller import (
+    def create_wheeled_robot(self, obj):
+        from isaacsim.robot.wheeled_robots.controllers import (
+            AckermannController,
+            DifferentialController,
             HolonomicController,
         )
-        from isaacsim.robot.wheeled_robots.robots import WheeledRobot
-        from isaacsim.robot.wheeled_robots.robots.holonomic_robot_usd_setup import (
+        from isaacsim.robot.wheeled_robots.robots import (
             HolonomicRobotUsdSetup,
+            WheeledRobot,
         )
 
         prim_path = f"/World/{obj.name}"
+        usd_path = (
+            self.asset_path(obj.isaac_asset_path)
+            if obj.isaac_asset_path
+            else os.path.abspath(obj.usd_path)
+        )
         wrapper = WheeledRobot(
             prim_path=prim_path,
             name=obj.name,
-            wheel_dof_names=["axle_0_joint", "axle_1_joint", "axle_2_joint"],
+            wheel_dof_names=obj.wheel_dof_names,
             create_robot=True,
-            usd_path=self.asset_path("Isaac/Robots/NVIDIA/Kaya/kaya.usd"),
+            usd_path=usd_path,
             position=scenic_utils.vectorToArray(obj.position),
             orientation=self.scenic_to_isaac_orientation(
-                obj.orientation, initial_rotation=[np.pi / 2, 0, 0]
+                obj.orientation, initial_rotation=obj.initial_rotation
             ),
         )
 
-        kaya_setup = HolonomicRobotUsdSetup(
-            robot_prim_path=prim_path,
-            com_prim_path=f"/World/{obj.name}/base_link/control_offset",
-        )
-        (
-            wheel_radius,
-            wheel_positions,
-            wheel_orientations,
-            mecanum_angles,
-            wheel_axis,
-            up_axis,
-        ) = kaya_setup.get_holonomic_controller_params()
-        obj.controller = HolonomicController(
-            name="holonomic_controller",
-            wheel_radius=wheel_radius,
-            wheel_positions=wheel_positions,
-            wheel_orientations=wheel_orientations,
-            mecanum_angles=mecanum_angles,
-            wheel_axis=wheel_axis,
-            up_axis=up_axis,
-        )
+        if obj.wheel_controller == "differential":
+            obj.controller = DifferentialController(
+                name=f"{obj.name}_controller",
+                wheel_radius=obj.wheel_radius,
+                wheel_base=obj.wheel_base,
+            )
+        elif obj.wheel_controller == "holonomic":
+            holonomic_setup = HolonomicRobotUsdSetup(
+                robot_prim_path=prim_path,
+                com_prim_path=f"{prim_path}/base_link/control_offset",
+            )
+            (
+                wheel_radius,
+                wheel_positions,
+                wheel_orientations,
+                mecanum_angles,
+                wheel_axis,
+                up_axis,
+            ) = holonomic_setup.get_holonomic_controller_params()
+            obj.controller = HolonomicController(
+                name=f"{obj.name}_controller",
+                wheel_radius=wheel_radius,
+                wheel_positions=wheel_positions,
+                wheel_orientations=wheel_orientations,
+                mecanum_angles=mecanum_angles,
+                wheel_axis=wheel_axis,
+                up_axis=up_axis,
+                max_linear_speed=getattr(obj, "max_linear_speed", 0.5),
+                max_angular_speed=getattr(obj, "max_angular_speed", 0.8),
+                max_wheel_speed=getattr(obj, "max_wheel_speed", 10.0),
+            )
+        elif obj.wheel_controller == "ackermann":
+            steering_dof_names = getattr(obj, "steering_dof_names", None)
+            if not steering_dof_names:
+                raise ValueError(
+                    f"Ackermann robot {obj.name} requires steering_dof_names, "
+                    "usually [front_left_steering_joint, front_right_steering_joint]."
+                )
+
+            obj.steering_dof_names = steering_dof_names
+            front_wheel_radius = getattr(obj, "front_wheel_radius", obj.wheel_radius)
+            back_wheel_radius = getattr(obj, "back_wheel_radius", obj.wheel_radius)
+            obj.controller = _AckermannControllerAdapter(
+                AckermannController(
+                    name=f"{obj.name}_controller",
+                    wheel_base=obj.wheel_base,
+                    track_width=obj.track_width,
+                    front_wheel_radius=front_wheel_radius,
+                    back_wheel_radius=back_wheel_radius,
+                )
+            )
 
         if obj.color:
             self.apply_visual_material(wrapper, obj)
@@ -338,11 +377,96 @@ class Core51Backend(IsaacBackend):
 
     def apply_robot_control(self, sim, obj, command):
         robot = sim.world.scene.get_object(obj.name)
-        robot.apply_action(self._to_core_articulation_action(obj.controller.forward(command=command)))
+        if obj.controller is None:
+            return
+        if getattr(obj, "wheel_controller", None) in {
+            "differential",
+            "holonomic",
+            "ackermann",
+        }:
+            self.apply_wheeled_control(sim, obj, command)
+            return
+
+        action = obj.controller.forward(command=command)
+        robot.apply_action(self._to_core_articulation_action(action))
 
     def apply_wheeled_control(self, sim, obj, command):
         wheeled_robot = sim.world.scene.get_object(obj.name)
-        wheeled_robot.apply_wheel_actions(obj.controller.forward(command=command))
+        if obj.controller is None:
+            return
+
+        if obj.wheel_controller in {"differential", "holonomic"}:
+            wheeled_robot.apply_wheel_actions(obj.controller.forward(command=command))
+            return
+
+        if obj.wheel_controller == "ackermann":
+            from isaacsim.core.utils.types import ArticulationAction
+
+            steering_positions, wheel_velocities = obj.controller.forward(command)
+            wheeled_robot.apply_action(
+                ArticulationAction(
+                    joint_positions=steering_positions,
+                    joint_indices=obj.steering_dof_indices,
+                )
+            )
+            wheeled_robot.apply_wheel_actions(
+                ArticulationAction(joint_velocities=wheel_velocities)
+            )
+            return
+
+        action = obj.controller.forward(command=command)
+        wheeled_robot.apply_action(self._to_core_articulation_action(action))
+
+    def apply_articulation_action(self, sim, obj, action):
+        robot = sim.world.scene.get_object(obj.name)
+        for field, index_field in (
+            ("joint_positions", "joint_position_indices"),
+            ("joint_velocities", "joint_velocity_indices"),
+            ("joint_efforts", "joint_effort_indices"),
+        ):
+            split_action = self._core_action_for_field(action, field, index_field)
+            if split_action is not None:
+                robot.apply_action(split_action)
+
+    def _core_action_for_field(self, action, field, index_field):
+        values = action.get(field)
+        if values is None:
+            return None
+
+        from isaacsim.core.utils.types import ArticulationAction
+
+        indices = action.get(
+            index_field,
+            action.get("joint_indices", action.get("dof_indices")),
+        )
+        return ArticulationAction(**{field: values, "joint_indices": indices})
+
+    def articulation_dof_names(self, sim, obj):
+        robot = sim.world.scene.get_object(obj.name)
+        names = getattr(robot, "dof_names", None)
+        if names is not None:
+            return list(names)
+        names = getattr(robot, "_dof_names", None)
+        if names is not None:
+            return list(names)
+        raise RuntimeError(f"unable to read DOF names for {obj.name}")
+
+    def get_object_pose(self, sim, obj):
+        wrapper = sim.world.scene.get_object(obj.name)
+        position, orientation = wrapper.get_world_pose()
+        return np.array(position, dtype=float), np.array(orientation, dtype=float)
+
+    def set_object_pose(self, sim, obj, position, orientation=None):
+        wrapper = sim.world.scene.get_object(obj.name)
+        position = np.array(position, dtype=float)
+        if orientation is None:
+            _, orientation = wrapper.get_world_pose()
+        orientation = np.array(orientation, dtype=float)
+        wrapper.set_world_pose(position=position, orientation=orientation)
+        if hasattr(wrapper, "set_linear_velocity"):
+            wrapper.set_linear_velocity(np.zeros(3, dtype=float))
+        if hasattr(wrapper, "set_angular_velocity"):
+            wrapper.set_angular_velocity(np.zeros(3, dtype=float))
 
     def move_franka_pick_place(
         self,
@@ -405,8 +529,6 @@ class Core51Backend(IsaacBackend):
         }
 
     def _to_core_articulation_action(self, action):
-        if not isinstance(action, IsaacArticulationAction):
-            return action
         from isaacsim.core.utils.types import ArticulationAction
 
-        return ArticulationAction(**action.kwargs)
+        return ArticulationAction(**action)

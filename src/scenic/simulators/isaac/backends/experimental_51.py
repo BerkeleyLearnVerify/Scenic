@@ -1,10 +1,7 @@
 from dataclasses import dataclass, field
 
 from scenic.simulators.isaac.backends.base import IsaacBackend
-from scenic.simulators.isaac.backends.experimental_60 import (
-    Experimental60Backend,
-    ExperimentalObjectHandle,
-)
+from scenic.simulators.isaac.backends.experimental_60 import Experimental60Backend
 
 
 @dataclass
@@ -83,6 +80,5 @@ class Experimental51Backend(Experimental60Backend):
 
         World.clear_instance()
 
-    def add_object(self, world, obj):
-        if isinstance(obj, ExperimentalObjectHandle):
-            world.objects[obj.name] = obj
+    def add_object(self, world, obj, *, scenic_obj=None):
+        world.objects[scenic_obj.name] = obj
