@@ -8,13 +8,6 @@ import numpy as np
 import scenic.simulators.isaac.utils as scenic_utils
 
 
-@dataclass(frozen=True)
-class IsaacArticulationAction:
-    """Backend-neutral articulation action payload."""
-
-    kwargs: dict
-
-
 class IsaacBackend:
     """Interface implemented by Isaac Sim API backends."""
 
@@ -123,7 +116,7 @@ class IsaacBackend:
         pass
 
     def add_object(self, world, obj):
-        raise NotImplementedError
+        pass
 
     async def convert(self, in_file, out_file, load_materials=False):
         import omni.kit.asset_converter
@@ -250,9 +243,6 @@ class IsaacBackend:
         yaw, pitch, roll = R.from_quat(q_xyzw).as_euler("ZXY", degrees=False)
         return float(yaw), float(pitch), float(roll)
 
-    def _vec3_to_np(self, vec):
-        return np.array([float(vec[0]), float(vec[1]), float(vec[2])], dtype=float)
-
     def compute_prim_world_bbox(self, prim_path):
         """Return world-space bbox min, max, center, and size for a prim."""
         from isaacsim.core.utils import prims
@@ -262,15 +252,38 @@ class IsaacBackend:
         if prim is None or not prim.IsValid():
             raise ValueError(f"invalid prim path: {prim_path}")
 
+        return self.compute_prim_bbox(prim)
+
+    def compute_usd_asset_bbox(self, usd_path):
+        """Return the composed bbox of a USD asset referenced at the origin."""
+        from pxr import Usd
+
+        stage = Usd.Stage.CreateInMemory()
+        prim = stage.DefinePrim("/Asset", "Xform")
+        prim.GetReferences().AddReference(os.fspath(usd_path))
+        return self.compute_prim_bbox(prim)
+
+    def compute_prim_bbox(self, prim):
+        """Return world-space bbox min, max, center, and size for a USD prim."""
+        from pxr import Usd, UsdGeom
+
         cache = UsdGeom.BBoxCache(
             Usd.TimeCode.Default(),
             [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy],
             useExtentsHint=True,
         )
 
+        # bbox = bbox_cache.ComputeLocalBound(prim)
+        # bbox_range = bbox.ComputeAlignedRange()
+
+        # native_min = np.asarray(bbox_range.GetMin(), dtype=float)
+        # native_max = np.asarray(bbox_range.GetMax(), dtype=float)
+        # native_size = native_max - native_min
+        # native_center = (native_min + native_max) / 2.0
+
         box = cache.ComputeWorldBound(prim).ComputeAlignedBox()
-        mn = self._vec3_to_np(box.GetMin())
-        mx = self._vec3_to_np(box.GetMax())
+        mn = np.asarray(box.GetMin(), dtype=float)
+        mx = np.asarray(box.GetMax(), dtype=float)
         center = (mn + mx) * 0.5
         size = mx - mn
 
@@ -302,12 +315,47 @@ class IsaacBackend:
             native_center: measured unscaled USD bbox center relative to the root placement
         """
         _, _, native_center, native_size = self.compute_prim_world_bbox(prim_path)
+        return self.compute_scale_and_root_position(
+            obj,
+            native_center,
+            native_size,
+            scenic_position,
+            orientation,
+        )
 
+    def compute_usd_asset_scale_and_root_position(
+        self,
+        obj,
+        usd_path,
+        scenic_position,
+        orientation,
+    ):
+        """Compute Scenic scale and root position before a USD asset is spawned."""
+        _, _, native_center, native_size = self.compute_usd_asset_bbox(usd_path)
+        return self.compute_scale_and_root_position(
+            obj,
+            native_center,
+            native_size,
+            scenic_position,
+            orientation,
+        )
+
+    def compute_scale_and_root_position(
+        self,
+        obj,
+        native_center,
+        native_size,
+        scenic_position,
+        orientation,
+    ):
+        """Compute scale and root position from an asset's native bounding box."""
         desired_size = np.array(
             [float(obj.width), float(obj.length), float(obj.height)],
             dtype=float,
         )
 
+        native_center = np.asarray(native_center, dtype=float)
+        native_size = np.asarray(native_size, dtype=float)
         local_scale = desired_size / native_size
 
         # avoid tiny numerical scale changes when dimensions already match.
@@ -335,10 +383,7 @@ class IsaacBackend:
     def create_robot(self, obj):
         raise NotImplementedError
 
-    def create_create3(self, obj):
-        raise NotImplementedError
-
-    def create_kaya(self, obj):
+    def create_wheeled_robot(self, obj):
         raise NotImplementedError
 
     def create_franka_panda(self, obj):
@@ -354,6 +399,22 @@ class IsaacBackend:
         raise NotImplementedError
 
     def apply_wheeled_control(self, sim, obj, command):
+        raise NotImplementedError
+
+    def apply_articulation_action(self, sim, obj, action):
+        raise NotImplementedError
+
+    def articulation_dof_names(self, sim, obj):
+        raise NotImplementedError
+
+    def articulation_dof_indices(self, sim, obj, names):
+        dof_names = self.articulation_dof_names(sim, obj)
+        return [dof_names.index(name) for name in names]
+
+    def get_object_pose(self, sim, obj):
+        raise NotImplementedError
+
+    def set_object_pose(self, sim, obj, position, orientation=None):
         raise NotImplementedError
 
     def move_franka_pick_place(
@@ -413,4 +474,4 @@ class IsaacBackend:
         raise NotImplementedError
 
     def articulation_action(self, **kwargs):
-        return IsaacArticulationAction(dict(kwargs))
+        return dict(kwargs)

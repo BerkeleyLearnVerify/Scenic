@@ -11,6 +11,28 @@ from scenic.simulators.isaac.backends import get_backend
 import scenic.simulators.isaac.utils as utils
 
 
+class IsaacSimulator(Simulator):
+    def __init__(self, isaacLab=False, **kwargs):
+        super().__init__()
+        self.isaacLab = isaacLab
+        if isaacLab:
+            from scenic.simulators.isaac.lab import IsaacLabSimulator
+
+            self.delegate = IsaacLabSimulator(**kwargs)
+        else:
+            self.delegate = IsaacSimSimulator(**kwargs)
+
+    def createSimulation(self, scene, **kwargs):
+        return self.delegate.createSimulation(scene, **kwargs)
+
+    def simulate(self, scene, *args, **kwargs):
+        return self.delegate.simulate(scene, *args, **kwargs)
+
+    def destroy(self):
+        super().destroy()
+        self.delegate.destroy()
+
+
 class IsaacSimSimulator(Simulator):
     def __init__(self, headless=False, environmentUSDPath=None, backend=None):
         super().__init__()
@@ -31,6 +53,10 @@ class IsaacSimSimulator(Simulator):
         )
 
     def destroy(self):
+        print("[IsaacSimSimulator.destroy] CLOSING SIMULATION APP", flush=True)
+        import traceback
+
+        traceback.print_stack(limit=20)
         super().destroy()
         self.backend.close_simulation_app(self.client)
 
@@ -118,15 +144,16 @@ class IsaacSimSimulation(Simulation):
         self.backend.step_world(self.world)
 
     def createObjectInSimulator(self, obj):
-        if obj.blueprint == "IsaacSimObject" and not obj.usd_path:
+        if (
+            obj.blueprint == "IsaacSimObject"
+            and not obj.usd_path
+            and not obj.isaac_asset_path
+        ):
             objectScaledMesh = MeshVolumeRegion(
                 mesh=obj.shape.mesh,
                 dimensions=(obj.width, obj.length, obj.height),
             ).mesh
-            if self.backend.name == "core_51":
-                objectObjMesh = utils.mesh_to_obj_frame(objectScaledMesh)
-            else:
-                objectObjMesh = objectScaledMesh
+            objectObjMesh = utils.mesh_to_obj_frame(objectScaledMesh)
             obj_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.obj")
             usd_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.usd")
             trimesh.exchange.export.export_mesh(objectObjMesh, obj_file_path)
@@ -144,7 +171,7 @@ class IsaacSimSimulation(Simulation):
             return
 
         try:
-            self.backend.add_object(self.world, isaac_sim_obj)
+            self.backend.add_object(self.world, isaac_sim_obj, scenic_obj=obj)
         except Exception as exc:
             raise SimulationCreationError(f"Unable to add {obj.name} to world") from exc
 

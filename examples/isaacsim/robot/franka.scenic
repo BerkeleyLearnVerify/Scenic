@@ -1,5 +1,5 @@
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
-param duration = 10
+param duration = 30
 param cubeSize = 0.0515
 param binHeight = 0.1475
 param dropHeight = 0.2
@@ -37,11 +37,8 @@ ego = new FrankaPanda on table, at (0, 0),
         Vector(small_bin.x, small_bin.y, small_bin.z + globalParameters.dropHeight),
     )
 
-print(f"CUBE POS: {cube.x}, {cube.y}, {cube.z}")
-print(f"SMALL_BIN POS: {small_bin.x}, {small_bin.y}, {small_bin.z}")
-
 require 0.42 <= distance from cube to ego <= 0.82
 require 0.25 <= distance from small_bin to ego <= 0.82
 require distance from cube to small_bin > 0.38
 
-terminate after globalParameters.duration * 2 seconds
+terminate after globalParameters.duration seconds

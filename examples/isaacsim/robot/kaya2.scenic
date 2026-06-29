@@ -13,7 +13,7 @@ room_region = RectangularRegion(0 @ 0, 0, 5.09, 5.09)
 workspace = Workspace(room_region)
 
 b1 = new Box on floor
-ego = new Kaya on floor, facing toward b1, with behavior RandomMovement, ahead of b1 by 2
+ego = new Kaya on floor, facing toward b1, with behavior DriveForward, ahead of b1 by 2
 
 b2 = new Box right of b1 by .01
 b3 = new Box left of b1 by .01
