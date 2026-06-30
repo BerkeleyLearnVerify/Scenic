@@ -1364,7 +1364,12 @@ class ScenicToPythonTransformer(Transformer):
         if node.delay:
             elts = [self.visit(node.delay.value), ast.Constant(node.delay.unitStr)]
             kwargs["delay"] = ast.Tuple(elts, loadCtx)
-
+        if node.name:
+            if isinstance(node.name, ast.AST):
+                node.name = self.visit(node.name)
+            else:
+                node.name = ast.Constant(node.name)
+            
         return self.createRequirementLike(
             "record", node.value, node.lineno, node.name, kwargs
         )
@@ -1429,7 +1434,7 @@ class ScenicToPythonTransformer(Transformer):
                     ast.Constant(requirementId),  # requirement ID
                     newBody,  # body
                     ast.Constant(lineno),  # line number
-                    ast.Constant(name),  # requirement name
+                    name if isinstance(name, ast.AST) else ast.constant(name),  # requirement name
                 ],
                 keywords=keywords,
             )

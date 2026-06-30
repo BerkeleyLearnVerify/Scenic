@@ -2121,8 +2121,8 @@ scenic_require_stmt:
         s.Require(cond=e, prob=p, name=n, LOCATIONS)
      }
 scenic_require_stmt_name:
+    | a=strings {a}
     | a=(NAME | NUMBER) { a.string }
-    | a=STRING { a.string[1:-1] }
 
 scenic_record_stmt:
     | "record" e=expression \
