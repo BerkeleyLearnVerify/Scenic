@@ -1322,7 +1322,28 @@ class ScenicToPythonTransformer(Transformer):
 
     @context(Context.TOP_LEVEL)
     def visit_Record(self, node: s.Record):
-        return self.createRequirementLike("record", node.value, node.lineno, node.name)
+        if node.name and node.recorder:
+            raise self.makeSyntaxError(
+                'cannot use both "as" and "to" in "record" statement', node
+            )
+        kwargs = {}
+        if node.recorder:
+            kwargs["recorder"] = self.visit(node.recorder)
+        if node.period:
+            elts = [self.visit(node.period.value), ast.Constant(node.period.unitStr)]
+            kwargs["period"] = ast.Tuple(elts, loadCtx)
+        if node.delay:
+            elts = [self.visit(node.delay.value), ast.Constant(node.delay.unitStr)]
+            kwargs["delay"] = ast.Tuple(elts, loadCtx)
+        if node.name:
+            if isinstance(node.name, ast.AST):
+                node.name = self.visit(node.name)
+            else:
+                node.name = ast.Constant(node.name)
+            
+        return self.createRequirementLike(
+            "record", node.value, node.lineno, node.name, kwargs
+        )
 
     @context(Context.TOP_LEVEL)
     def visit_RecordInitial(self, node: s.RecordInitial):
@@ -1378,7 +1399,7 @@ class ScenicToPythonTransformer(Transformer):
                     ast.Constant(requirementId),  # requirement ID
                     newBody,  # body
                     ast.Constant(lineno),  # line number
-                    ast.Constant(name),  # requirement name
+                    name if isinstance(name, ast.AST) else ast.constant(name),  # requirement name
                 ],
                 keywords=(
                     [ast.keyword(arg="prob", value=ast.Constant(prob))]
