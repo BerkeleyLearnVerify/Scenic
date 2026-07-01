@@ -31,7 +31,6 @@ except ImportError as e:
 
 class CosimSimulator(DrivingSimulator):
     def __init__(self, 
-        metsr_map, 
         carla_map,
         map_path,
         xml_map,
@@ -43,6 +42,7 @@ class CosimSimulator(DrivingSimulator):
         timestep=0.1, # Not entirely sure what the distinction between timestep and sim_timestep is in metsr
         sim_timestep=0.1,
         traffic_manager_port=None,
+        metsr_sim_dir=None,
         timeout=20,
         verbose=False,
         render=True,
@@ -51,8 +51,6 @@ class CosimSimulator(DrivingSimulator):
     ):
         super().__init__()
 
-
-        self.metsr_map_name = metsr_map
         self.timestep = timestep
         self.sim_timestep = sim_timestep # This should represent the timestep recorded in the METSR config 
         self.map_path = map_path
@@ -63,6 +61,7 @@ class CosimSimulator(DrivingSimulator):
         self.render= render
         self.record = record
         self.run_name = run_name
+        self.metsr_sim_dir = metsr_sim_dir
 
         # Setting up the Carla Simulator
         verbosePrint(f"Connection to CARLA on port {carla_port}")
@@ -103,12 +102,15 @@ class CosimSimulator(DrivingSimulator):
         verbosePrint("Carla was initialized correctly proceeding to Metsr")
 
         # Setting up Metsr simulator 
-        self.metsr_client = METSRClient(host=metsr_host,
-                                        sim_folder="../../../../../METS-R_HPC/output/CARLAT03_20260528_154224_seed_42",
-                                        port=metsr_port, 
+        if self.metsr_sim_dir is not None:
+            self.metsr_client = METSRClient(host=metsr_host,
+                                            port=metsr_port,
+                                            sim_folder=metsr_sim_dir, 
+                                            verbose=verbose)
+        else:
+            self.metsr_client = METSRClient(host=metsr_host,
+                                        port=metsr_port,
                                         verbose=verbose)
-        
-        # self.metsr_client.start_viz(server_port=8080)
 
 
         verbosePrint("Clients have successfully been initialized")
@@ -206,6 +208,9 @@ class CosimSimulation(DrivingSimulation):
         """
         # Updated version takes no arguements
         self.metsr_client.reset() 
+        # Start the visualization once
+        verbosePrint(f"Initializing METS-R visualization server")
+        self.metsr_client.start_viz(server_port=8080)
         self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
         self.network_helper = network_cache(self.workspace,
@@ -648,6 +653,7 @@ class CosimSimulation(DrivingSimulation):
         if self.render:
             self.cameraManager.render(self.display)
             pygame.display.flip()
+            self.metsr_client.render()
        
         self.bubble_sizes.append(len(self.carla_actors))
         self.total_active_vehicles.append(len(self.objects) - (len(self.frozen_vehicles) + len(self.bubble_spawn_queue)))
@@ -780,10 +786,9 @@ class CosimSimulation(DrivingSimulation):
                         metsr_road = roads[0].split("_")[0]
                     if metsr_road in self.network_helper.metsr_represented_roads:
                         road_id = metsr_road
-
                 if veh_data["roadID"] != road_id and road_id is not None: # Entering new road within metsr network\
                     self.metsr_client.enter_next_road(vehID, roadID=road_id, private_veh = True)
-                    if road_id == veh_data["destRoad"]:
+                    if road_id == veh_data["destRoadID"]:
                         self.completed_route[obj] = True
                         obj.finished_route = self.count
           
@@ -1000,6 +1005,9 @@ class CosimSimulation(DrivingSimulation):
         
         Destroy both simulators instances i.e (METSR, CARLA)
         """
+        verbosePrint(f"Closing METS-R visualization server")
+        self.metsr_client.stop_viz()
+
         print(f"Logging trip times")
         print(f"="*25)
         self._log_trip_times()
