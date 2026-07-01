@@ -1,10 +1,12 @@
+import json
 import os
+import socket
+import struct
 import threading
 import time
 from datetime import datetime
 
 import networkx as nx
-import json
 from websockets.sync.client import connect
 
 from .util import (
@@ -19,6 +21,7 @@ from .util import (
     _latest_trajectory_directory,
     _looks_like_centerline,
     _normalize_sensor_type,
+    _read_property_values,
     _read_trajectory_manifest,
     _request_id_from_record,
     _request_zone_from_record,
@@ -34,6 +37,580 @@ from .util import (
 
 str_list_to_int_list = str_list_mapper_gen(int)
 str_list_to_float_list = str_list_mapper_gen(float)
+
+_VIZ_STREAM_MAGIC = b"MRTB"
+_VIZ_STREAM_VERSION = 8
+_VIZ_STREAM_DEFAULT_COORD_SCALE = 100000
+_VIZ_STREAM_FRAME_GROUPS = [
+    "vehicle",
+    "ev_private",
+    "ev_occupied",
+    "ev_relocation",
+    "ev_charging",
+    "bus",
+    "link",
+    "zone",
+    "chargingStation",
+]
+_VIZ_STREAM_VEHICLE_FRAME_GROUPS = [
+    "vehicle",
+    "ev_private",
+    "ev_occupied",
+    "ev_relocation",
+    "ev_charging",
+    "bus",
+]
+_VIZ_STREAM_VEHICLE_TYPES = {
+    "vehicle": 0,
+    "ev_private": 1,
+    "ev_occupied": 2,
+    "ev_relocation": 3,
+    "ev_charging": 4,
+    "bus": 5,
+}
+_INT32_MIN = -(2 ** 31)
+_INT32_MAX = 2 ** 31 - 1
+
+
+def _viz_float(value, default=0.0):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if number != number or number in (float("inf"), float("-inf")):
+        return float(default)
+    return number
+
+
+def _viz_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return int(default)
+
+
+def _viz_int32(value, default=0):
+    number = _viz_int(value, default=default)
+    if number < _INT32_MIN:
+        return _INT32_MIN
+    if number > _INT32_MAX:
+        return _INT32_MAX
+    return number
+
+
+def _viz_pack_int(value, default=0):
+    return struct.pack(">i", _viz_int32(value, default=default))
+
+
+def _viz_pack_float(value, default=0.0):
+    return struct.pack(">f", _viz_float(value, default=default))
+
+
+def _viz_pack_double(value, default=0.0):
+    return struct.pack(">d", _viz_float(value, default=default))
+
+
+def _viz_first(record, *names, default=None):
+    if not isinstance(record, dict):
+        return default
+    for name in names:
+        value = record.get(name)
+        if value is not None:
+            return value
+    return default
+
+
+def _viz_has_xy(record):
+    return (
+        _viz_first(record, "x", "lon", "longitude") is not None
+        and _viz_first(record, "y", "lat", "latitude") is not None
+    )
+
+
+
+def _viz_stream_record(record):
+    return isinstance(record, dict) and _viz_has_xy(record)
+
+
+def _viz_scaled_coord(value, origin, coord_scale):
+    scaled = round((_viz_float(value) - float(origin)) * int(coord_scale))
+    return _viz_int32(scaled)
+
+
+def _viz_scaled_coord_field(record, field, fallback, origin, coord_scale):
+    value = _viz_first(record, field, default=None)
+    if value is None:
+        value = fallback
+    return _viz_scaled_coord(value, origin, coord_scale)
+
+
+def _viz_sum(records, *field_names):
+    total = 0
+    for record in records:
+        total += _viz_int(_viz_first(record, *field_names, default=0))
+    return total
+
+
+def _viz_mean_speed(records):
+    speeds = [
+        _viz_float(_viz_first(record, "speed", "speed_mps", default=0.0))
+        for record in records
+    ]
+    if not speeds:
+        return 0.0
+    return sum(speeds) / len(speeds)
+
+
+def _viz_record_energy_by_class(records):
+    private_ev = 0.0
+    etaxi = 0.0
+    ebus = 0.0
+    for record in records:
+        energy = _viz_float(_viz_first(record, "energy", "totalEnergy", "totalConsume", default=0.0))
+        vehicle_class = _viz_int(_viz_first(record, "vehicleClass", "v_type", "vehicle_class", default=-1), default=-1)
+        if vehicle_class == 3:
+            private_ev += energy
+        elif vehicle_class == 1:
+            etaxi += energy
+        elif vehicle_class == 2:
+            ebus += energy
+    return private_ev, etaxi, ebus
+
+
+
+def _viz_origin_from_sim_folder(sim_folder):
+    if not sim_folder:
+        return None
+
+    properties = _read_property_values(os.path.join(sim_folder, 'data', 'Data.properties'))
+    if 'INITIAL_X' not in properties and 'INITIAL_Y' not in properties:
+        return None
+
+    return (
+        _viz_float(properties.get('INITIAL_X'), default=0.0),
+        _viz_float(properties.get('INITIAL_Y'), default=0.0),
+    )
+
+
+def _viz_resolve_origin(sim_folder, initial_x=None, initial_y=None):
+    folder_origin = _viz_origin_from_sim_folder(sim_folder)
+    if folder_origin is not None:
+        if initial_x is None:
+            initial_x = folder_origin[0]
+        if initial_y is None:
+            initial_y = folder_origin[1]
+
+    return _viz_float(initial_x, default=0.0), _viz_float(initial_y, default=0.0)
+
+
+def _viz_manifest(road_id_dictionary, coord_scale, initial_x, initial_y, tick_interval,
+                  link_snapshot_interval, zone_dictionary=None,
+                  charging_station_dictionary=None):
+    return {
+        "format": "metsr-trajectory-binary",
+        "version": _VIZ_STREAM_VERSION,
+        "byteOrder": "bigEndian",
+        "chunkMagic": _VIZ_STREAM_MAGIC.decode("ascii"),
+        "coordScale": int(coord_scale),
+        "initialX": float(initial_x),
+        "initialY": float(initial_y),
+        "tickInterval": int(tick_interval),
+        "linkSnapshotInterval": int(link_snapshot_interval),
+        "chunkTickLimit": 1,
+        "chunks": [],
+        "activeChunk": None,
+        "roadIdDictionary": [str(road_id) for road_id in (road_id_dictionary or [])],
+        "zoneDictionary": list(zone_dictionary or []),
+        "chargingStationDictionary": list(charging_station_dictionary or []),
+        "busRouteDictionary": [],
+        "vehicleTypes": dict(_VIZ_STREAM_VEHICLE_TYPES),
+        "frameGroups": list(_VIZ_STREAM_FRAME_GROUPS),
+        "sparseFrameGroups": ["zone", "chargingStation"],
+        "sparseFrameGroupMode": "initialFullFrameThenChangedRecordsAndRemovedIds",
+    }
+
+def _viz_vehicle_id(record):
+    return _viz_first(record, "ID", "id", "vehID", "vehicle_id", "vid", default=-1)
+
+
+def _viz_vehicle_class(record):
+    return _viz_int(_viz_first(
+        record,
+        "vehicleClass",
+        "v_type",
+        "vehicle_class",
+        default=-1,
+    ), default=-1)
+
+
+def _viz_vehicle_state(record):
+    return _viz_int(_viz_first(record, "state", "vehicleState", "tripState", default=-1), default=-1)
+
+
+def _viz_vehicle_group_key(record):
+    vehicle_class = _viz_vehicle_class(record)
+    state = _viz_vehicle_state(record)
+    private_flag = _viz_first(record, "_viz_private_veh", default=None)
+
+    if vehicle_class == 0:
+        return "vehicle"
+    if vehicle_class == 2 or state == 3:
+        return "bus"
+    if vehicle_class == 1:
+        if state == 4:
+            return "ev_charging"
+        if state == 1:
+            return "ev_occupied"
+        return "ev_relocation"
+    if vehicle_class == 3:
+        if state == 4:
+            return "ev_charging"
+        return "ev_private"
+    if private_flag is True:
+        return "ev_private"
+    return None
+
+
+def _viz_group_vehicle_records(records):
+    groups = {key: [] for key in _VIZ_STREAM_VEHICLE_FRAME_GROUPS}
+    for record in records:
+        if not _viz_stream_record(record):
+            continue
+        group_key = _viz_vehicle_group_key(record)
+        if group_key in groups:
+            groups[group_key].append(record)
+    return groups
+
+
+def _viz_vehicle_record_bytes(record, coord_scale, initial_x, initial_y):
+    x = _viz_first(record, "x", "lon", "longitude", default=0.0)
+    y = _viz_first(record, "y", "lat", "latitude", default=0.0)
+    vehicle_class = _viz_first(record, "vehicleClass", "v_type", "vehicle_class", default=-1)
+
+    data = bytearray()
+    data.extend(_viz_pack_int(_viz_vehicle_id(record), default=-1))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevX", x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevY", y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(y, initial_y, coord_scale)))
+    data.extend(_viz_pack_float(_viz_first(record, "bearing", "heading", "heading_deg", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "speed", "speed_mps", default=0.0)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "originX", x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "originY", y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "destX", x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "destY", y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(vehicle_class, default=-1))
+    return data
+
+
+def _viz_ev_base_record_bytes(record, coord_scale, initial_x, initial_y):
+    x = _viz_first(record, "x", "lon", "longitude", default=0.0)
+    y = _viz_first(record, "y", "lat", "latitude", default=0.0)
+
+    data = bytearray()
+    data.extend(_viz_pack_int(_viz_vehicle_id(record), default=-1))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevX", x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevY", y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(y, initial_y, coord_scale)))
+    data.extend(_viz_pack_float(_viz_first(record, "bearing", "heading", "heading_deg", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "speed", "speed_mps", default=0.0)))
+    data.extend(_viz_pack_int(_viz_first(record, "originID", "originId", "origin_id", default=-1), default=-1))
+    data.extend(_viz_pack_int(_viz_first(record, "destID", "destId", "dest_id", default=-1), default=-1))
+    data.extend(_viz_pack_float(_viz_first(record, "battery", "battery_state", "batteryLevel", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "energy", "totalEnergy", "totalConsume", "totalEnergyConsumption", default=0.0)))
+    return data
+
+
+def _viz_private_ev_record_bytes(record, coord_scale, initial_x, initial_y):
+    data = _viz_ev_base_record_bytes(record, coord_scale, initial_x, initial_y)
+    data.extend(_viz_pack_int(_viz_first(record, "tripNumber", "trip_number", "numTrip", default=0)))
+    return data
+
+
+def _viz_etaxi_record_bytes(record, coord_scale, initial_x, initial_y):
+    data = _viz_ev_base_record_bytes(record, coord_scale, initial_x, initial_y)
+    data.extend(_viz_pack_int(_viz_first(record, "matchedRequests", "taxiMatchedRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "matchedPassengers", "matchedTaxiPassengers", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "pickupRequests", "pickupTaxiRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "pickupPassengers", "pickupTaxiPassengers", "pass_num", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "dropoffRequests", "dropoffTaxiRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "dropoffPassengers", "dropoffTaxiPassengers", default=0)))
+    return data
+
+
+def _viz_stop_zones(record):
+    zones = _viz_first(record, "stopZones", "stop_zones", default=[])
+    if zones is None:
+        return []
+    if isinstance(zones, (str, bytes)):
+        return []
+    if not _is_sequence(zones):
+        return []
+    return [zone for zone in zones if zone is not None]
+
+
+def _viz_bus_record_bytes(record, coord_scale, initial_x, initial_y):
+    x = _viz_first(record, "x", "lon", "longitude", default=0.0)
+    y = _viz_first(record, "y", "lat", "latitude", default=0.0)
+    stop_zones = _viz_stop_zones(record)
+
+    data = bytearray()
+    data.extend(_viz_pack_int(_viz_vehicle_id(record), default=-1))
+    data.extend(_viz_pack_int(_viz_first(record, "routeID", "routeId", "route_id", "route", default=-1), default=-1))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevX", x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord_field(record, "prevY", y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(y, initial_y, coord_scale)))
+    data.extend(_viz_pack_float(_viz_first(record, "bearing", "heading", "heading_deg", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "speed", "speed_mps", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "battery", "battery_state", "batteryLevel", default=0.0)))
+    data.extend(_viz_pack_float(_viz_first(record, "energy", "totalEnergy", "totalConsume", "totalEnergyConsumption", default=0.0)))
+    data.extend(_viz_pack_int(_viz_first(record, "matchedRequests", "busMatchedRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "matchedPassengers", "matchedBusPassengers", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "pickupRequests", "pickupBusRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "pickupPassengers", "pickupBusPassengers", "pass_num", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "dropoffRequests", "dropoffBusRequests", default=0)))
+    data.extend(_viz_pack_int(_viz_first(record, "dropoffPassengers", "dropoffBusPassengers", default=0)))
+    data.extend(_viz_pack_int(len(stop_zones)))
+    for stop_zone in stop_zones:
+        data.extend(_viz_pack_int(stop_zone, default=-1))
+    return data
+
+
+def _viz_vehicle_group_record_bytes(group_key, record, coord_scale, initial_x, initial_y):
+    if group_key == "vehicle":
+        return _viz_vehicle_record_bytes(record, coord_scale, initial_x, initial_y)
+    if group_key == "ev_private":
+        return _viz_private_ev_record_bytes(record, coord_scale, initial_x, initial_y)
+    if group_key in ("ev_occupied", "ev_relocation", "ev_charging"):
+        return _viz_etaxi_record_bytes(record, coord_scale, initial_x, initial_y)
+    if group_key == "bus":
+        return _viz_bus_record_bytes(record, coord_scale, initial_x, initial_y)
+    return bytearray()
+
+def _viz_record_int(record, *names, default=0):
+    return _viz_int(_viz_first(record, *names, default=default), default=default)
+
+
+def _viz_record_float(record, *names, default=0.0):
+    return _viz_float(_viz_first(record, *names, default=default), default=default)
+
+
+def _viz_link_record_bytes(record, road_id_index):
+    road_id = _viz_first(record, "ID", "roadID", "roadId", "originID", "origID", "orig_id", default=None)
+    index = None if road_id is None else road_id_index.get(str(road_id))
+    if index is None:
+        index = _viz_first(record, "roadIndex", "road_index", default=None)
+    if index is None:
+        return None
+
+    data = bytearray()
+    data.extend(_viz_pack_int(index))
+    data.extend(_viz_pack_int(_viz_record_int(record, "num_veh", "nVehicles", "count")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "speed", "avgSpeed", "meanSpeed")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "flow", "totalFlow")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "energy", "energy_consumed", "totalEnergy")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "parkingCapacity", "parking_capacity")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "parkedNum", "parked_num")))
+    return data
+
+
+def _viz_zone_record_bytes(record, coord_scale, initial_x, initial_y):
+    x = _viz_first(record, "x", "lon", "longitude", default=None)
+    y = _viz_first(record, "y", "lat", "latitude", default=None)
+    if x is None or y is None:
+        return None
+
+    data = bytearray()
+    data.extend(_viz_pack_int(_viz_record_int(record, "ID", "id", "zoneID", "zoneId", default=-1), default=-1))
+    data.extend(_viz_pack_int(_viz_scaled_coord(x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_record_int(record, "zoneType", "z_type")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "capacity")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "vehicleStock", "veh_stock")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiRequest", "taxi_demand")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "busRequest", "bus_demand")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "generatedTaxi")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "generatedBus")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "generatedPrivateEV")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "generatedPrivateGV")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "arrivedPrivateEV")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "arrivedPrivateGV")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiPickup", "pickupTaxiRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "busPickup", "pickupBusRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiServed", "dropoffTaxiRequests", "taxiDropoffRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "busServed", "dropoffBusRequests", "busDropoffRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "leftTaxiRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "leftBusRequests")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "leftTaxiPassengers")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "leftBusPassengers")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "relocatedVehicles")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "futureSupply")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "futureDemand")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "vehicleSurplus")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "vehicleDeficiency")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiServedWait", "taxiDropoffWait")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "busServedWait", "busDropoffWait")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiLeftWait")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "busLeftWait")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiParkingTime")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "taxiCruisingTime")))
+    return data
+
+
+def _viz_charging_station_record_bytes(record, coord_scale, initial_x, initial_y):
+    x = _viz_first(record, "x", "lon", "longitude", default=None)
+    y = _viz_first(record, "y", "lat", "latitude", default=None)
+    if x is None or y is None:
+        return None
+
+    data = bytearray()
+    data.extend(_viz_pack_int(_viz_record_int(record, "ID", "id", "stationID", "stationId", default=-1), default=-1))
+    data.extend(_viz_pack_int(_viz_scaled_coord(x, initial_x, coord_scale)))
+    data.extend(_viz_pack_int(_viz_scaled_coord(y, initial_y, coord_scale)))
+    data.extend(_viz_pack_int(_viz_record_int(record, "queueL2", "queue_l2")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "queueL3", "queue_dcfc")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "queueBus", "queue_bus")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "chargingL2", "charging_l2")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "chargingL3", "charging_dcfc")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "chargingBus", "charging_bus")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "freeL2", "num_available_l2")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "freeL3", "num_available_dcfc")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "freeBus", "num_available_bus")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "numL2", "l2_charger")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "numL3", "dcfc_charger")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "numBus", "bus_charger")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "chargedCar")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "chargedBus")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "priceL2", "l2_price")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "priceL3", "dcfc_price")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "waitingTimeL2")))
+    data.extend(_viz_pack_float(_viz_record_float(record, "waitingTimeL3")))
+    data.extend(_viz_pack_int(_viz_record_int(record, "active", default=1), default=1))
+    return data
+
+
+def _viz_sparse_group_bytes(records, encode_record, removed_ids=None):
+    encoded_records = []
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        encoded = encode_record(record)
+        if encoded is not None:
+            encoded_records.append(encoded)
+
+    data = bytearray()
+    data.extend(_viz_pack_int(len(encoded_records)))
+    for encoded in encoded_records:
+        data.extend(encoded)
+
+    valid_removed_ids = [item for item in (removed_ids or []) if item is not None]
+    data.extend(_viz_pack_int(len(valid_removed_ids)))
+    for removed_id in valid_removed_ids:
+        data.extend(_viz_pack_int(removed_id))
+    return data, len(encoded_records), len(valid_removed_ids)
+
+
+def _viz_link_and_facility_sections(link_records, road_id_index, zone_records,
+                                    charging_station_records, coord_scale,
+                                    initial_x, initial_y, removed_zone_ids=None,
+                                    removed_charging_station_ids=None):
+    road_id_index = road_id_index or {}
+    link_payloads = []
+    for record in link_records or []:
+        if not isinstance(record, dict):
+            continue
+        payload = _viz_link_record_bytes(record, road_id_index)
+        if payload is not None:
+            link_payloads.append(payload)
+
+    data = bytearray()
+    data.extend(_viz_pack_int(len(link_payloads)))
+    for payload in link_payloads:
+        data.extend(payload)
+
+    zone_data, zone_count, _ = _viz_sparse_group_bytes(
+        zone_records,
+        lambda record: _viz_zone_record_bytes(record, coord_scale, initial_x, initial_y),
+        removed_zone_ids,
+    )
+    charging_station_data, charging_station_count, _ = _viz_sparse_group_bytes(
+        charging_station_records,
+        lambda record: _viz_charging_station_record_bytes(record, coord_scale, initial_x, initial_y),
+        removed_charging_station_ids,
+    )
+    data.extend(zone_data)
+    data.extend(charging_station_data)
+    return data, len(link_payloads), zone_count, charging_station_count
+
+
+def _viz_chunk(records, tick, coord_scale, initial_x, initial_y, tick_interval,
+               link_snapshot_interval, link_records=None, road_id_index=None,
+               zone_records=None, charging_station_records=None,
+               removed_zone_ids=None, removed_charging_station_ids=None):
+    records = [record for record in records if _viz_stream_record(record)]
+    vehicle_groups = _viz_group_vehicle_records(records)
+    records = [
+        record
+        for group_key in _VIZ_STREAM_VEHICLE_FRAME_GROUPS
+        for record in vehicle_groups.get(group_key, [])
+    ]
+    private_ev_energy, etaxi_energy, ebus_energy = _viz_record_energy_by_class(records)
+
+    data = bytearray()
+    data.extend(_VIZ_STREAM_MAGIC)
+    data.extend(_viz_pack_int(_VIZ_STREAM_VERSION))
+    data.extend(_viz_pack_int(coord_scale))
+    data.extend(_viz_pack_double(initial_x))
+    data.extend(_viz_pack_double(initial_y))
+    data.extend(_viz_pack_int(tick_interval))
+    data.extend(_viz_pack_int(link_snapshot_interval))
+
+    data.extend(_viz_pack_int(tick))
+    data.extend(_viz_pack_int(_viz_sum(records, "matchedRequests", "taxiMatchedRequests", "busMatchedRequests")))
+    data.extend(_viz_pack_int(_viz_sum(records, "matchedPassengers", "matchedTaxiPassengers", "matchedBusPassengers")))
+    data.extend(_viz_pack_int(_viz_sum(records, "pickupRequests", "pickupTaxiRequests", "pickupBusRequests")))
+    data.extend(_viz_pack_int(_viz_sum(records, "pickupPassengers", "pickupTaxiPassengers", "pickupBusPassengers")))
+    data.extend(_viz_pack_int(_viz_sum(records, "dropoffRequests", "dropoffTaxiRequests", "dropoffBusRequests")))
+    data.extend(_viz_pack_int(_viz_sum(records, "dropoffPassengers", "dropoffTaxiPassengers", "dropoffBusPassengers")))
+    data.extend(_viz_pack_int(_viz_sum(records, "leftRequests", "leftTaxiRequests", "leftBusRequests")))
+    data.extend(_viz_pack_int(_viz_sum(records, "leftPassengers", "leftTaxiPassengers", "leftBusPassengers")))
+    data.extend(_viz_pack_float(private_ev_energy + etaxi_energy + ebus_energy))
+    data.extend(_viz_pack_int(len(records)))
+    data.extend(_viz_pack_float(_viz_mean_speed(records)))
+    data.extend(_viz_pack_float(private_ev_energy))
+    data.extend(_viz_pack_float(etaxi_energy))
+    data.extend(_viz_pack_float(ebus_energy))
+
+    for group_key in _VIZ_STREAM_VEHICLE_FRAME_GROUPS:
+        group_records = vehicle_groups.get(group_key, [])
+        data.extend(_viz_pack_int(len(group_records)))
+        for record in group_records:
+            data.extend(_viz_vehicle_group_record_bytes(
+                group_key,
+                record,
+                coord_scale,
+                initial_x,
+                initial_y,
+            ))
+
+    sections, link_count, zone_count, charging_station_count = _viz_link_and_facility_sections(
+        link_records,
+        road_id_index,
+        zone_records,
+        charging_station_records,
+        coord_scale,
+        initial_x,
+        initial_y,
+        removed_zone_ids=removed_zone_ids,
+        removed_charging_station_ids=removed_charging_station_ids,
+    )
+    data.extend(sections)
+    return bytes(data), len(records), link_count, zone_count, charging_station_count
 
 """
 Implementation of the remote data client
@@ -83,6 +660,19 @@ class METSRClient:
         self.viz_server = None
         self.viz_event = None
         self.viz_port = None
+
+        self.viz_stream_server = None
+        self.viz_stream_thread = None
+        self.viz_stream_stop_event = None
+        self.viz_stream_host = None
+        self.viz_stream_port = None
+        self.viz_stream_manifest = None
+        self.viz_stream_options = None
+        self.viz_stream_clients = []
+        self.viz_stream_lock = threading.Lock()
+        self.viz_stream_chunk_counter = 0
+        self.viz_stream_last_tick = None
+        self.viz_stream_last_active_road_ids = set()
  
         # Track the tick of the corresponding simulator
         self.current_tick = None
@@ -502,7 +1092,7 @@ class METSRClient:
               'y':       <float> network-CRS y coordinate (or lat if transform_coords=True),
               'z':       <float> elevation,
               'bearing': <float> heading in degrees (0 = north, clockwise),
-              'acc':     <float> current longitudinal acceleration (m/s²),
+              'acc':     <float> current longitudinal acceleration (m/sÂ²),
               'speed':   <float> current speed (m/s),
               'road':    <str>   SUMO road ID of the road the vehicle is on
                                  (only present when vehicle is on a road),
@@ -539,6 +1129,22 @@ class METSRClient:
         assert res["TYPE"] == "ANS_vehicle", res["TYPE"]
         return res
  
+    def query_on_road_vehicles(self, roadID=None):
+        """Query IDs for vehicles currently on active roads, optionally by road."""
+        msg = {"TYPE": "QUERY_onRoadVehicles"}
+        if roadID is not None:
+            msg["DATA"] = roadID
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] in ("ANS_onRoadVehicles", "ANS_onRoadVehicle"), res["TYPE"]
+        return res
+
+    def query_active_roads(self):
+        """Query compact records for roads currently in the active-road index."""
+        msg = {"TYPE": "QUERY_activeRoads"}
+        res = self.send_receive_msg(msg, ignore_heartbeats=True)
+        assert res["TYPE"] in ("ANS_activeRoads", "ANS_activeRoad"), res["TYPE"]
+        return res
+    
     def query_taxi(self, id = None):
         """Query the state of one or more e-taxis.
 
@@ -551,20 +1157,20 @@ class METSRClient:
             {
               'ID':       <int>   internal vehicle ID,
               'state':    <int>   operational state:
-                                   0 = PARKING        – parked at a zone, waiting for a request
-                                   1 = OCCUPIED_TRIP  – carrying passenger(s) to drop-off
-                                   2 = INACCESSIBLE_RELOCATION_TRIP – repositioning, not assignable
-                                   4 = CHARGING_TRIP  – heading to a charging station
-                                   5 = CRUISING_TRIP  – cruising without a passenger
-                                   6 = PICKUP_TRIP    – en-route to pick up a passenger
-                                   7 = ACCESSIBLE_RELOCATION_TRIP – repositioning but still assignable
-                                   -1 = NONE_OF_THE_ABOVE – not on network, idle, or in an unrecognized state
+                                   0 = PARKING        â€“ parked at a zone, waiting for a request
+                                   1 = OCCUPIED_TRIP  â€“ carrying passenger(s) to drop-off
+                                   2 = INACCESSIBLE_RELOCATION_TRIP â€“ repositioning, not assignable
+                                   4 = CHARGING_TRIP  â€“ heading to a charging station
+                                   5 = CRUISING_TRIP  â€“ cruising without a passenger
+                                   6 = PICKUP_TRIP    â€“ en-route to pick up a passenger
+                                   7 = ACCESSIBLE_RELOCATION_TRIP â€“ repositioning but still assignable
+                                   -1 = NONE_OF_THE_ABOVE â€“ not on network, idle, or in an unrecognized state
               'x':        <float> network-CRS x coordinate,
               'y':        <float> network-CRS y coordinate,
               'z':        <float> elevation,
               'origin':   <int>   current origin zone ID,
               'dest':     <int>   current destination zone ID
-                                  (negative → heading to a charging station),
+                                  (negative â†’ heading to a charging station),
               'pass_num': <int>   number of passengers currently on board,
               'remainingDistance': <float> remaining active-trip distance in meters,
               'remainingDistanceMiles': <float> remaining active-trip distance in miles,
@@ -629,9 +1235,6 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_almostFinishedTaxis", res["TYPE"]
         return res
-
-    queryAlmostFinishedTaxis = query_almost_finished_taxis
-    query_almostFinishedTaxis = query_almost_finished_taxis
          
     def query_bus(self, id = None):
         """Query the state of one or more electric buses.
@@ -740,9 +1343,6 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_coSimEnteringVehicleQueue", res["TYPE"]
         return res
-
-    query_coSim_entering_vehicle_queue = query_cosim_entering_vehicle_queue
-    query_cosim_enteringVehicleQueue = query_cosim_entering_vehicle_queue
     
     def query_centerline(self, id, lane_index = -1, transform_coords = False):
         """Query the geometric center-line of a road or a specific lane.
@@ -876,9 +1476,6 @@ class METSRClient:
         assert res["TYPE"] == "ANS_pickupTaxiInfo", res["TYPE"]
         return res
 
-    queryPickupTaxiInfo = query_pickup_taxi_info
-    query_pickupTaxiInfo = query_pickup_taxi_info
-
     def query_occupied_taxi_info(self, reqID=None):
         """Query taxi requests that are already on board a taxi.
 
@@ -892,9 +1489,6 @@ class METSRClient:
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
         assert res["TYPE"] == "ANS_occupiedTaxiInfo", res["TYPE"]
         return res
-
-    queryOccupiedTaxiInfo = query_occupied_taxi_info
-    query_occupiedTaxiInfo = query_occupied_taxi_info
 
     def query_signal(self, id = None):
         """Query the phase state of one or more traffic signals.
@@ -920,9 +1514,9 @@ class METSRClient:
 
         Notes
         -----
-        Phase cycle order is always Green → Yellow → Red → Green.
+        Phase cycle order is always Green â†’ Yellow â†’ Red â†’ Green.
         Each tick corresponds to ``GlobalVariables.SIMULATION_STEP_SIZE`` seconds
-        (typically 0.5 s, so multiply ticks × 0.5 to get seconds).
+        (typically 0.5 s, so multiply ticks Ã— 0.5 to get seconds).
 
         Use :meth:`query_signal_group` to map a SUMO junction ID to the list of
         individual signal IDs it contains.
@@ -1066,12 +1660,12 @@ class METSRClient:
 
             {
               'ID':        <int>   vehicle ID
-                                    – for private vehicles (EV/GV) this is the
+                                    â€“ for private vehicles (EV/GV) this is the
                                       *external* private-vehicle ID
-                                    – for public vehicles (taxi/bus) this is the
+                                    â€“ for public vehicles (taxi/bus) this is the
                                       internal simulation ID,
-              'v_type':    <bool>  True  → private vehicle (EV / GV)
-                                   False → public vehicle (taxi / bus),
+              'v_type':    <bool>  True  â†’ private vehicle (EV / GV)
+                                   False â†’ public vehicle (taxi / bus),
               'coord_map': <list>  recent coordinate history (up to 6 entries),
                                    each entry is [x, y, z, bearing, speed],
               'route':     <list>  list of upcoming road orig-IDs in the vehicle's
@@ -1851,8 +2445,6 @@ class METSRClient:
         assert res["TYPE"] == "CTRL_goParking", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
-
-    goParking = go_parking
     
     def add_taxi_requests(self, zoneID, dest, num, max_waiting_time = None, maxWaitingTime = None):
         """Add one or more pending taxi requests.
@@ -2130,8 +2722,6 @@ class METSRClient:
         assert res["TYPE"] == "CTRL_updateRoadParkingCapacity", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
         return res
-
-    updateRoadParkingCapacity = update_road_parking_capacity
     
     # update charging station prices
     def update_charging_prices(self, stationID, stationType, price):
@@ -2517,11 +3107,11 @@ class METSRClient:
 
         # if viz is running, stop and restart it
         if self.viz_server is not None:
-            self.stop_viz()
+            self.stop_offline_viz()
 
-            time.sleep(1) # wait for five secs if start viz
+            time.sleep(1)
 
-            self.start_viz()
+            self.start_offline_viz()
 
     # save the simulation instance to zip
     def save(self, filename):
@@ -2575,8 +3165,607 @@ class METSRClient:
             self.state = "closed"
 
         if self.viz_server is not None:
-            self.stop_viz()
+            self.stop_offline_viz()
 
+        if self.viz_stream_server is not None:
+            self.stop_viz_stream()
+
+
+    def _query_viz_road_dictionary(self):
+        try:
+            response = self.query_road()
+        except Exception:
+            return []
+        ids = response.get("orig_id") or response.get("id_list") or []
+        return sorted(str(road_id) for road_id in ids if road_id is not None)
+
+    def _query_viz_zone_dictionary(self):
+        try:
+            response = self.query_zone()
+        except Exception:
+            return []
+        return [zone_id for zone_id in (response.get("id_list") or []) if zone_id is not None]
+
+    def _query_viz_charging_station_dictionary(self):
+        try:
+            response = self.query_chargingStation()
+        except Exception:
+            return []
+        return [station_id for station_id in (response.get("id_list") or []) if station_id is not None]
+
+    def _query_viz_records_by_ids(self, query_func, ids, batch_size=1000):
+        ids = [item for item in (ids or []) if item is not None]
+        if not ids:
+            return []
+
+        records = []
+        batch_size = max(1, int(batch_size or 1))
+        for start in range(0, len(ids), batch_size):
+            batch_ids = ids[start:start + batch_size]
+            try:
+                response = query_func(id=batch_ids)
+            except Exception:
+                continue
+            if response.get("CODE") == "KO":
+                continue
+            for record in response.get("DATA", []):
+                if isinstance(record, dict):
+                    records.append(record)
+        return records
+
+    def _query_viz_active_road_ids(self):
+        try:
+            response = self.query_active_roads()
+        except Exception:
+            return []
+        if response.get("CODE") == "KO":
+            return []
+
+        ids = response.get("orig_id") or response.get("id_list") or []
+        if not ids:
+            ids = [
+                _viz_first(record, "ID", "originID", "roadID", "origID", default=None)
+                for record in response.get("DATA", [])
+                if isinstance(record, dict)
+            ]
+        return [str(road_id) for road_id in ids if road_id is not None]
+
+    def _viz_clear_link_record(self, road_id):
+        return {
+            "ID": road_id,
+            "originID": road_id,
+            "num_veh": 0,
+            "nVehicles": 0,
+            "speed": 0.0,
+            "flow": 0,
+            "energy": 0.0,
+            "energy_consumed": 0.0,
+            "parkingCapacity": 0,
+            "parking_capacity": 0,
+            "parkedNum": 0,
+            "parked_num": 0,
+        }
+
+    def _query_viz_link_records(self, active_road_ids=None, batch_size=1000):
+        if active_road_ids is None:
+            active_road_ids = self._query_viz_active_road_ids()
+        active_road_ids = [str(road_id) for road_id in (active_road_ids or []) if road_id is not None]
+        active_id_set = set(active_road_ids)
+        previous_id_set = set(getattr(self, "viz_stream_last_active_road_ids", set()) or set())
+        query_ids = sorted(active_id_set | previous_id_set)
+        records = self._query_viz_records_by_ids(
+            self.query_road,
+            query_ids,
+            batch_size=batch_size,
+        )
+        returned_ids = {
+            str(_viz_first(record, "ID", "originID", "roadID", "origID", default=""))
+            for record in records
+            if isinstance(record, dict)
+        }
+        for road_id in sorted(previous_id_set - active_id_set - returned_ids):
+            records.append(self._viz_clear_link_record(road_id))
+        self.viz_stream_last_active_road_ids = active_id_set
+        return records
+
+    def _query_viz_zone_records(self, zone_dictionary=None, batch_size=1000):
+        ids = list(zone_dictionary or self._query_viz_zone_dictionary())
+        return self._query_viz_records_by_ids(
+            self.query_zone,
+            ids,
+            batch_size=batch_size,
+        )
+
+    def _query_viz_charging_station_records(self, charging_station_dictionary=None,
+                                            batch_size=1000):
+        ids = list(charging_station_dictionary or self._query_viz_charging_station_dictionary())
+        return self._query_viz_records_by_ids(
+            self.query_chargingStation,
+            ids,
+            batch_size=batch_size,
+        )
+
+    def _query_viz_stream_vehicle_records(
+            self,
+            transform_coords=True,
+            include_public=True,
+            include_private=True,
+            vehicle_ids=None,
+            private_veh=False,
+            public_vehicle_ids=None,
+            private_vehicle_ids=None,
+            batch_size=1000,
+            road_ids=None):
+        query_groups = []
+
+        def add_query_group(group_ids, private_flag):
+            group_ids = list(group_ids or [])
+            if group_ids:
+                query_groups.append((group_ids, bool(private_flag)))
+
+        if private_vehicle_ids is not None:
+            add_query_group(_as_list(private_vehicle_ids), True)
+        if public_vehicle_ids is not None:
+            add_query_group(_as_list(public_vehicle_ids), False)
+        if vehicle_ids is not None:
+            vehicle_id_list = _as_list(vehicle_ids)
+            private_flags = _broadcast(private_veh, len(vehicle_id_list))
+            add_query_group(
+                [veh_id for veh_id, flag in zip(vehicle_id_list, private_flags) if bool(flag)],
+                True,
+            )
+            add_query_group(
+                [veh_id for veh_id, flag in zip(vehicle_id_list, private_flags) if not bool(flag)],
+                False,
+            )
+
+        if not query_groups:
+            try:
+                fleet = self.query_on_road_vehicles(roadID=road_ids)
+            except Exception:
+                return []
+            if not isinstance(fleet, dict) or fleet.get("CODE") == "KO":
+                return []
+            if fleet.get("DATA"):
+                private_ids = []
+                public_ids = []
+                for road_record in fleet.get("DATA", []):
+                    if isinstance(road_record, dict) and road_record.get("STATUS") != "KO":
+                        private_ids.extend(road_record.get("private_vids") or [])
+                        public_ids.extend(road_record.get("public_vids") or [])
+                fleet = {
+                    "private_vids": list(dict.fromkeys(private_ids)),
+                    "public_vids": list(dict.fromkeys(public_ids)),
+                }
+            if include_private:
+                add_query_group(fleet.get("private_vids") or [], True)
+            if include_public:
+                add_query_group(fleet.get("public_vids") or [], False)
+
+        if not query_groups:
+            return []
+
+        records = []
+        batch_size = max(1, int(batch_size or 1))
+        for group_ids, private_flag in query_groups:
+            for start in range(0, len(group_ids), batch_size):
+                batch_ids = group_ids[start:start + batch_size]
+                try:
+                    response = self.query_vehicle(
+                        id=batch_ids,
+                        private_veh=[private_flag] * len(batch_ids),
+                        transform_coords=transform_coords,
+                    )
+                except Exception:
+                    continue
+                if response.get("CODE") == "KO":
+                    continue
+                for record in response.get("DATA", []):
+                    if _viz_stream_record(record):
+                        record = dict(record)
+                        record["_viz_private_veh"] = bool(private_flag)
+                        records.append(record)
+        return records
+
+    def _wait_for_viz_stream_server(self, host, server_port, startup_timeout=3):
+        connect_host = host if host not in ("", "0.0.0.0", "::") else "127.0.0.1"
+        uri = f"ws://{connect_host}:{int(server_port)}"
+        deadline = time.time() + max(0.1, float(startup_timeout or 0.1))
+        last_error = None
+        while time.time() <= deadline:
+            try:
+                with socket.create_connection((connect_host, int(server_port)), timeout=0.5):
+                    return
+            except Exception as exc:
+                last_error = exc
+                time.sleep(0.1)
+        raise RuntimeError(
+            f"METS-R Vis stream server did not become reachable at {uri}"
+        ) from last_error
+
+    def _viz_stream_url(self):
+        connect_host = (
+            self.viz_stream_host
+            if self.viz_stream_host not in (None, "", "0.0.0.0", "::")
+            else "127.0.0.1"
+        )
+        server_port = self.viz_stream_port if self.viz_stream_port is not None else 8765
+        return f"ws://{connect_host}:{int(server_port)}"
+
+    def _viz_stream_no_client_error(self, wait_seconds=0):
+        url = self._viz_stream_url()
+        waited = (
+            f" within {wait_seconds:g} seconds"
+            if wait_seconds and wait_seconds > 0
+            else ""
+        )
+        return (
+            f"No METS-R Vis client connected to the live stream at {url}{waited}, "
+            "so render() cannot deliver a frame.\n"
+            "Fix: open https://engineering.purdue.edu/HSEES/METSRVis/ in a browser, "
+            "click Stream, set the WebSocket URL to the URL printed by start_viz() "
+            f"({url}), and then run render() again.\n"
+            "If the browser is on another machine, restart the stream with "
+            f"start_viz(host='0.0.0.0', server_port={int(self.viz_stream_port or 8765)}) "
+            "and connect METS-R Vis to ws://<this-machine-ip>:"
+            f"{int(self.viz_stream_port or 8765)}."
+        )
+
+    def _wait_for_viz_stream_client(self, client_wait_timeout=5):
+        try:
+            wait_seconds = max(0.0, float(client_wait_timeout or 0.0))
+        except (TypeError, ValueError):
+            wait_seconds = 0.0
+        if wait_seconds != wait_seconds or wait_seconds in (float("inf"), float("-inf")):
+            wait_seconds = 0.0
+        deadline = time.time() + wait_seconds
+        while True:
+            with self.viz_stream_lock:
+                client_count = len(self.viz_stream_clients)
+            if client_count > 0:
+                return client_count
+            if wait_seconds == 0 or time.time() >= deadline:
+                raise RuntimeError(self._viz_stream_no_client_error(wait_seconds))
+            time.sleep(min(0.1, max(0.0, deadline - time.time())))
+
+    def _serve_viz_stream_connection(self, websocket, stop_event, manifest):
+        try:
+            websocket.send(json.dumps({"type": "manifest", "manifest": manifest}))
+            with self.viz_stream_lock:
+                if websocket not in self.viz_stream_clients:
+                    self.viz_stream_clients.append(websocket)
+
+            while not stop_event.is_set():
+                try:
+                    websocket.recv(timeout=0.5)
+                except TimeoutError:
+                    continue
+                except Exception:
+                    break
+        finally:
+            with self.viz_stream_lock:
+                if websocket in self.viz_stream_clients:
+                    self.viz_stream_clients.remove(websocket)
+
+    def start_viz(
+            self,
+            server_port=8765,
+            host="127.0.0.1",
+            tick_interval=1,
+            transform_coords=False,
+            include_public=True,
+            include_private=True,
+            vehicle_ids=None,
+            private_veh=False,
+            public_vehicle_ids=None,
+            private_vehicle_ids=None,
+            batch_size=1000,
+            coord_scale=_VIZ_STREAM_DEFAULT_COORD_SCALE,
+            initial_x=None,
+            initial_y=None,
+            link_snapshot_interval=1,
+            road_id_dictionary=None,
+            zone_dictionary=None,
+            charging_station_dictionary=None,
+            include_links=True,
+            include_zones=False,
+            include_charging_stations=False,
+            link_batch_size=1000,
+            facility_batch_size=1000,
+            startup_timeout=3):
+        """Start a live METS-R Vis WebSocket stream.
+
+        This only opens the WebSocket server and sends the VIS binary manifest
+        to each connected browser. Call :meth:`render` whenever you want to
+        query METS-R and push a new frame into METSR_VIS.
+
+        If `initial_x` and `initial_y` are omitted, they are read from
+        `sim_folder/data/Data.properties` so the live stream uses the same
+        origin as the run config prepared for METS-R.
+        """
+        try:
+            from websockets.sync.server import serve
+        except ImportError as exc:
+            raise RuntimeError(
+                "start_viz requires the 'websockets' package from requirements.txt."
+            ) from exc
+
+        tick_interval = max(1, int(tick_interval))
+        coord_scale = max(1, int(coord_scale))
+        link_snapshot_interval = max(1, int(link_snapshot_interval))
+        link_batch_size = max(1, int(link_batch_size or 1))
+        facility_batch_size = max(1, int(facility_batch_size or 1))
+        include_links = bool(include_links)
+        include_zones = bool(include_zones)
+        include_charging_stations = bool(include_charging_stations)
+        initial_x, initial_y = _viz_resolve_origin(self.sim_folder, initial_x, initial_y)
+
+        if road_id_dictionary is None:
+            road_id_dictionary = self._query_viz_road_dictionary() if include_links else []
+        elif road_id_dictionary == "query":
+            road_id_dictionary = self._query_viz_road_dictionary()
+        if zone_dictionary is None:
+            zone_dictionary = self._query_viz_zone_dictionary() if include_zones else []
+        elif zone_dictionary == "query":
+            zone_dictionary = self._query_viz_zone_dictionary()
+        if charging_station_dictionary is None:
+            charging_station_dictionary = (
+                self._query_viz_charging_station_dictionary()
+                if include_charging_stations else []
+            )
+        elif charging_station_dictionary == "query":
+            charging_station_dictionary = self._query_viz_charging_station_dictionary()
+
+        road_id_dictionary = list(road_id_dictionary or [])
+        zone_dictionary = list(zone_dictionary or [])
+        charging_station_dictionary = list(charging_station_dictionary or [])
+        manifest = _viz_manifest(
+            road_id_dictionary,
+            coord_scale,
+            initial_x,
+            initial_y,
+            tick_interval,
+            link_snapshot_interval,
+            zone_dictionary=zone_dictionary,
+            charging_station_dictionary=charging_station_dictionary,
+        )
+
+        if self.viz_stream_server is not None:
+            self.stop_viz_stream()
+
+        stop_event = threading.Event()
+        options = {
+            "tick_interval": tick_interval,
+            "transform_coords": bool(transform_coords),
+            "include_public": bool(include_public),
+            "include_private": bool(include_private),
+            "vehicle_ids": vehicle_ids,
+            "private_veh": private_veh,
+            "public_vehicle_ids": public_vehicle_ids,
+            "private_vehicle_ids": private_vehicle_ids,
+            "batch_size": batch_size,
+            "coord_scale": coord_scale,
+            "initial_x": float(initial_x),
+            "initial_y": float(initial_y),
+            "link_snapshot_interval": link_snapshot_interval,
+            "include_links": include_links,
+            "include_zones": include_zones,
+            "include_charging_stations": include_charging_stations,
+            "link_batch_size": link_batch_size,
+            "facility_batch_size": facility_batch_size,
+            "road_id_dictionary": road_id_dictionary,
+            "road_id_index": {
+                str(road_id): index
+                for index, road_id in enumerate(road_id_dictionary)
+            },
+            "zone_dictionary": zone_dictionary,
+            "charging_station_dictionary": charging_station_dictionary,
+        }
+
+        def handler(websocket):
+            self._serve_viz_stream_connection(websocket, stop_event, manifest)
+
+        server = serve(handler, host, int(server_port))
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+
+        self.viz_stream_server = server
+        self.viz_stream_thread = server_thread
+        self.viz_stream_stop_event = stop_event
+        self.viz_stream_host = host
+        self.viz_stream_port = int(server_port)
+        self.viz_stream_manifest = manifest
+        self.viz_stream_options = options
+        self.viz_stream_chunk_counter = 0
+        self.viz_stream_last_tick = None
+        self.viz_stream_last_active_road_ids = set()
+        with self.viz_stream_lock:
+            self.viz_stream_clients = []
+
+        try:
+            self._wait_for_viz_stream_server(host, server_port, startup_timeout=startup_timeout)
+        except Exception:
+            self.stop_viz_stream()
+            raise
+
+        connect_host = host if host not in ("", "0.0.0.0", "::") else "127.0.0.1"
+        url = f"ws://{connect_host}:{int(server_port)}"
+        print(f"METS-R Vis live stream is available at {url}; origin=({initial_x}, {initial_y}); call render() to send frames.")
+        return {
+            "host": host,
+            "port": int(server_port),
+            "url": url,
+            "manifest": manifest,
+            "initial_x": float(initial_x),
+            "initial_y": float(initial_y),
+            "mode": "live",
+        }
+
+    def _send_viz_stream_messages(self, *messages):
+        with self.viz_stream_lock:
+            clients = list(self.viz_stream_clients)
+
+        stale_clients = []
+        sent_clients = 0
+        for websocket in clients:
+            try:
+                for message in messages:
+                    websocket.send(message)
+                sent_clients += 1
+            except Exception:
+                stale_clients.append(websocket)
+
+        if stale_clients:
+            with self.viz_stream_lock:
+                for websocket in stale_clients:
+                    if websocket in self.viz_stream_clients:
+                        self.viz_stream_clients.remove(websocket)
+        return sent_clients
+
+    def render(self, client_wait_timeout=5):
+        """Query the current METS-R tick and push one frame to METSR_VIS.
+
+        Raises if no METS-R Vis client connects within client_wait_timeout seconds.
+        """
+        if self.viz_stream_server is None or self.viz_stream_manifest is None:
+            raise RuntimeError("Call start_viz() before render().")
+
+        self._wait_for_viz_stream_client(client_wait_timeout=client_wait_timeout)
+        options = dict(self.viz_stream_options or {})
+        tick = int(self.query_tick())
+
+        first_stream_chunk = self.viz_stream_chunk_counter == 0
+        include_link_snapshot = (
+            options["include_links"]
+            and (first_stream_chunk or tick % options["link_snapshot_interval"] == 0)
+        )
+        active_road_ids = self._query_viz_active_road_ids() if options["include_links"] else None
+        records = self._query_viz_stream_vehicle_records(
+            transform_coords=options["transform_coords"],
+            include_public=options["include_public"],
+            include_private=options["include_private"],
+            vehicle_ids=options["vehicle_ids"],
+            private_veh=options["private_veh"],
+            public_vehicle_ids=options["public_vehicle_ids"],
+            private_vehicle_ids=options["private_vehicle_ids"],
+            batch_size=options["batch_size"],
+            road_ids=active_road_ids,
+        )
+        vehicle_group_counts = {
+            group_key: len(group_records)
+            for group_key, group_records in _viz_group_vehicle_records(records).items()
+        }
+        link_records = (
+            self._query_viz_link_records(
+                active_road_ids=active_road_ids,
+                batch_size=options["link_batch_size"],
+            )
+            if include_link_snapshot else []
+        )
+        zone_records = (
+            self._query_viz_zone_records(
+                options["zone_dictionary"],
+                batch_size=options["facility_batch_size"],
+            )
+            if options["include_zones"] else []
+        )
+        charging_station_records = (
+            self._query_viz_charging_station_records(
+                options["charging_station_dictionary"],
+                batch_size=options["facility_batch_size"],
+            )
+            if options["include_charging_stations"] else []
+        )
+        chunk, vehicle_count, link_count, zone_count, charging_station_count = _viz_chunk(
+            records,
+            tick,
+            options["coord_scale"],
+            options["initial_x"],
+            options["initial_y"],
+            options["tick_interval"],
+            options["link_snapshot_interval"],
+            link_records=link_records,
+            road_id_index=options["road_id_index"],
+            zone_records=zone_records,
+            charging_station_records=charging_station_records,
+        )
+        self.viz_stream_chunk_counter += 1
+        chunk_meta = {
+            "file": f"stream-{tick}-{self.viz_stream_chunk_counter}.bin",
+            "firstTick": tick,
+            "lastTick": tick,
+            "tickCount": 1,
+            "vehicleCount": vehicle_count,
+            "vehicleGroupCounts": vehicle_group_counts,
+            "linkCount": link_count,
+            "zoneUpdateCount": zone_count,
+            "chargingStationUpdateCount": charging_station_count,
+            "closed": True,
+        }
+
+        messages = []
+        if self.viz_stream_last_tick is not None and tick < self.viz_stream_last_tick:
+            messages.append(json.dumps({"type": "reset"}))
+            messages.append(json.dumps({"type": "manifest", "manifest": self.viz_stream_manifest}))
+        messages.append(json.dumps({"type": "chunkMeta", "chunk": chunk_meta}))
+        messages.append(chunk)
+
+        client_count = self._send_viz_stream_messages(*messages)
+        if client_count == 0:
+            raise RuntimeError(
+                self._viz_stream_no_client_error(0)
+                + "\nA client was connected when render() started, but it disconnected before the frame was sent."
+            )
+        self.viz_stream_last_tick = tick
+        return {
+            "tick": tick,
+            "vehicle_count": vehicle_count,
+            "vehicle_group_counts": vehicle_group_counts,
+            "link_count": link_count,
+            "zone_update_count": zone_count,
+            "charging_station_update_count": charging_station_count,
+            "client_count": client_count,
+            "chunk": chunk_meta,
+        }
+
+    def stop_viz_stream(self, join_timeout=2.0):
+        if self.viz_stream_stop_event is not None:
+            self.viz_stream_stop_event.set()
+
+        with self.viz_stream_lock:
+            clients = list(self.viz_stream_clients)
+            self.viz_stream_clients = []
+        for websocket in clients:
+            close = getattr(websocket, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:
+                    pass
+
+        server = self.viz_stream_server
+        if server is not None:
+            shutdown = getattr(server, "shutdown", None)
+            close = getattr(server, "close", None)
+            if callable(shutdown):
+                shutdown()
+            elif callable(close):
+                close()
+
+
+        if self.viz_stream_thread is not None:
+            self.viz_stream_thread.join(timeout=join_timeout)
+
+        self.viz_stream_server = None
+        self.viz_stream_thread = None
+        self.viz_stream_stop_event = None
+        self.viz_stream_host = None
+        self.viz_stream_port = None
+        self.viz_stream_manifest = None
+        self.viz_stream_options = None
+        self.viz_stream_chunk_counter = 0
+        self.viz_stream_last_tick = None
+        self.viz_stream_last_active_road_ids = set()
 
     def latest_trajectory_output_dir(self, trajectory_output_dir=None, prefer_binary=True, wait_seconds=0):
         """Return the newest trajectory output directory for visualization.
@@ -2588,6 +3777,7 @@ class METSRClient:
         """
         if not self.sim_folder:
             raise ValueError("sim_folder is required to locate trajectory output")
+        wait_seconds = max(0.0, float(wait_seconds or 0))
 
         if trajectory_output_dir is not None:
             roots = [_resolve_trajectory_root(self.sim_folder, trajectory_output_dir)]
@@ -2613,7 +3803,7 @@ class METSRClient:
                 return max(candidates, key=os.path.getmtime)
 
             if wait_seconds <= 0 or time.time() >= deadline:
-                roots_text = ", ".join(root for root in roots if root)
+                roots_text = ", ".join(str(root) for root in roots if root)
                 raise FileNotFoundError(
                     "No trajectory output directory found under " + roots_text
             )
@@ -2669,31 +3859,88 @@ class METSRClient:
             "has_split_energy_fields": False,
         }
 
-    # open visualization server
-    def start_viz(self, trajectory_output_dir=None, server_port=8000, prefer_binary=True, wait_seconds=0):
-        latest_directory = self.latest_trajectory_output_dir(
-            trajectory_output_dir=trajectory_output_dir,
-            prefer_binary=prefer_binary,
-            wait_seconds=wait_seconds,
-        )
+    def _wait_for_viz_server(self, server_port, startup_timeout=3):
+        deadline = time.time() + max(0.1, float(startup_timeout or 0.1))
+        last_error = None
+        while time.time() <= deadline:
+            try:
+                with socket.create_connection(("127.0.0.1", int(server_port)), timeout=0.5):
+                    return
+            except OSError as exc:
+                last_error = exc
+                time.sleep(0.1)
+        raise RuntimeError(
+            f"Visualization server did not become reachable at http://127.0.0.1:{server_port}/"
+        ) from last_error
+
+    # open visualization server for existing trajectory files
+    def start_offline_viz(
+            self,
+            trajectory_output_dir=None,
+            server_port=8000,
+            prefer_binary=True,
+            wait_seconds=30,
+            startup_timeout=3):
+        if trajectory_output_dir is not None:
+            if os.path.isabs(str(trajectory_output_dir)):
+                latest_directory = os.path.normpath(str(trajectory_output_dir))
+            elif os.path.isdir(str(trajectory_output_dir)):
+                latest_directory = os.path.abspath(str(trajectory_output_dir))
+            elif self.sim_folder:
+                latest_directory = _resolve_trajectory_root(self.sim_folder, trajectory_output_dir)
+            else:
+                latest_directory = os.path.abspath(str(trajectory_output_dir))
+
+            if not os.path.isdir(latest_directory):
+                raise FileNotFoundError("Trajectory output directory does not exist: " + latest_directory)
+            if _read_trajectory_manifest(latest_directory) is None:
+                raise FileNotFoundError(
+                    "No manifest.json found directly inside trajectory output directory: "
+                    + latest_directory
+                )
+        else:
+            latest_directory = self.latest_trajectory_output_dir(
+                trajectory_output_dir=None,
+                prefer_binary=prefer_binary,
+                wait_seconds=wait_seconds,
+            )
 
         if self.viz_server is not None:
-            self.stop_viz()
+            self.stop_offline_viz()
 
         print(
-            f"Starting visualization server for {_trajectory_format_name(latest_directory)} "
+            f"Starting offline visualization server for {_trajectory_format_name(latest_directory)} "
             f"trajectory output: {latest_directory}"
         )
         self.viz_event, self.viz_server = run_visualization_server(latest_directory, server_port)
         self.viz_port = server_port
+        try:
+            self._wait_for_viz_server(server_port, startup_timeout=startup_timeout)
+        except Exception:
+            self.stop_offline_viz()
+            raise
+        print(f"Visualization files are available at http://127.0.0.1:{server_port}/")
+        return {
+            "directory": latest_directory,
+            "port": server_port,
+            "url": f"http://127.0.0.1:{server_port}/",
+            "manifest_url": f"http://127.0.0.1:{server_port}/manifest.json",
+            "mode": "offline",
+        }
 
-    def stop_viz(self):
+    def stop_offline_viz(self):
         if self.viz_server is not None:
             stop_visualization_server(self.viz_event, self.viz_server, self.viz_port or 8000)
         self.viz_event = None
         self.viz_server = None
         self.viz_port = None
-    
+
+    def stop_viz(self):
+        if self.viz_stream_server is not None:
+            self.stop_viz_stream()
+        if self.viz_server is not None:
+            self.stop_offline_viz()
+
     def _logMessage(self, direction, msg):
         self._messagesLog.append(
             (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), direction, tuple(msg.items()))

@@ -15,7 +15,7 @@ import sys
 import zipfile
 import threading
 from threading import Event
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime
 
 
@@ -572,16 +572,18 @@ def run_simulation_in_docker(options):
         if options.verbose:
             print("Container ID:", result.stdout)
             # print("Error msg:", result.stderr)
+        # container_id = result.stdout.strip()
         container_id = result.stdout.strip()
         os.chdir(cwd)
         return container_id
-        # os.chdir(cwd)
 
 # ---------------------------------------------------------------------------
 # Visualization server helpers
 # ---------------------------------------------------------------------------
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+
     def __init__(self, *args, directory=None, **kwargs):
             self.custom_directory = directory
             super().__init__(*args, directory=directory, **kwargs)
@@ -590,23 +592,38 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        if self.path.rstrip('/').endswith('manifest.json'):
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
         super().end_headers()
     
     def do_OPTIONS(self):
         self.send_response(200, "ok")
         self.end_headers()
 
+
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+    request_queue_size = 64
+
+
 def start_cors_http_server(directory, stop_event, port=8000):
     """Start a CORS-enabled HTTP server for the specified directory."""
     handler_class = lambda *args, **kwargs: CORSRequestHandler(*args, directory=directory, **kwargs)
     server_address = ('', port)
-    httpd = HTTPServer(server_address, handler_class)
+    httpd = ReusableThreadingHTTPServer(server_address, handler_class)
+    httpd.timeout = 0.5
 
     def run_server():
-        while not stop_event.is_set():
-            httpd.handle_request()
+        try:
+            httpd.serve_forever(poll_interval=0.2)
+        finally:
+            httpd.server_close()
     
     server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.httpd = httpd
     server_thread.start()
     return server_thread
 
@@ -629,18 +646,168 @@ def run_visualization_server(data_folder, server_port = 8000):
 
     return stop_event, server_thread
 
-def stop_visualization_server(stop_event, server_thread, port=8000):
+def stop_visualization_server(stop_event, server_thread, port=8000, join_timeout=2.0):
     stop_event.set()
+    httpd = getattr(server_thread, "httpd", None)
+    if httpd is not None:
+        httpd.shutdown()
 
     # Send dummy request to unblock handle_request()
-    try:
-        with socket.create_connection(("localhost", port), timeout=1) as sock:
-            sock.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
-    except Exception as e:
-        print(f"Dummy request to unblock server failed (probably fine): {e}")
+    if httpd is None:
+        try:
+            with socket.create_connection(("localhost", port), timeout=1) as sock:
+                sock.sendall(b"HEAD / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        except Exception:
+            pass
 
-    server_thread.join()
-    print("Visualization server stopped.")
+    server_thread.join(timeout=join_timeout)
+    if server_thread.is_alive():
+        print(f"Visualization server thread did not stop within {join_timeout:.1f} seconds.")
+    else:
+        print("Visualization server stopped.")
+
+
+def _simulation_folder_from_config(config, sim_index=0, output_root="output"):
+    sim_dirs = getattr(config, "sim_dirs", None)
+    if sim_dirs:
+        try:
+            return sim_dirs[sim_index]
+        except IndexError as exc:
+            raise IndexError(
+                f"sim_index {sim_index} is outside config.sim_dirs with {len(sim_dirs)} entries"
+            ) from exc
+
+    sim_folder = getattr(config, "sim_folder", None)
+    if sim_folder:
+        if isinstance(sim_folder, (list, tuple)):
+            try:
+                return sim_folder[sim_index]
+            except IndexError as exc:
+                raise IndexError(
+                    f"sim_index {sim_index} is outside config.sim_folder with {len(sim_folder)} entries"
+                ) from exc
+        return sim_folder
+
+    sim_dir = getattr(config, "sim_dir", None)
+    if sim_dir:
+        sim_dir_candidates = sim_dir if isinstance(sim_dir, (list, tuple)) else [sim_dir]
+        try:
+            sim_dir_candidate = sim_dir_candidates[sim_index]
+        except IndexError as exc:
+            raise IndexError(
+                f"sim_index {sim_index} is outside config.sim_dir with {len(sim_dir_candidates)} entries"
+            ) from exc
+        if _folder_has_trajectory_output(sim_dir_candidate):
+            return sim_dir_candidate
+
+    run_name = getattr(config, "name", None)
+    if not run_name:
+        raise ValueError(
+            "Cannot infer simulation output folder: config needs sim_dirs, sim_folder, or a name."
+        )
+
+    seeds = getattr(config, "random_seeds", None) or []
+    seed = seeds[sim_index] if sim_index < len(seeds) else None
+    output_root = os.path.abspath(output_root)
+    try:
+        names = os.listdir(output_root)
+    except OSError as exc:
+        raise FileNotFoundError(f"Simulation output root does not exist: {output_root}") from exc
+
+    prefix = f"{run_name}_"
+    seed_suffix = f"_seed_{seed}" if seed is not None else None
+    candidates = []
+    for name in names:
+        if not name.startswith(prefix):
+            continue
+        if seed_suffix is not None and not name.endswith(seed_suffix):
+            continue
+        candidate = os.path.join(output_root, name)
+        if os.path.isdir(candidate):
+            candidates.append(candidate)
+
+    if not candidates:
+        seed_text = f" and seed {seed}" if seed is not None else ""
+        raise FileNotFoundError(
+            f"No finished simulation output folder found for config name {run_name!r}{seed_text} under {output_root}"
+        )
+
+    return max(candidates, key=os.path.getmtime)
+
+
+def _folder_has_trajectory_output(sim_folder):
+    if not sim_folder or not os.path.isdir(sim_folder):
+        return False
+    for root in _configured_trajectory_roots(sim_folder):
+        if _latest_trajectory_directory(root, prefer_binary=False) is not None:
+            return True
+    return False
+
+
+def latest_trajectory_output_dir_from_config(
+        config,
+        sim_index=0,
+        trajectory_output_dir=None,
+        prefer_binary=True,
+        wait_seconds=0,
+        output_root="output"):
+    sim_folder = _simulation_folder_from_config(
+        config,
+        sim_index=sim_index,
+        output_root=output_root,
+    )
+    if trajectory_output_dir is not None:
+        roots = [_resolve_trajectory_root(sim_folder, trajectory_output_dir)]
+    else:
+        roots = _configured_trajectory_roots(sim_folder)
+
+    deadline = time.time() + max(0, float(wait_seconds or 0))
+    while True:
+        for root in roots:
+            latest_directory = _latest_trajectory_directory(root, prefer_binary=prefer_binary)
+            if latest_directory is not None:
+                return latest_directory
+
+        if time.time() >= deadline:
+            break
+        time.sleep(0.5)
+
+    roots_text = ", ".join(str(root) for root in roots if root)
+    raise FileNotFoundError("No trajectory output directory found under " + roots_text)
+
+
+def start_visualization_server_from_config(
+        config,
+        sim_index=0,
+        trajectory_output_dir=None,
+        server_port=8000,
+        prefer_binary=True,
+        wait_seconds=0,
+        output_root="output"):
+    latest_directory = latest_trajectory_output_dir_from_config(
+        config,
+        sim_index=sim_index,
+        trajectory_output_dir=trajectory_output_dir,
+        prefer_binary=prefer_binary,
+        wait_seconds=wait_seconds,
+        output_root=output_root,
+    )
+    print(
+        f"Starting visualization server for {_trajectory_format_name(latest_directory)} "
+        f"trajectory output: {latest_directory}"
+    )
+    stop_event, server_thread = run_visualization_server(latest_directory, server_port)
+
+    def stop():
+        stop_visualization_server(stop_event, server_thread, server_port)
+
+    return SimpleNamespace(
+        directory=latest_directory,
+        port=server_port,
+        stop_event=stop_event,
+        server_thread=server_thread,
+        stop=stop,
+    )
 
 
 # ---------------------------------------------------------------------------
