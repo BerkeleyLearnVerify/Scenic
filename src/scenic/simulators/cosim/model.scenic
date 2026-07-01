@@ -18,10 +18,10 @@ param metsr_host = "localhost"
 param metsr_port = 4000
 param address = "10.0.0.122"
 param carla_port = 2000
-param metsr_map = "Data.properties.CARLA"
 param timestep = 0.1
 param snapToGroundDefault = is2DMode()
 param bubble_size = 50
+param metsr_sim_dir = None
 
 
 simulator CosimSimulator(
@@ -29,13 +29,13 @@ simulator CosimSimulator(
     metsr_port = globalParameters.metsr_port,
     address = globalParameters.address, 
     carla_port = globalParameters.carla_port,
-    metsr_map = globalParameters.metsr_map,
     carla_map = map_town,
     xml_map = globalParameters.xml_path,
     map_path = globalParameters.map,
     timestep = globalParameters.timestep,
     bubble_size = globalParameters.bubble_size,
-    run_name = globalParameters.run_name
+    run_name = globalParameters.run_name,
+    metsr_sim_dir = globalParameters.metsr_sim_dir,
     )
 
 param startTime = 6*60*60
