@@ -72,12 +72,14 @@ class CosimSimulator(DrivingSimulator):
         """
         if carla_map is not None:
             try:
+                print(f"Loading carla world: {carla_map}")
                 self.world = self.carla_client.load_world(carla_map)
                 self.xml_to_xodr_map = _utils.generate_map(str(xml_map)) #convert pathlib obj to str for XML tree TODO what is best practice? 
                 self.xml_to_xodr_intersections = _utils.generate_signal_map(str(xml_map))
             except Exception as e:
                 raise RuntimeError(f"CARLA could not load world '{carla_map}'") from e
         else:
+            print(f"Loading carla Map: {map_path}")
             #TODO figure out how to properly do the map handling here 
             if str(map_path).endswith(".xodr"):
                 with open(map_path) as odr_file:
@@ -372,7 +374,11 @@ class CosimSimulation(DrivingSimulation):
         )
         if update_orientation:
             road = self._nearest_road(obj)
-            rot = utils.scenicToCarlaRotation(road.orientation[obj.position])
+            if road:
+                rot = utils.scenicToCarlaRotation(road.orientation[obj.position])
+            else:
+                rot = utils.scenicToCarlaRotation(obj.orientation)
+                # print(f'failed to update rotation due to road lookup')
         else: 
             rot = utils.scenicToCarlaRotation(obj.orientation)
 
@@ -385,17 +391,17 @@ class CosimSimulation(DrivingSimulation):
         try:
             carlaActor = self.carla_world.spawn_actor(blueprint, transform)
         except Exception as e:
-            print(f"obj {obj.name} with snapToGround: {obj.snapToGround} and loc: {loc.x,loc.y,loc.z} with rot: {rot}")
-
-            print(f"Failed to spawn actor in position: {obj.position}")
-            print(f"Identifying cause of collision")
-            _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
-            print(f"="*25)
-            #Pass spawn errors for now
-            raise SimulationCreationError(f"Unable to spawn object {obj} due to error: {e}")
-            
-        
-
+            # print(f"Exception: {e}")
+            # print(f"Failed to spawn actor in position: {transform.location} with rot {rot}")
+            waypoint = self.carla_world.get_map().get_waypoint(carla.Location(obj.position.x, -obj.position.y, obj.position.z), project_to_road=True, lane_type=carla.LaneType.Driving)
+            transform = carla.Transform(carla.Location(waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z+2.0), waypoint.transform.rotation)
+            # # print(f"Attempting to spawn actor {obj.name} in: {transform.location}, with rot {transform.rotation}")
+            # out = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
+            obj.position = Vector(transform.location.x, transform.location.y, transform.location.z)
+            # print(f"Within thershold to: {out}")
+            carlaActor = self.carla_world.spawn_actor(blueprint,transform)
+            assert carlaActor is not None, f"Failed to generate actor after location correction"
+                        
         obj.carlaActor = carlaActor
         carlaActor.set_simulate_physics(obj.physics)
 
@@ -482,6 +488,7 @@ class CosimSimulation(DrivingSimulation):
                                             radius=self.bubble_size)
 
         bubble_roads = self._get_bubble_roads()
+        print([f"{road.id}" for road in bubble_roads])
         new_roads, _ = self.classify_bubble_roads(bubble_roads)
         self.freeze_roads(new_roads) # Freeze lanes according to Ego Spawn
         self.metsr_client.tick()
@@ -554,7 +561,7 @@ class CosimSimulation(DrivingSimulation):
             if obj in self.frozen_vehicles:
                 self.frozen_vehicles.remove(obj)
 
-        position = Vector(raw_data["x"], raw_data["y"], 0)
+        position = Vector(raw_data["x"], raw_data["y"], raw_data["z"] if raw_data["z"] is not None else 0)
         speed = raw_data["speed"]
         bearing = math.radians(raw_data["bearing"])
         globalOrientation = Orientation.fromEuler(bearing,0,0)
@@ -792,7 +799,7 @@ class CosimSimulation(DrivingSimulation):
                         metsr_road = roads[0].split("_")[0]
                     if metsr_road in self.network_helper.metsr_represented_roads:
                         road_id = metsr_road
-                if veh_data["roadID"] != road_id and road_id is not None: # Entering new road within metsr network\
+                if veh_data["roadID"] != road_id and road_id is not None: # Entering new road within metsr network
                     self.metsr_client.enter_next_road(vehID, roadID=road_id, private_veh = True)
                     if road_id == veh_data["destRoadID"]:
                         self.completed_route[obj] = True
@@ -814,7 +821,8 @@ class CosimSimulation(DrivingSimulation):
 
             Given a non-unique mapping between road formats selected the target road based on object distance to the start 
             lane
-        
+            
+            TODO: Should consider the start and the end of the lane for ambiguous mappings
         """
         roads = [road_lane.split("_")[0] for road_lane in roads]
         best_road = None
@@ -1084,6 +1092,7 @@ class CosimSimulation(DrivingSimulation):
         Filters out actions for Carla only objects
         
         :param allActions: ?
+        TODO: Clean this up and make it more robust -- right now it is generally optimized for the speccific scenario
         """
         carla_actions = {}
         for obj in self.agents:
@@ -1212,8 +1221,6 @@ class CosimSimulation(DrivingSimulation):
         else:
             save_file = file_name
         self.metsr_client.save(save_file)
-
-
 
     def _log_trip_times(self, file_name=None):
         """
