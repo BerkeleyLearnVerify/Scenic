@@ -28,7 +28,7 @@ def scenicToCarlaVector3D(x, y, z=0.0):
 def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
     if snapToGround:
         assert world is not None
-        return _snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
+        return _snapToGround(world, carla.Location(pos.x, -pos.y, pos.z), blueprint)
     return carla.Location(pos.x, -pos.y, pos.z)
 
 
