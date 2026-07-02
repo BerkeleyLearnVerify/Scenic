@@ -40,11 +40,11 @@ behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
 behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
-    """ 
+    """
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
-    If straight route is not available, then any availble turn route will be taken, uniformly randomly. 
-    If turning at the intersection, the vehicle will slow down to make the turn, safely. 
+    If straight route is not available, then any availble turn route will be taken, uniformly randomly.
+    If turning at the intersection, the vehicle will slow down to make the turn, safely.
 
     This behavior does not terminate. A recommended use of the behavior is to accompany it with condition,
     e.g. do FollowLaneBehavior() until ...
@@ -52,7 +52,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
     :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
     :param laneToFollow: If the lane to follow is different from the lane that the vehicle is on, this parameter can be used to specify that lane. By default, this variable will be set to None, which means that the vehicle will follow the lane that it is currently on.
     """
-
+    
     past_steer_angle = 0
     past_speed = 0 # making an assumption here that the agent starts from zero speed
     if laneToFollow is None:
@@ -75,7 +75,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             nearby_intersection = current_lane.centerline[-1]
     else:
         nearby_intersection = current_lane.centerline[-1]
-    
+
     # instantiate longitudinal and lateral controllers
     _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
@@ -127,7 +127,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         if (end_lane is not None) and (self.position in end_lane) and not intersection_passed:
             intersection_passed = True
             in_turning_lane = False
-            entering_intersection = False 
+            entering_intersection = False
             target_speed = original_target_speed
             _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
@@ -151,11 +151,11 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
 
 behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None, turn_speed=None):
-    """ 
+    """
     Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
 
     :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
-    :param trajectory: It is a list of sequential lanes to track, from the lane that the vehicle is initially on to the lane it should end up on.  
+    :param trajectory: It is a list of sequential lanes to track, from the lane that the vehicle is initially on to the lane it should end up on.
     """
 
     assert trajectory is not None
@@ -172,7 +172,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None, turn_spe
     # instantiate longitudinal and lateral controllers
     _lon_controller,_lat_controller = simulation().getLaneFollowingControllers(self)
     past_steer_angle = 0
-    
+
     if trajectory[-1].maneuvers:
         end_intersection = trajectory[-1].maneuvers[0].intersection
         if end_intersection == None:
@@ -209,8 +209,8 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None, turn_spe
 behavior TurnBehavior(trajectory, target_speed=6):
     """
     This behavior uses a controller specifically tuned for turning at an intersection.
-    This behavior is only operational within an intersection, 
-    it will terminate if the vehicle is outside of an intersection. 
+    This behavior is only operational within an intersection,
+    it will terminate if the vehicle is outside of an intersection.
     """
 
     if isinstance(trajectory, PolylineRegion):
@@ -276,7 +276,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
 
     while True:
         if abs(trajectory_centerline.signedDistanceTo(self.position)) < 0.1:
-            break        
+            break
         if (distance from self to nearby_intersection) < distanceToEndpoint:
             straight_manuevers = filter(lambda i: i.type == ManeuverType.STRAIGHT, current_lane.maneuvers)
 
@@ -304,7 +304,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
             current_speed = 0
 
         cte = trajectory_centerline.signedDistanceTo(self.position)
-        if is_oppositeTraffic: # [bypass] when crossing over the yellowline to opposite traffic lane 
+        if is_oppositeTraffic: # [bypass] when crossing over the yellowline to opposite traffic lane
             cte = -cte
 
         speed_error = target_speed - current_speed

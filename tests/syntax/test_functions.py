@@ -21,19 +21,37 @@ def test_max_min():
 
 
 def test_str():
-    ego = sampleEgoFrom("ego = new Object with foo str(Range(12, 17))")
+    ego = sampleEgoFrom(
+        """
+        assert isinstance("blob", str)
+        assert not isinstance(42, str)
+        ego = new Object with foo str(Range(12, 17))
+        """
+    )
     assert isinstance(ego.foo, str)
     assert 12 <= float(ego.foo) <= 17
 
 
 def test_float():
-    ego = sampleEgoFrom('ego = new Object with foo float(Uniform("1.5", "-0.5"))')
+    ego = sampleEgoFrom(
+        """
+        assert isinstance(3.14, float)
+        assert not isinstance(3, float)
+        ego = new Object with foo float(Uniform("1.5", "-0.5"))
+        """
+    )
     assert isinstance(ego.foo, float)
     assert float(ego.foo) in (1.5, -0.5)
 
 
 def test_int():
-    ego = sampleEgoFrom("ego = new Object with foo int(Range(12, 14.9))")
+    ego = sampleEgoFrom(
+        """
+        assert isinstance(42, int)
+        assert not isinstance(3.14, int)
+        ego = new Object with foo int(Range(12, 14.9))
+        """
+    )
     assert isinstance(ego.foo, int)
     assert ego.foo in (12, 13, 14)
 

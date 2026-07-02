@@ -49,7 +49,7 @@ class METSRSimulation(Simulation):
 
     def setup(self):
         # Reset map
-        self.client.reset("Data.properties.CARLA")
+        self.client.reset()
 
         super().setup()  # Calls createObjectInSimulator for each object
 

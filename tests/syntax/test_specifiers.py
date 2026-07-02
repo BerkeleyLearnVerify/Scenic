@@ -87,6 +87,21 @@ def test_lazy_value_in_requirement_2():
         sampleScene(scenario, maxIterations=1)
 
 
+def test_default_velocity_depends_on_speed_and_orientation():
+    # Heading convention in Scenic: 0 deg = +Y, 90 deg = -X
+    ego = sampleEgoFrom("ego = new Object with speed 10, facing 90 deg")
+    assert tuple(ego.velocity) == pytest.approx((-10, 0, 0))
+
+    # Order independence (dependency graph should resolve the same way)
+    ego = sampleEgoFrom("ego = new Object facing 90 deg, with speed 10")
+    assert tuple(ego.velocity) == pytest.approx((-10, 0, 0))
+
+    # Orientation derived from another specifier (not a literal heading)
+    ego = sampleEgoFrom("ego = new Object with speed 10, facing toward -1 @ 1")
+    s = 10 * math.sqrt(0.5)
+    assert tuple(ego.velocity) == pytest.approx((-s, s, 0))
+
+
 ## Value normalization
 
 

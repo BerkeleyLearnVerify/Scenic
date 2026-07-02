@@ -41,7 +41,12 @@ Behavior Definition
 Defines a :term:`dynamic behavior`, which can be assigned to a Scenic object by setting its :prop:`behavior` property using the :scenic:`with behavior {behavior}` specifier; this makes the object an :term:`agent`.
 See our tutorial on :ref:`dynamics` for examples of how to write behaviors.
 
-Behavior definitions have the same form as function definitions, with an argument list and a body consisting of one or more statements; the body may additionally begin with definitions of preconditions and invariants.
+Behavior definitions have a similar form to function definitions, with an argument list and a body consisting of one or more statements.
+A behavior may not use top-level definitional statements such as :keyword:`param`, :keyword:`mutate`, and :keyword:`terminate when`, and it cannot create Objects with :keyword:`new`.
+However, the :keyword:`require` statement *is* allowed, as are ordinary control-flow constructs and function definitions.
+In addition, there are many special statements allowed in behaviors to take actions, invoke sub-behaviors, etc.: see :ref:`dynamic_statements`.
+
+The body of a behavior may optionally begin with definitions of preconditions and invariants.
 Preconditions are checked when a behavior is started, and invariants are checked at every time step of the simulation while the behavior is executing (including time step zero, like preconditions, but *not* including time spent inside sub-behaviors: this allows sub-behaviors to break and restore invariants before they return).
 
 The body of a behavior executes in parallel with the simulation: in each time step, it must either :keyword:`take` specified action(s) or :keyword:`wait` and perform no actions.
@@ -80,7 +85,7 @@ For examples of monitors, see our tutorial on :ref:`dynamics`.
 .. _setup:
 .. _compose:
 
-Modular Scenario Definition 
+Modular Scenario Definition
 ---------------------------
 
 .. code-block:: scenic-grammar
@@ -102,7 +107,9 @@ Defines a Scenic :term:`modular scenario`.
 Scenario definitions, like :ref:`behavior definitions <behaviorDef>`, may include preconditions and invariants.
 The body of a scenario consists of two optional parts: a ``setup`` block and a ``compose`` block.
 The ``setup`` block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program (so it may create objects, define requirements, etc.).
-The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :keyword:`do` and any of the other statements allowed inside behaviors (except :keyword:`take`, which only makes sense for an individual :term:`agent`).
+The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :keyword:`do` and any of the other statements allowed inside a :ref:`behavior <behaviorDef>` (except :keyword:`take`, which only makes sense for an individual :term:`agent`).
+The constructs illegal in behaviors, such as defining global parameters and creating Objects with :keyword:`new`, are also illegal in ``compose`` blocks: they can be placed in the ``setup`` block of a sub-scenario instead.
+
 If a modular scenario does not use preconditions, invariants, or sub-scenarios (i.e., it only needs a ``setup`` block) it may be written in the second form above, where the entire body of the ``scenario`` comprises the ``setup`` block.
 
 .. seealso:: Our tutorial on :ref:`composition` gives many examples of how to use modular scenarios.
@@ -270,7 +277,7 @@ The default mutation system adds Gaussian noise to the :prop:`position` and :pro
     This is done by providing a value for the :prop:`mutator` property, which should be an instance of `Mutator`.
     Mutators inherited from superclasses (such as the default :prop:`position` and :prop:`heading` mutators from `Point` and `OrientedPoint`) will still be applied unless the new mutator disables them; see `Mutator` for details.
 
-.. _record [initial | final] {value} as {name}:
+.. _record [initial | final] {value} {...}:
 .. _record:
 .. _record initial:
 .. _record final:
@@ -278,9 +285,38 @@ The default mutation system adds Gaussian noise to the :prop:`position` and :pro
 record [initial | final] *value* [as *name*]
 ----------------------------------------------
 Record the value of an expression during each simulation.
-The value can be recorded at the start of the simulation (``initial``), at the end of the simulation (``final``), or at every time step (if neither ``initial`` nor ``final`` is specified).
+The value can be recorded at the start of the scenario (``initial``), at the end of the scenario (``final``), or at every time step during the scenario (if neither ``initial`` nor ``final`` is specified).
 The recorded values are available in the ``records`` dictionary of `SimulationResult`: its keys are the given names of the records (or synthesized names if not provided), and the corresponding values are either the value of the recorded expression or a tuple giving its value at each time step as appropriate.
 For debugging, the records can also be printed out using the :option:`--show-records` command-line option.
+
+When recording an entire time series (i.e. not using ``initial`` or ``final``), additional options are available, described below.
+
+.. _recordFolder:
+
+record *value* [every *duration*] [after *duration*] [as *name*] [to *recorder*]
+--------------------------------------------------------------------------------
+Record the value of an expression as a time series.
+The ``every`` clause allows specifying the interval between entries of the series, either in ``steps`` or ``seconds`` (the latter being rounded down to a whole number of time steps).
+Likewise, the ``after`` clause allows specifying an initial delay before recording starts.
+The ``as`` clause gives the name of the record in the final `SimulationResult` as above.
+
+The ``to`` clause allows records to be directly saved to files in common formats.
+In the most basic usage, you can pass a string giving the filename to save the time series to: the format will be determined automatically based on the file extension.
+For example, the clause ``to "foo.mp4"`` will save the data as an MP4 video file (assuming the given value can be interpreted as an image).
+The string can use Python :ref:`formatstrings` to refer to 3 replacement fields:
+
+    * ``simulation``: the name of the current simulation
+    * ``step``: the current simulation time step
+    * ``time``: the current simulation time in seconds
+
+Thus for example you can write ``to "out/{simulation}/foo{step}.jpg"`` to save a series of images called ``foo0.jpg``, ``foo1.jpg``, ``foo2.jpg``, in a new folder for each simulation, all contained in a folder called ``out``.
+To avoid having to repeat a prefix like ``out/{simulation}``, you can set the :term:`global parameter` ``recordFolder``, which will be used as the base folder for all ``record`` statements.
+For a complete example, see :ref:`sensors`.
+
+If you need to customize the way files are saved (e.g. to specify a specific video codec), you may pass a `Recorder` object to the ``to`` clause instead of a string.
+
+
+.. _dynamic_statements:
 
 Dynamic Statements
 ==================
@@ -300,6 +336,18 @@ Unlike :keyword:`wait`, this statement may not be used in monitors or :term:`mod
 wait
 ----
 Take no actions this time step.
+
+.. _wait for {scalar} (seconds | steps):
+
+wait for *scalar* (seconds | steps)
+-----------------------------------
+Take no actions for a set number of simulation seconds/time steps.
+
+.. _wait until {boolean}:
+
+wait until *boolean*
+--------------------
+Take no actions until the given condition becomes true.
 
 .. _terminate:
 

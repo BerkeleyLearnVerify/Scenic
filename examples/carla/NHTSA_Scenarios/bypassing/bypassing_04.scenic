@@ -4,6 +4,9 @@ AUTHOR: Francis Indaheng, findaheng@berkeley.edu
 DESCRIPTION: Ego vehicle performs multiple lane changes to bypass 
 two slow adversary vehicles.
 SOURCE: NHSTA, #16
+
+To run this file using the Carla simulator:
+    scenic examples/carla/NHTSA_Scenarios/bypassing/bypassing_04.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################

@@ -1,4 +1,4 @@
-codecov: 
+codecov:
   require_ci_to_pass: true
 
 coverage:
@@ -21,6 +21,7 @@ ignore:
   - "src/scenic/simulators/carla/"
   - "src/scenic/simulators/gta/"
   - "src/scenic/simulators/lgsvl/"
+  - "src/scenic/simulators/metadrive/"
   - "src/scenic/simulators/webots/"
   - "src/scenic/simulators/xplane/"
   - "!**/*.py"

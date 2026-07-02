@@ -10,6 +10,7 @@ from math import cos, sin
 import numbers
 import random
 import struct
+import sys
 import typing
 import warnings
 
@@ -42,15 +43,6 @@ from scenic.core.type_support import (
     toOrientation,
 )
 from scenic.core.utils import argsToString, cached_property
-
-# Suppress gimbal lock warning from scipy.spatial.transform.Rotation.
-# N.B. due to the way the pytest works, the warning will still appear when
-# running the test suite.
-warnings.filterwarnings(
-    "ignore",
-    message="Gimbal lock detected. Setting third angle to zero",
-    module="scenic.core.vectors",
-)
 
 
 class VectorDistribution(Distribution):
@@ -309,10 +301,10 @@ class Orientation:
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
-        return self.r.as_euler("ZXY", degrees=False)
+        return _getEulerAngles(self.r, "ZXY")
 
     def _trimeshEulerAngles(self):
-        return self.r.as_euler("xyz", degrees=False)
+        return _getEulerAngles(self.r, "xyz")
 
     def getRotation(self):
         return self.r
@@ -406,6 +398,17 @@ class Orientation:
         quaternion = struct.unpack("<dddd", stream.read(32))
         rotation = Rotation(quaternion, normalize=False)
         return cls(rotation)
+
+
+if sys.version_info >= (3, 11):
+
+    def _getEulerAngles(rotation, axes, degrees=False):
+        return rotation.as_euler(axes, degrees=degrees, suppress_warnings=True)
+
+else:
+
+    def _getEulerAngles(rotation, axes, degrees=False):
+        return rotation.as_euler(axes, degrees=degrees)
 
 
 globalOrientation = Orientation.fromEuler(0, 0, 0)
