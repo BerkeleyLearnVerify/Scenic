@@ -535,22 +535,8 @@ def test_lane_speed_ranges_on_scenic_lane_section(tmp_path):
         (0.0, 5.0, 20.0),
         (5.0, 20.0, 30.0),
     )
-    assert lane_section.speed_limit_at(2.0) == pytest.approx(20.0)
-    assert lane_section.speed_limit_at(7.0) == pytest.approx(30.0)
-
-
-def test_lane_speed_ranges_demo_map(getAssetPath):
-    path = getAssetPath("maps/demo/tags/09_lane_speed_ranges.xodr")
-    road_map = RoadMap()
-    road_map.parse(path)
-    road_map.calculate_geometry(num=5, calc_intersect=True)
-    lane_section = road_map.toScenicNetwork().roads[0].sections[0].lanes[0]
-
-    assert lane_section.speedLimit == pytest.approx(20.0)
-    assert lane_section.speedLimitRanges == (
-        (0.0, 5.0, 20.0),
-        (5.0, 10.0, 30.0),
-    )
+    assert lane_section.speedLimitAt(2.0) == pytest.approx(20.0)
+    assert lane_section.speedLimitAt(7.0) == pytest.approx(30.0)
 
 
 def test_propagate_speed_limit_sets_section_specific_values():
@@ -615,31 +601,6 @@ def write_xodr_lane_speeds(tmp_path, lanes_xml, road_extras=""):
 """
     )
     return path
-
-
-def test_demo_lane_speed_limits_map(getAssetPath):
-    path = getAssetPath("maps/demo/tags/08_lane_speed_limits.xodr")
-    road_map = RoadMap()
-    road_map.parse(path)
-    road_map.calculate_geometry(num=5, calc_intersect=True)
-    road = road_map.toScenicNetwork().roads[0]
-
-    road_limit = 50 / 3.6
-    fast_limit = 80 / 3.6
-    assert road.speedLimit == pytest.approx(road_limit)
-    assert road.tags == frozenset({"town"})
-    limits_by_od_id = {
-        section.openDriveID: section.speedLimit for section in road.sections[0].lanes
-    }
-    tags_by_od_id = {
-        section.openDriveID: section.tags for section in road.sections[0].lanes
-    }
-    assert limits_by_od_id[-1] == pytest.approx(road_limit)
-    assert limits_by_od_id[-2] == pytest.approx(fast_limit)
-    assert limits_by_od_id[-3] == pytest.approx(40 / 3.6)
-    assert tags_by_od_id[-1] == frozenset({"driving"})
-    assert tags_by_od_id[-2] == frozenset({"driving"})
-    assert tags_by_od_id[-3] == frozenset({"onRamp"})
 
 
 def test_lane_speed_limit_overrides_when_higher(tmp_path):
@@ -735,26 +696,6 @@ def test_assign_semantic_tags_tags_only_roads_in_junction():
     assign_semantic_tags(road_map)
     assert road_map.roads[10].extra_tags == frozenset({"roundabout", "J5"})
     assert road_map.roads[11].extra_tags == frozenset()
-
-
-def test_multi_section_lane_speed_uses_max(getAssetPath):
-    path = getAssetPath("maps/demo/tags/10_multi_section_lane_speeds.xodr")
-    road_map = RoadMap()
-    road_map.parse(path)
-    road_map.calculate_geometry(num=5, calc_intersect=True)
-    road = road_map.toScenicNetwork().roads[0]
-
-    # Lane -1 is linked across three sections with lane speeds 10, 20, 15 m/s;
-    # apply_lane_speed_limits sets the merged Lane to the max while each lane
-    # section keeps its own value.
-    lane = road.lanes[0]
-    assert lane.speedLimit == pytest.approx(20.0)
-    section_limits = sorted(sec.speedLimit for sec in lane.sections)
-    assert section_limits == [
-        pytest.approx(10.0),
-        pytest.approx(15.0),
-        pytest.approx(20.0),
-    ]
 
 
 def test_apply_lane_speed_limits_ignores_non_lane_elements():

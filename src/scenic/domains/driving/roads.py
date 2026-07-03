@@ -239,8 +239,20 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
     vehicleTypes: FrozenSet[VehicleType] = frozenset([VehicleType.CAR])
     #: Optional speed limit, which may be inherited from parent.
     speedLimit: Union[float, None] = None
+    #: Optional ``(s_start, s_end, speed_mps)`` ranges along this element's centerline.
+    speedLimitRanges: Tuple[Tuple[float, float, float], ...] = ()
     #: Uninterpreted semantic tags, e.g. 'roundabout'.
     tags: FrozenSet[str] = frozenset()
+
+    @distributionFunction
+    def speedLimitAt(self, s: float) -> Union[float, None]:
+        """Get the speed limit at coordinate *s* along this element, in meters."""
+        if self.speedLimitRanges:
+            for range_start, range_end, speed in self.speedLimitRanges:
+                if range_start <= s < range_end:
+                    return speed
+            return None
+        return self.speedLimit
 
     def __attrs_post_init__(self):
         assert self.uid is not None or self.id is not None
