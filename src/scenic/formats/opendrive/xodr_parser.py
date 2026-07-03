@@ -215,7 +215,9 @@ def assign_semantic_tags(road_map):
         if not tags:
             continue
         for road_id, road in road_map.roads.items():
-            if road.junction == jid:
+            # road.junction is the raw OpenDRIVE id string (or None); junctions
+            # are keyed by int, so convert before comparing.
+            if road.junction is not None and int(road.junction) == jid:
                 extra[road_id].update(tags)
 
     for road_id, road in road_map.roads.items():
@@ -632,7 +634,7 @@ class Road:
         self.name = name
         self.id_ = id_
         self.length = length
-        self.junction = int(junction) if junction != "-1" else None
+        self.junction = junction if junction != "-1" else None
         self.predecessor = None
         self.successor = None
         self.signals = []  # List of Signal objects.
@@ -1580,7 +1582,6 @@ class RoadMap:
         drivable_lane_types=(
             "driving",
             "stop",
-            "parking",
             "entry",
             "exit",
             "onRamp",
@@ -1595,6 +1596,7 @@ class RoadMap:
             "border",
             "restricted",
             "curb",
+            "parking",
             "none",
         ),
         elide_short_roads=False,
