@@ -33,6 +33,7 @@ class OpenDriveWarning(UserWarning):
 def warn(message):
     warnings.warn(message, OpenDriveWarning, stacklevel=2)
 
+
 def speed_to_mps(speed_elem):
     """Convert an OpenDRIVE ``<speed>`` element to m/s."""
     raw = speed_elem.get("max")
@@ -47,7 +48,8 @@ def speed_to_mps(speed_elem):
     elif unit == "mph":
         return value * 0.44704
     else:
-        raise ValueError(f"unsupported speed unit: {unit!r}") 
+        raise ValueError(f"unsupported speed unit: {unit!r}")
+
 
 def _speed_limit_ranges_from_s_speed_records(records, domain_length):
     """Build ``(s_start, s_end, speed_mps)`` ranges from ``[(s, speed_mps), ...]``."""
@@ -61,11 +63,7 @@ def _speed_limit_ranges_from_s_speed_records(records, domain_length):
     for i, (s, speed_mps) in enumerate(sorted_records):
         if speed_mps is not None:
             current_speed = speed_mps
-        s_end = (
-            sorted_records[i + 1][0]
-            if i + 1 < len(sorted_records)
-            else domain_length
-        )
+        s_end = sorted_records[i + 1][0] if i + 1 < len(sorted_records) else domain_length
         if s_end <= s or current_speed is None:
             continue
         if ranges and ranges[-1][2] == current_speed and ranges[-1][1] == s:
@@ -132,33 +130,28 @@ def effective_speed_limit_ranges(road_ranges, lane_ranges, section_s0, section_l
         for range_start, range_end, speed in road_in_section
     ]
 
-# function to return the minimum speed and overlapping speeds given an s-interval with multiple speed limits.
+
 def speed_limit_for_s_interval(ranges, s_start, s_end):
-    """Return ``(speed_limit, overlapping_speeds)`` for ``[s_start, s_end)``."""
+    """Speed limit applying to the interval ``[s_start, s_end)``.
+
+    Returns ``(speed_limit, overlapping_speeds)``, where ``overlapping_speeds`` is
+    the set of every limit in ``ranges`` that overlaps the interval and
+    ``speed_limit`` is their minimum -- the conservative choice when an interval
+    straddles more than one limit. Both are empty/``None`` when nothing overlaps.
+    """
     if not ranges or s_end <= s_start:
         return None, frozenset()
 
-    # overlapping range is defined as such:
-    # if range start is less than s_end 
-    # AND range end is greater than s_start.
+    # A range overlaps the interval iff it starts before s_end and ends after s_start.
     overlapping = {
         speed
         for range_start, range_end, speed in ranges
         if range_end > s_start and range_start < s_end
     }
 
-    # if no overlapping speeds, return (None, frozenset())
-    # otherwise, return (min(speed), frozenset(overlapping))
     if not overlapping:
         return None, frozenset()
     return min(overlapping), frozenset(overlapping)
-
-################################################################################################################
-
-def apply_lane_speed_limit(road_speed_limit, lane_speed_limit):
-    if lane_speed_limit is not None:
-        return lane_speed_limit
-    return road_speed_limit
 
 
 def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
@@ -174,15 +167,14 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
     if len(speeds) > 1:
         element.speedLimitRanges = tuple(ranges)
         if warn_context is not None:
-            speeds_text = ", ".join(
-                f"{speed:.4g} m/s" for speed in sorted(speeds)
-            )
+            speeds_text = ", ".join(f"{speed:.4g} m/s" for speed in sorted(speeds))
             warn(
                 f"{warn_context}: spans multiple speed limits {{{speeds_text}}};"
                 f" using minimum {element.speedLimit:.4g} m/s"
             )
     else:
         element.speedLimitRanges = ()
+
 
 def merge_scenic_tags(*tag_sets):
     """Combine tags from road ``<type>`` records and junction metadata."""
@@ -211,35 +203,21 @@ def _junction_tags(junction):
 
 
 def assign_semantic_tags(road_map):
-    """Populate ``Road.extra_tags`` from junction type and name."""
-    # Create a dictionary with each road_id in the road map, initializing with an empty set for collecting tags
+    """Populate each ``Road.extra_tags`` from the type/name of its junction.
+
+    A road belonging to a junction (``road.junction`` equals the junction id)
+    inherits that junction's semantic tags; all other roads get no extra tags.
+    """
     extra = {road_id: set() for road_id in road_map.roads}
 
-    # Iterate through all junctions in the road map
     for jid, junction in road_map.junctions.items():
-
-        # Get the set of tags for this junction based on type and name
         tags = _junction_tags(junction)
         if not tags:
-            # If the junction has no relevant tags, skip it
             continue
-
-        # Iterate through all roads to determine which should receive the junction's tags
-        # • If this road is directly part of the junction:
-        #   - inherit all of its tags
         for road_id, road in road_map.roads.items():
             if road.junction == jid:
                 extra[road_id].update(tags)
 
-            # For roads that are not themselves junctions:
-            # • If the road is not itself a junction but connects to one via predecessor or successor:
-            #   - also inherit the tags from the junction
-            elif road.junction is None and (
-                road.predecessor == jid or road.successor == jid
-            ):
-                extra[road_id].update(tags)
-
-    # Finally, convert each collected set of tags into an immutable frozenset, and assign to the road's extra_tags field
     for road_id, road in road_map.roads.items():
         road.extra_tags = frozenset(extra[road_id])
 
@@ -249,7 +227,7 @@ _ROAD_LEVEL_PROPAGATION_TYPES = (
     roadDomain.RoadSection,
 )
 
-# later - better to have types specific to portions of the road
+
 _LANE_PROPAGATION_TYPES = (
     roadDomain.LaneSection,
     roadDomain.Lane,
@@ -268,7 +246,7 @@ def propagate_speed_limit(speed_limit, elements):
 
 
 def apply_lane_speed_limits(elements):
-    """Set lane-level scalar speed limits from their lane sections."""
+    """Set each Lane's scalar ``speedLimit`` to the max over its lane sections."""
     for element in elements:
         if not isinstance(element, roadDomain.Lane):
             continue
@@ -289,9 +267,6 @@ def propagate_tags(tags, elements):
         if isinstance(element, _ROAD_LEVEL_PROPAGATION_TYPES):
             if not element.tags:
                 element.tags = tags
-
-
-parse_speed_to_mps = speed_to_mps
 
 
 def buffer_union(polys, tolerance=0.01):
@@ -1053,7 +1028,6 @@ class Road:
         last_section = None
         forwardSidewalks, backwardSidewalks = [], []
         forwardShoulders, backwardShoulders = [], []
-        ################################################################################################################
         for sec_index, (sec, pts, sec_poly, lane_polys) in enumerate(
             zip(
                 self.lane_secs,
@@ -1080,7 +1054,6 @@ class Road:
                     f" spans multiple speed limits {{{speeds_text}}};"
                     f" using minimum {section_speed_limit:.4g} m/s"
                 )
-            ################################################################################################################
             pts = [pt[:2] for pt in pts]  # drop s coordinate
             assert sec.drivable_lanes
             laneSections = {}
@@ -1132,7 +1105,7 @@ class Road:
             )
             roadSections.append(section)
             allElements.append(section)
-            ################################################################################################################
+
             propagate_speed_limit(section_speed_limit, [section])
             section_length = s_end - s_start
             for id_, lane_section in laneSections.items():
@@ -1153,7 +1126,7 @@ class Road:
                     )
                 else:
                     propagate_speed_limit(section_speed_limit, [lane_section])
-            ################################################################################################################
+
             last_section = section
 
             fss, bss = {}, {}
@@ -1507,16 +1480,14 @@ class Road:
         else:
             leftEdge = forwardGroup.leftEdge
         centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
-        ################################################################################################################
+
         section_speed_limits = [
             section.speedLimit
             for section in roadSections
             if section.speedLimit is not None
         ]
-        road_speed_limit = (
-            min(section_speed_limits) if section_speed_limits else None
-        )
-        ################################################################################################################
+        road_speed_limit = min(section_speed_limits) if section_speed_limits else None
+
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1896,11 +1867,7 @@ class RoadMap:
                 s = float(type_elem.get("s"))
                 road_type = type_elem.get("type")
                 speed_elem = type_elem.find("speed")
-                speed_mps = (
-                    speed_to_mps(speed_elem)
-                    if speed_elem is not None
-                    else None
-                )
+                speed_mps = speed_to_mps(speed_elem) if speed_elem is not None else None
                 road.type_records.append((s, road_type, speed_mps))
 
             if road.length < self.tolerance:
