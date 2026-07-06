@@ -102,7 +102,7 @@ class PIDLateralController(PIDController, LateralController):
         super().__init__(dt=dt, K_P=K_P, K_D=K_D, K_I=K_I, wg=wg)
 
     def computeSteering(self, trajectory, veh):
-        cte = trajectory.signedDistanceTo(veh.position)
+        cte = trajectory.polyline.signedDistanceTo(veh.position)
         steer_angle = self.run_step(cte)
         return steer_angle
 
@@ -152,7 +152,7 @@ class PurePursuitLateralController(LateralController):
         self._lastTargetPoint = target_point
         return Vector(target_point.x, target_point.y)
 
-    def computeSteering(self, trajectory, veh, simulation):
+    def computeSteering(self, trajectory, veh):
         # Compute target steering angle
         lookaheadDistance = self.lookaheadDistance(veh)
         targetPoint = self._findTargetPoint(trajectory, veh, lookaheadDistance)

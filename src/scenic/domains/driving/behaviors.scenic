@@ -42,21 +42,26 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
-def getFollowLanePath(obj, minPathDistance, preferStraight, path_metadata=None):
+def getFollowLanePath(obj, minPathDistance, preferStraight, laneToFollow=None, path_metadata=None):
     import shapely
     import itertools
 
-    def mergeLineStrings(geoms):
-        return shapely.geometry.LineString(itertools.chain.from_iterable(geom.coords for geom in geoms))
+    if laneToFollow is None:
+        laneToFollow = obj.lane
+    elif not isinstance(laneToFollow, Lane):
+        raise ValueError("`laneToFollow` is not a `Lane`.")
 
     if path_metadata is None:
-        current_lane = ego.lane
-        initial_path = obj.lane.centerline.lineString
+        current_lane = laneToFollow
+        initial_path = current_lane.centerline.lineString
     else:
         current_lane = path_metadata[0]
         initial_path = path_metadata[1]
     
     assert isinstance(initial_path, shapely.geometry.LineString)
+
+    def mergeLineStrings(geoms):
+        return shapely.geometry.LineString(itertools.chain.from_iterable(geom.coords for geom in geoms))
 
     ego_pt = shapely.geometry.Point(*obj.position)
     path = shapely.ops.substring(initial_path, initial_path.project(ego_pt), initial_path.length)
@@ -84,7 +89,7 @@ def getFollowLanePath(obj, minPathDistance, preferStraight, path_metadata=None):
     assert isinstance(path, shapely.geometry.LineString)
     return PolylineRegion(polyline=path), (current_lane, path)
 
-behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, preferStraight=True):
+behavior FollowLaneBehavior(target_speed=10, laneToFollow=None, preferStraight=True):
     """
     Follows the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
@@ -108,7 +113,8 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, preferStraight
     while True:
         replan_time = 10
         min_path_distance = max(2*replan_time*target_speed, 50)
-        path, path_metadata = getFollowLanePath(self, min_path_distance, preferStraight=preferStraight, path_metadata=path_metadata)
+        path, path_metadata = getFollowLanePath(self, min_path_distance, 
+            preferStraight=preferStraight, laneToFollow=laneToFollow, path_metadata=path_metadata)
         traj = Trajectory.createFixedSpeedTrajectory(path, target_speed, ts=simulation().timestep)
         do FollowTrajectoryBehavior(traj) for replan_time seconds
 
@@ -180,7 +186,7 @@ behavior FollowTrajectoryBehavior(trajectory, terminationDistance=1):
             throttle_action = SetBrakeAction(-throttle)
 
         # Compute steering : Lateral Control
-        steer = self.lateralController.computeSteering(trajectory, self, simulation())
+        steer = self.lateralController.computeSteering(trajectory, self)
         steer_action = SetSteerAction(steer)
 
         take throttle_action, steer_action
