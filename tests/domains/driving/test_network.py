@@ -1,8 +1,11 @@
 from pathlib import Path
+import random
 
 import pytest
+import shapely
 
 from scenic.core.distributions import RejectionException
+from scenic.core.regions import toPolygon
 from scenic.domains.driving.roads import Intersection, Network
 from tests.domains.driving.conftest import mapFolder
 
@@ -255,6 +258,16 @@ def test_sidewalk(network):
         pt = sw.uniformPointInner()
         assert network.sidewalkAt(pt) is sw
         assert network.elementAt(pt) is sw
+
+
+def test_laneGroup_lane_order(network):
+    for _ in range(30):
+        lg = random.choice(network.laneGroups)
+        lane_0_dist = shapely.distance(toPolygon(lg.lanes[0]), toPolygon(lg.curb))
+        lane_distances = [
+            shapely.distance(toPolygon(lane), toPolygon(lg.curb)) for lane in lg.lanes
+        ]
+        assert all(lane_dist >= lane_0_dist - 0.1 for lane_dist in lane_distances)
 
 
 # --- Tests for cached network pickles ---
