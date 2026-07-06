@@ -163,14 +163,14 @@ class Trajectory(object):
 
 behavior FollowTrajectoryBehavior(trajectory, terminationDistance=1):
     """
-    Follows the given `Trajectory`.
+    Follows the given Trajectory.
     
     The behavior terminates when either of the following conditions are met the vehicle position is within
-        `terminationDistance` of the end of the trajectory.
+        terminationDistance of the end of the trajectory.
 
     Args:
-        trajectory: A `Trajectory`.
-        terminationDistance: The behavior will terminate when the vehicle position is within `terminationDistance`
+        trajectory: A Trajectory.
+        terminationDistance: The behavior will terminate when the vehicle position is within terminationDistance
             of the end of the trajectory.
     """
     assert isinstance(trajectory, Trajectory)
