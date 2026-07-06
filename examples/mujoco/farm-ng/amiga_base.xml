@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mujoco model="amiga_like_modular">
+  <!-- Change timestep at own risk. -->
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="RK4"/>
+  <size nkey="256" nuser_sensor="1"/>
+  <visual>
+    <global offwidth="1024" offheight="768"/>
+  </visual>
+  
+
+  <default>
+    <!-- Slightly grippy soil; tweak to taste. -->
+    <geom condim="4" friction="1.2 0.02 0.002"/>
+    <joint armature="0.0005" damping="0.1"/>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".75 .92 1.00" rgb2=".60 .85 1.00" width="512" height="512"/>
+    <texture name="groundtex" type="2d" builtin="checker" rgb1=".55 .45 .35" rgb2=".45 .35 .25" width="1024" height="1024"/>
+    <material name="groundmat" texture="groundtex" texrepeat="30 30" reflectance="0.05"/>
+  
+    <!-- Extra materials for crops/soil rows. -->
+    <material name="rowsoil" texture="groundtex" texrepeat="40 40" rgba="0.65 0.55 0.40 1" reflectance="0.02"/>
+    <material name="leaf"  rgba="0.20 0.65 0.20 1"/>
+    <material name="stalk" rgba="0.22 0.55 0.22 1"/>
+</asset>
+
+  <worldbody>
+    <!-- Light + floor so it’s bright and visible. -->
+    <light name="sun" pos="2 2 5" dir="-0.4 -0.4 -1"
+           diffuse="1 1 1" specular="0.1 0.1 0.1" ambient="0.65 0.65 0.65"
+           directional="true" castshadow="false"/>
+    <geom type="plane" size="50 50 1" material="groundmat"/>
+    
+    <!-- ===== Raised crop beds & plants (rotatable). ===== -->
+    <body name="rows" pos="0 0 0">
+      <joint name="rows_yaw" type="hinge" axis="0 0 1" limited="false"/>
+      
+      <!-- Long rows (80 m) in multiple lanes. -->
+      <geom type="box" size="40 0.18 0.05" pos="0  0.80 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -0.80 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  1.40 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -1.40 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  2.00 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -2.00 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  2.60 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -2.60 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  3.20 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -3.20 0.05" material="rowsoil"/>
+    
+      <!-- Extra right-side rows (negative Y) to fill FOV. -->
+      <geom type="box" size="40 0.18 0.05" pos="0 -3.80 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -4.40 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -5.00 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -5.60 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0 -6.20 0.05" material="rowsoil"/>
+
+      <!-- Extra left/visible side rows (+Y). -->
+      <geom type="box" size="40 0.18 0.05" pos="0  3.80 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  4.40 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  5.00 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  5.60 0.05" material="rowsoil"/>
+      <geom type="box" size="40 0.18 0.05" pos="0  6.20 0.05" material="rowsoil"/>
+    </body>
+  </worldbody>
+
+  <!-- Actuators and Sensors defined in get_mujoco_xml(). -->
+  <actuator>
+  </actuator>
+
+  <sensor>
+  </sensor>
+</mujoco>
