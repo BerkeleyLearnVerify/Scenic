@@ -18,6 +18,7 @@ import math
 import numpy as np
 
 from scenic.core.simulators import Action
+from scenic.core.type_support import toOrientation
 from scenic.core.vectors import Vector
 
 ## Mixin classes indicating support for various types of actions.
@@ -106,6 +107,16 @@ class SetSpeedAction(Action):
     def applyTo(self, obj, sim):
         vel = Vector(0, self.speed).rotatedBy(obj.heading)
         obj.setVelocity(vel)
+
+
+class SetOrientationAction(Action):
+    """Set the orientation of an agent."""
+
+    def __init__(self, orientation):
+        self.orientation = toOrientation(orientation)
+
+    def applyTo(self, obj, sim):
+        obj.setOrientation(self.orientation)
 
 
 ## Actions available to vehicles which can steer

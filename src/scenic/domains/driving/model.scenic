@@ -270,6 +270,9 @@ class DrivingObject:
     def setVelocity(self, vel):
         raise NotImplementedError
 
+    def setOrientation(self, orientation):
+        raise NotImplementedError
+
 class Vehicle(DrivingObject):
     """Vehicles which drive, such as cars.
 
