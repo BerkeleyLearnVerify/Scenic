@@ -71,6 +71,9 @@ def test_distribution_method_encapsulation_lazy():
     assert evpt.method is underlyingFunction(vf.followFrom)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 10), reason="Pairwise requires Python 3.10 or higher."
+)
 def test_vf_follow():
     vf = VectorField(
         "Foo", lambda pos: 0 if int(pos.x + pos.y) % 2 == 0 else (math.radians(-90))
