@@ -435,7 +435,7 @@ class RelativeHeadingOp(AST):
     base: Optional[ast.AST] = None
 
 
-class ApparentHeadingOp(AST):
+class ApparentHeadingOfOp(AST):
     target: ast.AST
     base: Optional[ast.AST] = None
 

@@ -2076,17 +2076,17 @@ class TestCompiler:
                 assert False
 
     def test_apparent_heading_op(self):
-        node, _ = compileScenicAST(ApparentHeadingOp(Name("X")))
+        node, _ = compileScenicAST(ApparentHeadingOfOp(Name("X")))
         match node:
-            case Call(Name("ApparentHeading"), [Name("X")]):
+            case Call(Name("ApparentHeadingOf"), [Name("X")]):
                 assert True
             case _:
                 assert False
 
     def test_apparent_heading_op_base(self):
-        node, _ = compileScenicAST(ApparentHeadingOp(Name("X"), Name("Y")))
+        node, _ = compileScenicAST(ApparentHeadingOfOp(Name("X"), Name("Y")))
         match node:
-            case Call(Name("ApparentHeading"), [Name("X")], [keyword("Y", Name("Y"))]):
+            case Call(Name("ApparentHeadingOf"), [Name("X")], [keyword("Y", Name("Y"))]):
                 assert True
             case _:
                 assert False

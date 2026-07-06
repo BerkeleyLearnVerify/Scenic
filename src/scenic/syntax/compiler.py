@@ -1683,9 +1683,9 @@ class ScenicToPythonTransformer(Transformer):
             ),
         )
 
-    def visit_ApparentHeadingOp(self, node: s.ApparentHeadingOp):
+    def visit_ApparentHeadingOfOp(self, node: s.ApparentHeadingOfOp):
         return ast.Call(
-            func=ast.Name(id="ApparentHeading", ctx=loadCtx),
+            func=ast.Name(id="ApparentHeadingOf", ctx=loadCtx),
             args=[self.visit(node.target)],
             keywords=(
                 []

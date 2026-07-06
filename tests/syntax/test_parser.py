@@ -2222,7 +2222,7 @@ class TestOperator:
         mod = parse_string_helper("apparent heading of x")
         stmt = mod.body[0]
         match stmt:
-            case Expr(ApparentHeadingOp(Name("x"))):
+            case Expr(ApparentHeadingOfOp(Name("x"))):
                 assert True
             case _:
                 assert False
@@ -2231,7 +2231,7 @@ class TestOperator:
         mod = parse_string_helper("apparent heading of x from y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(ApparentHeadingOp(Name("x"), Name("y"))):
+            case Expr(ApparentHeadingOfOp(Name("x"), Name("y"))):
                 assert True
             case _:
                 assert False
@@ -2241,27 +2241,27 @@ class TestOperator:
         [
             (
                 "apparent heading of apparent heading of A from B",
-                ApparentHeadingOp(
-                    ApparentHeadingOp(Name("A", Load()), Name("B", Load()))
+                ApparentHeadingOfOp(
+                    ApparentHeadingOfOp(Name("A", Load()), Name("B", Load()))
                 ),
             ),
             (
                 "apparent heading of apparent heading of A from B from C",
-                ApparentHeadingOp(
-                    ApparentHeadingOp(Name("A", Load()), Name("B", Load())),
+                ApparentHeadingOfOp(
+                    ApparentHeadingOfOp(Name("A", Load()), Name("B", Load())),
                     Name("C", Load()),
                 ),
             ),
             (
                 "apparent heading of A from apparent heading of B from C",
-                ApparentHeadingOp(
+                ApparentHeadingOfOp(
                     Name("A", Load()),
-                    ApparentHeadingOp(Name("B", Load()), Name("C", Load())),
+                    ApparentHeadingOfOp(Name("B", Load()), Name("C", Load())),
                 ),
             ),
             (
                 "apparent heading of A << B from C",
-                ApparentHeadingOp(
+                ApparentHeadingOfOp(
                     BinOp(Name("A", Load()), LShift(), Name("B", Load())),
                     Name("C", Load()),
                 ),
@@ -2269,32 +2269,34 @@ class TestOperator:
             (
                 "apparent heading of A from B << C",
                 BinOp(
-                    ApparentHeadingOp(Name("A", Load()), Name("B", Load())),
+                    ApparentHeadingOfOp(Name("A", Load()), Name("B", Load())),
                     LShift(),
                     Name("C", Load()),
                 ),
             ),
             (
                 "apparent heading of A + B from C",
-                ApparentHeadingOp(
+                ApparentHeadingOfOp(
                     BinOp(Name("A", Load()), Add(), Name("B", Load())),
                     Name("C", Load()),
                 ),
             ),
             (
                 "apparent heading of A from B + C",
-                ApparentHeadingOp(
+                ApparentHeadingOfOp(
                     Name("A", Load()),
                     BinOp(Name("B", Load()), Add(), Name("C", Load())),
                 ),
             ),
             (
                 "apparent heading of A << B",
-                BinOp(ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())),
+                BinOp(
+                    ApparentHeadingOfOp(Name("A", Load())), LShift(), Name("B", Load())
+                ),
             ),
             (
                 "apparent heading of A + B",
-                ApparentHeadingOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
+                ApparentHeadingOfOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
             ),
         ],
     )

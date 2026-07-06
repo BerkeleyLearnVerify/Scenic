@@ -65,7 +65,7 @@ __all__ = (
     "BottomBackLeft",
     "BottomBackRight",
     "RelativeHeading",
-    "ApparentHeading",
+    "ApparentHeadingOf",
     "RelativePosition",
     "DistanceFrom",
     "DistancePast",
@@ -1275,7 +1275,7 @@ def RelativeHeading(X, Y=None):
     return normalizeAngle(X.yaw - Y.yaw)
 
 
-def ApparentHeading(X, Y=None):
+def ApparentHeadingOf(X, Y=None):
     """The :grammar:`apparent heading of <oriented point> [from <vector>]` operator.
 
     If the :grammar:`from <vector>` is omitted, the position of ego is used.
