@@ -634,6 +634,62 @@ def test_intersects_diff_z():
     assert p == (True, False, False)
 
 
+def test_ahead_of_op():
+    p_vals = [
+        sampleParamPFrom(
+            f"""
+            ego = new Object
+            foo = new Point offset along {i*45} deg by 0@1
+            param p = foo ahead of ego
+            """
+        )
+        for i in range(8)
+    ]
+    assert p_vals == [True, True, False, False, False, False, False, True]
+
+
+def test_behind_op():
+    p_vals = [
+        sampleParamPFrom(
+            f"""
+            ego = new Object
+            foo = new Point offset along {i*45} deg by 0@1
+            param p = foo behind ego
+            """
+        )
+        for i in range(8)
+    ]
+    assert p_vals == [False, False, False, True, True, True, False, False]
+
+
+def test_left_of_op():
+    p_vals = [
+        sampleParamPFrom(
+            f"""
+            ego = new Object
+            foo = new Point offset along {i*45} deg by 0@1
+            param p = foo left of ego
+            """
+        )
+        for i in range(8)
+    ]
+    assert p_vals == [False, True, True, True, False, False, False, False]
+
+
+def test_right_of_op():
+    p_vals = [
+        sampleParamPFrom(
+            f"""
+            ego = new Object
+            foo = new Point offset along {i*45} deg by 0@1
+            param p = foo right of ego
+            """
+        )
+        for i in range(8)
+    ]
+    assert p_vals == [False, False, False, False, False, True, True, True]
+
+
 ## Heading operators
 
 

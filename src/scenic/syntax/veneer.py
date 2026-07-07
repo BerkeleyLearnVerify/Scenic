@@ -85,6 +85,10 @@ __all__ = (
     "Implies",
     "VisibleFromOp",
     "NotVisibleFromOp",
+    "AheadOfOp",
+    "BehindOp",
+    "LeftOfOp",
+    "RightOfOp",
     # Primitive types
     "Vector",
     "Orientation",
@@ -250,6 +254,7 @@ import collections.abc
 from contextlib import contextmanager
 import functools
 import importlib
+import math
 import numbers
 from pathlib import Path
 import sys
@@ -1399,6 +1404,44 @@ def NotVisibleFromOp(region, base):
         raise TypeError('"X not visible from Y" with Y not a Point')
 
     return region.difference(base.visibleRegion)
+
+
+def AheadOfOp(X, Y):
+    """The :grammar:`<vector> ahead of <oriented point>` operator."""
+    X = toVector(X, '"X ahead of Y" with X not a vector')
+    if not isA(Y, OrientedPoint):
+        raise TypeError('"X ahead of Y" with Y not an OrientedPoint')
+
+    return math.radians(-89.99) < ApparentHeadingTo(X, Y) < math.radians(89.99)
+
+
+def BehindOp(X, Y):
+    """The :grammar:`<vector> behind <oriented point>` operator."""
+    X = toVector(X, '"X behind Y" with X not a vector')
+    if not isA(Y, OrientedPoint):
+        raise TypeError('"X behind Y" with Y not an OrientedPoint')
+
+    return ApparentHeadingTo(X, Y) < -math.radians(90.01) or math.radians(
+        90.01
+    ) < ApparentHeadingTo(X, Y)
+
+
+def LeftOfOp(X, Y):
+    """The :grammar:`<vector> left of <oriented point>` operator."""
+    X = toVector(X, '"X left of Y" with X not a vector')
+    if not isA(Y, OrientedPoint):
+        raise TypeError('"X left of Y" with Y not an OrientedPoint')
+
+    return math.radians(0.01) < ApparentHeadingTo(X, Y) < math.radians(180)
+
+
+def RightOfOp(X, Y):
+    """The :grammar:`<vector> right of <oriented point>` operator."""
+    X = toVector(X, '"X right of Y" with X not a vector')
+    if not isA(Y, OrientedPoint):
+        raise TypeError('"X right of Y" with Y not an OrientedPoint')
+
+    return -math.radians(180) < ApparentHeadingTo(X, Y) < math.radians(-0.01)
 
 
 def CanSee(X, Y):

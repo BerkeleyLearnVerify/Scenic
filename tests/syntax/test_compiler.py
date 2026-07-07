@@ -2306,6 +2306,38 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_ahead_of_op(self):
+        node, _ = compileScenicAST(AheadOfOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("AheadOfOp"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_behind_op(self):
+        node, _ = compileScenicAST(BehindOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("BehindOp"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_left_of_op(self):
+        node, _ = compileScenicAST(LeftOfOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("LeftOfOp"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_right_of_op(self):
+        node, _ = compileScenicAST(RightOfOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RightOfOp"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
     def test_can_see_op(self):
         node, _ = compileScenicAST(CanSeeOp(Name("X"), Name("Y")))
         match node:

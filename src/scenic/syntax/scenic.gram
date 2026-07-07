@@ -1803,6 +1803,10 @@ bitwise_or:
     | scenic_not_visible_from
     | scenic_can_see
     | scenic_intersects
+    | a=bitwise_or "ahead" "of" b=bitwise_xor { s.AheadOfOp(left=a, right=b, LOCATIONS) }
+    | a=bitwise_or "behind" b=bitwise_xor { s.BehindOp(left=a, right=b, LOCATIONS) }
+    | a=bitwise_or "left" "of" b=bitwise_xor { s.LeftOfOp(left=a, right=b, LOCATIONS) }
+    | a=bitwise_or "right" "of" b=bitwise_xor { s.RightOfOp(left=a, right=b, LOCATIONS) }
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
 

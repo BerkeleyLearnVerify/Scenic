@@ -1861,3 +1861,43 @@ class ScenicToPythonTransformer(Transformer):
             ],
             keywords=[],
         )
+
+    def visit_AheadOfOp(self, node: s.AheadOfOp):
+        return ast.Call(
+            func=ast.Name(id="AheadOfOp", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )
+
+    def visit_BehindOp(self, node: s.BehindOp):
+        return ast.Call(
+            func=ast.Name(id="BehindOp", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )
+
+    def visit_LeftOfOp(self, node: s.LeftOfOp):
+        return ast.Call(
+            func=ast.Name(id="LeftOfOp", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )
+
+    def visit_RightOfOp(self, node: s.RightOfOp):
+        return ast.Call(
+            func=ast.Name(id="RightOfOp", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )

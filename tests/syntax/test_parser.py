@@ -3097,6 +3097,42 @@ class TestOperator:
             case _:
                 assert False
 
+    def test_ahead_of(self):
+        mod = parse_string_helper("x ahead of y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(AheadOfOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_behind(self):
+        mod = parse_string_helper("x behind y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(BehindOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_left_of(self):
+        mod = parse_string_helper("x left of y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(LeftOfOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_right_of(self):
+        mod = parse_string_helper("x right of y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RightOfOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
     def test_intersects(self):
         mod = parse_string_helper("x intersects y ")
         stmt = mod.body[0]
