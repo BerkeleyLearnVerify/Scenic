@@ -440,6 +440,11 @@ class ApparentHeadingOfOp(AST):
     base: Optional[ast.AST] = None
 
 
+class ApparentHeadingToOp(AST):
+    target: ast.AST
+    base: Optional[ast.AST] = None
+
+
 class DistanceFromOp(AST):
     # because `to` and `from` are symmetric, the first operand will be `target` and the second will be `base`
     target: ast.AST

@@ -5,6 +5,7 @@ These behaviors are automatically imported when using the driving domain.
 
 import math
 from abc import ABC, abstractmethod
+import warnings
 
 import shapely
 from shapely.geometry import LineString, MultiPoint, Point as ShapelyPoint

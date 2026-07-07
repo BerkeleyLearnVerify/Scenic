@@ -1848,6 +1848,9 @@ scenic_prefix_operators:
     # apparent heading of
     | "apparent" "heading" "of" e1=expression 'from' e2=scenic_prefix_operators { s.ApparentHeadingOfOp(target=e1, base=e2, LOCATIONS) }
     | "apparent" "heading" "of" e1=scenic_prefix_operators { s.ApparentHeadingOfOp(target=e1, LOCATIONS) }
+    # apparent heading to
+    | "apparent" "heading" "to" e1=expression 'from' e2=scenic_prefix_operators { s.ApparentHeadingToOp(target=e1, base=e2, LOCATIONS) }
+    | "apparent" "heading" "to" e1=scenic_prefix_operators { s.ApparentHeadingToOp(target=e1, LOCATIONS) }
     # distance from/to
     | &"distance" scenic_distance_from_op
     # distance past

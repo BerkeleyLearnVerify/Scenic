@@ -66,6 +66,7 @@ __all__ = (
     "BottomBackRight",
     "RelativeHeading",
     "ApparentHeadingOf",
+    "ApparentHeadingTo",
     "RelativePosition",
     "DistanceFrom",
     "DistancePast",
@@ -1284,8 +1285,21 @@ def ApparentHeadingOf(X, Y=None):
         raise TypeError('"apparent heading of X from Y" with X not an OrientedPoint')
     if Y is None:
         Y = ego()
-    Y = toVector(Y, '"relative heading of X from Y" with Y not a vector')
+    Y = toVector(Y, '"apparent heading of X from Y" with Y not a vector')
     return apparentHeadingAtPoint(X.position, X.heading, Y)
+
+
+def ApparentHeadingTo(X, Y=None):
+    """The :grammar:`apparent heading to <vector> [from <oriented point>]` operator.
+
+    If the :grammar:`from <oriented point>` is omitted, the ego is used.
+    """
+    X = toVector(X, '"apparent heading to X from Y" with X not a vector')
+    if Y is None:
+        Y = ego()
+    if not isA(Y, OrientedPoint):
+        raise TypeError('"apparent heading to X from Y" with Y not an OrientedPoint')
+    return Y.apparentHeadingTo(X)
 
 
 def DistanceFrom(X, Y=None):

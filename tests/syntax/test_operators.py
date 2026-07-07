@@ -43,8 +43,8 @@ def test_relative_heading_from():
     assert ego.heading == pytest.approx(math.radians(70 + 10))
 
 
-# Apparent heading
-def test_apparent_heading():
+# Apparent heading of
+def test_apparent_heading_of():
     p = sampleParamPFrom(
         """
         ego = new Object facing 30 deg
@@ -55,7 +55,7 @@ def test_apparent_heading():
     assert p == pytest.approx(math.radians(65 + 45))
 
 
-def test_apparent_heading_no_ego():
+def test_apparent_heading_of_no_ego():
     with pytest.raises(InvalidScenarioError):
         compileScenic(
             """
@@ -65,7 +65,7 @@ def test_apparent_heading_no_ego():
         )
 
 
-def test_apparent_heading_from():
+def test_apparent_heading_of_from():
     ego = sampleEgoFrom(
         """
         OP = new OrientedPoint at 10@15, facing -60 deg
@@ -73,6 +73,38 @@ def test_apparent_heading_from():
         """
     )
     assert ego.heading == pytest.approx(math.radians(-60 - 45))
+
+
+def test_apparent_heading_to():
+    p = sampleParamPFrom(
+        """
+        ego = new Object facing 30 deg
+        other = new Object facing 65 deg, at 10@10
+        param p = apparent heading to other
+        """
+    )
+    assert p == pytest.approx(math.radians(-30 - 45))
+
+
+def test_apparent_heading_to_no_ego():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            """
+            other = new Object
+            ego = new Object at 2@2, facing apparent heading to other
+            """
+        )
+
+
+def test_apparent_heading_to_from():
+    p = sampleParamPFrom(
+        """
+        foo = new Object facing 30 deg
+        other = new Object facing 65 deg, at 10@10
+        param p = apparent heading to other from foo
+        """
+    )
+    assert p == pytest.approx(math.radians(-30 - 45))
 
 
 # Angle

@@ -2218,7 +2218,7 @@ class TestOperator:
     def test_relative_heading_precedence(self, code, expected):
         assert_equal_source_ast(code, expected)
 
-    def test_apparent_heading(self):
+    def test_apparent_heading_of(self):
         mod = parse_string_helper("apparent heading of x")
         stmt = mod.body[0]
         match stmt:
@@ -2227,7 +2227,7 @@ class TestOperator:
             case _:
                 assert False
 
-    def test_apparent_heading_from(self):
+    def test_apparent_heading_of_from(self):
         mod = parse_string_helper("apparent heading of x from y")
         stmt = mod.body[0]
         match stmt:
@@ -2297,6 +2297,96 @@ class TestOperator:
             (
                 "apparent heading of A + B",
                 ApparentHeadingOfOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
+            ),
+        ],
+    )
+    def test_apparent_heading_precedence(self, code, expected):
+        assert_equal_source_ast(code, expected)
+
+    def test_apparent_heading_to_from(self):
+        mod = parse_string_helper("apparent heading to x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(ApparentHeadingToOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "apparent heading to apparent heading to A from B",
+                ApparentHeadingToOp(
+                    ApparentHeadingToOp(Name("A", Load()), Name("B", Load()))
+                ),
+            ),
+            (
+                "apparent heading to apparent heading to A from B from C",
+                ApparentHeadingToOp(
+                    ApparentHeadingToOp(Name("A", Load()), Name("B", Load())),
+                    Name("C", Load()),
+                ),
+            ),
+            (
+                "apparent heading to A from apparent heading to B from C",
+                ApparentHeadingToOp(
+                    Name("A", Load()),
+                    ApparentHeadingToOp(Name("B", Load()), Name("C", Load())),
+                ),
+            ),
+            (
+                "apparent heading of A from apparent heading to B from C",
+                ApparentHeadingOfOp(
+                    Name("A", Load()),
+                    ApparentHeadingToOp(Name("B", Load()), Name("C", Load())),
+                ),
+            ),
+            (
+                "apparent heading to A from apparent heading of B from C",
+                ApparentHeadingToOp(
+                    Name("A", Load()),
+                    ApparentHeadingOfOp(Name("B", Load()), Name("C", Load())),
+                ),
+            ),
+            (
+                "apparent heading to A << B from C",
+                ApparentHeadingToOp(
+                    BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
+            ),
+            (
+                "apparent heading to A from B << C",
+                BinOp(
+                    ApparentHeadingToOp(Name("A", Load()), Name("B", Load())),
+                    LShift(),
+                    Name("C", Load()),
+                ),
+            ),
+            (
+                "apparent heading to A + B from C",
+                ApparentHeadingToOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
+            ),
+            (
+                "apparent heading to A from B + C",
+                ApparentHeadingToOp(
+                    Name("A", Load()),
+                    BinOp(Name("B", Load()), Add(), Name("C", Load())),
+                ),
+            ),
+            (
+                "apparent heading to A << B",
+                BinOp(
+                    ApparentHeadingToOp(Name("A", Load())), LShift(), Name("B", Load())
+                ),
+            ),
+            (
+                "apparent heading to A + B",
+                ApparentHeadingToOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
             ),
         ],
     )
