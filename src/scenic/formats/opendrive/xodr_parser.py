@@ -51,7 +51,7 @@ def speed_to_mps(speed_elem):
         raise ValueError(f"unsupported speed unit: {unit!r}")
 
 
-def _speed_limit_ranges_from_s_speed_records(records, domain_length):
+def _speed_limit_ranges_from_s_speed_records(sorted_records, domain_length):
     """Build ``(s_start, s_end, speed_mps)`` ranges from ``[(s, speed_mps), ...]``.
 
     Coverage is total over ``[0, domain_length)``: each record keeps its own
@@ -59,10 +59,7 @@ def _speed_limit_ranges_from_s_speed_records(records, domain_length):
     limit are emitted as explicit ``None`` ranges. This lets ``speedLimitAt``
     distinguish a genuine "no limit" stretch from a lookup past the end.
     """
-    if not records:
-        return []
-
-    sorted_records = sorted(records, key=lambda record: record[0])
+    # Already sorted in speed_limit_ranges_from_type_records
     # Guarantee coverage from 0: an undefined leading stretch stays None.
     if sorted_records[0][0] > 0:
         sorted_records = [(0.0, None)] + sorted_records
@@ -162,8 +159,6 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
         return
 
     speeds = {speed for _, _, speed in ranges if speed is not None}
-    if not speeds:
-        return
 
     element.speedLimit = min(speeds)
     has_gap = any(speed is None for _, _, speed in ranges)
@@ -1867,7 +1862,6 @@ class RoadMap:
             else:
                 pred_link = succ_link = None
 
-            # 2.3 Handle type and speed parsing
             for type_elem in r.findall("type"):
                 s = float(type_elem.get("s"))
                 road_type = type_elem.get("type")
