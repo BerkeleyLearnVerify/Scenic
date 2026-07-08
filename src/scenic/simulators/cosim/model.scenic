@@ -22,6 +22,7 @@ param timestep = 0.1
 param snapToGroundDefault = is2DMode()
 param bubble_size = 50
 param metsr_sim_dir = None
+param run_name = None
 
 
 simulator CosimSimulator(
