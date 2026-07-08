@@ -94,6 +94,9 @@ def speed_limit_ranges_from_lane_records(speed_records, section_length):
     ``speed_records`` are ``(sOffset, speed_mps)`` pairs relative to the lane
     section start; ``section_length`` is the lane section length in meters.
     """
+    if not speed_records:
+        return []
+
     return _speed_limit_ranges_from_s_speed_records(speed_records, section_length)
 
 
@@ -138,7 +141,7 @@ def speed_limit_for_s_interval(ranges, s_start, s_end):
     ``speed_limit`` is their minimum -- the conservative choice when an interval
     straddles more than one limit. Both are empty/``None`` when nothing overlaps.
     """
-    if not ranges or s_end <= s_start:
+    if not ranges:
         return None, frozenset()
 
     # A range overlaps the interval iff it starts before s_end and ends after s_start.
@@ -1116,7 +1119,9 @@ class Road:
                 effective_ranges = effective_speed_limit_ranges(
                     speed_ranges, lane_ranges, s_start, section_length
                 )
-                if effective_ranges:
+                if not effective_ranges:
+                    propagate_speed_limit(section_speed_limit, [lane_section])
+                elif any(speed is not None for _, _, speed in effective_ranges):
                     assign_speed_limit_from_ranges(
                         lane_section,
                         effective_ranges,
@@ -1124,8 +1129,7 @@ class Road:
                             f"road {self.id_} lane {id_} section s=[{s_start},{s_end})"
                         ),
                     )
-                else:
-                    propagate_speed_limit(section_speed_limit, [lane_section])
+                # else: ranges exist but define no limit; leave lane section as-is
 
             last_section = section
 
