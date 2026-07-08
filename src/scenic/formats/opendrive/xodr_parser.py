@@ -1583,7 +1583,6 @@ class RoadMap:
         fill_intersections=True,
         drivable_lane_types=(
             "driving",
-            "stop",
             "entry",
             "exit",
             "onRamp",
@@ -1597,9 +1596,9 @@ class RoadMap:
             "shoulder",
             "border",
             "restricted",
-            "curb",
             "parking",
             "none",
+            "stop",
         ),
         elide_short_roads=False,
     ):
