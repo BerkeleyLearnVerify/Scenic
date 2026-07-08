@@ -41,6 +41,7 @@ from scenic.core.type_support import (
     canCoerceType,
     coerceToFloat,
     toOrientation,
+    toVector,
 )
 from scenic.core.utils import argsToString, cached_property
 
@@ -718,7 +719,9 @@ class VectorField:
             stepSize (float): length used to compute how many steps to take, or
                 :obj:`None` to use the field's default step size.
         """
-        return self._followFromHelper(pos, dist, steps, stepSize, allPoints=True)
+        return self._followFromHelper(
+            toVector(pos), dist, steps, stepSize, allPoints=True
+        )
 
     @vectorDistributionMethod
     def followFrom(self, pos, dist, steps=None, stepSize=None):
@@ -736,7 +739,9 @@ class VectorField:
             stepSize (float): length used to compute how many steps to take, or
                 :obj:`None` to use the field's default step size.
         """
-        return self._followFromHelper(pos, dist, steps, stepSize, allPoints=False)
+        return self._followFromHelper(
+            toVector(pos), dist, steps, stepSize, allPoints=False
+        )
 
     def _followFromHelper(self, pos, dist, steps, stepSize, allPoints):
         if allPoints:
