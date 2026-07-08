@@ -510,6 +510,31 @@ def test_list_filtered_empty_2():
     assert sum(v == 2 for v in vs) >= 85
 
 
+def test_filter_lambda_random_global():
+    scenario = compileScenic(
+        """
+        thresh = Range(0, 1)
+        mylist = [Range(-1, 1), Range(2, 3)]
+        filtered = filter(lambda v: v > thresh, mylist)
+        ego = new Object with foo Uniform(*filtered)
+        """
+    )
+    with pytest.raises(RandomControlFlowError):
+        sampleEgo(scenario)
+
+
+def test_filter_lambda_random_threshold():
+    scenario = compileScenic(
+        """
+        mylist = [Range(-1, 1), Range(3, 4)]
+        filtered = filter(lambda v: v > Range(0, 1), mylist)
+        ego = new Object with foo Uniform(*filtered)
+        """
+    )
+    with pytest.raises(RandomControlFlowError):
+        sampleEgo(scenario)
+
+
 def test_tuple():
     scenario = compileScenic("ego = new Object with foo tuple([3, Uniform(1, 2)])")
     ts = [sampleEgo(scenario).foo for i in range(60)]
@@ -707,11 +732,11 @@ def test_reproducibility_3d():
     scenario = compileScenic(
         """
         ego = new Object
-        workspace = Workspace(SpheroidRegion(dimensions=(5,5,5)))
+        workspace = Workspace(SpheroidRegion(dimensions=(25,15,10)))
         region = BoxRegion(dimensions=(25,15,0.1))
-        #obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)
+        obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)
         obj_2 = new Object in workspace, facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
-        #obj_3 = new Object in workspace, on region
+        obj_3 = new Object in workspace, on region
         param foo = ego intersects obj_2
         x = Range(0, 1)
         require x > 0.8

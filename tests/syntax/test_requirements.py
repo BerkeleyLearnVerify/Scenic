@@ -19,6 +19,27 @@ def test_requirement():
     assert all(0 <= x <= 10 for x in xs)
 
 
+def test_chained_comparison_allows():
+    sampleSceneFrom(
+        """
+        require 1 < 2 < 3
+        ego = new Object
+        """,
+        maxIterations=1,
+    )
+
+
+def test_chained_comparison_rejects():
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            require 1 < 2 < 1.5
+            ego = new Object
+            """,
+            maxIterations=1,
+        )
+
+
 def test_requirement_in_loop():
     scenario = compileScenic(
         """

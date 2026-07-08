@@ -17,6 +17,9 @@ on:
         description: Git ref on which to run the tests.
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   coverage:
     strategy:

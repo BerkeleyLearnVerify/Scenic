@@ -6,7 +6,7 @@ import pytest
 
 from scenic.domains.driving.roads import Network
 from scenic.simulators.newtonian import NewtonianSimulator
-from tests.utils import pickle_test, sampleScene, tryPickling
+from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
 def test_basic(loadLocalScenario):
@@ -59,3 +59,57 @@ def test_pickle(loadLocalScenario):
     simulation = simulator.simulate(scene, maxSteps=100)
     egoPos, otherPos = simulation.result.trajectory[-1]
     assert egoPos.distanceTo(otherPos) < 1
+
+
+def test_pedestrian_movement(getAssetPath):
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+
+    code = f"""
+    param map = r'{mapPath}'
+    param render = False
+    model scenic.simulators.newtonian.driving_model
+
+    behavior Walk():
+        take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(1)
+
+    ped = new Pedestrian with regionContainedIn None,
+        with behavior Walk()
+
+    record initial ped.position as InitialPos
+    record final ped.position as FinalPos
+    terminate after 8 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = NewtonianSimulator()
+    simulation = simulator.simulate(scene, maxSteps=8)
+    init = simulation.result.records["InitialPos"]
+    fin = simulation.result.records["FinalPos"]
+    assert init.distanceTo(fin) > 0.1, "Pedestrian did not move."
+
+
+def test_pedestrian_velocity_vector(getAssetPath):
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+
+    code = f"""
+    param render = False
+    param map = r'{mapPath}'
+    model scenic.simulators.newtonian.driving_model
+
+    ped = new Pedestrian on sidewalk, with velocity (1, 1)
+
+    record initial ped.position as InitialPos
+    record final ped.position as FinalPos
+    terminate after 8 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = NewtonianSimulator()
+    simulation = simulator.simulate(scene, maxSteps=8)
+    init = simulation.result.records["InitialPos"]
+    fin = simulation.result.records["FinalPos"]
+    dx = fin[0] - init[0]
+    dy = fin[1] - init[1]
+    # Expect movement northeast (positive dx and dy)
+    assert dx > 0.1, f"Expected positive x movement (east), got dx = {dx}"
+    assert dy > 0.1, f"Expected positive y movement (north), got dy = {dy}"

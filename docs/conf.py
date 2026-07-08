@@ -125,15 +125,7 @@ autodoc_default_options = {
     "show-inheritance": None,
 }
 
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-    "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
-    "pytest": ("https://docs.pytest.org/en/stable/", None),
-    "trimesh": ("https://trimesh.org/", None),
-}
+from intersphinx_config import intersphinx_mapping
 
 highlight_language = "scenic"
 pygments_style = "scenic.syntax.pygment.ScenicStyle"
@@ -605,7 +597,9 @@ import scenic
 orig_object_description = sphinx.util.inspect.object_description
 
 
-def object_description(obj):
+def object_description(obj, **kwargs):
+    # Accept **kwargs to support Sphinx ≥7.2, which passes the `_seen` argument
+    # to object_description. This ensures compatibility across Sphinx versions.
     if obj is scenic.core.regions.nowhere or obj is scenic.core.regions.everywhere:
         return str(obj)
     elif isinstance(
@@ -622,7 +616,7 @@ def object_description(obj):
     elif obj is sys.stderr:
         return "sys.stderr"
     else:
-        return orig_object_description(obj)
+        return orig_object_description(obj, **kwargs)
 
 
 sphinx.util.inspect.object_description = object_description
