@@ -4,6 +4,7 @@ import socket
 import json
 import os
 import re
+import shlex
 import subprocess
 import time
 import shutil
@@ -14,12 +15,130 @@ from types import SimpleNamespace
 import sys
 import zipfile
 import threading
+import weakref
 from threading import Event
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
+_SERVER_REGISTRY_LOCK = threading.RLock()
+_VISUALIZATION_SERVER_REGISTRY = []
+_METSR_CLIENT_REGISTRY = weakref.WeakSet()
+
+
+def register_metsr_client(client):
+    """Track a METSRClient so process-local helper servers can be stopped."""
+    with _SERVER_REGISTRY_LOCK:
+        _METSR_CLIENT_REGISTRY.add(client)
+    return client
+
+
+def unregister_metsr_client(client):
+    with _SERVER_REGISTRY_LOCK:
+        try:
+            _METSR_CLIENT_REGISTRY.discard(client)
+        except TypeError:
+            pass
+
+
+def _register_visualization_server(stop_event, server_thread, port=None, directory=None):
+    entry = {
+        "stop_event": stop_event,
+        "server_thread": server_thread,
+        "port": int(port) if port is not None else None,
+        "directory": os.path.abspath(directory) if directory else None,
+    }
+    with _SERVER_REGISTRY_LOCK:
+        _VISUALIZATION_SERVER_REGISTRY.append(entry)
+    return entry
+
+
+def _unregister_visualization_server(server_thread=None, stop_event=None):
+    with _SERVER_REGISTRY_LOCK:
+        _VISUALIZATION_SERVER_REGISTRY[:] = [
+            entry for entry in _VISUALIZATION_SERVER_REGISTRY
+            if not (
+                (server_thread is not None and entry.get("server_thread") is server_thread)
+                or (stop_event is not None and entry.get("stop_event") is stop_event)
+            )
+        ]
+
+
+def stop_all_visualization_servers(verbose=True, join_timeout=2.0):
+    """Stop all file/CORS visualization servers started in this Python process."""
+    with _SERVER_REGISTRY_LOCK:
+        entries = list(_VISUALIZATION_SERVER_REGISTRY)
+    stopped = []
+    for entry in entries:
+        record = {
+            "port": entry.get("port"),
+            "directory": entry.get("directory"),
+            "returncode": 0,
+            "stderr": "",
+        }
+        try:
+            stop_visualization_server(
+                entry.get("stop_event"),
+                entry.get("server_thread"),
+                port=entry.get("port") or 8000,
+                join_timeout=join_timeout,
+                verbose=verbose,
+            )
+        except Exception as exc:
+            record["returncode"] = 1
+            record["stderr"] = str(exc).splitlines()[0]
+            if verbose:
+                print(f"Failed to stop visualization server on port {record['port']}: {record['stderr']}")
+        stopped.append(record)
+    if verbose and not stopped:
+        print("No process-local visualization file servers found.")
+    return stopped
+
+
+def stop_all_metsr_client_servers(verbose=True):
+    """Stop live stream and file servers owned by registered METSRClient objects."""
+    with _SERVER_REGISTRY_LOCK:
+        clients = list(_METSR_CLIENT_REGISTRY)
+    stopped = []
+    for client in clients:
+        record = {
+            "client": repr(client),
+            "had_stream_server": getattr(client, "viz_stream_server", None) is not None,
+            "had_file_server": getattr(client, "viz_server", None) is not None,
+            "returncode": 0,
+            "stderr": "",
+        }
+        if not record["had_stream_server"] and not record["had_file_server"]:
+            continue
+        try:
+            stop_viz = getattr(client, "stop_viz", None)
+            if callable(stop_viz):
+                try:
+                    stop_viz(verbose=verbose)
+                except TypeError:
+                    stop_viz()
+            else:
+                if record["had_stream_server"] and hasattr(client, "stop_viz_stream"):
+                    client.stop_viz_stream()
+                if record["had_file_server"] and hasattr(client, "stop_offline_viz"):
+                    client.stop_offline_viz()
+            if verbose:
+                print(
+                    "Stopped METS-R client helper servers "
+                    f"stream={record['had_stream_server']} file={record['had_file_server']}"
+                )
+        except Exception as exc:
+            record["returncode"] = 1
+            record["stderr"] = str(exc).splitlines()[0]
+            if verbose:
+                print(f"Failed to stop METS-R client helper servers: {record['stderr']}")
+        stopped.append(record)
+    if verbose and not stopped:
+        print("No registered METS-R client helper servers found.")
+    return stopped
+
+
 # Generic helpers
 # ---------------------------------------------------------------------------
 
@@ -483,6 +602,22 @@ def get_classpath2(options, includeBin=True, separator=":"):
 # Simulation launch helpers
 # ---------------------------------------------------------------------------
 
+def _shell_args(value):
+    if value in (None, ""):
+        return []
+    if isinstance(value, str):
+        return shlex.split(value)
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value if str(item)]
+    return [str(value)]
+
+
+def _default_appcontainer_executable():
+    for candidate in ("apptainer", "singularity", "appcontainer"):
+        if shutil.which(candidate):
+            return candidate
+    return "apptainer"
+
 def run_simulations(options):
     for i in range(0, options.num_simulations):
         cwd = str(os.getcwd())
@@ -577,6 +712,202 @@ def run_simulation_in_docker(options):
         os.chdir(cwd)
         return container_id
 
+
+def run_simulation_in_appcontainer(options):
+    """Launch METS-R SIM with an AppContainer/Apptainer-style runtime.
+
+    This mode starts only the METS-R Java simulator. Kafka/docker-compose
+    services are not available here, so Kafka-backed V2X examples should still
+    use Docker mode or an externally managed Kafka service.
+
+    Optional config/environment overrides:
+      - appcontainer_executable / METSR_APPCONTAINER_EXECUTABLE
+      - appcontainer_image / METSR_APPCONTAINER_IMAGE
+      - appcontainer_args / METSR_APPCONTAINER_ARGS
+      - appcontainer_bind_target / METSR_APPCONTAINER_BIND_TARGET
+      - appcontainer_command / METSR_APPCONTAINER_COMMAND
+    """
+    note = (
+        "NOTE: AppContainer mode starts only METS-R SIM; Kafka/docker-compose "
+        "services are not available in this mode."
+    )
+    if (
+        getattr(options, "verbose", False)
+        or getattr(options, "kafka_bootstrap_servers", None)
+        or getattr(options, "kafka_topics", None)
+    ):
+        print(note)
+
+    executable = (
+        getattr(options, "appcontainer_executable", None)
+        or os.environ.get("METSR_APPCONTAINER_EXECUTABLE")
+        or _default_appcontainer_executable()
+    )
+    image = (
+        getattr(options, "appcontainer_image", None)
+        or os.environ.get("METSR_APPCONTAINER_IMAGE")
+        or "docker://ennuilei/mets-r_sim"
+    )
+    runtime_args = _shell_args(
+        getattr(options, "appcontainer_args", None)
+        or os.environ.get("METSR_APPCONTAINER_ARGS")
+    )
+    bind_target = (
+        getattr(options, "appcontainer_bind_target", None)
+        or os.environ.get("METSR_APPCONTAINER_BIND_TARGET")
+        or "/home/test"
+    )
+    command_name = (
+        getattr(options, "appcontainer_command", None)
+        or os.environ.get("METSR_APPCONTAINER_COMMAND")
+        or "exec"
+    )
+
+    for i in range(0, options.num_simulations):
+        cwd = str(os.getcwd())
+        log_file = None
+        try:
+            os.chdir(options.sim_dirs[i])
+
+            sim_command = '' +  options.java_path + 'java'+ " -Xmx16G "  + \
+                "-cp " + \
+                get_classpath2(options, False) + ' ' + \
+                "repast.simphony.batch.BatchMain " + \
+                "-params " + options.sim_dir + "mets_r.rs/batch_params.xml " +\
+                "-interactive " + options.sim_dir + "mets_r.rs"
+
+            appcontainer_command = [
+                executable,
+                command_name,
+                *runtime_args,
+                "--bind",
+                f"{os.getcwd()}:{bind_target}",
+                image,
+                "/bin/bash",
+                "-lc",
+                f"cd {shlex.quote(bind_target)} && {sim_command}",
+            ]
+
+            if getattr(options, "verbose", False):
+                process = subprocess.Popen(appcontainer_command)
+                print("AppContainer METS-R process ID:", process.pid)
+            else:
+                log_file = open("sim_{}.log".format(i), "a")
+                process = subprocess.Popen(
+                    appcontainer_command,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                )
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"AppContainer executable {executable!r} was not found. "
+                "Set options.appcontainer_executable or METSR_APPCONTAINER_EXECUTABLE."
+            ) from exc
+        finally:
+            if log_file is not None:
+                log_file.close()
+            os.chdir(cwd)
+
+def clear_all(patterns=None, docker_executable="docker", verbose=True, stop_servers=True):
+    """Stop process-local METS-R helper servers and running METS-R Docker containers.
+
+    This stops live METS-R Vis streams and file/CORS visualization servers that
+    were started by METSRClient or utility helpers in the current Python
+    process, then stops running Docker containers whose image/name appears to
+    belong to METS-R.
+
+    Parameters
+    ----------
+    patterns : sequence[str], optional
+        Case-insensitive substrings to match against container image/name.
+        Defaults to METS-R naming variants.
+    docker_executable : str, optional
+        Docker CLI executable to invoke.
+    verbose : bool, optional
+        Print a short summary of stopped resources.
+    stop_servers : bool, optional
+        Stop process-local METS-R client streams and file servers before Docker
+        cleanup.
+
+    Returns
+    -------
+    dict
+        ``metsr_clients`` records helper servers stopped through registered
+        clients, ``visualization_servers`` records standalone file servers, and
+        ``docker_containers`` records stopped Docker containers.
+    """
+    cleanup = {
+        "metsr_clients": [],
+        "visualization_servers": [],
+        "docker_containers": [],
+    }
+    if stop_servers:
+        cleanup["metsr_clients"] = stop_all_metsr_client_servers(verbose=verbose)
+        cleanup["visualization_servers"] = stop_all_visualization_servers(verbose=verbose)
+
+    patterns = tuple(patterns or ("mets-r", "metsr", "mets_r"))
+    lowered_patterns = tuple(str(pattern).lower() for pattern in patterns)
+    ps_command = [
+        docker_executable,
+        "ps",
+        "--format",
+        "{{.ID}}\t{{.Image}}\t{{.Names}}",
+    ]
+    try:
+        ps_result = subprocess.run(
+            ps_command,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Docker executable {docker_executable!r} was not found.") from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            "Failed to list running Docker containers: "
+            + (exc.stderr or exc.stdout or str(exc)).strip()
+        ) from exc
+
+    targets = []
+    for line in ps_result.stdout.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        container_id, image, name = parts
+        haystack = f"{image} {name}".lower()
+        if any(pattern in haystack for pattern in lowered_patterns):
+            targets.append({"id": container_id, "image": image, "name": name})
+
+    if not targets:
+        if verbose:
+            print("No running METS-R Docker containers found.")
+        return cleanup
+
+    for target in targets:
+        result = subprocess.run(
+            [docker_executable, "stop", target["id"]],
+            text=True,
+            capture_output=True,
+        )
+        record = dict(target)
+        record.update(
+            {
+                "returncode": result.returncode,
+                "stdout": result.stdout.strip(),
+                "stderr": result.stderr.strip(),
+            }
+        )
+        cleanup["docker_containers"].append(record)
+        if verbose:
+            status = "stopped" if result.returncode == 0 else "failed"
+            print(
+                f"{status}: {target['id']} "
+                f"image={target['image']} name={target['name']}"
+            )
+            if result.returncode != 0 and result.stderr:
+                print(result.stderr.strip())
+
+    return cleanup
 # ---------------------------------------------------------------------------
 # Visualization server helpers
 # ---------------------------------------------------------------------------
@@ -601,6 +932,10 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200, "ok")
         self.end_headers()
+
+    def log_message(self, format, *args):
+        """Suppress noisy dashboard polling access logs."""
+        return
 
 
 class ReusableThreadingHTTPServer(ThreadingHTTPServer):
@@ -639,6 +974,7 @@ def run_visualization_server(data_folder, server_port = 8000):
     # os.chdir(data_folder)  # Change to the specified directory
     stop_event = Event() 
     server_thread = start_cors_http_server(data_folder, stop_event, server_port)
+    _register_visualization_server(stop_event, server_thread, port=server_port, directory=data_folder)
     print(f"Serving {data_folder} with CORS enabled on port {server_port}...")
 
     # recovery the work directory
@@ -646,8 +982,9 @@ def run_visualization_server(data_folder, server_port = 8000):
 
     return stop_event, server_thread
 
-def stop_visualization_server(stop_event, server_thread, port=8000, join_timeout=2.0):
-    stop_event.set()
+def stop_visualization_server(stop_event, server_thread, port=8000, join_timeout=2.0, verbose=True):
+    if stop_event is not None:
+        stop_event.set()
     httpd = getattr(server_thread, "httpd", None)
     if httpd is not None:
         httpd.shutdown()
@@ -660,11 +997,17 @@ def stop_visualization_server(stop_event, server_thread, port=8000, join_timeout
         except Exception:
             pass
 
+    if server_thread is None:
+        _unregister_visualization_server(stop_event=stop_event)
+        return
     server_thread.join(timeout=join_timeout)
+    _unregister_visualization_server(server_thread=server_thread, stop_event=stop_event)
     if server_thread.is_alive():
-        print(f"Visualization server thread did not stop within {join_timeout:.1f} seconds.")
+        if verbose:
+            print(f"Visualization server thread did not stop within {join_timeout:.1f} seconds.")
     else:
-        print("Visualization server stopped.")
+        if verbose:
+            print("Visualization server stopped.")
 
 
 def _simulation_folder_from_config(config, sim_index=0, output_root="output"):
