@@ -23,6 +23,7 @@ param snapToGroundDefault = is2DMode()
 param bubble_size = 50
 param metsr_sim_dir = None
 param run_name = None
+param metsr_viz_port = 8080
 
 
 simulator CosimSimulator(
@@ -37,6 +38,7 @@ simulator CosimSimulator(
     bubble_size = globalParameters.bubble_size,
     run_name = globalParameters.run_name,
     metsr_sim_dir = globalParameters.metsr_sim_dir,
+    metsr_viz_port = globalParameters.metsr_viz_port,
     )
 
 param startTime = 6*60*60

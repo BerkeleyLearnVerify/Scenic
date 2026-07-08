@@ -47,7 +47,8 @@ class CosimSimulator(DrivingSimulator):
         verbose=False,
         render=True,
         record="",
-        run_name=None
+        run_name=None,
+        metsr_viz_port = 8080
     ):
         super().__init__()
 
@@ -102,6 +103,7 @@ class CosimSimulator(DrivingSimulator):
 
         # self.scenario_number = 0
         verbosePrint("Carla was initialized correctly proceeding to Metsr")
+        self.metsr_viz_port = metsr_viz_port
 
         # Setting up Metsr simulator 
         if self.metsr_sim_dir is not None:
@@ -115,6 +117,7 @@ class CosimSimulator(DrivingSimulator):
                                         port=metsr_port,
                                         verbose=verbose)
             self.metsr_visualize = False
+            
 
 
         verbosePrint("Clients have successfully been initialized")
@@ -141,6 +144,7 @@ class CosimSimulator(DrivingSimulator):
             mappings=self.xml_to_xodr_map,
             xml_to_xodr_intersections = self.xml_to_xodr_intersections,
             run_name= self.run_name,
+            metsr_viz_port = self.metsr_viz_port,
             **kwargs,
         )
     def destroy(self):
@@ -153,7 +157,7 @@ class CosimSimulator(DrivingSimulator):
         self.tm.set_synchronous_mode(False)
 
 class CosimSimulation(DrivingSimulation):
-    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record,visualize_metsr, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, **kwargs ):
+    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record,visualize_metsr, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
     
         # Carla and metrs simulators
         self.carla_client = carla_client
@@ -179,6 +183,7 @@ class CosimSimulation(DrivingSimulation):
         self._client_calls = []
         self.count = 0
         self.visualize_metsr = visualize_metsr
+        self.metsr_viz_port = metsr_viz_port
 
         # CoSim related params
         self.bubble_size = bubble_size
@@ -218,7 +223,8 @@ class CosimSimulation(DrivingSimulation):
         verbosePrint(f"Initializing METS-R visualization server")
         if self.visualize_metsr:
             print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
-            self.metsr_client.start_viz(server_port=8080, startup_timeout=60)
+            self.metsr_client.start_viz(server_port=self.metsr_viz_port, startup_timeout=60)
+            print(f"Please connect to METS-R at port: {self.metsr_viz_port}")
         self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
         self.network_helper = network_cache(self.workspace,
