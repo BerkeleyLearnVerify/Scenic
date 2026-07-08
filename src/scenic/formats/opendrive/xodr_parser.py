@@ -52,24 +52,30 @@ def speed_to_mps(speed_elem):
 
 
 def _speed_limit_ranges_from_s_speed_records(records, domain_length):
-    """Build ``(s_start, s_end, speed_mps)`` ranges from ``[(s, speed_mps), ...]``."""
+    """Build ``(s_start, s_end, speed_mps)`` ranges from ``[(s, speed_mps), ...]``.
+
+    Coverage is total over ``[0, domain_length)``: each record keeps its own
+    speed (no inheritance from a previous record), and stretches with no defined
+    limit are emitted as explicit ``None`` ranges. This lets ``speedLimitAt``
+    distinguish a genuine "no limit" stretch from a lookup past the end.
+    """
     if not records:
         return []
 
     sorted_records = sorted(records, key=lambda record: record[0])
-    ranges = []
-    current_speed = None
+    # Guarantee coverage from 0: an undefined leading stretch stays None.
+    if sorted_records[0][0] > 0:
+        sorted_records = [(0.0, None)] + sorted_records
 
-    for i, (s, speed_mps) in enumerate(sorted_records):
-        if speed_mps is not None:
-            current_speed = speed_mps
+    ranges = []
+    for i, (s, speed_mps) in enumerate (sorted_records):
         s_end = sorted_records[i + 1][0] if i + 1 < len(sorted_records) else domain_length
-        if s_end <= s or current_speed is None:
+        if s_end <= s:
             continue
-        if ranges and ranges[-1][2] == current_speed and ranges[-1][1] == s:
-            ranges[-1] = (ranges[-1][0], s_end, current_speed)
+        if ranges and ranges[-1][2] == speed_mps and ranges[-1][1] == s:
+            ranges[-1] = (ranges[-1][0], s_end, speed_mps)
         else:
-            ranges.append((s, s_end, current_speed))
+            ranges.append((s, s_end, speed_mps))
 
     return ranges
 
@@ -80,12 +86,8 @@ def speed_limit_ranges_from_type_records(type_records, road_length):
         return []
 
     sorted_records = sorted(type_records, key=lambda record: record[0])
-    s_speed_records = []
-    current_speed = None
-    for s, _road_type, speed_mps in sorted_records:
-        if speed_mps is not None:
-            current_speed = speed_mps
-        s_speed_records.append((s, current_speed))
+    # Each <type> keeps its own speed (may be None); no inheritance across types.
+    s_speed_records = [(s, speed_mps) for s, _road_type, speed_mps in sorted_records]
     return _speed_limit_ranges_from_s_speed_records(s_speed_records, road_length)
 
 
@@ -146,7 +148,7 @@ def speed_limit_for_s_interval(ranges, s_start, s_end):
     overlapping = {
         speed
         for range_start, range_end, speed in ranges
-        if range_end > s_start and range_start < s_end
+        if range_end > s_start and range_start < s_end and speed is not None
     }
 
     if not overlapping:
@@ -164,9 +166,10 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
         return
 
     element.speedLimit = min(speeds)
-    if len(speeds) > 1:
+    has_gap = any(speed is None for _, _, speed in ranges)
+    if len(speeds) > 1 or has_gap:
         element.speedLimitRanges = tuple(ranges)
-        if warn_context is not None:
+        if len(speeds) > 1 and warn_context is not None:
             speeds_text = ", ".join(f"{speed:.4g} m/s" for speed in sorted(speeds))
             warn(
                 f"{warn_context}: spans multiple speed limits {{{speeds_text}}};"
