@@ -217,7 +217,8 @@ class CosimSimulation(DrivingSimulation):
         # Start the visualization once
         verbosePrint(f"Initializing METS-R visualization server")
         if self.visualize_metsr:
-            self.metsr_client.start_viz(server_port=8080)
+            print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
+            self.metsr_client.start_viz(server_port=8080, startup_timeout=60)
         self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
         self.network_helper = network_cache(self.workspace,
@@ -328,15 +329,12 @@ class CosimSimulation(DrivingSimulation):
 
         
    
-    def createObjectInCarla(self, obj: Object, update_orientation: bool = False, trajectory: list[carla.Transform] = None, metsr_data: dict = None) -> None:
+    def createObjectInCarla(self, obj: Object, trajectory: list[carla.Transform] = None) -> None:
         """
         Docstring for createObjectInCarla
         
         :param obj: Cosimulation car object
         :type obj: Scenic Object
-        :param update_orientation: Flag to trigger adaptive spawn orientation according to object location
-        :type update_orientation: bool
-
         """
         try:
             blueprint = self.blueprintLib.find(obj.blueprint)
@@ -372,16 +370,7 @@ class CosimSimulation(DrivingSimulation):
             blueprint=obj.blueprint,
             snapToGround=obj.snapToGround
         )
-        if update_orientation:
-            road = self._nearest_road(obj)
-            if road:
-                rot = utils.scenicToCarlaRotation(road.orientation[obj.position])
-            else:
-                rot = utils.scenicToCarlaRotation(obj.orientation)
-                # print(f'failed to update rotation due to road lookup')
-        else: 
-            rot = utils.scenicToCarlaRotation(obj.orientation)
-
+        rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)
         # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:
@@ -395,12 +384,14 @@ class CosimSimulation(DrivingSimulation):
             # print(f"Failed to spawn actor in position: {transform.location} with rot {rot}")
             waypoint = self.carla_world.get_map().get_waypoint(carla.Location(obj.position.x, -obj.position.y, obj.position.z), project_to_road=True, lane_type=carla.LaneType.Driving)
             transform = carla.Transform(carla.Location(waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z+2.0), waypoint.transform.rotation)
-            # # print(f"Attempting to spawn actor {obj.name} in: {transform.location}, with rot {transform.rotation}")
+            # print(f"Attempting to spawn actor {obj.name} in: {transform.location}, with rot {transform.rotation}")
             # out = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
             obj.position = Vector(transform.location.x, transform.location.y, transform.location.z)
             # print(f"Within thershold to: {out}")
-            carlaActor = self.carla_world.spawn_actor(blueprint,transform)
-            assert carlaActor is not None, f"Failed to generate actor after location correction"
+            carlaActor = self.carla_world.try_spawn_actor(blueprint,transform)
+            if carlaActor is None:
+                self.bubble_spawn_queue.append(obj)
+                print(f"Failed to generate actor {obj.name} after location correction. Adding veh to spawn queue")
                         
         obj.carlaActor = carlaActor
         carlaActor.set_simulate_physics(obj.physics)
@@ -678,27 +669,28 @@ class CosimSimulation(DrivingSimulation):
             print(f"Road densities: {self.road_pop_density}")
         
         if self.count % 50 == 0:
-            out_file = self.run_name + "_veh_data.csv"
+            if self.run_name is not None:
+                out_file = self.run_name + "_veh_data.csv"
 
-            data_dict_at_i = {
-                "active_vehicles": self.total_active_vehicles[-1],
-                "bubble_actors" : len(self.carla_actors), 
-                "bubble_queue": len(self.bubble_spawn_queue),
-                "completed_routes": len(list(self.completed_route.keys())),
-                **self.road_pop_density
-            }
-            final_df = pd.DataFrame([data_dict_at_i])
-            del data_dict_at_i
+                data_dict_at_i = {
+                    "active_vehicles": self.total_active_vehicles[-1],
+                    "bubble_actors" : len(self.carla_actors), 
+                    "bubble_queue": len(self.bubble_spawn_queue),
+                    "completed_routes": len(list(self.completed_route.keys())),
+                    **self.road_pop_density
+                }
+                final_df = pd.DataFrame([data_dict_at_i])
+                del data_dict_at_i
 
-            if self.count == 0:
-                os.makedirs(os.path.dirname(out_file), exist_ok=True)
-                final_df.to_csv(out_file,
-                                mode="w",
-                                header=True)
-            else:
-                final_df.to_csv(out_file,
-                                mode="a",
-                                header=False)
+                if self.count == 0:
+                    os.makedirs(os.path.dirname(out_file), exist_ok=True)
+                    final_df.to_csv(out_file,
+                                    mode="w",
+                                    header=True)
+                else:
+                    final_df.to_csv(out_file,
+                                    mode="a",
+                                    header=False)
             
         self.count += 1
         # (4): Compute new bubble region and process behavior interrupts
@@ -937,7 +929,7 @@ class CosimSimulation(DrivingSimulation):
                             self.bubble_spawn_queue.add(obj)
                         continue
                     else: 
-                        self.createObjectInCarla(obj, update_orientation=True) # Spawn Vehicle        
+                        self.createObjectInCarla(obj) # Spawn Vehicle        
                         if obj in self.bubble_spawn_queue:
                             self.bubble_spawn_queue.remove(obj)
                     
@@ -1024,7 +1016,8 @@ class CosimSimulation(DrivingSimulation):
 
         print(f"Logging trip times")
         print(f"="*25)
-        self._log_trip_times()
+        if self.run_name is not None:
+            self._log_trip_times()
         print(f"="*25)
 
         # METSR destroy
