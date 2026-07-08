@@ -888,6 +888,7 @@ class Network:
     sidewalkRegion: PolygonalRegion = None
     curbRegion: PolylineRegion = None
     shoulderRegion: PolygonalRegion = None
+    centerlines: PolylineRegion = None
 
     #: Traffic flow vector field aggregated over all roads (0 elsewhere).
     roadDirection: VectorField = None
@@ -949,6 +950,11 @@ class Network:
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
             self.curbRegion = PolylineRegion.unionAll(edges)
+
+        if self.centerlines is None:
+            self.centerlines = PolylineRegion.unionAll(
+                [lane.centerline for lane in self.lanes]
+            )
 
         if self.roadDirection is None:
             # TODO replace with a PolygonalVectorField for better pruning
