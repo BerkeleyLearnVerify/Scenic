@@ -11,7 +11,14 @@ import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
 from scipy.spatial.transform import Rotation as R
-from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon, LineString
+from shapely.geometry import (
+    GeometryCollection,
+    LineString,
+    MultiPoint,
+    MultiPolygon,
+    Point as ShapelyPoint,
+    Polygon,
+)
 from shapely.ops import snap, unary_union, split
 import shapely
 
@@ -19,6 +26,7 @@ from scenic.core.geometry import (
     averageVectors,
     cleanChain,
     cleanPolygon,
+    normalizeAngle,
     plotPolygon,
     polygonUnion,
     removeHoles,
@@ -159,11 +167,7 @@ class Cubic(Curve):
         dv_du = self.poly.grad_at(u)
         local_heading = math.atan2(dv_du, 1)
         global_heading = local_heading + self.hdg
-        while global_heading > math.pi:
-            global_heading -= 2 * math.pi
-        while global_heading < -math.pi:
-            global_heading += 2 * math.pi
-        return global_heading
+        return normalizeAngle(global_heading)
 
 
 class ParamCubic(Curve):
@@ -200,11 +204,7 @@ class ParamCubic(Curve):
         dv_dp = self.v_poly.grad_at(p)
         local_heading = math.atan2(dv_dp, du_dp)
         global_heading = local_heading + self.hdg
-        while global_heading > math.pi:
-            global_heading -= 2 * math.pi
-        while global_heading < -math.pi:
-            global_heading += 2 * math.pi
-        return global_heading
+        return normalizeAngle(global_heading)
 
 
 class Clothoid(Curve):
@@ -250,11 +250,7 @@ class Clothoid(Curve):
 
     def heading_at(self, s):
         theta = (self.curv0 * s) + (0.5 * self.curve_rate * s * s) + self.hdg
-        while theta > math.pi:
-            theta -= 2 * math.pi
-        while theta < -math.pi:
-            theta += 2 * math.pi
-        return theta
+        return normalizeAngle(theta)
 
 
 class Line(Curve):
@@ -271,11 +267,7 @@ class Line(Curve):
 
     def heading_at(self, s):
         heading = self.hdg
-        while heading > math.pi:
-            heading -= 2 * math.pi
-        while heading < -math.pi:
-            heading += 2 * math.pi
-        return heading
+        return normalizeAngle(heading)
 
 
 def makeCurve(x0, y0, hdg, length, curve_elem):
@@ -501,7 +493,7 @@ class Road:
 
     def heading_at(self, point):
         # Convert point to shapely Point.
-        point = Point(point.x, point.y)
+        point = ShapelyPoint(point.x, point.y)
         for i in range(len(self.lane_secs)):
             ref_points = self.sec_points[i]
             poly = self.sec_polys[i]
@@ -514,7 +506,7 @@ class Road:
                 assert lane_id is not None, "Point not found in sec_lane_polys."
                 min_dist = float("inf")
                 for i in range(len(ref_points)):
-                    cur_point = Point(ref_points[i][0], ref_points[i][1])
+                    cur_point = ShapelyPoint(ref_points[i][0], ref_points[i][1])
                     if point.distance(cur_point) < min_dist:
                         closest_idx = i
                 if closest_idx >= len(ref_points) - 1:
@@ -1408,7 +1400,7 @@ class Road:
         mrr_shortest_opp_edge = LineString(mrr_shortest_opp_edge)
 
         for x, y in crosswalk_polygon_coords:
-            crosswalk_polygon_vertex = Point(x, y)
+            crosswalk_polygon_vertex = ShapelyPoint(x, y)
             mrr_shortest_opp_edge_distances.append(
                 crosswalk_polygon_vertex.distance(mrr_shortest_opp_edge)
             )
@@ -1673,7 +1665,7 @@ class RoadMap:
     def heading_at(self, point):
         """Return the road heading at point."""
         # Convert point to shapely Point.
-        point = Point(point.x, point.y)
+        point = ShapelyPoint(point.x, point.y)
         for road in self.roads.values():
             if point.within(road.drivable_region.buffer(1)):
                 return road.heading_at(point)
