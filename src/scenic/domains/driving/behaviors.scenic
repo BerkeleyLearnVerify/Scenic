@@ -13,7 +13,7 @@ from shapely.geometry import LineString, MultiPoint, Point as ShapelyPoint
 from scenic.core.regions import toPolygon
 from scenic.domains.driving.actions import *
 import scenic.domains.driving.model as _model
-from scenic.domains.driving.roads import ManeuverType
+from scenic.domains.driving.roads import ManeuverType, Lane
 
 
 behavior ConstantThrottleBehavior(x):

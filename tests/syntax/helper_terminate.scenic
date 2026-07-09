@@ -1,1 +1,2 @@
-terminate after 1 seconds
+new Object
+terminate after 1 steps

@@ -103,7 +103,7 @@ def test_inherit_terminate(runLocally):
 
         result = sampleResult(scenario, maxSteps=5)
         assert "foo" in result.records
-        assert result.records["foo"] == [(0, 1)]
+        assert result.records["foo"] == [(0, 1), (1, 1)]
 
 
 def test_inherit_require_monitor(runLocally):
@@ -118,7 +118,7 @@ def test_inherit_require_monitor(runLocally):
 
         result = sampleResult(scenario, maxSteps=5)
         assert "foo" in result.records
-        assert result.records["foo"] == [(0, 1)]
+        assert result.records["foo"] == [(0, 1), (1, 1)]
 
 
 def test_inherit_constructors(runLocally):

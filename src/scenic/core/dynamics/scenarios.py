@@ -423,6 +423,14 @@ class DynamicScenario(Invocable):
         self._externalParameters.extend(other._externalParameters)
         self._requirements.extend(other._requirements)
         self._behaviors.extend(other._behaviors)
+        self._monitors.extend(other._monitors)
+        self._monitorRequirements.extend(other._monitorRequirements)
+        self._temporalRequirements.extend(other._temporalRequirements)
+        # self._terminationConditions.extend(other._terminationConditions)
+        # self._terminateSimulationConditions.extend(other._terminateSimulationConditions)
+        # self._recordedExprs.extend(other._recordedExprs)
+        # self._recordedInitialExprs.extend(other._recordedInitialExprs)
+        # self._recordedFinalExprs.extend(other._recordedFinalExprs)
 
     def _registerInstance(self, inst):
         self._instances.append(inst)
