@@ -55,6 +55,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", SimulatorInterfaceWarning)
     import scenic.simulators.carla.model
     import scenic.simulators.lgsvl.model
+    import scenic.simulators.maniskill.model
     import scenic.simulators.metadrive.model
 veneer.deactivate()
 
@@ -108,7 +109,15 @@ add_module_names = False
 autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
-autodoc_mock_imports = ["carla", "lgsvl", "metadrive"]
+autodoc_mock_imports = [
+    "carla",
+    "lgsvl",
+    "metadrive",
+    "mani_skill",
+    "torch",
+    "sapien",
+    "gymnasium",
+]
 autodoc_typehints = "description"
 autodoc_type_aliases = {
     "Vectorlike": "`scenic.domains.driving.roads.Vectorlike`",
