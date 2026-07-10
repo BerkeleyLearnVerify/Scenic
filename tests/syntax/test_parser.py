@@ -1138,7 +1138,7 @@ class TestRequire:
         mod = parse_string_helper("require X as 'requirement name'")
         stmt = mod.body[0]
         match stmt:
-            case Require(Name("X"), None, "requirement name"):
+            case Require(Name("X"), None, ast.Constant("requirement name")):
                 assert True
             case _:
                 assert False
@@ -1170,6 +1170,17 @@ class TestRequire:
             case _:
                 assert False
 
+    def test_require_always_with_name_fstr(self):
+        mod = parse_string_helper("require always X as f'safety'")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(
+                Always(Name("X")), None, ast.JoinedStr(values=[ast.Constant("safety")])
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_require_eventually(self):
         mod = parse_string_helper("require eventually X")
         stmt = mod.body[0]
@@ -1184,6 +1195,19 @@ class TestRequire:
         stmt = mod.body[0]
         match stmt:
             case Require(Eventually(Name("X")), None, "liveness"):
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually_with_name_fstr(self):
+        mod = parse_string_helper("require eventually X as f'liveness'")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(
+                Eventually(Name("X")),
+                None,
+                ast.JoinedStr(values=[ast.Constant("liveness")]),
+            ):
                 assert True
             case _:
                 assert False
@@ -1204,6 +1228,24 @@ class TestRecord:
         stmt = mod.body[0]
         match stmt:
             case Record(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_named_fstr(self):
+        mod = parse_string_helper("record x as f'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), ast.JoinedStr(values=[ast.Constant(value="name")])):
+                assert True
+            case _:
+                assert False
+
+    def test_record_named_str(self):
+        mod = parse_string_helper("record x as 'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), ast.Constant("name")):
                 assert True
             case _:
                 assert False
@@ -1283,6 +1325,26 @@ class TestRecord:
             case _:
                 assert False
 
+    def test_record_initial_named_str(self):
+        mod = parse_string_helper("record initial x as 'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(Name("x"), ast.Constant("name")):
+                assert True
+            case _:
+                assert False
+
+    def test_record_intial_named_fstr(self):
+        mod = parse_string_helper("record initial x as f'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(
+                Name("x"), ast.JoinedStr(values=[ast.Constant(value="name")])
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_record_final(self):
         mod = parse_string_helper("record final x")
         stmt = mod.body[0]
@@ -1297,6 +1359,24 @@ class TestRecord:
         stmt = mod.body[0]
         match stmt:
             case RecordFinal(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final_named_str(self):
+        mod = parse_string_helper("record final x as 'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), ast.Constant("name")):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final_named_fstr(self):
+        mod = parse_string_helper("record final x as f'name'")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), ast.JoinedStr(values=[ast.Constant("name")])):
                 assert True
             case _:
                 assert False
