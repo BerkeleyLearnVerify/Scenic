@@ -8,13 +8,13 @@ from abc import ABC, abstractmethod
 import warnings
 
 import shapely
-from shapely.geometry import LineString, MultiPoint, Point as ShapelyPoint
+from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, MultiLineString, LineString, MultiPoint, Point as ShapelyPoint
 
-from scenic.core.regions import toPolygon
+from scenic.core.regions import toShapely
+from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 import scenic.domains.driving.model as _model
 from scenic.domains.driving.roads import ManeuverType, Lane
-
 
 behavior ConstantThrottleBehavior(x):
     while True:
@@ -28,17 +28,6 @@ behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
 
 behavior AccelerateForwardBehavior():
     take SetReverseAction(False), SetHandBrakeAction(False), SetThrottleAction(0.5)
-
-behavior WalkForwardBehavior():
-    """Walk forward behavior for pedestrians.
-
-    It will uniformly randomly choose either end of the sidewalk that the pedestrian is on, and have the pedestrian walk towards the endpoint.
-    """
-    current_sidewalk = _model.network.sidewalkAt(self.position)
-    end_point = Uniform(*current_sidewalk.centerline.points)
-    end_vec = end_point[0] @ end_point[1]
-    normal_vec = Vector.normalized(end_vec)
-    take WalkTowardsAction(goal_position=normal_vec), SetSpeedAction(speed=1)
 
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
@@ -143,13 +132,13 @@ class Trajectory(object):
         return self.polyline.length
 
     def getRelativeTime(self, pos):
-        return toPolygon(self.polyline).project(ShapelyPoint(*pos), normalized=True)*self.duration
+        return toShapely(self.polyline).project(ShapelyPoint(*pos), normalized=True)*self.duration
 
     def getTimedDistance(self, timeA, timeB):
-        return shapely.ops.substring(toPolygon(self.polyline), timeA/self.duration, timeB/self.duration, normalized=True).length
+        return shapely.ops.substring(toShapely(self.polyline), timeA/self.duration, timeB/self.duration, normalized=True).length
 
     def __getitem__(self, time):
-        pt = toPolygon(self.polyline).interpolate(time/self.duration, normalized=True)
+        pt = toShapely(self.polyline).interpolate(time/self.duration, normalized=True)
         return Vector(pt.x, pt.y)
 
     @staticmethod

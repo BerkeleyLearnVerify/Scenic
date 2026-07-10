@@ -57,7 +57,7 @@ from scenic.core.geometry import (
     triangulatePolygon,
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
-from scenic.core.type_support import toOrientation, toScalar, toVector
+from scenic.core.type_support import canCoerce, toOrientation, toScalar, toVector
 from scenic.core.utils import (
     cached,
     cached_method,
@@ -720,10 +720,15 @@ def toPolygon(thing):
         poly = thing.polygons
     elif hasattr(thing, "lineString"):
         poly = thing.lineString
+    elif isinstance(thing, Vector):
+        poly = shapely.Point(*thing)
     else:
         return None
 
     return poly
+
+
+toShapely = toPolygon
 
 
 def regionFromShapelyObject(obj, orientation=None):

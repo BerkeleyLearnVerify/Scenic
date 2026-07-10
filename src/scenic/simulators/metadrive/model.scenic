@@ -125,6 +125,9 @@ class MetaDriveActor(DrivingObject):
     def setVelocity(self, vel):
         self.metaDriveActor.set_velocity(vel)
 
+    def setOrientation(self, orientation):
+        converted_heading = scenicToMetaDriveHeading(orientation.yaw)
+        self.metaDriveActor.set_heading_theta(converted_heading)
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):
     def __init__(self, *args, **kwargs):
