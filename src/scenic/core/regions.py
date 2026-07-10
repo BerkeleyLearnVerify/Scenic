@@ -3618,6 +3618,11 @@ class PolylineRegion(Region):
             roll=orientation.roll,
         )
 
+    @cached
+    def reverse(self):
+        """Return a copy of this `PolylineRegion`, reversed."""
+        return PolylineRegion(polyline=self.lineString.reverse())
+
     def defaultOrientation(self, point):
         start, end = self.nearestSegmentTo(point)
         return start.angleTo(end)

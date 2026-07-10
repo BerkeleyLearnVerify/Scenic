@@ -1,11 +1,19 @@
-## Pedestrian Behaviors
-def _getBugPath(self, target, backgroundObjects, bufferConst=1):
-    """ Generate a walking path using a Bug algorithm approach."""
-    # Compute the buffer amount based on our bounding radius and bufferConst
-    buffer_amount = shapely.minimum_bounding_radius(self._boundingPolygon) + bufferConst
+import shapely
+from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, MultiLineString, LineString, MultiPoint, Point as ShapelyPoint
 
-    # Generate the raw path, from the current position straight towards the target.
-    path = LineString([toShapely(self.position), toShapely(toVector(target))])
+import scenic.domains.driving.model as _model
+from scenic.core.regions import toShapely
+from scenic.core.type_support import toVector
+from scenic.domains.driving.actions import *
+
+
+## Pedestrian Behaviors
+def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
+    """ Refine a walking path using a Bug algorithm approach."""
+    assert isinstance(path_ls, LineString)
+
+    # Compute the buffer amount based on our bounding radius and bufferConst
+    buffer_amount = shapely.minimum_bounding_radius(actor._boundingPolygon) + bufferConst
 
     # Compute the obstacle polygons
     obstacle_multi_poly = shapely.union_all(list(obj._boundingPolygon.buffer(buffer_amount) for obj in backgroundObjects))
@@ -20,8 +28,8 @@ def _getBugPath(self, target, backgroundObjects, bufferConst=1):
     # Refine path around obstacles, going from those with the largest boundary inwards
     # (to account for the rare case where an obstacle poly may be entirely contained in another)
     for obstacle_poly in sorted(obstacle_polys, key=lambda x: x.boundary.length, reverse=True):
-        self_pt = ShapelyPoint(self.position)
-        target_pt = ShapelyPoint(path.coords[-1])
+        self_pt = ShapelyPoint(actor.position)
+        target_pt = ShapelyPoint(path_ls.coords[-1])
         if obstacle_poly.contains(target_pt):
             # Check if target is inside the polygon.
             # If we're too close to the exterior point, return None.
@@ -29,23 +37,23 @@ def _getBugPath(self, target, backgroundObjects, bufferConst=1):
                 return None
 
             # Otherwise, truncate the path to the closest point on the exterior of the obstacle_poly.
-            exterior_intersection = path.intersection(obstacle_poly.exterior)
+            exterior_intersection = path_ls.intersection(obstacle_poly.exterior)
             stop_pt = shapely.ops.nearest_points(exterior_intersection, self_pt)[0]
-            path = shapely.ops.substring(path, 0, path.project(stop_pt, normalized=True), normalized=True)
+            path_ls = shapely.ops.substring(path_ls, 0, path_ls.project(stop_pt, normalized=True), normalized=True)
             continue
 
-        if path.intersects(obstacle_poly):
+        if path_ls.intersects(obstacle_poly):
             # Find intersection points of path with exterior, and extract the first and
             # last with respect to their distance along the path.
-            exterior_intersection = path.intersection(obstacle_poly.exterior)
+            exterior_intersection = path_ls.intersection(obstacle_poly.exterior)
             intersection_points = []
 
             # If we're inside the obstacle poly, add the closest exterior point to guide us out.
             if obstacle_poly.contains(self_pt):
-                intersection_points.append(path.interpolate(path.project(self_pt)))
+                intersection_points.append(path_ls.interpolate(path_ls.project(self_pt)))
 
             if isinstance(exterior_intersection, ShapelyPoint):
-                assert obstacle_poly.contains(self_pt)                
+                assert obstacle_poly.contains(ShapelyPoint(path_ls.coords[0]))                
                 intersection_points.append(exterior_intersection)
             elif isinstance(exterior_intersection, LineString):
                 instersection_points += [ShapelyPoint(geom.coords[0]), ShapelyPoint(geom,coords[1])]
@@ -58,7 +66,7 @@ def _getBugPath(self, target, backgroundObjects, bufferConst=1):
             else:
                 assert False
 
-            intersection_points.sort(key=lambda x: path.project(x))
+            intersection_points.sort(key=lambda x: path_ls.project(x))
             start_pt = intersection_points[0]
             end_pt = intersection_points[-1]
 
@@ -75,8 +83,8 @@ def _getBugPath(self, target, backgroundObjects, bufferConst=1):
             ]
 
             # Patch together the shorter of these exterior segments with the path.
-            start_path = shapely.ops.substring(path, 0, path.project(start_pt, normalized=True), normalized=True)
-            end_path = shapely.ops.substring(path, path.project(end_pt, normalized=True), 1, normalized=True)
+            start_path = shapely.ops.substring(path_ls, 0, path_ls.project(start_pt, normalized=True), normalized=True)
+            end_path = shapely.ops.substring(path_ls, path_ls.project(end_pt, normalized=True), 1, normalized=True)
             start_path = shapely.force_2d(start_path)
             end_path = shapely.force_2d(end_path)
 
@@ -87,40 +95,103 @@ def _getBugPath(self, target, backgroundObjects, bufferConst=1):
                 > ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(end_path.coords[0]))):
                 mid_path = mid_path.reverse()
 
-            path = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
+            path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
 
-    return path
+    return path_ls
 
-behavior WalkPath(path, targetSpeed, terminationThresh=0.1, replanTime=0.5):
+behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0.1, replanTime=0.5, bufferConst=1):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
-    path = path.lineString
+    path_ls = path.lineString
 
-    while distance from self to target > doneThresh:
-        # Find where the actor currently is on the path
-        start_s = path.project(ShapelyPoint(self.position))
-        path_distance = path.interpolate(start_s).distance(ShapelyPoint(self.position))
-        
-        # Compute lookahead distance from speed and timestep. This accounts for how
-        # far we are from the path as well, so that we prioritize returning to it.
-        lookahead_dist = max(targetSpeed * simulation().timestep - path_distance, 0)
+    while distance from self to path.end > terminationThresh:
+        # Refine the path by dropping already traversed areas and adding a link to the start.
+        start_s = path_ls.project(ShapelyPoint(self.position), normalized=True)
+        refined_path_ls = shapely.ops.substring(path_ls, start_s, 1, normalized=True)
+        refined_path_ls =  LineString([self.position] + list(refined_path_ls.coords))
 
-        # Find target point
-        target_point = Vector(*path.interpolate(start_s+lookahead_dist).coords[0])
-        
-        # Set appropriate heading and velocity, calculating actual speed we should aim
-        # for, so we don't overshoot if we cut a corner or are at the end of the path.
-        actual_speed = min(targetSpeed, (distance from self to target_point)/simulation().timestep)
-        heading = angle from self to target_point
-        take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
+        # If our immediate path has us cross through any objects in motion, stop and 
+        # wait until it's clear.
+        background_objects = [obj for obj in simulation().objects if obj is not self]
+        immediate_path = shapely.ops.substring(refined_path_ls, 0, targetSpeed)
+        danger_objects = [obj for obj in background_objects if obj.speed > 0.1]
+        buffer_amount = shapely.minimum_bounding_radius(self._boundingPolygon) + bufferConst
+        moving_obj_danger_zone = shapely.union_all(
+            list(obj._boundingPolygon.buffer(buffer_amount) for obj in danger_objects)
+        )
+        if immediate_path.intersects(moving_obj_danger_zone):
+            # Tie-breaking wait
+            take SetWalkingSpeedAction(0)
+            wait for DiscreteRange(1, 5) steps
+        else:
+            # Modify path to route around objects.
+            refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst)
+
+            # Find where the actor currently is on the refined path
+            start_s = refined_path_ls.project(ShapelyPoint(self.position))
+            path_distance = refined_path_ls.interpolate(start_s).distance(ShapelyPoint(self.position))
+            
+            # Compute lookahead distance from speed and timestep. This accounts for how
+            # far we are from the path as well, so that we prioritize returning to it.
+            lookahead_dist = max(targetSpeed * simulation().timestep - path_distance, 0)
+
+            # Find target point
+            target_point = Vector(*refined_path_ls.interpolate(start_s+lookahead_dist).coords[0])
+
+            # Set appropriate heading and velocity, calculating actual speed we should aim
+            # for, so we don't overshoot if we cut a corner or are at the end of the path.
+            actual_speed = min(targetSpeed, (distance from self to target_point)/simulation().timestep)
+            heading = angle from self to target_point
+            take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
     
     take SetWalkingSpeedAction(0)
 
-behavior WalkTo(target, targetSpeed, terminationThresh=0.1, replanTime=0.5):
+behavior WalkTo(target, targetSpeed, *, avoidObstacles=True):
     """ Walk towards a given target position at targetSpeed, stopping at the end."""
-    path = PolylineRegion(points=(self.position, targetSpeed))
-    do WalkPath(path)
+    path = PolylineRegion(points=(self.position, toVector(target)))
+    do WalkPath(path, targetSpeed, avoidObstacles=avoidObstacles)
+
+behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
+    if targetSpeed is None:
+        # TODO: Should we move this to a property of pedestrians? (`baseWalkSpeed`?)
+        targetSpeed = Range(0.9, 1.8) # From ~2mph to ~4mph
+
+    if backwards is None:
+        backwards = Uniform(True, False)
+
+    network = _model.network
+
+    while True:
+        # If we're not currently in a walkable region, return to the closest one.
+        if self.position not in network.walkableRegion:
+            # TODO: Replace with closest point in region operator.
+            closest_pt = shapely.ops.nearest_points(toShapely(network.walkableRegion), toShapely(self.position))[0]
+            target_element = network.findPointIn(Vector(*closest_pt.coords[0]), network.sidewalks+network.crossings, reject=False)
+            target_pt = target_element.centerline.project(self.position)
+            do WalkTo(target_pt, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
+            continue
+        
+        # If we're not close to the start or end of the centerline of our current element
+        # (depending on whether we are walking `backwards` or not), walk towards it following the centerline.
+        current_element = network.findPointIn(self.position, network.sidewalks+network.crossings, reject=False)
+        end_pt = current_element.centerline.start if backwards else current_element.centerline.end
+        if distance from self.position to end_pt > 0.1:
+            target_path = current_element.centerline.reverse() if backwards else current_element.centerline
+            do WalkPath(target_path, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
+            continue
+        
+        # If we're at the end of the current element, we should pick a successor/predecessor
+        # (depending on whether we are walking `backwards`).
+        # TODO: Randomly pick from ALL successors/predecessors and sidewalks.
+        next_element = current_element._predecessor if backwards else current_element._successor
+        if next_element is not None:
+            target_path = next_element.centerline.reverse() if backwards else next_element.centerline
+            do WalkPath(target_path, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
+            continue
+
+        # We have no valid next moves. Terminate the behavior.
+        return
 
 # TODO: This uses WalkTowardsAction which doesn't exist.
 behavior WalkForwardBehavior():

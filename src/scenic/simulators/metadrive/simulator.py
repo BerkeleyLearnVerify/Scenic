@@ -293,6 +293,7 @@ class MetaDriveSimulation(DrivingSimulation):
                     math.cos(obj._walking_direction),
                     math.sin(obj._walking_direction),
                 ]
+                obj.setOrientation(toOrientation(obj.heading))
                 obj.metaDriveActor.set_velocity(direction, obj._walking_speed)
 
     def step(self):
