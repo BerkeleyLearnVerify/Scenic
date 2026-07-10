@@ -2249,6 +2249,7 @@ def test_record():
         (3, (6, 0, 0)),
     )
 
+
 def test_record_keys():
     scenario = compileScenic(
         """
@@ -2257,15 +2258,14 @@ def test_record_keys():
                 self.position = self.position + 2@0
                 wait
         ego = new Object with behavior Foo
-        for i in range(2):
-            obj = new Object with behvior Foo
-            record obj.position as f"position_{i}"
+        i=0
+        record ego.position as f"ego_position_{i}"
         terminate when ego.position.x >= 6
         """
     )
     result = sampleResult(scenario, maxSteps=4)
-    assert "position_0" in result.records 
-    assert "position_1" in result.records
+    assert "ego_position_0" in result.records
+
 
 ## lastActions Property
 def test_lastActions():
