@@ -77,6 +77,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
             start_pt_s = exterior_ls.project(start_pt, normalized=True)
             exterior_ls = LineString(list(shapely.ops.substring(exterior_ls, start_pt_s, 1, normalized=True).coords)
                                      + list(shapely.ops.substring(exterior_ls, 0, start_pt_s, normalized=True).coords))
+            exterior_ls = shapely.remove_repeated_points(exterior_ls)
             end_pt_ls = exterior_ls.project(end_pt, normalized=True)
             exterior_segments = [
                 shapely.ops.substring(exterior_ls, 0, end_pt_ls, normalized=True),
