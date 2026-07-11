@@ -71,9 +71,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
             end_pt = intersection_points[-1]
 
             # Split the exterior ring into two segments at these points
-            # split_line = shapely.affinity.scale(LineString([start_pt, end_pt]), 2, 2)
             exterior_ls = LineString(obstacle_poly.exterior)
-            exterior_ls = shapely.remove_repeated_points(exterior_ls)
             start_pt_s = exterior_ls.project(start_pt, normalized=True)
             exterior_ls = LineString(list(shapely.ops.substring(exterior_ls, start_pt_s, 1, normalized=True).coords)
                                      + list(shapely.ops.substring(exterior_ls, 0, start_pt_s, normalized=True).coords))
