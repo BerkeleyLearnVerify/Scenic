@@ -59,7 +59,7 @@ class Walks:
         self.setOrientation(toOrientation(heading))
 
     def setWalkingSpeed(self, speed):
-        self.setVelocity(*Vector(0, speed).rotatedBy(self.heading))
+        self.setVelocity(Vector(0, speed).rotatedBy(self.heading))
 
 
 ## Actions available to all agents
