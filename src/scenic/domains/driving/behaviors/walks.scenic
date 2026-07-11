@@ -135,7 +135,6 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
 
         # Modify path to route around objects.
         refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst)
-        refined_path_ls = shapely.remove_repeated_points(refined_path_ls)
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
         if refined_path_ls is None:
