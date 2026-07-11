@@ -96,6 +96,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
                 mid_path = mid_path.reverse()
 
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
+            path_ls = shapely.remove_repeated_points(path_ls)
 
     return path_ls
 
