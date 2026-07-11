@@ -2,6 +2,7 @@ from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Orientation, Vector
 from scenic.syntax.veneer import verbosePrint
 from scenic.simulators.metsr.client import METSRClient
+from scenic.simulators.metsr.util import build_metsr_vis_url
 from scenic.simulators.cosim.utils.utils import *
 from scenic.core.regions import CircularRegion
 from scenic.core.object_types import Object
@@ -20,7 +21,6 @@ import pandas as pd
 
 from .utils.network_helper import network_cache
 from .utils.global_route_planner import GlobalRoutePlanner
-
 import scenic.simulators.carla.utils.visuals as visuals
 from scenic.simulators.carla.blueprints import oldBlueprintNames
 
@@ -106,23 +106,15 @@ class CosimSimulator(DrivingSimulator):
         self.metsr_viz_port = metsr_viz_port
 
         # Setting up Metsr simulator 
-        if self.metsr_sim_dir is not None:
-            self.metsr_visualize = True
-            self.metsr_client = METSRClient(host=metsr_host,
-                                            port=metsr_port,
-                                            sim_folder=metsr_sim_dir, 
-                                            verbose=verbose)
-        else:
-            self.metsr_client = METSRClient(host=metsr_host,
-                                        port=metsr_port,
-                                        verbose=verbose)
-            self.metsr_visualize = False
-            
+        self.metsr_client = METSRClient(host=metsr_host,
+                                port=metsr_port,
+                                verbose=verbose)
+    
 
 
         verbosePrint("Clients have successfully been initialized")
 
-        print(f"Creating CoSimulator with timestep: {self.timestep} and Ticks per step as: {self.sim_ticks_per}")
+        verbosePrint(f"Creating CoSimulator with timestep: {self.timestep} and Ticks per step as: {self.sim_ticks_per}")
 
     def createSimulation(self,scene,*, timestep, **kwargs): #TODO: fix timestep
         if timestep is not None and timestep != self.timestep:
@@ -139,7 +131,6 @@ class CosimSimulator(DrivingSimulator):
             tm=self.tm,
             bubble_size=self.bubble_size,
             render=self.render,
-            visualize_metsr=self.metsr_visualize, 
             record=self.record,
             mappings=self.xml_to_xodr_map,
             xml_to_xodr_intersections = self.xml_to_xodr_intersections,
@@ -157,7 +148,7 @@ class CosimSimulator(DrivingSimulator):
         self.tm.set_synchronous_mode(False)
 
 class CosimSimulation(DrivingSimulation):
-    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record,visualize_metsr, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
+    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
     
         # Carla and metrs simulators
         self.carla_client = carla_client
@@ -182,7 +173,6 @@ class CosimSimulation(DrivingSimulation):
         self.scenic_to_metsr_map = mappings
         self._client_calls = []
         self.count = 0
-        self.visualize_metsr = visualize_metsr
         self.metsr_viz_port = metsr_viz_port
 
         # CoSim related params
@@ -221,9 +211,11 @@ class CosimSimulation(DrivingSimulation):
         self.metsr_client.reset() 
         # Start the visualization once
         verbosePrint(f"Initializing METS-R visualization server")
-        if self.visualize_metsr:
+        if self.render:
             print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
             self.metsr_client.start_viz(server_port=self.metsr_viz_port, startup_timeout=60)
+            self.stream_url = f"ws://127.0.0.1:{self.metsr_viz_port}"
+
             print(f"Please connect to METS-R at port: {self.metsr_viz_port}")
         self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
@@ -267,6 +259,23 @@ class CosimSimulation(DrivingSimulation):
         # Create objects.
         super().setup()
         
+        #TODO create a dict mapping for maps and IDS
+        # Build METSR Visualization url
+        self.map_id = 12
+
+        
+        if self.render:
+            print(f"Creating METS-R visualization server")
+            build_metsr_vis_url(
+                viz_url="https://engineering.purdue.edu/HSEES/METSRVis/",
+                stream_url=self.stream_url,
+                map_id=self.map_id,
+                vehicle_id=self.getMetsrPrivateVehId(self.ego),
+                vehicle_type=1,
+            )
+            print(f"Connect to Server at: {self.stream_url}")
+
+
         for obj in self.objects:
             if isinstance(obj.carlaActor, carla.Vehicle):
                 obj.carlaActor.apply_control(
@@ -320,6 +329,7 @@ class CosimSimulation(DrivingSimulation):
             "destination": obj.route[-1],
         }
 
+    
         self.metsr_client.generate_trip_between_roads(**call_kwargs)
         self.metsr_client.teleport_trace_replay_vehicle(vehID= self.getMetsrPrivateVehId(obj),
                                                         roadID=obj.route[0],
@@ -387,17 +397,17 @@ class CosimSimulation(DrivingSimulation):
             carlaActor = self.carla_world.spawn_actor(blueprint, transform)
         except Exception as e:
             # print(f"Exception: {e}")
-            # print(f"Failed to spawn actor in position: {transform.location} with rot {rot}")
+            # print(f"Failed to spawn actor {obj.name} in position: {transform.location} with rot {rot}")
             waypoint = self.carla_world.get_map().get_waypoint(carla.Location(obj.position.x, -obj.position.y, obj.position.z), project_to_road=True, lane_type=carla.LaneType.Driving)
             transform = carla.Transform(carla.Location(waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z+2.0), waypoint.transform.rotation)
             # print(f"Attempting to spawn actor {obj.name} in: {transform.location}, with rot {transform.rotation}")
-            # out = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
+            # out = _utils.within_threshold_to(obj, self.carla_actors, verbose=False)
             obj.position = Vector(transform.location.x, transform.location.y, transform.location.z)
             # print(f"Within thershold to: {out}")
             carlaActor = self.carla_world.try_spawn_actor(blueprint,transform)
             if carlaActor is None:
                 self.bubble_spawn_queue.append(obj)
-                print(f"Failed to generate actor {obj.name} after location correction. Adding veh to spawn queue")
+                print(f"Failed to generate actor {obj.name} after location correction. Adding vehicle to spawn queue")
                         
         obj.carlaActor = carlaActor
         carlaActor.set_simulate_physics(obj.physics)
@@ -485,7 +495,6 @@ class CosimSimulation(DrivingSimulation):
                                             radius=self.bubble_size)
 
         bubble_roads = self._get_bubble_roads()
-        print([f"{road.id}" for road in bubble_roads])
         new_roads, _ = self.classify_bubble_roads(bubble_roads)
         self.freeze_roads(new_roads) # Freeze lanes according to Ego Spawn
         self.metsr_client.tick()
@@ -662,8 +671,11 @@ class CosimSimulation(DrivingSimulation):
         if self.render:
             self.cameraManager.render(self.display)
             pygame.display.flip()
-            if self.visualize_metsr:
+            try:
                 self.metsr_client.render()
+            except Exception as e:
+                if self.count % 100 == 0:  
+                    print(f"Warning no registered connection to streaming client")
        
         self.bubble_sizes.append(len(self.carla_actors))
         self.total_active_vehicles.append(len(self.objects) - (len(self.frozen_vehicles) + len(self.bubble_spawn_queue)))
@@ -672,7 +684,7 @@ class CosimSimulation(DrivingSimulation):
             print(f"Total active vehicles: {self.total_active_vehicles[-1]}, frozen vehicles {len(self.frozen_vehicles)}")
             print(f"Total bubble actors: {len(self.carla_actors) + len(self.bubble_spawn_queue)}")
             print(f"Completed routes: {len(list(self.completed_route.keys()))}")
-            print(f"Road densities: {self.road_pop_density}")
+            # print(f"Road densities: {self.road_pop_density}")
         
         if self.count % 50 == 0:
             if self.run_name is not None:
