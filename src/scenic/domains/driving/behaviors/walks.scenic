@@ -117,6 +117,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
         start_s = path_ls.project(ShapelyPoint(self.position), normalized=True)
         refined_path_ls = shapely.ops.substring(path_ls, start_s, 1, normalized=True)
         refined_path_ls =  LineString([self.position] + list(refined_path_ls.coords))
+        refined_path_ls = shapely.remove_repeated_points(refined_path_ls)
 
         # If our immediate path has us cross through any objects in motion, stop and 
         # wait until it's clear.
@@ -132,8 +133,8 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
             continue
 
         # Modify path to route around objects.
-        old_refined_path_ls = refined_path_ls
         refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst)
+        refined_path_ls = shapely.remove_repeated_points(refined_path_ls)
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
         if refined_path_ls is None:
