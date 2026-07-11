@@ -197,6 +197,47 @@ VEHICLE_SENSOR_TYPES = {
     "mobile-device": VEHICLE_SENSOR_MOBILE_DEVICE,
 }
 
+METS_R_VIS_PURDUE_MAP_ID = 12
+METS_R_VIS_PRIVATE_VEHICLE_TYPE = 1
+METS_R_VIS_VEHICLE_TYPE_BY_GROUP = {
+    "vehicle": 0,
+    "ev_private": 1,
+    "ev_occupied": 2,
+    "ev_relocation": 3,
+    "ev_charging": 4,
+    "bus": 5,
+}
+
+
+def _has_value(value):
+    return value is not None and str(value).strip() != ""
+
+
+def build_metsr_vis_url(
+    viz_url="https://engineering.purdue.edu/HSEES/METSRVis/",
+    stream_url=None,
+    map_id=METS_R_VIS_PURDUE_MAP_ID,
+    vehicle_id=None,
+    vehicle_type=METS_R_VIS_PRIVATE_VEHICLE_TYPE,
+):
+    """Build a hosted METS-R Viz URL with dashboard preload query parameters."""
+    import urllib.parse
+
+    parts = urllib.parse.urlsplit(str(viz_url or ""))
+    existing = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    managed_keys = {"Map", "StreamURL", "VehicleID", "VehicleType"}
+    query_items = [(key, value) for key, value in existing if key not in managed_keys]
+    if _has_value(map_id):
+        query_items.append(("Map", str(map_id)))
+    if _has_value(stream_url):
+        query_items.append(("StreamURL", str(stream_url)))
+    if _has_value(vehicle_id):
+        query_items.append(("VehicleID", str(vehicle_id)))
+    if _has_value(vehicle_type):
+        query_items.append(("VehicleType", str(vehicle_type)))
+    query = urllib.parse.urlencode(query_items)
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
+
 REQUEST_ID_FIELDS = ("reqID", "requestID", "requestId", "ID", "id")
 REQUEST_ZONE_FIELDS = (
     "zoneID",
@@ -706,11 +747,10 @@ def run_simulation_in_docker(options):
         result = subprocess.run(docker_command, shell=True, text=True, capture_output=True)
         if options.verbose:
             print("Container ID:", result.stdout)
-            # print("Error msg:", result.stderr)
-        # container_id = result.stdout.strip()
         container_id = result.stdout.strip()
         os.chdir(cwd)
         return container_id
+
 
 
 def run_simulation_in_appcontainer(options):
