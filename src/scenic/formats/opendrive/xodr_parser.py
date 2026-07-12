@@ -228,20 +228,6 @@ def propagate_speed_limit(speed_limit, elements):
                 element.speedLimit = speed_limit
 
 
-def apply_lane_speed_limits(elements):
-    """Set each Lane's scalar ``speedLimit`` to the max over its lane sections."""
-    for element in elements:
-        if not isinstance(element, roadDomain.Lane):
-            continue
-        section_limits = [
-            section.speedLimit
-            for section in element.sections
-            if section.speedLimit is not None
-        ]
-        if section_limits:
-            element.speedLimit = max(section_limits)
-
-
 def propagate_tags(tags, elements):
     """Copy road-level semantic tags to lane groups and road sections."""
     if not tags:
@@ -1305,6 +1291,14 @@ class Road:
                     adj.append(lane._laneToRight)
                 lane.adjacentLanes = tuple(adj)
 
+        section_speed_limits = [
+            section.speedLimit
+            for section in roadSections
+            if section.speedLimit is not None
+        ]
+        road_speed_limit = min(section_speed_limits) if section_speed_limits else None
+        propagate_speed_limit(road_speed_limit, allElements)
+
         # Gather lane sections into lanes
         nextID = 0
         forwardLanes, backwardLanes = [], []
@@ -1346,6 +1340,11 @@ class Road:
                     leftEdge = PolylineRegion(cleanChain(leftPoints))
                     rightEdge = PolylineRegion(cleanChain(rightPoints))
                     centerline = PolylineRegion(cleanChain(centerPoints))
+                    lane_section_speed_limits = [
+                        section.speedLimit
+                        for section in sections
+                        if section.speedLimit is not None
+                    ]
                     lane = roadDomain.Lane(
                         id=f"road{self.id_}_lane{nextID}",
                         polygon=ls.parent_lane_poly,
@@ -1357,6 +1356,11 @@ class Road:
                         sections=tuple(sections),
                         successor=successorLane,  # will correct inter-road links later
                         tags=frozenset().union(*(sec.tags for sec in sections)),
+                        speedLimit=(
+                            min(lane_section_speed_limits)
+                            if lane_section_speed_limits
+                            else None
+                        ),
                     )
                     nextID += 1
                     for section in sections:
@@ -1468,13 +1472,6 @@ class Road:
             leftEdge = forwardGroup.leftEdge
         centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
 
-        section_speed_limits = [
-            section.speedLimit
-            for section in roadSections
-            if section.speedLimit is not None
-        ]
-        road_speed_limit = min(section_speed_limits) if section_speed_limits else None
-
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1494,7 +1491,6 @@ class Road:
         )
         allElements.append(road)
         propagate_speed_limit(road_speed_limit, allElements)
-        apply_lane_speed_limits(allElements)
         propagate_tags(road_level_tags, allElements)
 
         # Set up parent references
