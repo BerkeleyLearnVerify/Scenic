@@ -133,27 +133,20 @@ def effective_speed_limit_ranges(road_ranges, lane_ranges, section_s0, section_l
     ]
 
 
-def speed_limit_for_s_interval(ranges, s_start, s_end):
-    """Speed limit applying to the interval ``[s_start, s_end)``.
+def speed_limits_for_s_interval(ranges, s_start, s_end):
+    """Speed limits applying to the interval ``[s_start, s_end)``.
 
-    Returns ``(speed_limit, overlapping_speeds)``, where ``overlapping_speeds`` is
-    the set of every limit in ``ranges`` that overlaps the interval and
-    ``speed_limit`` is their minimum -- the conservative choice when an interval
-    straddles more than one limit. Both are empty/``None`` when nothing overlaps.
+    Returns a frozenset of every limit in ``ranges`` that overlaps the interval.
     """
     if not ranges:
-        return None, frozenset()
+        return frozenset()
 
     # A range overlaps the interval iff it starts before s_end and ends after s_start.
-    overlapping = {
+    return frozenset(
         speed
         for range_start, range_end, speed in ranges
         if range_end > s_start and range_start < s_end and speed is not None
-    }
-
-    if not overlapping:
-        return None, frozenset()
-    return min(overlapping), frozenset(overlapping)
+    )
 
 
 def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
@@ -164,17 +157,13 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
     speeds = {speed for _, _, speed in ranges if speed is not None}
 
     element.speedLimit = min(speeds)
-    has_gap = any(speed is None for _, _, speed in ranges)
-    if len(speeds) > 1 or has_gap:
-        element.speedLimitRanges = tuple(ranges)
-        if len(speeds) > 1 and warn_context is not None:
-            speeds_text = ", ".join(f"{speed:.4g} m/s" for speed in sorted(speeds))
-            warn(
-                f"{warn_context}: spans multiple speed limits {{{speeds_text}}};"
-                f" using minimum {element.speedLimit:.4g} m/s"
-            )
-    else:
-        element.speedLimitRanges = ()
+    element.speedLimitRanges = tuple(ranges)
+    if len(speeds) > 1 and warn_context is not None:
+        speeds_text = ", ".join(f"{speed:.4g} m/s" for speed in sorted(speeds))
+        warn(
+            f"{warn_context}: spans multiple speed limits {{{speeds_text}}};"
+            f" using minimum {element.speedLimit:.4g} m/s"
+        )
 
 
 def merge_scenic_tags(*tag_sets):
@@ -1045,8 +1034,11 @@ class Road:
                 if sec_index + 1 < len(self.lane_secs)
                 else self.length
             )
-            section_speed_limit, overlapping_speeds = speed_limit_for_s_interval(
+            overlapping_speeds = speed_limits_for_s_interval(
                 speed_ranges, s_start, s_end
+            )
+            section_speed_limit = (
+                min(overlapping_speeds) if overlapping_speeds else None
             )
             if len(overlapping_speeds) > 1:
                 speeds_text = ", ".join(
@@ -1589,7 +1581,6 @@ class RoadMap:
             "offRamp",
             "connectingRamp",
             "slipLane",
-            "biking",
         ),
         sidewalk_lane_types=("walking", "sidewalk"),  # sidewalk deprecated
         shoulder_lane_types=(
@@ -1597,7 +1588,6 @@ class RoadMap:
             "border",
             "restricted",
             "parking",
-            "none",
             "stop",
         ),
         elide_short_roads=False,
