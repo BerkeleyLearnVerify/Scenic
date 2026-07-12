@@ -228,16 +228,6 @@ def propagate_speed_limit(speed_limit, elements):
                 element.speedLimit = speed_limit
 
 
-def propagate_tags(tags, elements):
-    """Copy road-level semantic tags to lane groups and road sections."""
-    if not tags:
-        return
-    for element in elements:
-        if isinstance(element, _ROAD_LEVEL_PROPAGATION_TYPES):
-            if not element.tags:
-                element.tags = tags
-
-
 def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
@@ -1074,6 +1064,7 @@ class Road:
                 predecessor=last_section,
                 road=None,  # will set later
                 lanesByOpenDriveID=laneSections,
+                tags=road_level_tags,
             )
             roadSections.append(section)
             allElements.append(section)
@@ -1421,6 +1412,7 @@ class Road:
                 bikeLane=None,
                 shoulder=forwardShoulder,
                 opposite=None,
+                tags=road_level_tags,
             )
             allElements.append(forwardGroup)
         else:
@@ -1442,6 +1434,7 @@ class Road:
                 bikeLane=None,
                 shoulder=backwardShoulder,
                 opposite=forwardGroup,
+                tags=road_level_tags,
             )
             allElements.append(backwardGroup)
             if forwardGroup:
@@ -1491,7 +1484,6 @@ class Road:
         )
         allElements.append(road)
         propagate_speed_limit(road_speed_limit, allElements)
-        propagate_tags(road_level_tags, allElements)
 
         # Set up parent references
         if forwardGroup:
