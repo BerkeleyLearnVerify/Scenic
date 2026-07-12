@@ -166,15 +166,6 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
         )
 
 
-def merge_scenic_tags(*tag_sets):
-    """Combine tags from road ``<type>`` records and junction metadata."""
-    tags = set()
-    for tag_set in tag_sets:
-        if tag_set:
-            tags.update(tag_set)
-    return frozenset(tags)
-
-
 def lane_scenic_tags(lane_type):
     """Tags for a Lane or LaneSection from the OpenDRIVE lane ``type`` attribute."""
     if not lane_type:
@@ -1013,7 +1004,7 @@ class Road:
             for _, open_drive_type, _ in self.type_records
             if open_drive_type
         )
-        road_level_tags = merge_scenic_tags(type_tags, self.extra_tags)
+        road_level_tags = frozenset(type_tags | self.extra_tags)
         allElements = []
         # Create lane and road sections
         roadSections = []
@@ -1082,7 +1073,7 @@ class Road:
                     road=None,
                     openDriveID=id_,
                     isForward=id_ < 0,
-                    tags=lane_scenic_tags(lane.type_),
+                    tags=frozenset({lane.type_} if lane.type_ else ()),
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
