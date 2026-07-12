@@ -481,7 +481,6 @@ class Lane:
         self.id_ = id_
         self.width = []  # List of tuples (Poly3, int) for width and s-offset.
         self.speed_records = []  # [(sOffset, speed_mps), ...] from <speed> elements.
-        self.speed_limit = None  # First record's speed; kept for backward compatibility.
         self.type_ = type_
         self.pred = pred
         self.succ = succ
@@ -1727,8 +1726,6 @@ class RoadMap:
                     (float(speed_elem.get("sOffset", 0)), speed_to_mps(speed_elem))
                 )
             lane.speed_records.sort(key=lambda record: record[0])
-            if lane.speed_records:
-                lane.speed_limit = lane.speed_records[0][1]
             lanes[id_] = lane
         return lanes
 
