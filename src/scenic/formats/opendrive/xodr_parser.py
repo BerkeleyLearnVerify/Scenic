@@ -931,7 +931,7 @@ class Road:
         type_tags = frozenset(
             open_drive_type
             for _, open_drive_type, _ in self.type_records
-            if open_drive_type
+            # if open_drive_type
         )
         road_level_tags = frozenset(type_tags | self.extra_tags)
         allElements = []
