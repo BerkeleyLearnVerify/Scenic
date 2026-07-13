@@ -40,9 +40,7 @@ def test_lane_type_tags_are_lane_specific(tmp_path):
             <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
           </lane>"""
     road_extras = '<type s="0" type="motorway"><speed max="120" unit="km/h"/></type>'
-    network = parse_scenic_network(
-        tmp_path, lanes_xml=lanes_xml, road_extras=road_extras
-    )
+    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)
     road = scenic_road(network)
 
     tags_by_od_id = {
@@ -85,9 +83,7 @@ def test_junction_ramp_tags_apply_only_to_ramp_lanes(tmp_path):
 
 
 def test_junction_tags_from_type():
-    assert Junction(1, "Roundabout A", "roundabout").tags == frozenset(
-        {"roundabout"}
-    )
+    assert Junction(1, "Roundabout A", "roundabout").tags == frozenset({"roundabout"})
     # The default junction type carries no semantic meaning and is dropped.
     assert Junction(2, None, "default").tags == frozenset()
     # type_ defaults to "default"; junction names are not semantic tags.

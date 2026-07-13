@@ -255,7 +255,6 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
             # s is at/beyond the final (half-open) range's end: clamp to it.
             return speed
         return self.speedLimit
-   
 
     def __attrs_post_init__(self):
         assert self.uid is not None or self.id is not None

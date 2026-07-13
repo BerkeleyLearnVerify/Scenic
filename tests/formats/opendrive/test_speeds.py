@@ -6,9 +6,9 @@ from scenic.formats.opendrive.xodr_parser import (
     OpenDriveWarning,
     RoadMap,
     effective_speed_limit_ranges,
-    speed_limits_for_s_interval,
     speed_limit_ranges_from_lane_records,
     speed_limit_ranges_from_type_records,
+    speed_limits_for_s_interval,
     speed_to_mps,
 )
 
@@ -159,9 +159,7 @@ def test_network_speed_limit_at_uniform_section(tmp_path):
 
 
 def test_no_limit_speed_sets_ranges_with_none(tmp_path):
-    road_extras = (
-        '<type s="0" type="motorway"><speed max="no limit" unit="km/h"/></type>'
-    )
+    road_extras = '<type s="0" type="motorway"><speed max="no limit" unit="km/h"/></type>'
     network = parse_scenic_network(tmp_path, road_extras=road_extras)
     lane_section = scenic_road(network).lanes[0].sections[0]
     assert lane_section.speedLimit is None
@@ -207,9 +205,7 @@ def test_lane_speed_limit_overrides_when_higher(tmp_path):
             <speed sOffset="0" max="40" unit="km/h"/>
           </lane>"""
     road_extras = '<type s="0" type="town"><speed max="50" unit="km/h"/></type>'
-    network = parse_scenic_network(
-        tmp_path, lanes_xml=lanes_xml, road_extras=road_extras
-    )
+    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)
     road = scenic_road(network)
 
     road_limit = 50 / 3.6
@@ -258,6 +254,4 @@ def test_section_spanning_multiple_speeds_warns(tmp_path):
             <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
           </lane>"""
     with pytest.warns(OpenDriveWarning, match="spans multiple speed limits"):
-        parse_scenic_network(
-            tmp_path, lanes_xml=lanes_xml, road_extras=road_extras
-        )
+        parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)

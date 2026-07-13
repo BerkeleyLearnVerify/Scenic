@@ -172,9 +172,7 @@ def assign_semantic_tags(road_map):
     A road belonging to a junction (``road.junction`` equals the junction id)
     inherits that junction's semantic tags; all other roads get no extra tags.
     """
-    junction_tags = {
-        jid: junction.tags for jid, junction in road_map.junctions.items()
-    }
+    junction_tags = {jid: junction.tags for jid, junction in road_map.junctions.items()}
     for road in road_map.roads.values():
         if road.junction is not None:
             # road.junction is the raw OpenDRIVE id string; junctions are keyed by int.
@@ -954,12 +952,8 @@ class Road:
                 if sec_index + 1 < len(self.lane_secs)
                 else self.length
             )
-            overlapping_speeds = speed_limits_for_s_interval(
-                speed_ranges, s_start, s_end
-            )
-            section_speed_limit = (
-                min(overlapping_speeds) if overlapping_speeds else None
-            )
+            overlapping_speeds = speed_limits_for_s_interval(speed_ranges, s_start, s_end)
+            section_speed_limit = min(overlapping_speeds) if overlapping_speeds else None
             if len(overlapping_speeds) > 1:
                 speeds_text = ", ".join(
                     f"{speed:.4g} m/s" for speed in sorted(overlapping_speeds)
