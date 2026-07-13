@@ -3751,6 +3751,18 @@ class PolylineRegion(Region):
         pt = self.lineString.interpolate(distance, normalized=normalized)
         return Vector(pt.x, pt.y)
 
+    def substring(self, start, end, normalized=False):
+        """Compute a substring of this polyline.
+
+        If **normalized** is true, then start and end should be between 0 and 1, and
+        are interpreted as a fraction of the length of the polyline.
+        """
+        return PolylineRegion(
+            polyline=shapely.ops.substring(
+                self.lineString, start, end, normalized=normalized
+            )
+        )
+
     def equallySpacedPoints(self, num):
         return [self.pointAlongBy(d) for d in numpy.linspace(0, self.length, num)]
 
