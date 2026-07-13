@@ -173,36 +173,21 @@ def lane_scenic_tags(lane_type):
     return frozenset({lane_type})
 
 
-def _junction_tags(junction):
-    """Tags taken directly from a junction's OpenDRIVE ``type`` and ``name``."""
-    tags = set()
-    if junction.type_ and junction.type_ != "default":
-        tags.add(junction.type_)
-    if junction.name:
-        tags.add(junction.name)
-    return tags
-
-
 def assign_semantic_tags(road_map):
-    """Populate each ``Road.extra_tags`` from the type/name of its junction.
+    """Populate each ``Road.extra_tags`` from the type of its junction.
 
     A road belonging to a junction (``road.junction`` equals the junction id)
     inherits that junction's semantic tags; all other roads get no extra tags.
     """
-    extra = {road_id: set() for road_id in road_map.roads}
-
-    for jid, junction in road_map.junctions.items():
-        tags = _junction_tags(junction)
-        if not tags:
-            continue
-        for road_id, road in road_map.roads.items():
-            # road.junction is the raw OpenDRIVE id string (or None); junctions
-            # are keyed by int, so convert before comparing.
-            if road.junction is not None and int(road.junction) == jid:
-                extra[road_id].update(tags)
-
-    for road_id, road in road_map.roads.items():
-        road.extra_tags = frozenset(extra[road_id])
+    junction_tags = {
+        jid: junction.tags for jid, junction in road_map.junctions.items()
+    }
+    for road in road_map.roads.values():
+        if road.junction is not None:
+            # road.junction is the raw OpenDRIVE id string; junctions are keyed by int.
+            road.extra_tags = junction_tags.get(int(road.junction), frozenset())
+        else:
+            road.extra_tags = frozenset()
 
 
 _ROAD_LEVEL_PROPAGATION_TYPES = (
@@ -573,6 +558,7 @@ class Junction:
         self.id_ = id_
         self.name = name
         self.type_ = type_
+        self.tags = frozenset({type_} if type_ and type_ != "default" else ())
         self.connections = []
         # Ids of roads that are paths within junction:
         self.paths = []
@@ -809,8 +795,6 @@ class Road:
                                 prev_id = id_ - 1
                             else:
                                 prev_id = id_ + 1
-                            if prev_id not in offsets:
-                                continue
 
                             if (
                                 offsets[id_] == offsets[prev_id]
@@ -1088,7 +1072,6 @@ class Road:
                             f"road {self.id_} lane {id_} section s=[{s_start},{s_end})"
                         ),
                     )
-                # else: ranges exist but define no limit; leave lane section as-is
 
             last_section = section
 
