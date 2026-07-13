@@ -1309,6 +1309,24 @@ class Network:
         return None if lane is None else lane.sectionAt(point)
 
     @distributionMethod
+    def speedLimitAt(self, point: Vectorlike, reject=False) -> Union[float, None]:
+        """Get the speed limit at a given point, if any.
+
+        Looks up the `LaneSection` containing the point and returns its speed
+        limit there. When the section has multiple ``speedLimitRanges``, the
+        limit is taken from the range covering the point's projected distance
+        along the section centerline.
+        """
+        point = _toVector(point)
+        section = self.laneSectionAt(point, reject=reject)
+        if section is None:
+            return None
+        if len(section.speedLimitRanges) <= 1:
+            return section.speedLimit
+        s = section.centerline.lineString.project(geometry.makeShapelyPoint(point))
+        return section.speedLimitAt(s)
+
+    @distributionMethod
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
         """Get the `LaneGroup` passing through a given point."""
         point = _toVector(point)
