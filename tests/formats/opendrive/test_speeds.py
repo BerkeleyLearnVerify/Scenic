@@ -158,6 +158,18 @@ def test_network_speed_limit_at_uniform_section(tmp_path):
     assert network.speedLimitAt(point) == pytest.approx(50 / 3.6)
 
 
+def test_no_limit_speed_sets_ranges_with_none(tmp_path):
+    road_extras = (
+        '<type s="0" type="motorway"><speed max="no limit" unit="km/h"/></type>'
+    )
+    network = parse_scenic_network(tmp_path, road_extras=road_extras)
+    lane_section = scenic_road(network).lanes[0].sections[0]
+    assert lane_section.speedLimit is None
+    assert lane_section.speedLimitRanges == ((0.0, 20.0, None),)
+    point = lane_section.centerline.pointAlongBy(5.0)
+    assert network.speedLimitAt(point) is None
+
+
 def test_road_speed_limits_vary_by_lane_section():
     speed_ranges = speed_limit_ranges_from_type_records(
         [
