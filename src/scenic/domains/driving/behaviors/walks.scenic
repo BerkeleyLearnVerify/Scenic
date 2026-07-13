@@ -104,8 +104,19 @@ behavior TieBreakingPause():
     take SetWalkingSpeedAction(0)
     wait for Range(0.1, 0.5) seconds
 
-import matplotlib.pyplot as plt
-from scenic.core.geometry import plotPolygon
+behavior _WalkPathHelper(path, targetSpeed):
+    # Start distAlong negative to ensure we can get back to the path if we somehow
+    # start away from it.
+    dist_along = -(distance from self to Vector(*path.coords[0]))
+    while True:
+        # Determine target point, which will move along the path until we re-plan.
+        dist_along += targetSpeed
+        target_pt = Vector(*path.interpolate(max(0, dist_along)).coords[0])
+        # Set appropriate heading and velocity, calculating actual speed we should aim
+        # for, so we don't overshoot if we cut a corner or are at the end of the path.
+        actual_speed = min(targetSpeed, (distance from self to target_pt)/simulation().timestep)
+        heading = angle from self to target_pt
+        take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0.1, replanTime=0.5, bufferConst=1):
     """ Walk a path at targetSpeed, stopping at the end."""
@@ -141,46 +152,11 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
             do TieBreakingPause()
             continue
 
-        # Find where the actor currently is on the refined path
-        start_s = refined_path_ls.project(ShapelyPoint(self.position))
-        
-        # Compute lookahead distance from speed and timestep.
-        # Look ahead two timesteps to avoid ping-ponging.
-        lookahead_dist = targetSpeed * 2*simulation().timestep
-
-        # Find target point
-        lookahead_circle = toShapely(
-            CircularRegion(self.position, lookahead_dist)
-        )
-        intersection_geometry = lookahead_circle.boundary.intersection(refined_path_ls)
-
-        if intersection_geometry.is_empty:
-            # No viable target points. If we're close enough to the end of the path, aim for that.
-            # Otherwise, aim for the closest point on the trajectory.
-            end_pt = Vector(*refined_path_ls.coords[-1])
-            if distance from self.position to end_pt <= lookahead_dist:
-                target_point = end_pt
-            else:
-                target_point = Vector(*shapely.ops.nearest_points(refined_path_ls, ShapelyPoint(self.position))[0])
-        elif isinstance(intersection_geometry, ShapelyPoint):
-            target_point = Vector(*intersection_geometry.coords[0])
-        elif isinstance(intersection_geometry, MultiPoint):
-            # There are multiple candidate target points. Pick the one that appears last on the path.
-            # This helps us progress, and we don't have to worry about skipping significant parts of the path
-            # with such a small lookahead distance.
-            target_point = sorted(
-                intersection_geometry.geoms, key=lambda pt: refined_path_ls.project(pt)
-            )[-1]
-            target_point = Vector(*target_point.coords[0])
-        else:
-            # We've gotten something strange. Fall back to a representative point as the target.
-            target_point = Vector(*intersection_geometry.representative_point().coords[0])
-
-        # Set appropriate heading and velocity, calculating actual speed we should aim
-        # for, so we don't overshoot if we cut a corner or are at the end of the path.
-        actual_speed = min(targetSpeed, (distance from self to target_point)/simulation().timestep)
-        heading = angle from self to target_point
-        take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
+        # Follow the path until we replan, terminating early if we reach the end.
+        try:
+            do _WalkPathHelper(refined_path_ls, targetSpeed) for replanTime seconds
+        interrupt when distance from self to Vector(*refined_path_ls.coords[-1]) < terminationThresh:
+            abort
 
     take SetWalkingSpeedAction(0)
 
