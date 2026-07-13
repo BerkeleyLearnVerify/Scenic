@@ -190,29 +190,6 @@ def assign_semantic_tags(road_map):
             road.extra_tags = frozenset()
 
 
-_ROAD_LEVEL_PROPAGATION_TYPES = (
-    roadDomain.LaneGroup,
-    roadDomain.RoadSection,
-)
-
-
-_LANE_PROPAGATION_TYPES = (
-    roadDomain.LaneSection,
-    roadDomain.Lane,
-)
-_ROAD_PROPAGATION_TYPES = _ROAD_LEVEL_PROPAGATION_TYPES + _LANE_PROPAGATION_TYPES
-
-
-def propagate_speed_limit(speed_limit, elements):
-    """Copy a road speed limit down to lane groups, sections, and lanes."""
-    if speed_limit is None:
-        return
-    for element in elements:
-        if isinstance(element, _ROAD_PROPAGATION_TYPES):
-            if element.speedLimit is None:
-                element.speedLimit = speed_limit
-
-
 def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
@@ -1052,7 +1029,8 @@ class Road:
             roadSections.append(section)
             allElements.append(section)
 
-            propagate_speed_limit(section_speed_limit, [section])
+            if section_speed_limit is not None and section.speedLimit is None:
+                section.speedLimit = section_speed_limit
             section_length = s_end - s_start
             for id_, lane_section in laneSections.items():
                 lane = sec.drivable_lanes[id_]
@@ -1063,7 +1041,11 @@ class Road:
                     speed_ranges, lane_ranges, s_start, section_length
                 )
                 if not effective_ranges:
-                    propagate_speed_limit(section_speed_limit, [lane_section])
+                    if (
+                        section_speed_limit is not None
+                        and lane_section.speedLimit is None
+                    ):
+                        lane_section.speedLimit = section_speed_limit
                 elif any(speed is not None for _, _, speed in effective_ranges):
                     assign_speed_limit_from_ranges(
                         lane_section,
@@ -1270,7 +1252,13 @@ class Road:
             if section.speedLimit is not None
         ]
         road_speed_limit = min(section_speed_limits) if section_speed_limits else None
-        propagate_speed_limit(road_speed_limit, allElements)
+        if road_speed_limit is not None:
+            for section in roadSections:
+                if section.speedLimit is None:
+                    section.speedLimit = road_speed_limit
+                for lane_section in section.lanesByOpenDriveID.values():
+                    if lane_section.speedLimit is None:
+                        lane_section.speedLimit = road_speed_limit
 
         # Gather lane sections into lanes
         nextID = 0
@@ -1465,7 +1453,13 @@ class Road:
             tags=road_level_tags,
         )
         allElements.append(road)
-        propagate_speed_limit(road_speed_limit, allElements)
+        if road_speed_limit is not None:
+            for group in (forwardGroup, backwardGroup):
+                if group is not None and group.speedLimit is None:
+                    group.speedLimit = road_speed_limit
+            for lane in lanes:
+                if lane.speedLimit is None:
+                    lane.speedLimit = road_speed_limit
 
         # Set up parent references
         if forwardGroup:
