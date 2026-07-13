@@ -8,7 +8,7 @@ from scenic.domains.driving.actions import *
 
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
+def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1, network=None):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
 
@@ -88,7 +88,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1):
             start_path = shapely.force_2d(start_path)
             end_path = shapely.force_2d(end_path)
 
-            # Extract and reverse mid_path if needed
+            # Extract and reverse mid_path (if needed)
             mid_path = sorted(exterior_segments, key=lambda x: x.length)[0]
             mid_path_start = ShapelyPoint(mid_path.coords[0])
             if (ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(start_path.coords[0]))
@@ -105,13 +105,11 @@ behavior TieBreakingPause():
     wait for Range(0.1, 0.5) seconds
 
 behavior _WalkPathHelper(path, targetSpeed):
-    # Start distAlong negative to ensure we can get back to the path if we somehow
-    # start away from it.
-    dist_along = -(distance from self to Vector(*path.coords[0]))
+    dist_along = 0
     while True:
         # Determine target point, which will move along the path until we re-plan.
-        dist_along += targetSpeed
-        target_pt = Vector(*path.interpolate(max(0, dist_along)).coords[0])
+        dist_along += targetSpeed*simulation().timestep
+        target_pt = Vector(*path.interpolate(dist_along).coords[0])
         # Set appropriate heading and velocity, calculating actual speed we should aim
         # for, so we don't overshoot if we cut a corner or are at the end of the path.
         actual_speed = min(targetSpeed, (distance from self to target_pt)/simulation().timestep)
@@ -145,7 +143,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
             continue
 
         # Modify path to route around objects.
-        refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst)
+        refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst, network=_model.network)
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
         if refined_path_ls is None:
