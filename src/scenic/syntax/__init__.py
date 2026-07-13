@@ -34,13 +34,13 @@ def buildParser():
     )
 
     with open(_checksumPath, "wb") as f:
-        f.write(getParserHash())
+        f.write(getGrammarHash())
 
     return result
 
 
-def getParserHash():
-    with open(_parserPath, "rb") as f:
+def getGrammarHash():
+    with open(_grammarPath, "rb") as f:
         data = f.read()
     return _hashlib.blake2b(data).digest()
 
@@ -52,7 +52,7 @@ def checksumValid():
     with open(_checksumPath, "rb") as f:
         checksum = f.read()
 
-    return checksum == getParserHash()
+    return checksum == getGrammarHash()
 
 
 if not _parserPath.exists() or not checksumValid():
