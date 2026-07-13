@@ -65,7 +65,7 @@ def _speed_limit_ranges_from_s_speed_records(sorted_records, domain_length):
         sorted_records = [(0.0, None)] + sorted_records
 
     ranges = []
-    for i, (s, speed_mps) in enumerate (sorted_records):
+    for i, (s, speed_mps) in enumerate(sorted_records):
         s_end = sorted_records[i + 1][0] if i + 1 < len(sorted_records) else domain_length
         if s_end <= s:
             continue
@@ -156,7 +156,7 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
 
     speeds = {speed for _, _, speed in ranges if speed is not None}
 
-    element.speedLimit = min(speeds)
+    element.speedLimit = min(speeds) if speeds else None
     element.speedLimitRanges = tuple(ranges)
     if len(speeds) > 1 and warn_context is not None:
         speeds_text = ", ".join(f"{speed:.4g} m/s" for speed in sorted(speeds))
@@ -164,13 +164,6 @@ def assign_speed_limit_from_ranges(element, ranges, warn_context=None):
             f"{warn_context}: spans multiple speed limits {{{speeds_text}}};"
             f" using minimum {element.speedLimit:.4g} m/s"
         )
-
-
-def lane_scenic_tags(lane_type):
-    """Tags for a Lane or LaneSection from the OpenDRIVE lane ``type`` attribute."""
-    if not lane_type:
-        return frozenset()
-    return frozenset({lane_type})
 
 
 def assign_semantic_tags(road_map):
@@ -1040,13 +1033,7 @@ class Road:
                 effective_ranges = effective_speed_limit_ranges(
                     speed_ranges, lane_ranges, s_start, section_length
                 )
-                if not effective_ranges:
-                    if (
-                        section_speed_limit is not None
-                        and lane_section.speedLimit is None
-                    ):
-                        lane_section.speedLimit = section_speed_limit
-                elif any(speed is not None for _, _, speed in effective_ranges):
+                if effective_ranges:
                     assign_speed_limit_from_ranges(
                         lane_section,
                         effective_ranges,
