@@ -146,7 +146,6 @@ behavior _WalkPathHelper(path, targetSpeed):
         # Set appropriate heading and velocity, calculating actual speed we should aim
         # for, so we don't overshoot if we cut a corner or are at the end of the path.
         actual_speed = min(targetSpeed, (distance from self to target_pt)/simulation().timestep)
-        print(f"EXPECTED POINT: {target_pt}")
         heading = angle from self to target_pt
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
