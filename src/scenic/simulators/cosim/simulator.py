@@ -578,8 +578,7 @@ class CosimSimulation(DrivingSimulation):
         speed = raw_data["speed"]
         bearing = math.radians(-raw_data["bearing"])
         globalOrientation = Orientation.fromEuler(bearing,0,0)
-        # yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
-        yaw, pitch, roll = 0,0,0,
+        yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
         velocity = Vector(0, speed, 0).rotatedBy(yaw)
         angularSpeed = 0
         angularVelocity = Vector(0,0,0)
