@@ -79,7 +79,7 @@ behavior FrankaMoveToPickPlace(target_object, place_pos):
     do MoveEndEffectorTo(home)
     do OpenGripper()
     do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(at_pick)
+    do MoveEndEffectorTo(at_pick, threshold=0.015)
     do HoldPosition()
     do CloseGripper()
     do MoveEndEffectorTo(hover_pick)

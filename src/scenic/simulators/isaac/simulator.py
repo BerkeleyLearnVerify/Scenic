@@ -53,10 +53,6 @@ class IsaacSimSimulator(Simulator):
         )
 
     def destroy(self):
-        print("[IsaacSimSimulator.destroy] CLOSING SIMULATION APP", flush=True)
-        import traceback
-
-        traceback.print_stack(limit=20)
         super().destroy()
         self.backend.close_simulation_app(self.client)
 

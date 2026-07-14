@@ -205,6 +205,7 @@ class UR5e(IsaacSimRobot, _ManipulatorRobot):
     width: 0.4
     length: 0.4
     height: 0.515
+    arm_max_velocities: None
 
     def create(self):
         return isaac_backend.create_ur5e(self)

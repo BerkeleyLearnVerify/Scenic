@@ -8,7 +8,7 @@ Run with:
     scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic
 """
 
-param isaacBackend = "experimental_60"
+param isaacBackend = "experimental_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 
 duration = 60
@@ -17,6 +17,7 @@ binHeight = 0.1475
 hoverHeight = 0.3
 retractHeight = 0.2
 releaseGap = 0.02
+graspThreshold = 0.015
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
@@ -79,7 +80,7 @@ behavior FrankaMoveToPickPlace(target_object, place_pos):
     do MoveEndEffectorTo(home)
     do OpenGripper()
     do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(at_pick)
+    do MoveEndEffectorTo(at_pick, threshold=graspThreshold)
     do HoldPosition()
     do CloseGripper()
     do MoveEndEffectorTo(hover_pick)

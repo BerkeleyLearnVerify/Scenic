@@ -185,18 +185,17 @@ class Experimental60Backend(IsaacBackend):
             world.app.update()
 
     def _configure_ur5e_pick_objects_for_world(self, world, objects):
-        if not any(handle.kind == "ur5e" for handle in world.objects.values()):
+        if not any(hasattr(obj, "_ur5e_metadata") for obj in objects):
             return
 
         import isaacsim.core.experimental.utils.stage as stage_utils
 
         stage = stage_utils.get_current_stage()
-        object_by_name = {obj.name: obj for obj in objects}
-        pick_object_paths = []
-        for name, handle in world.objects.items():
-            obj = object_by_name.get(name)
-            if handle.kind == "object" and obj is not None and obj.physics:
-                pick_object_paths.append(handle.prim_path)
+        pick_object_paths = [
+            obj._isaac_generic_prim_path
+            for obj in objects
+            if obj.physics and hasattr(obj, "_isaac_generic_prim_path")
+        ]
         if pick_object_paths:
             self._configure_ur5e_pick_object_contact(stage, pick_object_paths)
 
@@ -365,6 +364,7 @@ class Experimental60Backend(IsaacBackend):
         if obj.color:
             self.apply_visual_material(wrapper, obj, geometry_paths=geometry_paths)
 
+        obj._isaac_generic_prim_path = prim_path
         return wrapper
 
     def _geometry_paths_under(self, prim_path):
@@ -413,6 +413,7 @@ class Experimental60Backend(IsaacBackend):
             wrapper.apply_visual_materials(material)
 
     def create_robot(self, obj):
+        from isaacsim.core.experimental.prims import Articulation
         import isaacsim.core.experimental.utils.stage as stage_utils
 
         if getattr(obj, "wheel_controller", None) in {
@@ -609,6 +610,11 @@ class Experimental60Backend(IsaacBackend):
             reset_xform_op_properties=True,
         )
         arm_dof_indices = self._dof_indices(wrapper, UR5E_ARM_DOF_NAMES)
+        if obj.arm_max_velocities is not None:
+            wrapper.set_dof_max_velocities(
+                obj.arm_max_velocities,
+                dof_indices=arm_dof_indices,
+            )
         gripper_dof_indices = self._dof_indices(wrapper, ["finger_joint"])
         default_dof_positions = np.zeros(len(wrapper.dof_names), dtype=float)
         for value, dof_index in zip(UR5E_DEFAULT_ARM_POSE, arm_dof_indices):
@@ -634,13 +640,8 @@ class Experimental60Backend(IsaacBackend):
             "downward_orientation": UR5E_DOWNWARD_ORIENTATION.copy(),
             "tcp_offset": UR5E_TCP_OFFSET.copy(),
         }
-        return ExperimentalObjectHandle(
-            obj.name,
-            prim_path,
-            wrapper,
-            "ur5e",
-            metadata,
-        )
+        obj._ur5e_metadata = metadata
+        return wrapper
 
     def _set_required_variant(self, prim, variant_name, selection):
         variant_set = prim.GetVariantSet(variant_name)
@@ -1188,25 +1189,25 @@ class Experimental60Backend(IsaacBackend):
         franka.set_dof_position_targets(metadata["default_dof_positions"])
         self._set_franka_gripper(franka, obj, "open")
 
-
-def _ensure_franka_primitive_control_ready(self, handle):
-    if not handle.metadata.get("primitive_control_ready", False):
-        self._reset_franka(handle)
-        handle.metadata["primitive_control_ready"] = True
+    def _ensure_franka_primitive_control_ready(self, obj, franka):
+        metadata = obj._franka_metadata
+        if not metadata.get("primitive_control_ready", False):
+            self._reset_franka(obj, franka)
+            metadata["primitive_control_ready"] = True
 
     def _franka_end_effector_pose(self, obj):
         metadata = obj._franka_metadata
         position, orientation = metadata["end_effector"].get_world_poses()
         return position.numpy(), orientation.numpy()
 
-    def _franka_tcp_position(self, handle, control_position, orientation):
-        tcp_offset = handle.metadata["tcp_offset"]
+    def _franka_tcp_position(self, obj, control_position, orientation):
+        tcp_offset = obj._franka_metadata["tcp_offset"]
         control_position = np.asarray(control_position, dtype=float).reshape(-1)[:3]
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return control_position + self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
 
-    def _franka_control_position(self, handle, tcp_position, orientation):
-        tcp_offset = handle.metadata["tcp_offset"]
+    def _franka_control_position(self, obj, tcp_position, orientation):
+        tcp_offset = obj._franka_metadata["tcp_offset"]
         tcp_position = _position_array(tcp_position)
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return tcp_position - self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
@@ -1315,15 +1316,16 @@ def _ensure_franka_primitive_control_ready(self, handle):
             )
 
     def move_franka_end_effector(self, sim, obj, position, orientation=None):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_franka_primitive_control_ready(handle)
-        current_position, current_orientation = self._franka_end_effector_pose(handle)
+        franka = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(obj, franka)
+        current_position, current_orientation = self._franka_end_effector_pose(obj)
         if orientation is None:
-            orientation = handle.metadata["downward_orientation"]
+            orientation = obj._franka_metadata["downward_orientation"]
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
-        goal_position = self._franka_control_position(handle, position, orientation)
+        goal_position = self._franka_control_position(obj, position, orientation)
         self._move_franka_end_effector(
-            handle,
+            franka,
+            obj,
             current_position,
             current_orientation,
             np.array([goal_position], dtype=float),
@@ -1331,44 +1333,45 @@ def _ensure_franka_primitive_control_ready(self, handle):
         )
 
     def set_franka_gripper(self, sim, obj, opened):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_franka_primitive_control_ready(handle)
-        self._set_franka_gripper(handle, "open" if opened else "closed")
+        franka = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(obj, franka)
+        self._set_franka_gripper(franka, obj, "open" if opened else "closed")
 
     def set_franka_arm_joint_positions(self, sim, obj, joint_positions):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_franka_primitive_control_ready(handle)
+        franka = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(obj, franka)
         joint_positions = np.asarray(joint_positions, dtype=float).reshape(-1)
-        arm_dof_indices = handle.metadata["arm_dof_indices"][: len(joint_positions)]
-        handle.wrapper.set_dof_position_targets(
+        arm_dof_indices = obj._franka_metadata["arm_dof_indices"][
+            : len(joint_positions)
+        ]
+        franka.set_dof_position_targets(
             joint_positions.tolist(),
             dof_indices=arm_dof_indices,
         )
 
     def hold_franka_position(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_franka_primitive_control_ready(handle)
-        arm_dof_indices = handle.metadata["arm_dof_indices"]
-        current_dof_positions = handle.wrapper.get_dof_positions().numpy()
+        franka = sim.world.get_object(obj.name)
+        self._ensure_franka_primitive_control_ready(obj, franka)
+        arm_dof_indices = obj._franka_metadata["arm_dof_indices"]
+        current_dof_positions = franka.get_dof_positions().numpy()
         arm_targets = current_dof_positions[:, arm_dof_indices].reshape(-1).tolist()
-        handle.wrapper.set_dof_position_targets(
+        franka.set_dof_position_targets(
             arm_targets,
             dof_indices=arm_dof_indices,
         )
 
     def get_franka_end_effector_pose(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        position, orientation = self._franka_end_effector_pose(handle)
+        position, orientation = self._franka_end_effector_pose(obj)
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return (
-            self._franka_tcp_position(handle, position, orientation),
+            self._franka_tcp_position(obj, position, orientation),
             orientation,
         )
 
     def get_franka_gripper_positions(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        gripper_dof_indices = handle.metadata["gripper_dof_indices"]
-        dof_positions = handle.wrapper.get_dof_positions().numpy()
+        franka = sim.world.get_object(obj.name)
+        gripper_dof_indices = obj._franka_metadata["gripper_dof_indices"]
+        dof_positions = franka.get_dof_positions().numpy()
         return dof_positions[:, gripper_dof_indices].reshape(-1)
 
     def franka_gripper_target_positions(self, opened):
@@ -1376,40 +1379,41 @@ def _ensure_franka_primitive_control_ready(self, handle):
             return np.array([0.05, 0.05], dtype=float)
         return np.array([0.01, 0.01], dtype=float)
 
-    def _ensure_ur5e_primitive_control_ready(self, handle):
-        if not handle.metadata.get("primitive_control_ready", False):
-            handle.wrapper.reset_to_default_state()
-            handle.wrapper.set_dof_position_targets(
-                handle.metadata["default_dof_positions"]
-            )
-            handle.metadata["primitive_control_ready"] = True
+    def _ensure_ur5e_primitive_control_ready(self, obj, ur5e):
+        metadata = obj._ur5e_metadata
+        if not metadata.get("primitive_control_ready", False):
+            ur5e.reset_to_default_state()
+            ur5e.set_dof_position_targets(metadata["default_dof_positions"])
+            metadata["primitive_control_ready"] = True
 
-    def _ur5e_end_effector_pose(self, handle):
-        position, orientation = handle.metadata["end_effector"].get_world_poses()
+    def _ur5e_end_effector_pose(self, obj):
+        position, orientation = obj._ur5e_metadata[
+            "end_effector"
+        ].get_world_poses()
         return position.numpy(), orientation.numpy()
 
-    def _tcp_position(self, handle, control_position, orientation):
-        tcp_offset = handle.metadata["tcp_offset"]
+    def _tcp_position(self, obj, control_position, orientation):
+        tcp_offset = obj._ur5e_metadata["tcp_offset"]
         control_position = np.asarray(control_position, dtype=float).reshape(-1)[:3]
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return control_position + self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
 
-    def _control_position(self, handle, tcp_position, orientation):
-        tcp_offset = handle.metadata["tcp_offset"]
+    def _control_position(self, obj, tcp_position, orientation):
+        tcp_offset = obj._ur5e_metadata["tcp_offset"]
         tcp_position = _position_array(tcp_position)
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return tcp_position - self.rotate_vector_by_wxyz_quat(orientation, tcp_offset)
 
     def _move_ur5e_end_effector(
         self,
-        handle,
+        ur5e,
+        obj,
         current_position,
         current_orientation,
         goal_position,
         goal_orientation=None,
     ):
-        ur5e = handle.wrapper
-        metadata = handle.metadata
+        metadata = obj._ur5e_metadata
         current_dof_positions = ur5e.get_dof_positions().numpy()
         jacobian_matrices = ur5e.get_jacobian_matrices().numpy()
         jacobian_link_index = metadata["end_effector_link_index"] - 1
@@ -1442,15 +1446,16 @@ def _ensure_franka_primitive_control_ready(self, handle):
         )
 
     def move_ur5e_end_effector(self, sim, obj, position, orientation=None):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_ur5e_primitive_control_ready(handle)
-        current_position, current_orientation = self._ur5e_end_effector_pose(handle)
+        ur5e = sim.world.get_object(obj.name)
+        self._ensure_ur5e_primitive_control_ready(obj, ur5e)
+        current_position, current_orientation = self._ur5e_end_effector_pose(obj)
         if orientation is None:
-            orientation = handle.metadata["downward_orientation"]
+            orientation = obj._ur5e_metadata["downward_orientation"]
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
-        goal_position = self._control_position(handle, position, orientation)
+        goal_position = self._control_position(obj, position, orientation)
         self._move_ur5e_end_effector(
-            handle,
+            ur5e,
+            obj,
             current_position,
             current_orientation,
             np.array([goal_position], dtype=float),
@@ -1458,56 +1463,56 @@ def _ensure_franka_primitive_control_ready(self, handle):
         )
 
     def set_ur5e_gripper(self, sim, obj, opened):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_ur5e_primitive_control_ready(handle)
+        ur5e = sim.world.get_object(obj.name)
+        self._ensure_ur5e_primitive_control_ready(obj, ur5e)
+        metadata = obj._ur5e_metadata
         velocity = (
-            handle.metadata["open_gripper_velocity"]
+            metadata["open_gripper_velocity"]
             if opened
-            else handle.metadata["closed_gripper_velocity"]
+            else metadata["closed_gripper_velocity"]
         )
-        indices = handle.metadata["gripper_dof_indices"]
-        handle.wrapper.switch_dof_control_mode("velocity", dof_indices=indices)
-        handle.wrapper.set_dof_velocity_targets(
+        indices = metadata["gripper_dof_indices"]
+        ur5e.switch_dof_control_mode("velocity", dof_indices=indices)
+        ur5e.set_dof_velocity_targets(
             np.full((1, len(indices)), float(velocity), dtype=float),
             dof_indices=indices,
         )
 
     def set_ur5e_arm_joint_positions(self, sim, obj, joint_positions):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_ur5e_primitive_control_ready(handle)
+        ur5e = sim.world.get_object(obj.name)
+        self._ensure_ur5e_primitive_control_ready(obj, ur5e)
         joint_positions = np.asarray(joint_positions, dtype=float).reshape(-1)
-        arm_dof_indices = handle.metadata["arm_dof_indices"]
+        arm_dof_indices = obj._ur5e_metadata["arm_dof_indices"]
         if len(joint_positions) > len(arm_dof_indices):
             raise RuntimeError("UR5e arm joint target has more than 6 positions")
-        handle.wrapper.set_dof_position_targets(
+        ur5e.set_dof_position_targets(
             joint_positions.tolist(),
             dof_indices=arm_dof_indices[: len(joint_positions)],
         )
 
     def hold_ur5e_position(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        self._ensure_ur5e_primitive_control_ready(handle)
-        arm_dof_indices = handle.metadata["arm_dof_indices"]
-        current_dof_positions = handle.wrapper.get_dof_positions().numpy()
+        ur5e = sim.world.get_object(obj.name)
+        self._ensure_ur5e_primitive_control_ready(obj, ur5e)
+        arm_dof_indices = obj._ur5e_metadata["arm_dof_indices"]
+        current_dof_positions = ur5e.get_dof_positions().numpy()
         arm_targets = current_dof_positions[:, arm_dof_indices].reshape(-1).tolist()
-        handle.wrapper.set_dof_position_targets(
+        ur5e.set_dof_position_targets(
             arm_targets,
             dof_indices=arm_dof_indices,
         )
 
     def get_ur5e_end_effector_pose(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        position, orientation = self._ur5e_end_effector_pose(handle)
+        position, orientation = self._ur5e_end_effector_pose(obj)
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return (
-            self._tcp_position(handle, position, orientation),
+            self._tcp_position(obj, position, orientation),
             orientation,
         )
 
     def get_ur5e_gripper_positions(self, sim, obj):
-        handle = sim.world.get_object(obj.name)
-        gripper_dof_indices = handle.metadata["gripper_dof_indices"]
-        dof_positions = handle.wrapper.get_dof_positions().numpy()
+        ur5e = sim.world.get_object(obj.name)
+        gripper_dof_indices = obj._ur5e_metadata["gripper_dof_indices"]
+        dof_positions = ur5e.get_dof_positions().numpy()
         return dof_positions[:, gripper_dof_indices].reshape(-1)
 
     def ur5e_gripper_target_positions(self, opened):
