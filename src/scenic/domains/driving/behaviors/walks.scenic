@@ -19,8 +19,12 @@ def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
 
     # Compute the obstacle polygons
     obstacle_polys = [obj._boundingPolygon.buffer(bufferCalc(obj))for obj in backgroundObjects]
-    obst_multi_poly = shapely.union_all(obstacle_polys)
-    hist_multi_poly = shapely.union_all(list(obstPolyHist) + [obst_multi_poly])
+    fut_polys = [shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
+                 for t in [0.5, 1] for poly, obj in zip(obstacle_polys, backgroundObjects)]
+
+    obst_multi_poly = shapely.union_all(obstacle_polys + fut_polys)
+
+    hist_multi_poly = shapely.union_all(list(obstPolyHist) + fut_polys + [obst_multi_poly])
     if isinstance(hist_multi_poly, MultiPolygon):
         obst_polys = hist_multi_poly.geoms
         assert all(isinstance(geom, Polygon) for geom in obstacle_polys)
@@ -96,11 +100,12 @@ def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
 
             # Extract and reverse mid_path (if needed). If paths are very close in length,
             # bias to the right.
-            if 0.95 < exterior_segments[0].length/exterior_segments[1].length < 1.05:
+            # TODO: Bias to the appropriate driving direction
+            if 0.9 < exterior_segments[0].length/exterior_segments[1].length < 1.1:
                 def angle_helper(ls):
-                    actor.apparentHeadingTo(toVector(*ls.centroid))
+                    return actor.apparentHeadingTo(Vector(*ls.centroid.coords[0]))
 
-                exterior_segments.sort(key=lambda x: x.length)
+                exterior_segments.sort(key=lambda x: angle_helper(x))
             else:
                 exterior_segments.sort(key=lambda x: x.length)
             mid_path = exterior_segments[0]
@@ -131,7 +136,7 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=0.1, obstHistory=2,
+    terminationThresh=0.1, replanTime=1, obstHistory=3,
     vehBuffer=1, nonVehBuffer=0.25):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):

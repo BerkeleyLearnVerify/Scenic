@@ -187,7 +187,7 @@ class Pedestrian(Pedestrian, MetaDriveActor, Walks):
         return True
 
     def setWalkingDirection(self, heading):
-        self._walking_direction = scenicToMetaDriveHeading(heading)
+        self._walking_direction = heading
 
     def setWalkingSpeed(self, speed):
         self._walking_speed = speed
