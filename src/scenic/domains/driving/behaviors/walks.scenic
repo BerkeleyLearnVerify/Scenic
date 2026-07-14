@@ -9,7 +9,7 @@ from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
+def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc, lookaheadTime):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
 
@@ -18,8 +18,9 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
 
     # Compute the obstacle polygons, with some forward prediction.
     obst_polys = [(obj, obj._boundingPolygon.buffer(bufferCalc(obj))) for obj in backgroundObjects]
+    lookahead_vals = [0.5*t for t in range(1,2*lookaheadTime+1)]
     obst_polys += [(obj, shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y)))
-                 for t in [0.5, 1] for obj, poly in obst_polys if not obj.isVehicle]
+                 for t in lookahead_vals for obj, poly in obst_polys if not obj.isVehicle]
 
     # Only track non-vehicles as historicaly polys, as those are the only ones we will
     # path around while moving. Vehicles are expected to yield to us.
@@ -150,7 +151,7 @@ behavior _WalkPathHelper(path, targetSpeed):
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
     terminationThresh=0.1, replanTime=1, obstHistory=6,
-    vehBuffer=1, nonVehBuffer=0.5, erosionFactor=0.75):
+    vehBuffer=1, nonVehBuffer=0.25, erosionFactor=0.75):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
@@ -181,7 +182,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             continue
 
         # Modify path to route around objects.
-        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc)
+        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc, replanTime)
         
         # Update and slightly erode the obstacle poly history
         stepErosionFactor = min(replanTime/obstHistory, 1) * erosionFactor
