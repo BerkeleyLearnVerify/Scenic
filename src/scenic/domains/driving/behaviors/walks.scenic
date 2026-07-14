@@ -30,6 +30,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
     from scenic.domains.driving.simulators import DEBUG_POLY
     global DEBUG_POLY
     DEBUG_POLY = obst_multi_poly
+    print(f"BACKGROUND OBJS: {backgroundObjects}")
 
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
