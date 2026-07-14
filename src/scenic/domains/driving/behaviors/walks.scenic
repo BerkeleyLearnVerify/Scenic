@@ -131,7 +131,7 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=0.5, obstHistory=2,
+    terminationThresh=0.1, replanTime=0.1, obstHistory=2,
     vehBuffer=1, nonVehBuffer=0.25):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
