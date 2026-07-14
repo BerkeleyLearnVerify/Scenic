@@ -17,21 +17,15 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
     # Compute the obstacle polygons, with some forward prediction.
-    obst_polys = {obj: obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in backgroundObjects}
-    obst_polys.update({obj: shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
-                 for t in [0.5, 1] for obj, poly in obst_polys.items() if not obj.isVehicle})
+    obst_polys = [(obj, obj._boundingPolygon.buffer(bufferCalc(obj))) for obj in backgroundObjects]
+    obst_polys += [(obj, shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y)))
+                 for t in [0.5, 1] for obj, poly in obst_polys if not obj.isVehicle]
 
     # Only track non-vehicles as historicaly polys, as those are the only ones we will
     # path around while moving. Vehicles are expected to yield to us.
-    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys.items() if not obj.isVehicle])
+    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys if not obj.isVehicle])
 
-    obst_multi_poly = shapely.union_all(list(additionalPolys) + list(obst_polys.values()))
-
-    from scenic.domains.driving.simulators import DEBUG_POLY
-    global DEBUG_POLY
-    DEBUG_POLY = obst_multi_poly
-    print(f"BACKGROUND OBJS: {len(backgroundObjects)}")
-    print(f"OBST POLY: {obst_multi_poly}")
+    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + list(additionalPolys))
 
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
@@ -112,7 +106,6 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
             if 0.9 < exterior_segments[0].length/exterior_segments[1].length < 1.1:
                 def angle_helper(ls):
                     return actor.apparentHeadingTo(Vector(*ls.centroid.coords[0]))
-
                 exterior_segments.sort(key=lambda x: angle_helper(x))
             else:
                 exterior_segments.sort(key=lambda x: x.length)
@@ -124,6 +117,17 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
 
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)
+
+    import matplotlib.pyplot as plt
+    from scenic.core.geometry import plotPolygon
+    from scenic.syntax.veneer import simulation
+    if actor.name == "pedA" and simulation().currentRealTime == int(simulation().currentRealTime) and simulation().currentRealTime > 0:
+        simulation().scene.workspace.network.show()
+        for obj in simulation().objects:
+            obj.show2D(simulation().scene.workspace, plt)
+        simulation().scene.workspace.zoomAround(plt, simulation().objects)
+        plotPolygon(obst_multi_poly, plt, style="c--")
+        plt.show()
 
     return path_ls, hist_multi_poly
 
@@ -144,13 +148,13 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=1, obstHistory=4,
-    vehBuffer=1, nonVehBuffer=0.25):
+    terminationThresh=0.1, replanTime=0.5, obstHistory=4,
+    vehBuffer=1, nonVehBuffer=0.25, erosionFactor=1):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
     path_ls = path.lineString
-    obstacle_poly_hist = collections.deque(maxlen=math.ceil(obstHistory/replanTime))
+    obstacle_poly_hist = []
 
     bufferCalc = lambda obj: (shapely.minimum_bounding_radius(self._boundingPolygon)
         + (vehBuffer if obj.isVehicle else nonVehBuffer))
@@ -176,7 +180,11 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
 
         # Modify path to route around objects.
         refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc)
-        obstacle_poly_hist.append(poly)
+        
+        # Update and slightly erode the obstacle poly history
+        stepErosionFactor = min(replanTime/obstHistory, 1) * erosionFactor
+        obstacle_poly_hist = [p.buffer(-stepErosionFactor) for p in obstacle_poly_hist] + [poly]
+        obstacle_poly_hist = obstacle_poly_hist[-math.ceil(obstHistory/replanTime):]
 
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.

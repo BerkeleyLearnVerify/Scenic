@@ -6,8 +6,6 @@ from scenic.domains.driving.controllers import (
     PIDLongitudinalController,
 )
 
-DEBUG_POLY = None
-
 
 class DrivingSimulator(Simulator):
     """A `Simulator` supporting the driving domain."""
