@@ -1,3 +1,5 @@
+import collections
+import math
 import shapely
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, MultiLineString, LineString, MultiPoint, Point as ShapelyPoint
 
@@ -8,26 +10,30 @@ from scenic.domains.driving.actions import *
 
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1, network=None):
+def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
 
-    # Compute the buffer amount based on our bounding radius and bufferConst
-    buffer_amount = shapely.minimum_bounding_radius(actor._boundingPolygon) + bufferConst
+    # Lambda to compute buffer const.
+    baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
     # Compute the obstacle polygons
-    obstacle_multi_poly = shapely.union_all(list(obj._boundingPolygon.buffer(buffer_amount) for obj in backgroundObjects))
-    if isinstance(obstacle_multi_poly, MultiPolygon):
-        obstacle_polys = obstacle_multi_poly.geoms
+    obstacle_polys = [obj._boundingPolygon.buffer(bufferCalc(obj))for obj in backgroundObjects]
+    obst_multi_poly = shapely.union_all(obstacle_polys)
+    hist_multi_poly = shapely.union_all(list(obstPolyHist) + [obst_multi_poly])
+    if isinstance(hist_multi_poly, MultiPolygon):
+        obst_polys = hist_multi_poly.geoms
         assert all(isinstance(geom, Polygon) for geom in obstacle_polys)
-    elif isinstance(obstacle_multi_poly, Polygon):
-        obstacle_polys = [obstacle_multi_poly]
+    elif isinstance(hist_multi_poly, Polygon):
+        obst_polys = [hist_multi_poly]
+    elif hist_multi_poly.is_empty:
+        obst_polys = []
     else:
         assert False
 
     # Refine path around obstacles, going from those with the largest boundary inwards
     # (to account for the rare case where an obstacle poly may be entirely contained in another)
-    for obstacle_poly in sorted(obstacle_polys, key=lambda x: x.boundary.length, reverse=True):
+    for obstacle_poly in sorted(obst_polys, key=lambda x: x.boundary.length, reverse=True):
         self_pt = ShapelyPoint(actor.position)
         target_pt = ShapelyPoint(path_ls.coords[-1])
         if obstacle_poly.contains(target_pt):
@@ -88,8 +94,16 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1, network=None):
             start_path = shapely.force_2d(start_path)
             end_path = shapely.force_2d(end_path)
 
-            # Extract and reverse mid_path (if needed)
-            mid_path = sorted(exterior_segments, key=lambda x: x.length)[0]
+            # Extract and reverse mid_path (if needed). If paths are very close in length,
+            # bias to the right.
+            if 0.95 < exterior_segments[0].length/exterior_segments[1].length < 1.05:
+                def angle_helper(ls):
+                    actor.apparentHeadingTo(toVector(*ls.centroid))
+
+                exterior_segments.sort(key=lambda x: x.length)
+            else:
+                exterior_segments.sort(key=lambda x: x.length)
+            mid_path = exterior_segments[0]
             mid_path_start = ShapelyPoint(mid_path.coords[0])
             if (ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(start_path.coords[0]))
                 > ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(end_path.coords[0]))):
@@ -98,7 +112,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferConst=1, network=None):
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)
 
-    return path_ls
+    return path_ls, obst_multi_poly
 
 behavior TieBreakingPause():
     take SetWalkingSpeedAction(0)
@@ -116,11 +130,17 @@ behavior _WalkPathHelper(path, targetSpeed):
         heading = angle from self to target_pt
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
-behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0.1, replanTime=0.5, bufferConst=1):
+behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
+    terminationThresh=0.1, replanTime=0.5, obstHistory=2,
+    vehBuffer=1, nonVehBuffer=0.25):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
     path_ls = path.lineString
+    obstacle_poly_hist = collections.deque(maxlen=math.ceil(obstHistory/replanTime))
+
+    bufferCalc = lambda obj: (shapely.minimum_bounding_radius(self._boundingPolygon)
+        + (vehBuffer if obj.isVehicle else nonVehBuffer))
 
     while distance from self to path.end > terminationThresh:
         # Refine the path by dropping already traversed areas and adding a link to the start.
@@ -133,17 +153,18 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True, terminationThresh=0
         # wait until it's clear.
         background_objects = [obj for obj in simulation().objects if obj is not self]
         immediate_path = shapely.ops.substring(refined_path_ls, 0, targetSpeed)
-        danger_objects = [obj for obj in background_objects if obj.speed > 0.1]
-        buffer_amount = shapely.minimum_bounding_radius(self._boundingPolygon) + bufferConst
+        danger_objects = [obj for obj in background_objects if obj.speed > 0.1 and obj.isVehicle]
         moving_obj_danger_zone = shapely.union_all(
-            list(obj._boundingPolygon.buffer(buffer_amount) for obj in danger_objects)
+            [obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in danger_objects]
         )
         if immediate_path.intersects(moving_obj_danger_zone):
             do TieBreakingPause()
             continue
 
         # Modify path to route around objects.
-        refined_path_ls = getBugPath(self, refined_path_ls, background_objects, bufferConst=bufferConst, network=_model.network)
+        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc)
+        obstacle_poly_hist.append(poly)
+
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
         if refined_path_ls is None:
@@ -173,6 +194,7 @@ behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
 
     network = _model.network
 
+    # TODO: Have pedestrians bias towards the appropriate side of the sidewalk based off road direction?
     while True:
         # If we're not currently in a walkable region, return to the closest one.
         if self.position not in network.walkableRegion:
