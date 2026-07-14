@@ -22,7 +22,6 @@ class network_cache():
 
             self.scenic_to_metsr_map_roads = {}
             self.all_scenic_roads_connected_too = {}
-            self.intersection_road_links = set([])
             self.scenic_unique_roads = set([])
             self.populate_scenic_to_metsr_roads()
 
@@ -46,29 +45,21 @@ class network_cache():
             scenic_road = road_lane.split("_")[0]
             for metsr_map in road_lane_map:
                 metsr_road  = metsr_map.split("_")[0]
-                if metsr_road in self.metsr_represented_roads:
-                    if scenic_road not in self.scenic_to_metsr_map_roads:
-                        self.scenic_to_metsr_map_roads[scenic_road] = set()
+                if scenic_road not in self.scenic_to_metsr_map_roads:
+                    self.scenic_to_metsr_map_roads[scenic_road] = set()
+                    self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
+                    if metsr_road not in all_scenic_roads_connected_too:
+                        all_scenic_roads_connected_too[metsr_road] = [scenic_road]
+                    else:
+                        all_scenic_roads_connected_too[metsr_road].append(scenic_road)
+                else:
+                    if metsr_road not in self.scenic_to_metsr_map_roads[scenic_road]:
                         self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
                         if metsr_road not in all_scenic_roads_connected_too:
                             all_scenic_roads_connected_too[metsr_road] = [scenic_road]
                         else:
                             all_scenic_roads_connected_too[metsr_road].append(scenic_road)
-                    else:
-                        if metsr_road not in self.scenic_to_metsr_map_roads[scenic_road]:
-                            self.scenic_to_metsr_map_roads[scenic_road].add(metsr_road)
-                            if metsr_road not in all_scenic_roads_connected_too:
-                                all_scenic_roads_connected_too[metsr_road] = [scenic_road]
-                            else:
-                                all_scenic_roads_connected_too[metsr_road].append(scenic_road)
-                else:
-                    self.intersection_road_links.add(metsr_road)
 
-        
-        for road_lane in self.scenic_to_metsr_map_lanes.keys():
-            scenic_road = road_lane.split("_")[0]
-            if scenic_road not in self.scenic_to_metsr_map_roads:
-                self.scenic_unique_roads.add(scenic_road)
         self.all_scenic_roads_connected_too = all_scenic_roads_connected_too
     
     def populate_roads_to_intersections(self) -> None:
@@ -170,25 +161,25 @@ class network_cache():
         return bubble_roads
     
     
-    def generate_metsr_trajectory(self, scenic_trajectory: list[LaneSection], obj: Object) -> list[str]:
-        """
-        docstring for generate_metsr_trajectory
+    # def generate_metsr_trajectory(self, scenic_trajectory: list[LaneSection], obj: Object) -> list[str]:
+    #     """
+    #     docstring for generate_metsr_trajectory
 
-        :param trajectory: ordered sequence of target lanesections
-        :type trajectory: list[LandSection] 
-        """
-        metsr_trajectory = []
-        for laneSection in scenic_trajectory:
-            if laneSection not in self.intersection_road_links:
-                mapped_roads = self.scenic_to_metsr_map_lanes(laneSection)
-                if mapped_roads:
-                    if len(mapped_roads) > 1:
-                        print(f'What do you even do in this case: {mapped_roads} ')
-                    road = mapped_roads.pop()
-                    metsr_trajectory.append(road)
-                else:
-                    print(f"Skipped non existing mapping for laneSection: {laneSection.road.id}_{laneSection.lane.id}")
-        return metsr_trajectory
+    #     :param trajectory: ordered sequence of target lanesections
+    #     :type trajectory: list[LandSection] 
+    #     """
+    #     metsr_trajectory = []
+    #     for laneSection in scenic_trajectory:
+    #         if laneSection not in self.intersection_road_links:
+    #             mapped_roads = self.scenic_to_metsr_map_lanes(laneSection)
+    #             if mapped_roads:
+    #                 if len(mapped_roads) > 1:
+    #                     print(f'What do you even do in this case: {mapped_roads} ')
+    #                 road = mapped_roads.pop()
+    #                 metsr_trajectory.append(road)
+    #             else:
+    #                 print(f"Skipped non existing mapping for laneSection: {laneSection.road.id}_{laneSection.lane.id}")
+    #     return metsr_trajectory
     
 
     """ Translating Scenic -> Metsr representations"""
@@ -229,7 +220,7 @@ class network_cache():
 
         return metsr_keys
     
-    def repair_mapping(self,road_ids, bubble_road_ids):
+    def repair_mapping(self, road_ids, bubble_road_ids):
         """
         Docstring for repair_mappping
 
@@ -249,5 +240,10 @@ class network_cache():
                 for road_id in all_connected_roads:
                     if road_id not in road_ids:
                         repaired_bubble.append(self.roads_by_id[road_id])
+
         return repaired_bubble
 
+    def filter_roads(self,bubble_roads: list[int]) -> list[str]:
+        print(bubble_roads)
+        print(self.metsr_represented_roads)
+        return [road for road in bubble_roads if road in self.metsr_represented_roads]
