@@ -149,8 +149,8 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=0.5, obstHistory=4,
-    vehBuffer=1, nonVehBuffer=0.25, erosionFactor=1):
+    terminationThresh=0.1, replanTime=1, obstHistory=6,
+    vehBuffer=1, nonVehBuffer=0.5, erosionFactor=0.75):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
