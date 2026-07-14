@@ -60,7 +60,7 @@ class Walks:
         self.setOrientation(toOrientation(heading))
 
     def setWalkingSpeed(self, speed):
-        print(f"SETTING SPEED: {speed}")
+        print(f"SETTING SPEED: {speed}. HEADING IS {self.heading}")
         self.setVelocity(Vector(0, speed).rotatedBy(self.heading))
 
 
