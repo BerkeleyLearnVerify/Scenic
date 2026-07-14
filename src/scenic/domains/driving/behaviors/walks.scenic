@@ -150,7 +150,7 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=1, obstHistory=6,
+    terminationThresh=0.1, replanTime=1, obstHistory=6, lookaheadTime=2
     vehBuffer=1, nonVehBuffer=0.25, erosionFactor=0.75):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
@@ -182,7 +182,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             continue
 
         # Modify path to route around objects.
-        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc, replanTime)
+        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc, lookaheadTime)
         
         # Update and slightly erode the obstacle poly history
         stepErosionFactor = min(replanTime/obstHistory, 1) * erosionFactor
