@@ -56,9 +56,11 @@ class Walks:
     """
 
     def setWalkingDirection(self, heading):
+        print("SETTING DIRECTION")
         self.setOrientation(toOrientation(heading))
 
     def setWalkingSpeed(self, speed):
+        print("SETTING SPEED")
         self.setVelocity(Vector(0, speed).rotatedBy(self.heading))
 
 
