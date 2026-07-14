@@ -235,11 +235,12 @@ class network_cache():
         """
         repaired_bubble = []
         for id in bubble_road_ids:
-            all_connected_roads = self.all_scenic_roads_connected_too[id]
-            if len(all_connected_roads) > 1:
-                for road_id in all_connected_roads:
-                    if road_id not in road_ids:
-                        repaired_bubble.append(self.roads_by_id[road_id])
+            if id in self.all_scenic_roads_connected_too:            
+                all_connected_roads = self.all_scenic_roads_connected_too[id]
+                if len(all_connected_roads) > 1:
+                    for road_id in all_connected_roads:
+                        if road_id not in road_ids and road_id in self.roads_by_id:
+                            repaired_bubble.append(self.roads_by_id[road_id])
 
         return repaired_bubble
 
