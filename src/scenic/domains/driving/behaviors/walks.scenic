@@ -8,8 +8,6 @@ from scenic.core.regions import toShapely
 from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
-DEBUG_POLY = None
-
 ## Pedestrian Behaviors
 def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
     """ Refine a walking path using a Bug algorithm approach."""
@@ -29,6 +27,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
 
     obst_multi_poly = shapely.union_all(list(additionalPolys) + list(obst_polys.values()))
 
+    from scenic.domains.driving.simulators import DEBUG_POLY
     global DEBUG_POLY
     DEBUG_POLY = obst_multi_poly
 
