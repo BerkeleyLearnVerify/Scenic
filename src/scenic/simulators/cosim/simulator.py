@@ -48,7 +48,8 @@ class CosimSimulator(DrivingSimulator):
         render=True,
         record="",
         run_name=None,
-        metsr_viz_port = 8080
+        metsr_viz_port = 8080,
+        metsr_render_freq=10,
     ):
         super().__init__()
 
@@ -63,6 +64,7 @@ class CosimSimulator(DrivingSimulator):
         self.record = record
         self.run_name = run_name
         self.metsr_sim_dir = metsr_sim_dir
+        self.metsr_render_freq = metsr_render_freq
 
         # Setting up the Carla Simulator
         verbosePrint(f"Connection to CARLA on port {carla_port}")
@@ -109,6 +111,11 @@ class CosimSimulator(DrivingSimulator):
         self.metsr_client = METSRClient(host=metsr_host,
                                 port=metsr_port,
                                 verbose=verbose)
+        
+        if self.render:
+            print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
+            self.metsr_client.start_viz(server_port=self.metsr_viz_port, startup_timeout=60)
+            print(f"Please connect to METS-R at port: {self.metsr_viz_port}")
     
 
 
@@ -136,9 +143,11 @@ class CosimSimulator(DrivingSimulator):
             xml_to_xodr_intersections = self.xml_to_xodr_intersections,
             run_name= self.run_name,
             metsr_viz_port = self.metsr_viz_port,
+            metsr_render_freq = self.metsr_render_freq,
             **kwargs,
         )
     def destroy(self):
+        self.metsr_client.stop_viz()
         self.metsr_client.close()
         super().destroy()
         settings = self.world.get_settings()
@@ -147,8 +156,9 @@ class CosimSimulator(DrivingSimulator):
         self.world.apply_settings(settings)
         self.tm.set_synchronous_mode(False)
 
+
 class CosimSimulation(DrivingSimulation):
-    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
+    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections,metsr_render_freq=10, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
     
         # Carla and metrs simulators
         self.carla_client = carla_client
@@ -174,6 +184,8 @@ class CosimSimulation(DrivingSimulation):
         self._client_calls = []
         self.count = 0
         self.metsr_viz_port = metsr_viz_port
+        self.metsr_render_freq = metsr_render_freq
+        self.stream_url = f"ws://127.0.0.1:{self.metsr_viz_port}"
 
         # CoSim related params
         self.bubble_size = bubble_size
@@ -211,12 +223,7 @@ class CosimSimulation(DrivingSimulation):
         self.metsr_client.reset() 
         # Start the visualization once
         verbosePrint(f"Initializing METS-R visualization server")
-        if self.render:
-            print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
-            self.metsr_client.start_viz(server_port=self.metsr_viz_port, startup_timeout=60)
-            self.stream_url = f"ws://127.0.0.1:{self.metsr_viz_port}"
 
-            print(f"Please connect to METS-R at port: {self.metsr_viz_port}")
         self.valid_metsr_roads = self.metsr_client.query_road()['id_list']
 
         self.network_helper = network_cache(self.workspace,
@@ -388,7 +395,6 @@ class CosimSimulation(DrivingSimulation):
         )
         rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)
-        # Color, cannot be set for Pedestrians
         if blueprint.has_attribute("color") and obj.color is not None:
             c = obj.color
             c_str = f"{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}"
@@ -406,9 +412,10 @@ class CosimSimulation(DrivingSimulation):
             # print(f"Within thershold to: {out}")
             carlaActor = self.carla_world.try_spawn_actor(blueprint,transform)
             if carlaActor is None:
-                self.bubble_spawn_queue.append(obj)
+                self.bubble_spawn_queue.add(obj)
                 print(f"Failed to generate actor {obj.name} after location correction. Adding vehicle to spawn queue")
-                        
+                return False
+
         obj.carlaActor = carlaActor
         carlaActor.set_simulate_physics(obj.physics)
 
@@ -569,9 +576,10 @@ class CosimSimulation(DrivingSimulation):
 
         position = Vector(raw_data["x"], raw_data["y"], raw_data["z"] if raw_data["z"] is not None else 0)
         speed = raw_data["speed"]
-        bearing = math.radians(raw_data["bearing"])
+        bearing = math.radians(-raw_data["bearing"])
         globalOrientation = Orientation.fromEuler(bearing,0,0)
-        yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
+        # yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
+        yaw, pitch, roll = 0,0,0,
         velocity = Vector(0, speed, 0).rotatedBy(yaw)
         angularSpeed = 0
         angularVelocity = Vector(0,0,0)
@@ -671,11 +679,12 @@ class CosimSimulation(DrivingSimulation):
         if self.render:
             self.cameraManager.render(self.display)
             pygame.display.flip()
-            try:
-                self.metsr_client.render()
-            except Exception as e:
-                if self.count % 100 == 0:  
-                    print(f"Warning no registered connection to streaming client")
+            if self.count % self.metsr_render_freq == 0:
+                try:
+                    self.metsr_client.render()
+                except Exception as e:
+                    if self.count % 100 == 0:  
+                        print(f"Warning no registered connection to streaming client")
        
         self.bubble_sizes.append(len(self.carla_actors))
         self.total_active_vehicles.append(len(self.objects) - (len(self.frozen_vehicles) + len(self.bubble_spawn_queue)))
@@ -838,7 +847,7 @@ class CosimSimulation(DrivingSimulation):
         best_road = None
         best_dist = math.inf
         for road in roads:
-            if road in self.network_helper.intersection_road_links:
+            if road not in self.network_helper.metsr_represented_roads:
                 continue
             elif road not in self.metsr_road_cache:
                 start = self.metsr_client.query_centerline(road,lane_index=0,transform_coords=True)["DATA"][0]["centerline"][0]
@@ -869,9 +878,8 @@ class CosimSimulation(DrivingSimulation):
         bubble_road_ids = []
         for road in bubble_roads:
             r_id = str(road.id)
-            if r_id not in self.network_helper.scenic_unique_roads:
-                road_ids.append(r_id)
-                bubble_road_ids += self.map_scenic_to_metsr_road(road)
+            road_ids.append(r_id)
+            bubble_road_ids += self.map_scenic_to_metsr_road(road)
         bubble_roads += self.network_helper.repair_mapping(road_ids, bubble_road_ids)
         self.bubble_roads = bubble_roads # List of roads contained in the CoSim region
 
@@ -902,6 +910,7 @@ class CosimSimulation(DrivingSimulation):
                 
         """
         all_veh_data = self._collect_metsr_vehicle_data(self.objects[1:])
+        self.bubble_roads_by_id = [road.id for road in self.bubble_roads]
         for obj in self.objects[1:]: 
             veh_data = all_veh_data[obj]
             obj.spawn_guard = max(0, obj.spawn_guard - self.sim_ticks_per) # Total client ticks, always > 0
@@ -910,6 +919,7 @@ class CosimSimulation(DrivingSimulation):
             if ('roadID' not in veh_data) or obj in self.completed_route:
                 if obj.carla_actor_flag:
                     self.remove_bubble_object(obj)
+                    # self.metsr_client.reach_dest(self.getMetsrPrivateVehId(obj), private_veh=True)
                 else:
                     if obj not in self.completed_route:
                         self.completed_route[obj] = True
@@ -921,14 +931,13 @@ class CosimSimulation(DrivingSimulation):
 
             outside_bubble = False
             road = self.network_helper._nearest_road(obj)
-            id = road.id if road else None
             intersection = None
 
-            if id not in bubble_roads:
+            if road not in self.bubble_roads:
                 intersection = self.network_helper._get_intersection(obj, road)
                 if intersection not in bubble_intersections:
                     outside_bubble = True
-                              
+
             # Remove vehicles which have left the cosimulation region and spawn vehicles which have entered
             if outside_bubble:
                 if obj.carla_actor_flag:
@@ -968,7 +977,7 @@ class CosimSimulation(DrivingSimulation):
         keys = set(keys)
         for key in keys:
             assert key not in self.carla_control_roads, "Attempted to freeze already frozen lane"
-            if key not in self.network_helper.intersection_road_links: # Skip roads not recognized by metsr
+            if key in self.network_helper.metsr_represented_roads: # Skip roads not recognized by metsr
                 self.carla_control_roads[key] = True    # Keep track of frozen lanes
                 self.metsr_client.set_cosim_road(key)
             
@@ -985,7 +994,7 @@ class CosimSimulation(DrivingSimulation):
         keys = set(keys) 
         for key in keys:
             assert key in self.carla_control_roads, "Attempted to release non frozen lane"
-            if key not in self.network_helper.intersection_road_links: # Skip roads not recognized by metsr
+            if key not in self.network_helper.metsr_represented_roads: # Skip roads not recognized by metsr
                 del self.carla_control_roads[key] # Remove frozen lane from record
                 self.metsr_client.release_cosim_road(key)
 
@@ -1030,8 +1039,6 @@ class CosimSimulation(DrivingSimulation):
         Destroy both simulators instances i.e (METSR, CARLA)
         """
         verbosePrint(f"Closing METS-R visualization server")
-        self.metsr_client.stop_viz()
-
         print(f"Logging trip times")
         print(f"="*25)
         if self.run_name is not None:
