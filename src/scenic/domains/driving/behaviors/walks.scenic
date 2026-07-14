@@ -8,6 +8,7 @@ from scenic.core.regions import toShapely
 from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
+DEBUG_POLY = None
 
 ## Pedestrian Behaviors
 def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
@@ -19,14 +20,18 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
 
     # Compute the obstacle polygons, with some forward prediction.
     obst_polys = {obj: obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in backgroundObjects}
-    obst_shifted_polys = {obj: shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
-                 for t in [0, 0.5, 1] for obj, poly in obst_polys.items()}
+    obst_polys.update({obj: shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
+                 for t in [0.5, 1] for obj, poly in obst_polys.items() if not obj.isVehicle})
 
     # Only track non-vehicles as historicaly polys, as those are the only ones we will
     # path around while moving. Vehicles are expected to yield to us.
-    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_shifted_polys.items() if not obj.isVehicle])
+    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys.items() if not obj.isVehicle])
 
-    obst_multi_poly = shapely.union_all(list(additionalPolys) + list(obst_shifted_polys.values()))
+    obst_multi_poly = shapely.union_all(list(additionalPolys) + list(obst_polys.values()))
+
+    global DEBUG_POLY
+    DEBUG_POLY = obst_multi_poly
+
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
         assert all(isinstance(geom, Polygon) for geom in obst_polys)
