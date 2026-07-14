@@ -176,6 +176,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             [obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in danger_objects]
         )
         if immediate_path.intersects(moving_obj_danger_zone):
+            print("PAUSE 1")
             do TieBreakingPause()
             continue
 
@@ -190,6 +191,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
         # If refined_path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
         if refined_path_ls is None:
+            print("PAUSE 2")
             do TieBreakingPause()
             continue
 
@@ -197,6 +199,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
         try:
             do _WalkPathHelper(refined_path_ls, targetSpeed) for replanTime seconds
         interrupt when distance from self to Vector(*refined_path_ls.coords[-1]) < terminationThresh:
+            print("INTERRUPT")
             abort
 
     take SetWalkingSpeedAction(0)
