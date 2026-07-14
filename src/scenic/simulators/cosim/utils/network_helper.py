@@ -161,25 +161,25 @@ class network_cache():
         return bubble_roads
     
     
-    # def generate_metsr_trajectory(self, scenic_trajectory: list[LaneSection], obj: Object) -> list[str]:
-    #     """
-    #     docstring for generate_metsr_trajectory
+    def generate_metsr_trajectory(self, scenic_trajectory: list[LaneSection], obj: Object) -> list[str]:
+        """
+        docstring for generate_metsr_trajectory
 
-    #     :param trajectory: ordered sequence of target lanesections
-    #     :type trajectory: list[LandSection] 
-    #     """
-    #     metsr_trajectory = []
-    #     for laneSection in scenic_trajectory:
-    #         if laneSection not in self.intersection_road_links:
-    #             mapped_roads = self.scenic_to_metsr_map_lanes(laneSection)
-    #             if mapped_roads:
-    #                 if len(mapped_roads) > 1:
-    #                     print(f'What do you even do in this case: {mapped_roads} ')
-    #                 road = mapped_roads.pop()
-    #                 metsr_trajectory.append(road)
-    #             else:
-    #                 print(f"Skipped non existing mapping for laneSection: {laneSection.road.id}_{laneSection.lane.id}")
-    #     return metsr_trajectory
+        :param trajectory: ordered sequence of target lanesections
+        :type trajectory: list[LandSection] 
+        """
+        metsr_trajectory = []
+        for laneSection in scenic_trajectory:
+            if laneSection not in self.intersection_road_links:
+                mapped_roads = self.scenic_to_metsr_map_lanes(laneSection)
+                if mapped_roads:
+                    if len(mapped_roads) > 1:
+                        print(f'What do you even do in this case: {mapped_roads} ')
+                    road = mapped_roads.pop()
+                    metsr_trajectory.append(road)
+                else:
+                    print(f"Skipped non existing mapping for laneSection: {laneSection.road.id}_{laneSection.lane.id}")
+        return metsr_trajectory
     
 
     """ Translating Scenic -> Metsr representations"""
