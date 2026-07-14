@@ -10,27 +10,29 @@ from scenic.domains.driving.actions import *
 
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
+def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
 
     # Lambda to compute buffer const.
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
-    # Compute the obstacle polygons
-    obstacle_polys = [obj._boundingPolygon.buffer(bufferCalc(obj))for obj in backgroundObjects]
-    fut_polys = [shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
-                 for t in [0.5, 1] for poly, obj in zip(obstacle_polys, backgroundObjects)]
+    # Compute the obstacle polygons, with some forward prediction.
+    obst_polys = {obj: obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in backgroundObjects}
+    obst_shifted_polys = {obj: shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y))
+                 for t in [0, 0.5, 1] for obj, poly in obst_polys.items()}
 
-    obst_multi_poly = shapely.union_all(obstacle_polys + fut_polys)
+    # Only track non-vehicles as historicaly polys, as those are the only ones we will
+    # path around while moving. Vehicles are expected to yield to us.
+    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_shifted_polys.items() if not obj.isVehicle])
 
-    hist_multi_poly = shapely.union_all(list(obstPolyHist) + fut_polys + [obst_multi_poly])
-    if isinstance(hist_multi_poly, MultiPolygon):
-        obst_polys = hist_multi_poly.geoms
-        assert all(isinstance(geom, Polygon) for geom in obstacle_polys)
-    elif isinstance(hist_multi_poly, Polygon):
-        obst_polys = [hist_multi_poly]
-    elif hist_multi_poly.is_empty:
+    obst_multi_poly = shapely.union_all(list(additionalPolys) + list(obst_shifted_polys.values()))
+    if isinstance(obst_multi_poly, MultiPolygon):
+        obst_polys = obst_multi_poly.geoms
+        assert all(isinstance(geom, Polygon) for geom in obst_polys)
+    elif isinstance(obst_multi_poly, Polygon):
+        obst_polys = [obst_multi_poly]
+    elif obst_multi_poly.is_empty:
         obst_polys = []
     else:
         assert False
@@ -44,7 +46,7 @@ def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
             # Check if target is inside the polygon.
             # If we're too close to the exterior point, return None.
             if obstacle_poly.distance(self_pt) < 0.01:
-                return None
+                return None, hist_multi_poly
 
             # Otherwise, truncate the path to the closest point on the exterior of the obstacle_poly.
             exterior_intersection = path_ls.intersection(obstacle_poly.exterior)
@@ -117,7 +119,7 @@ def getBugPath(actor, path_ls, backgroundObjects, obstPolyHist, bufferCalc):
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)
 
-    return path_ls, obst_multi_poly
+    return path_ls, hist_multi_poly
 
 behavior TieBreakingPause():
     take SetWalkingSpeedAction(0)
@@ -136,7 +138,7 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=1, obstHistory=3,
+    terminationThresh=0.1, replanTime=1, obstHistory=4,
     vehBuffer=1, nonVehBuffer=0.25):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
