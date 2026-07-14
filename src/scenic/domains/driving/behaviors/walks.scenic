@@ -119,6 +119,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc):
             path_ls = shapely.remove_repeated_points(path_ls)
 
     import matplotlib.pyplot as plt
+    plt.gca().set_aspect("equal")
     from scenic.core.geometry import plotPolygon
     from scenic.syntax.veneer import simulation
     if actor.name == "pedA" and simulation().currentRealTime == int(simulation().currentRealTime) and simulation().currentRealTime > 0:
