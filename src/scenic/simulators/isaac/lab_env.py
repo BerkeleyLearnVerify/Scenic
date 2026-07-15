@@ -56,6 +56,7 @@ def install_scenic_terrain(env, terrain_data):
 
 def configure_env_cfg_for_scenic_terrain(env_cfg, terrain_data):
     from isaaclab.terrains import TerrainGeneratorCfg
+
     from scenic.simulators.isaac.terrain_generator import scenic_terrain_generator_class
 
     terrain_cfg = env_cfg.scene.terrain
@@ -68,7 +69,7 @@ def configure_env_cfg_for_scenic_terrain(env_cfg, terrain_data):
             size=(1.0, 1.0),
             num_rows=int(num_rows),
             num_cols=int(num_cols),
-            sub_terrains={},   # important: avoids missing config field validation
+            sub_terrains={},  # important: avoids missing config field validation
         )
         terrain_cfg.terrain_generator = generator_cfg
 

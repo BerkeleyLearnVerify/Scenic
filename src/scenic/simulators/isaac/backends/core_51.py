@@ -470,7 +470,9 @@ class Core51Backend(IsaacBackend):
     def _configure_robotiq_gripper_drive(self, stage, prim_path, profile):
         from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
 
-        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{profile.gripper_prim}")
+        gripper_root = self._require_stage_prim(
+            stage, f"{prim_path}/{profile.gripper_prim}"
+        )
         found_finger_joint = False
 
         def set_attr(prim, attr_name, value, value_type):

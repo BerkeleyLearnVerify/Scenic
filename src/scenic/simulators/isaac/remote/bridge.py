@@ -133,7 +133,9 @@ class ScenicBridge:
             request = json.loads(data.split(b"\n", 1)[0].decode("utf-8"))
             self._jobs.put((request, connection))
         except Exception:
-            self._send(connection, {"event": "error", "traceback": traceback.format_exc()})
+            self._send(
+                connection, {"event": "error", "traceback": traceback.format_exc()}
+            )
             connection.close()
 
     def _send(self, connection, event):
@@ -176,7 +178,11 @@ class ScenicBridge:
             isaac_version, _ = detect_isaac_version()
             self._send(
                 connection,
-                {"event": "start", "backend": backend_name, "isaacVersion": isaac_version},
+                {
+                    "event": "start",
+                    "backend": backend_name,
+                    "isaacVersion": isaac_version,
+                },
             )
 
             from scenic.simulators.isaac.backends import get_backend
@@ -222,7 +228,9 @@ class ScenicBridge:
                 },
             )
         except Exception:
-            self._send(connection, {"event": "error", "traceback": traceback.format_exc()})
+            self._send(
+                connection, {"event": "error", "traceback": traceback.format_exc()}
+            )
 
 
 def start(host=DEFAULT_HOST, port=DEFAULT_PORT):

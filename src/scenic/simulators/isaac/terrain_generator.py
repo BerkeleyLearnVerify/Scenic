@@ -1,6 +1,6 @@
-from scenic.simulators.isaac.terrain_utils import ScenicTerrainData
-
 from isaaclab.terrains.terrain_generator import TerrainGenerator
+
+from scenic.simulators.isaac.terrain_utils import ScenicTerrainData
 
 
 class ScenicTerrainGenerator(TerrainGenerator):

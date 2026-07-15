@@ -9,10 +9,8 @@ from typing import Any
 
 from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 from scenic.core.vectors import Vector
-
-from scenic.simulators.isaac.terrain_utils import build_scenic_terrain_data
-
 from scenic.simulators.isaac.backends import get_backend
+from scenic.simulators.isaac.terrain_utils import build_scenic_terrain_data
 
 DEFAULT_EMPTY_ENV_CFG = "scenic.simulators.isaac.empty_env_cfg:ScenicEmptyEnvCfg"
 
@@ -86,7 +84,7 @@ class IsaacLabSimulator(Simulator):
         # If an env is already provided, assume the caller owns the app/env.
         if self.env is None:
             self._ensure_app()
-        
+
         if (
             self.env is None
             and self.task is None
@@ -223,10 +221,10 @@ class IsaacLabSimulation(Simulation):
 
         if self._owns_env:
             self.simulator._ensure_app()
-        
+
         self.debug_lifecycle = debug_lifecycle
         self._step_count = 0
-        
+
         self.backend = get_backend("lab")
 
         super().__init__(scene, timestep=timestep, **kwargs)
@@ -335,7 +333,11 @@ class IsaacLabSimulation(Simulation):
         if self.decimation is not None and hasattr(cfg, "decimation"):
             cfg.decimation = self.decimation
 
-        if self.use_fabric is not None and hasattr(cfg, "sim") and hasattr(cfg.sim, "use_fabric"):
+        if (
+            self.use_fabric is not None
+            and hasattr(cfg, "sim")
+            and hasattr(cfg.sim, "use_fabric")
+        ):
             cfg.sim.use_fabric = self.use_fabric
 
         if self.num_envs is not None and hasattr(cfg, "scene"):
@@ -385,6 +387,7 @@ class IsaacLabSimulation(Simulation):
             )
 
         from scenic.simulators.isaac.lab_env import configure_env_cfg_for_scenic_terrain
+
         configure_env_cfg_for_scenic_terrain(cfg, terrain_data)
 
     def _add_environment_usd_to_cfg(self, cfg):
@@ -458,7 +461,9 @@ class IsaacLabSimulation(Simulation):
         if isinstance(cfg, ManagerBasedEnvCfg):
             return ManagerBasedEnv
 
-        raise SimulationCreationError(f"Unsupported Isaac Lab cfg type: {type(cfg).__name__}")
+        raise SimulationCreationError(
+            f"Unsupported Isaac Lab cfg type: {type(cfg).__name__}"
+        )
 
     def createObjectInSimulator(self, obj):
         """Collect Scenic objects instead of spawning them immediately."""
@@ -510,7 +515,7 @@ class IsaacLabSimulation(Simulation):
     def scenic_actions_to_lab_action(self, allActions):
         """Map Scenic actions into an Isaac Lab action tensor.
 
-        This returns a zero action tensor with the exact shape Isaac Lab expects, 
+        This returns a zero action tensor with the exact shape Isaac Lab expects,
         including the num_envs dimension.
         """
         if self.env is None:
@@ -541,6 +546,7 @@ class IsaacLabSimulation(Simulation):
             return
 
         import traceback
+
         import torch
 
         try:
@@ -574,7 +580,7 @@ class IsaacLabSimulation(Simulation):
             )
             traceback.print_exc()
             raise
-    
+
     def _apply_pending_robot_commands(self):
         """Apply buffered Scenic robot commands to Isaac Lab articulations."""
         if not self._pending_robot_commands:
@@ -587,9 +593,7 @@ class IsaacLabSimulation(Simulation):
                 asset = self._asset_for_scenic_object(obj)
                 self.backend.apply_differential_drive_command(asset, obj, command)
             elif callable(getattr(obj, "control", None)):
-                self.backend.apply_articulation_action(
-                    self, obj, obj.control(command)
-                )
+                self.backend.apply_articulation_action(self, obj, obj.control(command))
             else:
                 if self.debug_lifecycle:
                     print(
@@ -639,10 +643,18 @@ class IsaacLabSimulation(Simulation):
         if data is None:
             return self._default_physics_values()
 
-        pos = self.backend._tensor_row(getattr(data, "root_pos_w", None), env_id, default=(0.0, 0.0, 0.0))
-        quat = self.backend._tensor_row(getattr(data, "root_quat_w", None), env_id, default=(1.0, 0.0, 0.0, 0.0))
-        lin_vel = self.backend._tensor_row(getattr(data, "root_lin_vel_w", None), env_id, default=(0.0, 0.0, 0.0))
-        ang_vel = self.backend._tensor_row(getattr(data, "root_ang_vel_w", None), env_id, default=(0.0, 0.0, 0.0))
+        pos = self.backend._tensor_row(
+            getattr(data, "root_pos_w", None), env_id, default=(0.0, 0.0, 0.0)
+        )
+        quat = self.backend._tensor_row(
+            getattr(data, "root_quat_w", None), env_id, default=(1.0, 0.0, 0.0, 0.0)
+        )
+        lin_vel = self.backend._tensor_row(
+            getattr(data, "root_lin_vel_w", None), env_id, default=(0.0, 0.0, 0.0)
+        )
+        ang_vel = self.backend._tensor_row(
+            getattr(data, "root_ang_vel_w", None), env_id, default=(0.0, 0.0, 0.0)
+        )
 
         yaw, pitch, roll = self.backend.isaac_quat_to_scenic_euler_angles(quat)
 
@@ -676,12 +688,16 @@ class IsaacLabSimulation(Simulation):
         if self.debug_lifecycle:
             result = getattr(self, "result", None)
             if result is None:
-                print("[SCENIC ISAAC LAB DEBUG] destroy called before Simulation.result was set.")
+                print(
+                    "[SCENIC ISAAC LAB DEBUG] destroy called before Simulation.result was set."
+                )
             else:
                 print(
                     "[SCENIC ISAAC LAB DEBUG] simulation ended:",
-                    "terminationType=", getattr(result, "terminationType", None),
-                    "terminationReason=", getattr(result, "terminationReason", None),
+                    "terminationType=",
+                    getattr(result, "terminationType", None),
+                    "terminationReason=",
+                    getattr(result, "terminationReason", None),
                 )
 
         if self.env is not None and self._owns_env:

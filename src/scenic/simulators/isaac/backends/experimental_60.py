@@ -697,7 +697,9 @@ class Experimental60Backend(IsaacBackend):
     def _configure_robotiq_gripper_drive(self, stage, prim_path, profile):
         from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
 
-        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{profile.gripper_prim}")
+        gripper_root = self._require_stage_prim(
+            stage, f"{prim_path}/{profile.gripper_prim}"
+        )
         found_finger_joint = False
 
         def set_attr(prim, attr_name, value, value_type):
@@ -806,8 +808,12 @@ class Experimental60Backend(IsaacBackend):
         material = UsdShade.Material.Define(stage, profile.gripper_contact_material_path)
         material_prim = material.GetPrim()
         material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-        material_api.CreateStaticFrictionAttr().Set(float(profile.gripper_static_friction))
-        material_api.CreateDynamicFrictionAttr().Set(float(profile.gripper_dynamic_friction))
+        material_api.CreateStaticFrictionAttr().Set(
+            float(profile.gripper_static_friction)
+        )
+        material_api.CreateDynamicFrictionAttr().Set(
+            float(profile.gripper_dynamic_friction)
+        )
         material_api.CreateRestitutionAttr().Set(0.0)
 
         physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
@@ -837,7 +843,9 @@ class Experimental60Backend(IsaacBackend):
             )
             collision_api.CreateCollisionEnabledAttr().Set(True)
             physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-            physx_collision_api.CreateContactOffsetAttr().Set(float(profile.contact_offset))
+            physx_collision_api.CreateContactOffsetAttr().Set(
+                float(profile.contact_offset)
+            )
             physx_collision_api.CreateRestOffsetAttr().Set(float(profile.rest_offset))
             bound.append(str(prim.GetPath()))
         if not bound:
@@ -853,7 +861,9 @@ class Experimental60Backend(IsaacBackend):
         material_prim = material.GetPrim()
         material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
         material_api.CreateStaticFrictionAttr().Set(float(profile.object_static_friction))
-        material_api.CreateDynamicFrictionAttr().Set(float(profile.object_dynamic_friction))
+        material_api.CreateDynamicFrictionAttr().Set(
+            float(profile.object_dynamic_friction)
+        )
         material_api.CreateRestitutionAttr().Set(0.0)
 
         physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
