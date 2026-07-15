@@ -133,6 +133,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             # If the closest point on the mid path is very close, cut start path short
             # and aim directly for it. This helps avoid backtracking loop.
             if self_pt.distance(mid_path) < 1:
+                print("TRUNCATING!!!")
                 mid_path = shapely.ops.substring(mid_path, mid_path.project(self_pt, normalized=True), 1, normalized=True)
                 start_pt = ShapelyPoint(mid_path.coords[0])
                 start_path = LineString([self_pt, start_pt])
