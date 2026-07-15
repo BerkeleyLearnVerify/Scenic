@@ -126,8 +126,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             mid_path = shapely.force_2d(mid_path)
 
             # Reverse the mid path if needed.
-            if (ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(start_path.coords[0]))
-                > ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(end_path.coords[0]))):
+            if (ShapelyPoint(mid_path.coords[0]).distance(start_pt) > ShapelyPoint(mid_path.coords[0]).distance(end_pt)):
                 mid_path = mid_path.reverse()
 
             # If the closest point on the mid path is very close, cut start path short
