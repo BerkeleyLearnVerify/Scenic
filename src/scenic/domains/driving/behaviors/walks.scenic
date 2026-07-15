@@ -140,20 +140,20 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)
 
-    from scenic.syntax.veneer import simulation
-    if simulation().currentRealTime > 4:
-        import matplotlib.pyplot as plt
-        plt.gca().set_aspect("equal")
-        from scenic.core.geometry import plotPolygon
-        from scenic.syntax.veneer import simulation
-        simulation().scene.workspace.network.show()
-        for obj in simulation().objects:
-            obj.show2D(simulation().scene.workspace, plt)
-        simulation().scene.workspace.zoomAround(plt, simulation().objects)
-        plotPolygon(obst_multi_poly, plt, style="c--")
-        plotPolygon(orig_path_ls, plt, style="y-")
-        plotPolygon(path_ls, plt, style="g--")
-        plt.show()
+    # from scenic.syntax.veneer import simulation
+    # if simulation().currentRealTime > 4:
+    #     import matplotlib.pyplot as plt
+    #     plt.gca().set_aspect("equal")
+    #     from scenic.core.geometry import plotPolygon
+    #     from scenic.syntax.veneer import simulation
+    #     simulation().scene.workspace.network.show()
+    #     for obj in simulation().objects:
+    #         obj.show2D(simulation().scene.workspace, plt)
+    #     simulation().scene.workspace.zoomAround(plt, simulation().objects)
+    #     plotPolygon(obst_multi_poly, plt, style="c--")
+    #     plotPolygon(orig_path_ls, plt, style="y-")
+    #     plotPolygon(path_ls, plt, style="g--")
+    #     plt.show()
 
     return path_ls
 
