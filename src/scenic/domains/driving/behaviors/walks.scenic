@@ -18,9 +18,13 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
     # Compute the obstacle polygons, accounting for the plan of objects that have already logged it.
-    breakpoint()
-    raw_obst_polys = [obj._boundingPolygon.buffer(baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer))
-        for obj in backgroundObjects]
+    raw_obst_polys = []
+    for obj in backgroundObjects:
+        bufferAmount = baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer)
+        print(bufferAmount)
+        raw_obst_polys.append(obj._boundingPolygon.buffer(bufferAmount))
+    # raw_obst_polys = [obj._boundingPolygon.buffer(baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer))
+    #     for obj in backgroundObjects]
     def future_poly_helper(obj):
         planned_path, planned_speed = obj._planData
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
