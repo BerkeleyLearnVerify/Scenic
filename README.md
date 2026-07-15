@@ -204,12 +204,11 @@ The manipulator examples pin the backend matching the tested Isaac Sim 5.1
 setup and run as-is:
 
 ```bash
-scenic -S -b examples/isaacsim/robot/franka.scenic --count 1
-scenic -S -b examples/isaacsim/robot/franka_example_core.scenic --count 1
-scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic --count 1
-scenic -S -b examples/isaacsim/robot/ur5e_example_core.scenic --count 1
-scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic --count 1
-scenic -S -b examples/isaacsim/robot/ur5e_example_experimental_side.scenic --count 1
+scenic -S -b examples/isaacsim/robot/franka_example_core.scenic
+scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic
+scenic -S -b examples/isaacsim/robot/ur5e_example_core.scenic
+scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic
+scenic -S -b examples/isaacsim/robot/ur5e_example_experimental_side.scenic
 ```
 
 ### Isaac interface parameters
