@@ -16,21 +16,15 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
 
     # Lambda to compute buffer const.
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
+    bufferCalc = lambda obj: baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer)
 
     # Compute the obstacle polygons, accounting for the plan of objects that have already logged it.
-    raw_obst_polys = []
-    for obj in backgroundObjects:
-        bufferAmount = baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer)
-        print(bufferAmount)
-        raw_obst_polys.append(obj._boundingPolygon.buffer(bufferAmount))
-    # raw_obst_polys = [obj._boundingPolygon.buffer(baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer))
-    #     for obj in backgroundObjects]
+    raw_obst_polys = [obj._boundingPolygon.buffer(bufferCalc(obj))
+        for obj in backgroundObjects]
     def future_poly_helper(obj):
         planned_path, planned_speed = obj._planData
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
-        bufferAmount = baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer) + shapely.minimum_bounding_radius(obj._boundingPolygon)
-        print(bufferAmount)
-        return trimmed_path.buffer(bufferAmount)
+        return trimmed_path.buffer(bufferCalc(obj) + + shapely.minimum_bounding_radius(obj._boundingPolygon))
     future_polys = [future_poly_helper(obj) for obj in backgroundObjects
         if not obj.isVehicle and getattr(obj, "_planData", None) is not None]
 
