@@ -9,7 +9,7 @@ from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime):
+def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, vehBuffer, nonVehBuffer):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
     orig_path_ls = path_ls #TODO: TEMP
@@ -18,7 +18,8 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime):
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
     # Compute the obstacle polygons, accounting for the plan of objects that have already logged it.
-    obst_polys = [(obj, obj._boundingPolygon.buffer(bufferCalc(obj))) for obj in backgroundObjects]
+    raw_obst_polys = [obj._boundingPolygon.buffer(baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer))
+        for obj in backgroundObjects]
     def future_poly_helper(obj):
         planned_path, planned_speed = obj._planData
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
@@ -26,10 +27,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime):
     future_polys = [future_poly_helper(obj) for obj in backgroundObjects
         if not obj.isVehicle and getattr(obj, "_planData", None) is not None]
 
-    # Only track non-vehicles as historicaly polys, as those are the only ones we will
-    # path around while moving. Vehicles are expected to yield to us.
-    hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys if not obj.isVehicle])
-    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + future_polys)
+    obst_multi_poly = shapely.union_all(raw_obst_polys + future_polys)
 
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
@@ -180,7 +178,7 @@ from scenic.syntax.veneer import simulation
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
     terminationThresh=0.1, replanTime=0.5, lookaheadTime=4,
-    vehBuffer=1, nonVehBuffer=0.2, erosionFactor=0.3):
+    vehBuffer=1, nonVehBuffer=0.2):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
@@ -211,7 +209,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             continue
 
         # Modify path to route around objects.
-        path_ls = getBugPath(self, path_ls, background_objects, bufferCalc, lookaheadTime)
+        path_ls = getBugPath(self, path_ls, background_objects, bufferCalc, lookaheadTime, vehBuffer, nonVehBuffer)
         self._planData = path_ls, targetSpeed
 
         # If path_ls is None, our goal is inside the danger zone and we can't
