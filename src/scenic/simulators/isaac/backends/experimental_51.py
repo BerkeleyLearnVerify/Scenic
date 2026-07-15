@@ -72,7 +72,7 @@ class Experimental51Backend(Experimental60Backend):
         while ready_frames < 2:
             world.app.update()
             ready_frames = 0 if self.is_stage_loading() else ready_frames + 1
-        self._configure_ur5e_pick_objects_for_world(world, objects)
+        self._configure_manipulator_pick_objects_for_world(world, objects)
         world.core_world.initialize_physics()
         world.app.update()
 

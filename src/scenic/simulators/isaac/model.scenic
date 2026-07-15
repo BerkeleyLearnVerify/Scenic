@@ -16,6 +16,7 @@ from scenic.simulators.isaac.actions import (
 )
 from scenic.simulators.isaac.behaviors import *
 from scenic.simulators.isaac.backends import DEFAULT_BACKEND_NAME, get_backend, set_default_backend
+from scenic.simulators.isaac.backends.profiles import FRANKA_PROFILE, UR5E_PROFILE
 from scenic.simulators.isaac import TerrainBase
 from scenic.simulators.isaac.simulator import IsaacSimulator
 from scenic.simulators.isaac.utils import _addExistingObj, EnvironmentMeshCache
@@ -143,22 +144,12 @@ class Kaya(IsaacSimRobot, _HolonomicRobot):
     wheel_dof_names: ["axle_0_joint", "axle_1_joint", "axle_2_joint"]
     wheel_controller: "holonomic"
 
-class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
+class ManipulatorRobot(IsaacSimRobot, _ManipulatorRobot):
 
-    # shape: MeshShape(
-    #     repairMesh(
-    #         trimesh.load(localPath("../../../../assets/FrankaRobotics/FrankaPanda/franka_usd.gltf")).to_geometry()
-    #     )
-    # )
-    shape: BoxShape()
-    width: 0.3
-    length: 0.3
-    height: 0.9
+    manipulator_profile: None
     end_effector_offset: [0.0, 0.0, 0.0]
     end_effector_orientation: None
-
-    def create(self):
-        return isaac_backend.create_franka_panda(self)
+    arm_max_velocities: None
 
     def move(
         self,
@@ -168,7 +159,7 @@ class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
         end_effector_offset=None,
         end_effector_orientation=None,
     ):
-        sim.backend.move_franka_pick_place(
+        sim.backend.move_manipulator_pick_place(
             sim,
             self,
             target_object,
@@ -178,57 +169,43 @@ class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
         )
 
     def move_to_pose(self, sim, position, orientation=None):
-        sim.backend.move_franka_end_effector(sim, self, position, orientation)
+        sim.backend.move_manipulator_end_effector(sim, self, position, orientation)
 
     def set_gripper(self, sim, opened):
-        sim.backend.set_franka_gripper(sim, self, opened)
+        sim.backend.set_manipulator_gripper(sim, self, opened)
 
     def set_joint_positions(self, sim, joint_positions):
-        sim.backend.set_franka_arm_joint_positions(sim, self, joint_positions)
+        sim.backend.set_manipulator_arm_joint_positions(sim, self, joint_positions)
 
     def hold_position(self, sim):
-        sim.backend.hold_franka_position(sim, self)
+        sim.backend.hold_manipulator_position(sim, self)
 
     def get_ee_pose(self, sim):
-        return sim.backend.get_franka_end_effector_pose(sim, self)
+        return sim.backend.get_manipulator_end_effector_pose(sim, self)
 
     def get_gripper_positions(self, sim):
-        return sim.backend.get_franka_gripper_positions(sim, self)
+        return sim.backend.get_manipulator_gripper_positions(sim, self)
 
     def get_gripper_target_positions(self, opened):
-        return isaac_backend.franka_gripper_target_positions(opened)
+        return isaac_backend.manipulator_gripper_target_positions(
+            self.manipulator_profile, opened
+        )
 
-class UR5e(IsaacSimRobot, _ManipulatorRobot):
+class FrankaPanda(ManipulatorRobot):
+
+    shape: BoxShape()
+    width: 0.3
+    length: 0.3
+    height: 0.9
+    manipulator_profile: FRANKA_PROFILE
+
+class UR5e(ManipulatorRobot):
 
     shape: BoxShape()
     width: 0.4
     length: 0.4
     height: 0.515
-    arm_max_velocities: None
-
-    def create(self):
-        return isaac_backend.create_ur5e(self)
-
-    def move_to_pose(self, sim, position, orientation=None):
-        sim.backend.move_ur5e_end_effector(sim, self, position, orientation)
-
-    def set_gripper(self, sim, opened):
-        sim.backend.set_ur5e_gripper(sim, self, opened)
-
-    def set_joint_positions(self, sim, joint_positions):
-        sim.backend.set_ur5e_arm_joint_positions(sim, self, joint_positions)
-
-    def hold_position(self, sim):
-        sim.backend.hold_ur5e_position(sim, self)
-
-    def get_ee_pose(self, sim):
-        return sim.backend.get_ur5e_end_effector_pose(sim, self)
-
-    def get_gripper_positions(self, sim):
-        return sim.backend.get_ur5e_gripper_positions(sim, self)
-
-    def get_gripper_target_positions(self, opened):
-        return isaac_backend.ur5e_gripper_target_positions(opened)
+    manipulator_profile: UR5E_PROFILE
 
 class GroundPlane(IsaacSimObject):
     

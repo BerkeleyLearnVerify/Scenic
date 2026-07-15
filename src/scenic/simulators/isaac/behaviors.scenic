@@ -76,8 +76,6 @@ def _gripper_reached(agent, sim, target, threshold):
     positions = positions.flatten()[:len(target)]
     return np.linalg.norm(positions - target) <= threshold
 
-# Step the arm/gripper one action per time step; the try-interrupt behaviors below
-# run these until the target is reached or the move times out.
 behavior _RepeatAction(action):
     while True:
         take action

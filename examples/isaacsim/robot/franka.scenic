@@ -1,3 +1,4 @@
+param isaacBackend = "core_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 param duration = 30
 param cubeSize = 0.0515

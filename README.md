@@ -200,6 +200,18 @@ scenic examples/isaacsim/robot/create3.scenic -S -b \
   --param headless True
 ```
 
+The manipulator examples pin the backend matching the tested Isaac Sim 5.1
+setup and run as-is:
+
+```bash
+scenic -S -b examples/isaacsim/robot/franka.scenic --count 1
+scenic -S -b examples/isaacsim/robot/franka_example_core.scenic --count 1
+scenic -S -b examples/isaacsim/robot/franka_example_experimental.scenic --count 1
+scenic -S -b examples/isaacsim/robot/ur5e_example_core.scenic --count 1
+scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic --count 1
+scenic -S -b examples/isaacsim/robot/ur5e_example_experimental_side.scenic --count 1
+```
+
 ### Isaac interface parameters
 
 All of the following parameters can be declared in a Scenic file with
@@ -243,6 +255,40 @@ scenic examples/isaacsim/forklift/forklift.scenic -S -b \
 Converted environment data is cached. Local USD conversions are placed near
 the source USD; Isaac asset and URL conversions are cached under
 `~/.cache/scenic/isaac/environments`.
+
+### Remote mode
+
+Remote mode attaches Scenic to an Isaac Sim instance that is already running
+instead of launching a new one per run. A bridge inside that instance executes
+the full scenario and automatically selects the backend matching its Isaac
+version (`--param isaacBackend NAME` forces one).
+
+1. In the running Isaac's Script Editor (Window > Script Editor), start the
+   bridge. If Scenic is not installed into Isaac's own Python, put it (and an
+   environment providing its dependencies) on `sys.path` first:
+
+   ```python
+   import sys
+   sys.path.append(r"<path-to-Scenic>\src")
+   sys.path.append(r"<python-env-with-scenic-deps>\Lib\site-packages")
+   from scenic.simulators.isaac.remote import bridge
+   bridge.start()
+   ```
+
+2. From any shell with Scenic installed, run scenarios against it:
+
+   ```bash
+   python -m scenic.simulators.isaac.remote \
+     examples/isaacsim/robot/ur5e_example_experimental.scenic
+   ```
+
+   `--param NAME VALUE` (repeatable), `--count N`, `--max-steps N`, `--host`,
+   and `--port` are supported. Scenario output streams back to the client.
+
+The bridge listens on `127.0.0.1:8793` by default (`bridge.start(port=...)`
+to change) and runs one scenario at a time on Isaac's main update loop; each
+run opens the scenario's environment stage in the running editor.
+`bridge.stop()` stops it.
 
 ## Running Scenic with Isaac Lab
 
@@ -477,6 +523,56 @@ through `labEnvCfg`. Scenic adds sampled objects to `cfg.scene`; if a Scenic
 object name matches an existing scene field, the interface updates that
 asset's initial pose instead of adding a duplicate asset.
 
+### Manipulator arm
+
+Manipulator arms are data-driven like the wheeled robots: a model class only
+selects a profile, and the backends create and control any arm generically
+from it.
+
+```scenic
+class FrankaPanda(ManipulatorRobot):
+    shape: BoxShape()
+    width: 0.3
+    length: 0.3
+    height: 0.9
+    manipulator_profile: FRANKA_PROFILE
+```
+
+Per-arm data lives in `src/scenic/simulators/isaac/backends/profiles/<arm>.py`.
+A profile carries the values that cannot be inferred from the USD asset (joint
+roles, control link, home pose, TCP offset, grasp orientation, gripper
+setpoints, drive/contact tuning) plus dispatch keys:
+
+| Key | Meaning |
+| --- | --- |
+| `gripper_style` | Selects gripper-specific USD authoring and wrapper construction (`"franka_hand"`, `"robotiq_2f85"`). |
+| `gripper_control_mode` | How open/close is commanded (`"position"` or `"velocity"`). |
+| `supports_pick_place` | Enables the built-in pick-place controller (`PickPlaceObject` behavior). |
+
+To add a new arm:
+
+1. Add `backends/profiles/<arm>.py` defining a profile instance (subclass
+   `ManipulatorProfile` if the arm needs extra tuning fields) and re-export it
+   from `backends/profiles/__init__.py`.
+2. Add a thin model class in `model.scenic` selecting the profile, as above.
+3. If the arm uses a new gripper mechanism, add a `gripper_style` branch for
+   its USD authoring in the backends.
+4. Add an example scenario. The generic manipulator actions
+   (`MoveToEEPoseAction`, gripper actions) and behaviors (`MoveEndEffectorTo`,
+   `OpenGripper`, `CloseGripper`, `HoldPosition`) are reused unchanged; the
+   end-effector move behaviors raise `ManipulatorTimeout` if a move does not
+   converge within `max_steps`.
+
+The two backend families control the arms differently, bypassing the generic
+`control` path above:
+
+* `experimental_51` / `experimental_60` run a custom damped-least-squares
+  differential-IK step per action with authored gripper drives; their built-in
+  pick-place is a hand-rolled phase state machine whose approach/lift geometry
+  and per-phase step counts are currently hardcoded in the backend.
+* `core_51` uses Isaac's RMPFlow motion policies for end-effector motion and
+  Isaac's `PickPlaceController` for the built-in pick-place.
+
 ## G1 Rough Locomotion Example
 
 This example workflow trains a Unitree G1 rough-terrain policy in Isaac Lab, evaluates
@@ -558,6 +654,27 @@ python src/scenic/simulators/isaac/scripts/play_scenic.py \
 Replace the checkpoint names and run directory with the files produced by
 your runs. Add `--headless` for non-interactive playback or `--video` to
 record the evaluation.
+
+## Known Issues
+
+* Small differences can remain between Scenic geometry and the corresponding
+  Isaac USD geometry/colliders, especially for converted or complex assets.
+  The backends compensate for USD bounding-box offsets when placing assets,
+  but scenarios using `mutate` can still expose unexpected intersections.
+* Repairing a complex converted mesh may not produce a reasonable volume.
+* Manipulator profiles contain values that cannot be inferred reliably from
+  USD: arm/gripper joint roles, control link, TCP, home pose, grasp
+  orientation, and open/closed gripper meaning. They are valid only for the
+  exact asset and variant named by the profile, and gripper drive/contact
+  values may need manual tuning for a different asset or task. Some values
+  could in principle be read from the initialized articulation instead (DOF
+  names, joint limits, authored drive gains); DOF names are already validated
+  against the live articulation. Example clearances and thresholds are
+  scenario policy, exposed as Scenic parameters.
+* `arm_max_velocities` is honored by the experimental backends (joint-velocity
+  clamp); the `core_51` RMPFlow path ignores it.
+* A local copy of the Isaac Sim assets can be obtained
+  [here](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release).
 
 ## Troubleshooting
 
