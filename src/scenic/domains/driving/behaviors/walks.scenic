@@ -9,7 +9,7 @@ from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, additionalPoly, bufferCalc, erosionFactor, lookaheadTime):
+def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
     orig_path_ls = path_ls #TODO: TEMP
@@ -29,7 +29,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPoly, bufferCalc, er
     # Only track non-vehicles as historicaly polys, as those are the only ones we will
     # path around while moving. Vehicles are expected to yield to us.
     hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys if not obj.isVehicle])
-    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + future_polys + [additionalPoly])
+    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + future_polys)
 
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
@@ -52,7 +52,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPoly, bufferCalc, er
             # Check if target is inside the polygon.
             # If we're too close to the exterior point, return None.
             if obstacle_poly.distance(self_pt) < 0.01:
-                return None, hist_multi_poly
+                return None
 
             # Otherwise, truncate the path to the closest point on the exterior of the obstacle_poly.
             exterior_intersection = path_ls.intersection(obstacle_poly.exterior)
@@ -156,7 +156,7 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPoly, bufferCalc, er
     #     plotPolygon(path_ls, plt, style="g--")
     #     plt.show()
 
-    return path_ls, hist_multi_poly
+    return path_ls
 
 behavior TieBreakingPause():
     take SetWalkingSpeedAction(0)
@@ -184,11 +184,9 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
-    obstacle_poly = shapely.union_all([])
 
     bufferCalc = lambda obj: (shapely.minimum_bounding_radius(self._boundingPolygon)
         + (vehBuffer if obj.isVehicle else nonVehBuffer))
-
 
     while distance from self to path.end > terminationThresh:
         path_ls = shapely.force_2d(path.lineString)
@@ -213,11 +211,8 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             continue
 
         # Modify path to route around objects.
-        path_ls, poly = getBugPath(self, path_ls, background_objects, obstacle_poly, bufferCalc, erosionFactor, lookaheadTime)
+        path_ls = getBugPath(self, path_ls, background_objects, bufferCalc, lookaheadTime)
         self._planData = path_ls, targetSpeed
-
-        # Update and slightly erode the obstacle poly history
-        # obstacle_poly = obstacle_poly.union(poly).buffer(3*erosionFactor).buffer(-4*erosionFactor)
 
         # If path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
