@@ -123,6 +123,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             else:
                 exterior_segments.sort(key=lambda x: x.length)
             mid_path = exterior_segments[0]
+            assert isinstance(mid_path, LineString)
             mid_path = shapely.force_2d(mid_path)
 
             # Reverse the mid path if needed.
