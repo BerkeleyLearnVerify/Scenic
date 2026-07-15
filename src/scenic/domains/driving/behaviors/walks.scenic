@@ -28,7 +28,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
     def future_poly_helper(obj):
         planned_path, planned_speed = obj._planData
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
-        bufferAmount = bufferCalc(obj) + shapely.minimum_bounding_radius(obj._boundingPolygon)
+        bufferAmount = baseBuffer + (vehBuffer if obj.isVehicle else nonVehBuffer) + shapely.minimum_bounding_radius(obj._boundingPolygon)
         print(bufferAmount)
         return trimmed_path.buffer(bufferAmount)
     future_polys = [future_poly_helper(obj) for obj in backgroundObjects
