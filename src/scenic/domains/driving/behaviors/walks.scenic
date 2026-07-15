@@ -9,24 +9,27 @@ from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc, lookaheadTime):
+def getBugPath(actor, path_ls, backgroundObjects, additionalPoly, bufferCalc, erosionFactor, lookaheadTime):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
+    orig_path_ls = path_ls #TODO: TEMP
 
     # Lambda to compute buffer const.
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
 
-    # Compute the obstacle polygons, with some forward prediction.
+    # Compute the obstacle polygons, accounting for the plan of objects that have already logged it.
     obst_polys = [(obj, obj._boundingPolygon.buffer(bufferCalc(obj))) for obj in backgroundObjects]
-    lookahead_vals = [0.5*t for t in range(1,2*lookaheadTime+1)]
-    obst_polys += [(obj, shapely.transform(poly, lambda x: x + (t*obj.velocity.x, t*obj.velocity.y)))
-                 for t in lookahead_vals for obj, poly in obst_polys if not obj.isVehicle]
+    def future_poly_helper(obj):
+        planned_path, planned_speed = obj._planData
+        trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
+        return trimmed_path.buffer(bufferCalc(obj) + shapely.minimum_bounding_radius(obj._boundingPolygon))
+    future_polys = [future_poly_helper(obj) for obj in backgroundObjects
+        if not obj.isVehicle and getattr(obj, "_planData", None) is not None]
 
     # Only track non-vehicles as historicaly polys, as those are the only ones we will
     # path around while moving. Vehicles are expected to yield to us.
     hist_multi_poly = shapely.union_all([poly for obj, poly in obst_polys if not obj.isVehicle])
-
-    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + list(additionalPolys))
+    obst_multi_poly = shapely.union_all([p for _,p in obst_polys] + future_polys + [additionalPoly])
 
     if isinstance(obst_multi_poly, MultiPolygon):
         obst_polys = obst_multi_poly.geoms
@@ -41,8 +44,10 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc, l
     # Refine path around obstacles, going from those with the largest boundary inwards
     # (to account for the rare case where an obstacle poly may be entirely contained in another)
     for obstacle_poly in sorted(obst_polys, key=lambda x: x.boundary.length, reverse=True):
-        self_pt = ShapelyPoint(actor.position)
-        target_pt = ShapelyPoint(path_ls.coords[-1])
+        self_pt = shapely.force_2d(ShapelyPoint(actor.position))
+        target_pt = shapely.force_2d(ShapelyPoint(path_ls.coords[-1]))
+
+        # TODO: Better handling so the pedestrian keeps walking towards goal inside a large poly.
         if obstacle_poly.contains(target_pt):
             # Check if target is inside the polygon.
             # If we're too close to the exterior point, return None.
@@ -66,16 +71,24 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc, l
                 intersection_points.append(path_ls.interpolate(path_ls.project(self_pt)))
 
             if isinstance(exterior_intersection, ShapelyPoint):
-                assert obstacle_poly.contains(ShapelyPoint(path_ls.coords[0]))                
-                intersection_points.append(exterior_intersection)
+                # If we are in the obstacle poly, add the intersection point to help guide us out.
+                # Otherwise, our destination is on the border of the poly itself, and we simply should continue.
+                if obstacle_poly.contains(self_pt):
+
+                    intersection_points.append(exterior_intersection)
+                else:
+                    continue
             elif isinstance(exterior_intersection, LineString):
-                instersection_points += [ShapelyPoint(geom.coords[0]), ShapelyPoint(geom,coords[1])]
+                intersection_points += [
+                    ShapelyPoint(exterior_intersection.coords[0]),
+                    ShapelyPoint(exterior_intersection.coords[1])
+                ]
             elif isinstance(exterior_intersection, (MultiPoint, MultiLineString, GeometryCollection)):
                 for geom in exterior_intersection.geoms:
                     if isinstance(geom, ShapelyPoint):
                         intersection_points.append(geom)
                     elif isinstance(geom, LineString):
-                        instersection_points += [ShapelyPoint(geom.coords[0]), ShapelyPoint(geom,coords[1])]
+                        intersection_points += [ShapelyPoint(geom.coords[0]), ShapelyPoint(geom.coords[1])]
             else:
                 assert False
 
@@ -101,41 +114,53 @@ def getBugPath(actor, path_ls, backgroundObjects, additionalPolys, bufferCalc, l
             start_path = shapely.force_2d(start_path)
             end_path = shapely.force_2d(end_path)
 
-            # Extract and reverse mid_path (if needed). If paths are very close in length,
+            # Extract the mid_path. If paths are very close in length,
             # bias to the right.
             # TODO: Bias to the appropriate driving direction
-            if 0.9 < exterior_segments[0].length/exterior_segments[1].length < 1.1:
+            if 0.7 < exterior_segments[0].length/exterior_segments[1].length < 1.3:
                 def angle_helper(ls):
                     return actor.apparentHeadingTo(Vector(*ls.centroid.coords[0]))
                 exterior_segments.sort(key=lambda x: angle_helper(x))
             else:
                 exterior_segments.sort(key=lambda x: x.length)
             mid_path = exterior_segments[0]
-            mid_path_start = ShapelyPoint(mid_path.coords[0])
+            mid_path = shapely.force_2d(mid_path)
+
+            # Reverse the mid path if needed.
             if (ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(start_path.coords[0]))
                 > ShapelyPoint(mid_path.coords[0]).distance(ShapelyPoint(end_path.coords[0]))):
                 mid_path = mid_path.reverse()
 
+            # If the closest point on the mid path is very close, cut start path short
+            # and aim directly for it. This helps avoid backtracking loop.
+            if self_pt.distance(mid_path) < 1:
+                mid_path = shapely.ops.substring(mid_path, mid_path.project(self_pt, normalized=True), 1, normalized=True)
+                start_pt = ShapelyPoint(mid_path.coords[0])
+                start_path = LineString([self_pt, start_pt])
+
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)
 
-    # import matplotlib.pyplot as plt
-    # plt.gca().set_aspect("equal")
-    # from scenic.core.geometry import plotPolygon
     # from scenic.syntax.veneer import simulation
-    # if actor.name == "pedA" and simulation().currentRealTime == int(simulation().currentRealTime) and simulation().currentRealTime > 0:
+    # if simulation().currentRealTime > 4:
+    #     import matplotlib.pyplot as plt
+    #     plt.gca().set_aspect("equal")
+    #     from scenic.core.geometry import plotPolygon
+    #     from scenic.syntax.veneer import simulation
     #     simulation().scene.workspace.network.show()
     #     for obj in simulation().objects:
     #         obj.show2D(simulation().scene.workspace, plt)
     #     simulation().scene.workspace.zoomAround(plt, simulation().objects)
     #     plotPolygon(obst_multi_poly, plt, style="c--")
+    #     plotPolygon(orig_path_ls, plt, style="y-")
+    #     plotPolygon(path_ls, plt, style="g--")
     #     plt.show()
 
     return path_ls, hist_multi_poly
 
 behavior TieBreakingPause():
     take SetWalkingSpeedAction(0)
-    wait for Range(0.1, 0.5) seconds
+    wait for Range(0, 0.5) seconds
 
 behavior _WalkPathHelper(path, targetSpeed):
     dist_along = 0
@@ -149,59 +174,64 @@ behavior _WalkPathHelper(path, targetSpeed):
         heading = angle from self to target_pt
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
+import matplotlib.pyplot as plt
+from scenic.core.geometry import plotPolygon
+from scenic.syntax.veneer import simulation
+
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=0.5, obstHistory=6, lookaheadTime=2,
-    vehBuffer=1, nonVehBuffer=0.25, erosionFactor=0.75):
+    terminationThresh=0.1, replanTime=1, lookaheadTime=4,
+    vehBuffer=1, nonVehBuffer=0.2, erosionFactor=0.3):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
-    path_ls = path.lineString
-    obstacle_poly_hist = []
+    obstacle_poly = shapely.union_all([])
 
     bufferCalc = lambda obj: (shapely.minimum_bounding_radius(self._boundingPolygon)
         + (vehBuffer if obj.isVehicle else nonVehBuffer))
 
+
     while distance from self to path.end > terminationThresh:
+        path_ls = shapely.force_2d(path.lineString)
+        self_pt = (self.position.x, self.position.y)
+
         # Refine the path by dropping already traversed areas and adding a link to the start.
-        start_s = path_ls.project(ShapelyPoint(self.position), normalized=True)
-        refined_path_ls = shapely.ops.substring(path_ls, start_s, 1, normalized=True)
-        refined_path_ls =  LineString([self.position] + list(refined_path_ls.coords))
-        refined_path_ls = shapely.remove_repeated_points(refined_path_ls)
+        start_s = path_ls.project(ShapelyPoint(self_pt), normalized=True)
+        path_ls = shapely.ops.substring(path_ls, start_s, 1, normalized=True)
+        path_ls =  LineString([self_pt] + list(path_ls.coords))
+        path_ls = shapely.remove_repeated_points(path_ls)
 
         # If our immediate path has us cross through any objects in motion, stop and 
         # wait until it's clear.
         background_objects = [obj for obj in simulation().objects if obj is not self]
-        immediate_path = shapely.ops.substring(refined_path_ls, 0, targetSpeed)
+        immediate_path = shapely.ops.substring(path_ls, 0, targetSpeed)
         danger_objects = [obj for obj in background_objects if obj.speed > 0.1 and obj.isVehicle]
         moving_obj_danger_zone = shapely.union_all(
             [obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in danger_objects]
         )
         if immediate_path.intersects(moving_obj_danger_zone):
-            print("PAUSE 1")
             do TieBreakingPause()
             continue
 
         # Modify path to route around objects.
-        refined_path_ls, poly = getBugPath(self, refined_path_ls, background_objects, obstacle_poly_hist, bufferCalc, lookaheadTime)
-        
-        # Update and slightly erode the obstacle poly history
-        stepErosionFactor = min(replanTime/obstHistory, 1) * erosionFactor
-        obstacle_poly_hist = [p.buffer(-stepErosionFactor) for p in obstacle_poly_hist] + [poly]
-        obstacle_poly_hist = obstacle_poly_hist[-math.ceil(obstHistory/replanTime):]
+        path_ls, poly = getBugPath(self, path_ls, background_objects, obstacle_poly, bufferCalc, erosionFactor, lookaheadTime)
+        self._planData = path_ls, targetSpeed
 
-        # If refined_path_ls is None, our goal is inside the danger zone and we can't
+        # Update and slightly erode the obstacle poly history
+        # obstacle_poly = obstacle_poly.union(poly).buffer(3*erosionFactor).buffer(-4*erosionFactor)
+
+        # If path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
-        if refined_path_ls is None:
-            print("PAUSE 2")
+        if path_ls is None:
             do TieBreakingPause()
             continue
 
         # Follow the path until we replan, terminating early if we reach the end.
         try:
-            do _WalkPathHelper(refined_path_ls, targetSpeed) for replanTime seconds
-        interrupt when distance from self to Vector(*refined_path_ls.coords[-1]) < terminationThresh:
-            print("INTERRUPT")
+            do _WalkPathHelper(path_ls, targetSpeed) for replanTime seconds
+        interrupt when distance from self to Vector(*path_ls.coords[-1]) < terminationThresh:
             abort
+
+        self._planData = None
 
     take SetWalkingSpeedAction(0)
 
@@ -250,6 +280,7 @@ behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
             continue
 
         # We have no valid next moves. Terminate the behavior.
+        # TODO: Turn around instead?
         return
 
 # TODO: This uses WalkTowardsAction which doesn't exist.
