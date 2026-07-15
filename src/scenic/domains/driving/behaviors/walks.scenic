@@ -116,7 +116,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             # Extract the mid_path. If paths are very close in length,
             # bias to the right.
             # TODO: Bias to the appropriate driving direction
-            if 0.7 < exterior_segments[0].length/exterior_segments[1].length < 1.3:
+            if 0.95 < exterior_segments[0].length/exterior_segments[1].length < 1.05:
                 def angle_helper(ls):
                     return actor.apparentHeadingTo(Vector(*ls.centroid.coords[0]))
                 exterior_segments.sort(key=lambda x: angle_helper(x))
@@ -176,7 +176,7 @@ behavior _WalkPathHelper(path, targetSpeed):
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
     terminationThresh=0.1, replanTime=0.1, lookaheadTime=4,
-    vehBuffer=1.5, nonVehBuffer=0.2):
+    vehBuffer=2, nonVehBuffer=0.2):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
