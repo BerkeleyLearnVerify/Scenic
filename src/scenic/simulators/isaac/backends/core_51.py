@@ -4,6 +4,7 @@ import os
 import numpy as np
 
 from scenic.simulators.isaac.backends.base import IsaacBackend
+from scenic.simulators.isaac.backends.profiles import UR5E_PROFILE
 import scenic.simulators.isaac.utils as scenic_utils
 
 
@@ -19,39 +20,6 @@ def _position_array(position):
     if hasattr(position, "x") and hasattr(position, "y") and hasattr(position, "z"):
         return np.array([position.x, position.y, position.z], dtype=float)
     return np.asarray(position, dtype=float).reshape(-1)[:3]
-
-
-UR5E_ARM_DOF_NAMES = [
-    "shoulder_pan_joint",
-    "shoulder_lift_joint",
-    "elbow_joint",
-    "wrist_1_joint",
-    "wrist_2_joint",
-    "wrist_3_joint",
-]
-UR5E_DEFAULT_ARM_POSE = np.array(
-    [-np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, np.pi / 2.0, 0.0],
-    dtype=float,
-)
-UR5E_RMPFLOW_DOWNWARD_ORIENTATION = np.array(
-    [0.0, 0.70710678, 0.70710678, 0.0],
-    dtype=float,
-)
-UR5E_RMPFLOW_TCP_OFFSET = np.array([0.0, 0.0, 0.135], dtype=float)
-UR5E_GRIPPER_OPEN_POSITION = 0.0
-UR5E_GRIPPER_CLOSED_POSITION = np.deg2rad(40.0)
-UR5E_GRIPPER_FULLY_CLOSED_POSITION = 47.0
-UR5E_GRIPPER_CLOSE_VELOCITY = np.deg2rad(90.0)
-UR5E_GRIPPER_OPEN_VELOCITY = -np.deg2rad(45.0)
-UR5E_GRIPPER_MAX_FORCE = 5.0
-UR5E_GRIPPER_STIFFNESS = 0.0
-UR5E_GRIPPER_DAMPING = 5000.0
-UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC = 130.0
-UR5E_MIMIC_NATURAL_FREQUENCY = 0.0
-UR5E_MIMIC_DAMPING_RATIO = 0.0
-UR5E_OUTER_FINGER_PARALLEL_STIFFNESS = 0.05
-UR5E_GRIPPER_VARIANT = "Robotiq_2f_85"
-UR5E_GRIPPER_PRIM = "Gripper/Robotiq_2F_85"
 
 
 class _AckermannControllerAdapter:
@@ -422,10 +390,10 @@ class Core51Backend(IsaacBackend):
             usd_path=self.asset_path("Isaac/Robots/UniversalRobots/ur5e/ur5e.usd"),
             prim_path=prim_path,
         )
-        self._set_required_variant(robot_prim, "Gripper", UR5E_GRIPPER_VARIANT)
+        self._set_required_variant(robot_prim, "Gripper", UR5E_PROFILE.gripper_variant)
 
         stage = get_current_stage()
-        end_effector_prim_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/base_link"
+        end_effector_prim_path = f"{prim_path}/{UR5E_PROFILE.gripper_prim}/base_link"
         self._require_stage_prim(stage, end_effector_prim_path)
         self._configure_ur5e_gripper_attachment(stage, prim_path)
         self._configure_ur5e_default_joint_pose(stage, prim_path)
@@ -435,8 +403,8 @@ class Core51Backend(IsaacBackend):
         gripper = ParallelGripper(
             end_effector_prim_path=end_effector_prim_path,
             joint_prim_names=["finger_joint"],
-            joint_opened_positions=np.array([UR5E_GRIPPER_OPEN_POSITION]),
-            joint_closed_positions=np.array([UR5E_GRIPPER_CLOSED_POSITION]),
+            joint_opened_positions=np.array([UR5E_PROFILE.gripper_open_position]),
+            joint_closed_positions=np.array([UR5E_PROFILE.gripper_closed_position]),
             use_mimic_joints=True,
         )
         wrapper = SingleManipulator(
@@ -495,7 +463,7 @@ class Core51Backend(IsaacBackend):
         from pxr import Sdf
 
         for joint_name, angle_deg in zip(
-            UR5E_ARM_DOF_NAMES, np.rad2deg(UR5E_DEFAULT_ARM_POSE)
+            UR5E_PROFILE.arm_dof_names, np.rad2deg(UR5E_PROFILE.default_arm_pose)
         ):
             joint = self._require_stage_prim(stage, f"{prim_path}/joints/{joint_name}")
             for attr_name in (
@@ -508,7 +476,7 @@ class Core51Backend(IsaacBackend):
                 attr.Set(float(angle_deg))
 
         gripper_joint = self._require_stage_prim(
-            stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints/finger_joint"
+            stage, f"{prim_path}/{UR5E_PROFILE.gripper_prim}/Joints/finger_joint"
         )
         for attr_name in (
             "drive:angular:physics:targetPosition",
@@ -517,12 +485,12 @@ class Core51Backend(IsaacBackend):
             attr = gripper_joint.GetAttribute(attr_name)
             if not attr or not attr.IsValid():
                 attr = gripper_joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
-            attr.Set(float(UR5E_GRIPPER_OPEN_POSITION))
+            attr.Set(float(UR5E_PROFILE.gripper_open_position))
 
     def _configure_ur5e_gripper_drive(self, stage, prim_path):
         from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
 
-        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}")
+        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_PROFILE.gripper_prim}")
         found_finger_joint = False
 
         def set_attr(prim, attr_name, value, value_type):
@@ -563,7 +531,7 @@ class Core51Backend(IsaacBackend):
                 else PhysxSchema.PhysxJointAPI.Apply(prim)
             )
             joint_api.CreateMaxJointVelocityAttr().Set(
-                float(UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC)
+                float(UR5E_PROFILE.gripper_max_joint_velocity_deg_per_sec)
             )
 
         for prim in Usd.PrimRange(gripper_root):
@@ -577,36 +545,36 @@ class Core51Backend(IsaacBackend):
                 set_attr(
                     prim,
                     f"physxMimicJoint:{axis}:naturalFrequency",
-                    UR5E_MIMIC_NATURAL_FREQUENCY,
+                    UR5E_PROFILE.mimic_natural_frequency,
                     Sdf.ValueTypeNames.Float,
                 )
                 set_attr(
                     prim,
                     f"physxMimicJoint:{axis}:dampingRatio",
-                    UR5E_MIMIC_DAMPING_RATIO,
+                    UR5E_PROFILE.mimic_damping_ratio,
                     Sdf.ValueTypeNames.Float,
                 )
             if name == "finger_joint":
                 found_finger_joint = True
                 set_drive_attrs(
                     prim,
-                    UR5E_GRIPPER_MAX_FORCE,
-                    UR5E_GRIPPER_STIFFNESS,
-                    UR5E_GRIPPER_DAMPING,
+                    UR5E_PROFILE.gripper_max_force,
+                    UR5E_PROFILE.gripper_stiffness,
+                    UR5E_PROFILE.gripper_damping,
                 )
                 set_attr(prim, "physics:lowerLimit", 0.0, Sdf.ValueTypeNames.Float)
                 set_attr(
                     prim,
                     "physics:upperLimit",
-                    UR5E_GRIPPER_FULLY_CLOSED_POSITION,
+                    UR5E_PROFILE.gripper_fully_closed_position,
                     Sdf.ValueTypeNames.Float,
                 )
             elif name in ("left_outer_finger_joint", "right_outer_finger_joint"):
                 set_drive_attrs(
                     prim,
-                    UR5E_GRIPPER_MAX_FORCE,
-                    UR5E_OUTER_FINGER_PARALLEL_STIFFNESS,
-                    UR5E_GRIPPER_DAMPING,
+                    UR5E_PROFILE.gripper_max_force,
+                    UR5E_PROFILE.outer_finger_parallel_stiffness,
+                    UR5E_PROFILE.gripper_damping,
                 )
             elif "finger" in name or "knuckle" in name:
                 for attr_name in (
@@ -626,13 +594,13 @@ class Core51Backend(IsaacBackend):
     def _configure_ur5e_closed_loop_gripper(self, stage, prim_path):
         from pxr import Gf, PhysxSchema, Sdf, Usd, UsdPhysics
 
-        base_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/base_link"
-        joint_root_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints"
+        base_path = f"{prim_path}/{UR5E_PROFILE.gripper_prim}/base_link"
+        joint_root_path = f"{prim_path}/{UR5E_PROFILE.gripper_prim}/Joints"
         self._require_stage_prim(stage, base_path)
         joint_root = self._require_stage_prim(stage, joint_root_path)
         for body_path in (
-            f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
-            f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+            f"{prim_path}/{UR5E_PROFILE.gripper_prim}/left_inner_knuckle",
+            f"{prim_path}/{UR5E_PROFILE.gripper_prim}/right_inner_knuckle",
         ):
             self._require_stage_prim(stage, body_path)
 
@@ -657,13 +625,13 @@ class Core51Backend(IsaacBackend):
         passive_joint_specs = (
             (
                 "left_inner_knuckle_joint",
-                f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
+                f"{prim_path}/{UR5E_PROFILE.gripper_prim}/left_inner_knuckle",
                 (0.0, -0.0127, 0.06142),
                 (0.5, 0.5, -0.5, -0.5),
             ),
             (
                 "right_inner_knuckle_joint",
-                f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+                f"{prim_path}/{UR5E_PROFILE.gripper_prim}/right_inner_knuckle",
                 (0.0, 0.0127, 0.06142),
                 (0.5, -0.5, 0.5, -0.5),
             ),
@@ -965,9 +933,9 @@ class Core51Backend(IsaacBackend):
     def _ur5e(self, sim, obj):
         ur5e = sim.world.scene.get_object(obj.name)
         if not hasattr(obj, "_core_ur5e_primitive_ready"):
-            arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+            arm_dof_indices = self._core_dof_indices(ur5e, UR5E_PROFILE.arm_dof_names)
             ur5e.set_joint_positions(
-                UR5E_DEFAULT_ARM_POSE,
+                UR5E_PROFILE.default_arm_pose,
                 joint_indices=np.asarray(arm_dof_indices, dtype=np.int32),
             )
             ur5e.gripper.set_joint_positions(ur5e.gripper.joint_opened_positions)
@@ -979,10 +947,10 @@ class Core51Backend(IsaacBackend):
         state = self._motion_policy_state(sim, obj, ur5e, "UR5e")
         self._sync_motion_policy_base(ur5e, state["rmp_flow"])
         if orientation is None:
-            orientation = UR5E_RMPFLOW_DOWNWARD_ORIENTATION
+            orientation = UR5E_PROFILE.downward_orientation
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         control_position = self._tcp_to_control_position(
-            position, orientation, UR5E_RMPFLOW_TCP_OFFSET
+            position, orientation, UR5E_PROFILE.tcp_offset
         )
         action = state["controller"].forward(
             target_end_effector_position=control_position,
@@ -992,7 +960,7 @@ class Core51Backend(IsaacBackend):
 
     def set_ur5e_gripper(self, sim, obj, opened):
         ur5e = self._ur5e(sim, obj)
-        velocity = UR5E_GRIPPER_OPEN_VELOCITY if opened else UR5E_GRIPPER_CLOSE_VELOCITY
+        velocity = UR5E_PROFILE.gripper_open_velocity if opened else UR5E_PROFILE.gripper_close_velocity
         indices = self._core_dof_indices(ur5e, ["finger_joint"])
         ur5e.get_articulation_controller().switch_dof_control_mode(
             dof_index=indices[0],
@@ -1009,7 +977,7 @@ class Core51Backend(IsaacBackend):
     def set_ur5e_arm_joint_positions(self, sim, obj, joint_positions):
         ur5e = self._ur5e(sim, obj)
         joints = np.asarray(joint_positions, dtype=float).reshape(-1)
-        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_PROFILE.arm_dof_names)
         if len(joints) > len(arm_dof_indices):
             raise RuntimeError("UR5e arm joint target has more than 6 positions")
         targets = [None] * ur5e.num_dof
@@ -1021,7 +989,7 @@ class Core51Backend(IsaacBackend):
 
     def hold_ur5e_position(self, sim, obj):
         ur5e = self._ur5e(sim, obj)
-        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_ARM_DOF_NAMES)
+        arm_dof_indices = self._core_dof_indices(ur5e, UR5E_PROFILE.arm_dof_names)
         current = np.asarray(ur5e.get_joint_positions(), dtype=float)
         targets = [None] * ur5e.num_dof
         for index in arm_dof_indices:
@@ -1047,7 +1015,7 @@ class Core51Backend(IsaacBackend):
             self._control_to_tcp_position(
                 position,
                 orientation,
-                UR5E_RMPFLOW_TCP_OFFSET,
+                UR5E_PROFILE.tcp_offset,
             ),
             orientation,
         )
@@ -1059,8 +1027,8 @@ class Core51Backend(IsaacBackend):
 
     def ur5e_gripper_target_positions(self, opened):
         if opened:
-            return np.array([UR5E_GRIPPER_OPEN_POSITION], dtype=float)
-        return np.array([UR5E_GRIPPER_CLOSED_POSITION], dtype=float)
+            return np.array([UR5E_PROFILE.gripper_open_position], dtype=float)
+        return np.array([UR5E_PROFILE.gripper_closed_position], dtype=float)
 
     def get_physics_properties(self, world, obj):
         isaac_obj = world.scene.get_object(obj.name)

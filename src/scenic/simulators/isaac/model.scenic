@@ -156,7 +156,6 @@ class FrankaPanda(IsaacSimRobot, _ManipulatorRobot):
     height: 0.9
     end_effector_offset: [0.0, 0.0, 0.0]
     end_effector_orientation: None
-    franka_pick_place_events_dt: [60, 40, 20, 40, 80, 20, 20]
 
     def create(self):
         return isaac_backend.create_franka_panda(self)

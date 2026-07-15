@@ -15,7 +15,7 @@ retractHeight = 0.2
 graspZBias = cubeSize * 0.15
 releaseGap = binHeight + graspZBias + 0.02
 graspThreshold = 0.005
-frankaArmMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
+armMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
@@ -95,7 +95,7 @@ behavior UR5eMoveToPickPlace(target_object, place_pos):
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
-    with arm_max_velocities frankaArmMaxVelocities,
+    with arm_max_velocities armMaxVelocities,
     with behavior UR5eMoveToPickPlace(
         cube,
         place_pos,

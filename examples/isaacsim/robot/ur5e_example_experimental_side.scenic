@@ -18,7 +18,7 @@ releaseGap = cubeSize
 placeRegionSize = cubeSize * 2.3
 placeOffsetX = -0.135
 placeOffsetY = 0.788
-frankaArmMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
+armMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
@@ -118,7 +118,7 @@ behavior UR5eSidePickPlace(target_object, place_pos):
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
-    with arm_max_velocities frankaArmMaxVelocities,
+    with arm_max_velocities armMaxVelocities,
     with behavior UR5eSidePickPlace(
         cube,
         place_pos,

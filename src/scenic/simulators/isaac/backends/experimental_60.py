@@ -5,6 +5,7 @@ import os
 import numpy as np
 
 from scenic.simulators.isaac.backends.base import IsaacBackend
+from scenic.simulators.isaac.backends.profiles import FRANKA_PROFILE, UR5E_PROFILE
 import scenic.simulators.isaac.utils as scenic_utils
 
 
@@ -53,49 +54,6 @@ def _position_array(position):
     if hasattr(position, "x") and hasattr(position, "y") and hasattr(position, "z"):
         return np.array([position.x, position.y, position.z], dtype=float)
     return np.asarray(position, dtype=float).reshape(-1)[:3]
-
-
-UR5E_ARM_DOF_NAMES = [
-    "shoulder_pan_joint",
-    "shoulder_lift_joint",
-    "elbow_joint",
-    "wrist_1_joint",
-    "wrist_2_joint",
-    "wrist_3_joint",
-]
-UR5E_DEFAULT_ARM_POSE = np.array(
-    [-np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, np.pi / 2.0, 0.0],
-    dtype=float,
-)
-UR5E_DOWNWARD_ORIENTATION = np.array([0.0, 0.70710678, 0.70710678, 0.0], dtype=float)
-UR5E_TCP_OFFSET = np.array([0.0, 0.0, 0.135], dtype=float)
-UR5E_GRIPPER_OPEN_POSITION = 0.0
-UR5E_GRIPPER_CLOSED_POSITION = np.deg2rad(40.0)
-UR5E_GRIPPER_FULLY_CLOSED_POSITION = 47.0
-UR5E_GRIPPER_CLOSE_VELOCITY = np.deg2rad(90.0)
-UR5E_GRIPPER_OPEN_VELOCITY = -np.deg2rad(45.0)
-UR5E_GRIPPER_CONTACT_MATERIAL_PATH = "/World/UR5eRobotiqGripMaterial"
-UR5E_OBJECT_CONTACT_MATERIAL_PATH = "/World/UR5ePickObjectGripMaterial"
-UR5E_GRIPPER_STATIC_FRICTION = 2.0
-UR5E_GRIPPER_DYNAMIC_FRICTION = 2.0
-UR5E_OBJECT_STATIC_FRICTION = 2.0
-UR5E_OBJECT_DYNAMIC_FRICTION = 2.0
-UR5E_CONTACT_OFFSET = 0.002
-UR5E_REST_OFFSET = 0.0
-UR5E_PICK_OBJECT_MASS_KG = 0.475
-UR5E_GRIPPER_MAX_FORCE = 5.0
-UR5E_GRIPPER_STIFFNESS = 0.0
-UR5E_GRIPPER_DAMPING = 5000.0
-UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC = 130.0
-UR5E_MIMIC_NATURAL_FREQUENCY = 0.0
-UR5E_MIMIC_DAMPING_RATIO = 0.0
-UR5E_OUTER_FINGER_PARALLEL_STIFFNESS = 0.05
-UR5E_GRIPPER_VARIANT = "Robotiq_2f_85"
-UR5E_GRIPPER_PRIM = "Gripper/Robotiq_2F_85"
-UR5E_CONTROL_PRIM = "wrist_3_link"
-UR5E_CONTROL_LINK_NAME = "wrist_3_link"
-UR5E_IK_STEP_SCALE = 0.25
-UR5E_IK_DAMPING = 0.08
 
 
 def _differential_inverse_kinematics(
@@ -593,10 +551,10 @@ class Experimental60Backend(IsaacBackend):
             usd_path=self.asset_path("Isaac/Robots/UniversalRobots/ur5e/ur5e.usd"),
             path=prim_path,
         )
-        self._set_required_variant(robot_prim, "Gripper", UR5E_GRIPPER_VARIANT)
+        self._set_required_variant(robot_prim, "Gripper", UR5E_PROFILE.gripper_variant)
 
         stage = stage_utils.get_current_stage()
-        self._require_stage_prim(stage, f"{prim_path}/{UR5E_CONTROL_PRIM}")
+        self._require_stage_prim(stage, f"{prim_path}/{UR5E_PROFILE.control_prim}")
         self._configure_ur5e_gripper_attachment(stage, prim_path)
         self._configure_ur5e_default_joint_pose(stage, prim_path)
         self._configure_ur5e_closed_loop_gripper(stage, prim_path)
@@ -609,7 +567,7 @@ class Experimental60Backend(IsaacBackend):
             orientations=root_orientation,
             reset_xform_op_properties=True,
         )
-        arm_dof_indices = self._dof_indices(wrapper, UR5E_ARM_DOF_NAMES)
+        arm_dof_indices = self._dof_indices(wrapper, UR5E_PROFILE.arm_dof_names)
         if obj.arm_max_velocities is not None:
             wrapper.set_dof_max_velocities(
                 obj.arm_max_velocities,
@@ -617,28 +575,28 @@ class Experimental60Backend(IsaacBackend):
             )
         gripper_dof_indices = self._dof_indices(wrapper, ["finger_joint"])
         default_dof_positions = np.zeros(len(wrapper.dof_names), dtype=float)
-        for value, dof_index in zip(UR5E_DEFAULT_ARM_POSE, arm_dof_indices):
+        for value, dof_index in zip(UR5E_PROFILE.default_arm_pose, arm_dof_indices):
             default_dof_positions[dof_index] = value
         for dof_index in gripper_dof_indices:
-            default_dof_positions[dof_index] = UR5E_GRIPPER_OPEN_POSITION
+            default_dof_positions[dof_index] = UR5E_PROFILE.gripper_open_position
         wrapper.set_default_state(dof_positions=default_dof_positions)
 
-        end_effector = RigidPrim(f"{prim_path}/{UR5E_CONTROL_PRIM}")
-        end_effector_link_index = self._link_index(wrapper, UR5E_CONTROL_LINK_NAME)
+        end_effector = RigidPrim(f"{prim_path}/{UR5E_PROFILE.control_prim}")
+        end_effector_link_index = self._link_index(wrapper, UR5E_PROFILE.control_link_name)
         metadata = {
             "end_effector": end_effector,
             "end_effector_link_index": end_effector_link_index,
             "arm_dof_indices": arm_dof_indices,
             "gripper_dof_indices": gripper_dof_indices,
             "default_dof_positions": default_dof_positions,
-            "open_gripper_positions": np.array([UR5E_GRIPPER_OPEN_POSITION], dtype=float),
+            "open_gripper_positions": np.array([UR5E_PROFILE.gripper_open_position], dtype=float),
             "closed_gripper_positions": np.array(
-                [UR5E_GRIPPER_CLOSED_POSITION], dtype=float
+                [UR5E_PROFILE.gripper_closed_position], dtype=float
             ),
-            "open_gripper_velocity": UR5E_GRIPPER_OPEN_VELOCITY,
-            "closed_gripper_velocity": UR5E_GRIPPER_CLOSE_VELOCITY,
-            "downward_orientation": UR5E_DOWNWARD_ORIENTATION.copy(),
-            "tcp_offset": UR5E_TCP_OFFSET.copy(),
+            "open_gripper_velocity": UR5E_PROFILE.gripper_open_velocity,
+            "closed_gripper_velocity": UR5E_PROFILE.gripper_close_velocity,
+            "downward_orientation": UR5E_PROFILE.downward_orientation.copy(),
+            "tcp_offset": UR5E_PROFILE.tcp_offset.copy(),
         }
         obj._ur5e_metadata = metadata
         return wrapper
@@ -690,7 +648,7 @@ class Experimental60Backend(IsaacBackend):
         from pxr import Sdf
 
         for joint_name, angle_deg in zip(
-            UR5E_ARM_DOF_NAMES, np.rad2deg(UR5E_DEFAULT_ARM_POSE)
+            UR5E_PROFILE.arm_dof_names, np.rad2deg(UR5E_PROFILE.default_arm_pose)
         ):
             joint = self._require_stage_prim(stage, f"{prim_path}/joints/{joint_name}")
             for attr_name in (
@@ -703,7 +661,7 @@ class Experimental60Backend(IsaacBackend):
                 attr.Set(float(angle_deg))
 
         gripper_joint = self._require_stage_prim(
-            stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints/finger_joint"
+            stage, f"{prim_path}/{UR5E_PROFILE.gripper_prim}/Joints/finger_joint"
         )
         for attr_name in (
             "drive:angular:physics:targetPosition",
@@ -712,12 +670,12 @@ class Experimental60Backend(IsaacBackend):
             attr = gripper_joint.GetAttribute(attr_name)
             if not attr or not attr.IsValid():
                 attr = gripper_joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
-            attr.Set(float(UR5E_GRIPPER_OPEN_POSITION))
+            attr.Set(float(UR5E_PROFILE.gripper_open_position))
 
     def _configure_ur5e_gripper_drive(self, stage, prim_path):
         from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
 
-        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}")
+        gripper_root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_PROFILE.gripper_prim}")
         found_finger_joint = False
 
         def set_attr(prim, attr_name, value, value_type):
@@ -758,7 +716,7 @@ class Experimental60Backend(IsaacBackend):
                 else PhysxSchema.PhysxJointAPI.Apply(prim)
             )
             joint_api.CreateMaxJointVelocityAttr().Set(
-                float(UR5E_GRIPPER_MAX_JOINT_VELOCITY_DEG_PER_SEC)
+                float(UR5E_PROFILE.gripper_max_joint_velocity_deg_per_sec)
             )
 
         for prim in Usd.PrimRange(gripper_root):
@@ -772,36 +730,36 @@ class Experimental60Backend(IsaacBackend):
                 set_attr(
                     prim,
                     f"physxMimicJoint:{axis}:naturalFrequency",
-                    UR5E_MIMIC_NATURAL_FREQUENCY,
+                    UR5E_PROFILE.mimic_natural_frequency,
                     Sdf.ValueTypeNames.Float,
                 )
                 set_attr(
                     prim,
                     f"physxMimicJoint:{axis}:dampingRatio",
-                    UR5E_MIMIC_DAMPING_RATIO,
+                    UR5E_PROFILE.mimic_damping_ratio,
                     Sdf.ValueTypeNames.Float,
                 )
             if name == "finger_joint":
                 found_finger_joint = True
                 set_drive_attrs(
                     prim,
-                    UR5E_GRIPPER_MAX_FORCE,
-                    UR5E_GRIPPER_STIFFNESS,
-                    UR5E_GRIPPER_DAMPING,
+                    UR5E_PROFILE.gripper_max_force,
+                    UR5E_PROFILE.gripper_stiffness,
+                    UR5E_PROFILE.gripper_damping,
                 )
                 set_attr(prim, "physics:lowerLimit", 0.0, Sdf.ValueTypeNames.Float)
                 set_attr(
                     prim,
                     "physics:upperLimit",
-                    UR5E_GRIPPER_FULLY_CLOSED_POSITION,
+                    UR5E_PROFILE.gripper_fully_closed_position,
                     Sdf.ValueTypeNames.Float,
                 )
             elif name in ("left_outer_finger_joint", "right_outer_finger_joint"):
                 set_drive_attrs(
                     prim,
-                    UR5E_GRIPPER_MAX_FORCE,
-                    UR5E_OUTER_FINGER_PARALLEL_STIFFNESS,
-                    UR5E_GRIPPER_DAMPING,
+                    UR5E_PROFILE.gripper_max_force,
+                    UR5E_PROFILE.outer_finger_parallel_stiffness,
+                    UR5E_PROFILE.gripper_damping,
                 )
             elif "finger" in name or "knuckle" in name:
                 for attr_name in (
@@ -822,12 +780,12 @@ class Experimental60Backend(IsaacBackend):
         from omni.physx.scripts import physicsUtils
         from pxr import PhysxSchema, Usd, UsdPhysics, UsdShade
 
-        root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_GRIPPER_PRIM}")
-        material = UsdShade.Material.Define(stage, UR5E_GRIPPER_CONTACT_MATERIAL_PATH)
+        root = self._require_stage_prim(stage, f"{prim_path}/{UR5E_PROFILE.gripper_prim}")
+        material = UsdShade.Material.Define(stage, UR5E_PROFILE.gripper_contact_material_path)
         material_prim = material.GetPrim()
         material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-        material_api.CreateStaticFrictionAttr().Set(float(UR5E_GRIPPER_STATIC_FRICTION))
-        material_api.CreateDynamicFrictionAttr().Set(float(UR5E_GRIPPER_DYNAMIC_FRICTION))
+        material_api.CreateStaticFrictionAttr().Set(float(UR5E_PROFILE.gripper_static_friction))
+        material_api.CreateDynamicFrictionAttr().Set(float(UR5E_PROFILE.gripper_dynamic_friction))
         material_api.CreateRestitutionAttr().Set(0.0)
 
         physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
@@ -848,7 +806,7 @@ class Experimental60Backend(IsaacBackend):
                     f"Could not bind UR5e contact material to instance proxy: {prim.GetPath()}"
                 )
             physicsUtils.add_physics_material_to_prim(
-                stage, prim, UR5E_GRIPPER_CONTACT_MATERIAL_PATH
+                stage, prim, UR5E_PROFILE.gripper_contact_material_path
             )
             collision_api = (
                 UsdPhysics.CollisionAPI(prim)
@@ -857,8 +815,8 @@ class Experimental60Backend(IsaacBackend):
             )
             collision_api.CreateCollisionEnabledAttr().Set(True)
             physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-            physx_collision_api.CreateContactOffsetAttr().Set(float(UR5E_CONTACT_OFFSET))
-            physx_collision_api.CreateRestOffsetAttr().Set(float(UR5E_REST_OFFSET))
+            physx_collision_api.CreateContactOffsetAttr().Set(float(UR5E_PROFILE.contact_offset))
+            physx_collision_api.CreateRestOffsetAttr().Set(float(UR5E_PROFILE.rest_offset))
             bound.append(str(prim.GetPath()))
         if not bound:
             raise RuntimeError(
@@ -869,11 +827,11 @@ class Experimental60Backend(IsaacBackend):
         from omni.physx.scripts import physicsUtils
         from pxr import PhysxSchema, Usd, UsdPhysics, UsdShade
 
-        material = UsdShade.Material.Define(stage, UR5E_OBJECT_CONTACT_MATERIAL_PATH)
+        material = UsdShade.Material.Define(stage, UR5E_PROFILE.object_contact_material_path)
         material_prim = material.GetPrim()
         material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-        material_api.CreateStaticFrictionAttr().Set(float(UR5E_OBJECT_STATIC_FRICTION))
-        material_api.CreateDynamicFrictionAttr().Set(float(UR5E_OBJECT_DYNAMIC_FRICTION))
+        material_api.CreateStaticFrictionAttr().Set(float(UR5E_PROFILE.object_static_friction))
+        material_api.CreateDynamicFrictionAttr().Set(float(UR5E_PROFILE.object_dynamic_friction))
         material_api.CreateRestitutionAttr().Set(0.0)
 
         physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
@@ -891,7 +849,7 @@ class Experimental60Backend(IsaacBackend):
                 if root.HasAPI(UsdPhysics.MassAPI)
                 else UsdPhysics.MassAPI.Apply(root)
             )
-            mass_api.CreateMassAttr().Set(float(UR5E_PICK_OBJECT_MASS_KG))
+            mass_api.CreateMassAttr().Set(float(UR5E_PROFILE.pick_object_mass_kg))
 
             collision_prims = [
                 prim
@@ -908,22 +866,22 @@ class Experimental60Backend(IsaacBackend):
                         f"Could not bind UR5e pick object material to instance proxy: {prim.GetPath()}"
                     )
                 physicsUtils.add_physics_material_to_prim(
-                    stage, prim, UR5E_OBJECT_CONTACT_MATERIAL_PATH
+                    stage, prim, UR5E_PROFILE.object_contact_material_path
                 )
                 collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-                collision_api.CreateContactOffsetAttr().Set(float(UR5E_CONTACT_OFFSET))
-                collision_api.CreateRestOffsetAttr().Set(float(UR5E_REST_OFFSET))
+                collision_api.CreateContactOffsetAttr().Set(float(UR5E_PROFILE.contact_offset))
+                collision_api.CreateRestOffsetAttr().Set(float(UR5E_PROFILE.rest_offset))
 
     def _configure_ur5e_closed_loop_gripper(self, stage, prim_path):
         from pxr import Gf, PhysxSchema, Sdf, Usd, UsdPhysics
 
-        base_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/base_link"
-        joint_root_path = f"{prim_path}/{UR5E_GRIPPER_PRIM}/Joints"
+        base_path = f"{prim_path}/{UR5E_PROFILE.gripper_prim}/base_link"
+        joint_root_path = f"{prim_path}/{UR5E_PROFILE.gripper_prim}/Joints"
         self._require_stage_prim(stage, base_path)
         joint_root = self._require_stage_prim(stage, joint_root_path)
         for body_path in (
-            f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
-            f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+            f"{prim_path}/{UR5E_PROFILE.gripper_prim}/left_inner_knuckle",
+            f"{prim_path}/{UR5E_PROFILE.gripper_prim}/right_inner_knuckle",
         ):
             self._require_stage_prim(stage, body_path)
 
@@ -948,13 +906,13 @@ class Experimental60Backend(IsaacBackend):
         passive_joint_specs = (
             (
                 "left_inner_knuckle_joint",
-                f"{prim_path}/{UR5E_GRIPPER_PRIM}/left_inner_knuckle",
+                f"{prim_path}/{UR5E_PROFILE.gripper_prim}/left_inner_knuckle",
                 (0.0, -0.0127, 0.06142),
                 (0.5, 0.5, -0.5, -0.5),
             ),
             (
                 "right_inner_knuckle_joint",
-                f"{prim_path}/{UR5E_GRIPPER_PRIM}/right_inner_knuckle",
+                f"{prim_path}/{UR5E_PROFILE.gripper_prim}/right_inner_knuckle",
                 (0.0, 0.0127, 0.06142),
                 (0.5, -0.5, 0.5, -0.5),
             ),
@@ -1003,11 +961,9 @@ class Experimental60Backend(IsaacBackend):
         )
 
         stage_utils.add_reference_to_stage(
-            usd_path=self.asset_path(
-                "Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
-            ),
+            usd_path=self.asset_path(FRANKA_PROFILE.usd_path),
             path=prim_path,
-            variants=[("Gripper", "AlternateFinger"), ("Mesh", "Performance")],
+            variants=list(FRANKA_PROFILE.usd_variants),
         )
 
         wrapper = Articulation(
@@ -1017,15 +973,14 @@ class Experimental60Backend(IsaacBackend):
             reset_xform_op_properties=True,
         )
 
-        default_dof_positions = np.array(
-            [0.012, -0.568, 0.0, -2.811, 0.0, 3.037, 0.741, 0.05, 0.05],
-            dtype=float,
-        )
+        default_dof_positions = FRANKA_PROFILE.default_dof_positions.copy()
 
         wrapper.set_default_state(dof_positions=default_dof_positions)
 
-        end_effector = RigidPrim(f"{prim_path}/panda_hand")
-        end_effector_link_index = wrapper.get_link_indices("panda_hand").list()[0]
+        end_effector = RigidPrim(f"{prim_path}/{FRANKA_PROFILE.end_effector_prim}")
+        end_effector_link_index = wrapper.get_link_indices(
+            FRANKA_PROFILE.control_link_name
+        ).list()[0]
 
         obj._franka_metadata = {
             "prim_path": prim_path,
@@ -1035,14 +990,14 @@ class Experimental60Backend(IsaacBackend):
             "arm_dof_count": 7,
             "gripper_dof_indices": self._dof_indices(
                 wrapper,
-                ["panda_finger_joint1", "panda_finger_joint2"],
+                list(FRANKA_PROFILE.gripper_dof_names),
             ),
             "default_dof_positions": default_dof_positions,
-            "open_gripper_positions": np.array([0.05, 0.05], dtype=float),
-            "closed_gripper_positions": np.array([0.01, 0.01], dtype=float),
+            "open_gripper_positions": FRANKA_PROFILE.open_gripper_positions.copy(),
+            "closed_gripper_positions": FRANKA_PROFILE.closed_gripper_positions.copy(),
             # Isaac quaternion convention: [w, x, y, z].
-            "downward_orientation": np.array([0.0, 1.0, 0.0, 0.0], dtype=float),
-            "tcp_offset": np.array([0.0, 0.0, 0.0877], dtype=float),
+            "downward_orientation": FRANKA_PROFILE.downward_orientation.copy(),
+            "tcp_offset": FRANKA_PROFILE.tcp_offset.copy(),
         }
 
         obj._franka_pick_place_state = None
@@ -1248,6 +1203,8 @@ class Experimental60Backend(IsaacBackend):
                 if goal_orientation is None
                 else np.asarray(goal_orientation, dtype=float).reshape(1, 4)
             ),
+            damping=FRANKA_PROFILE.ik_damping,
+            scale=FRANKA_PROFILE.ik_step_scale,
         )
 
         if current_dof_positions.ndim == 1:
@@ -1376,8 +1333,8 @@ class Experimental60Backend(IsaacBackend):
 
     def franka_gripper_target_positions(self, opened):
         if opened:
-            return np.array([0.05, 0.05], dtype=float)
-        return np.array([0.01, 0.01], dtype=float)
+            return FRANKA_PROFILE.open_gripper_positions.copy()
+        return FRANKA_PROFILE.closed_gripper_positions.copy()
 
     def _ensure_ur5e_primitive_control_ready(self, obj, ur5e):
         metadata = obj._ur5e_metadata
@@ -1434,8 +1391,8 @@ class Experimental60Backend(IsaacBackend):
                 if goal_orientation is None
                 else np.asarray(goal_orientation, dtype=float).reshape(1, -1)
             ),
-            damping=UR5E_IK_DAMPING,
-            scale=UR5E_IK_STEP_SCALE,
+            damping=UR5E_PROFILE.ik_damping,
+            scale=UR5E_PROFILE.ik_step_scale,
         )
         dof_position_targets = (
             current_dof_positions[:, metadata["arm_dof_indices"]] + delta_dof_positions
@@ -1517,8 +1474,8 @@ class Experimental60Backend(IsaacBackend):
 
     def ur5e_gripper_target_positions(self, opened):
         if opened:
-            return np.array([UR5E_GRIPPER_OPEN_POSITION], dtype=float)
-        return np.array([UR5E_GRIPPER_CLOSED_POSITION], dtype=float)
+            return np.array([UR5E_PROFILE.gripper_open_position], dtype=float)
+        return np.array([UR5E_PROFILE.gripper_closed_position], dtype=float)
 
     def get_physics_properties(self, world, obj):
         wrapper = world.get_object(obj.name)
