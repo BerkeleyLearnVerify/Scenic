@@ -62,66 +62,78 @@ def _quaternion_distance(quaternion_a, quaternion_b):
     dot = abs(float(np.dot(quaternion_a, quaternion_b)))
     return 2 * np.arccos(np.clip(dot, -1.0, 1.0))
 
-behavior MoveEndEffectorTo(position, orientation=None, threshold=0.035,
-                           max_steps=None):
+def _position_reached(agent, sim, target, threshold):
+    ee_pos, _ = agent.get_ee_pose(sim)
+    ee = np.array(ee_pos, dtype=float).flatten()[:3]
+    return np.linalg.norm(ee - target) <= threshold
+
+def _orientation_reached(agent, sim, target, threshold):
+    _, ee_orientation = agent.get_ee_pose(sim)
+    return _quaternion_distance(ee_orientation, target) <= threshold
+
+def _gripper_reached(agent, sim, target, threshold):
+    positions = np.array(agent.get_gripper_positions(sim), dtype=float)
+    positions = positions.flatten()[:len(target)]
+    return np.linalg.norm(positions - target) <= threshold
+
+# Step the arm/gripper one action per time step; the try-interrupt behaviors below
+# run these until the target is reached or the move times out.
+behavior _RepeatAction(action):
+    while True:
+        take action
+
+behavior _StepRotate(orientation):
+    sim = simulation()
+    while True:
+        ee_pos, _ = self.get_ee_pose(sim)
+        take MoveToEEPoseAction(ee_pos, orientation)
+
+behavior MoveEndEffectorTo(position, orientation=None, threshold=0.035, max_steps=600):
     sim = simulation()
     target = np.array(position, dtype=float).flatten()[:3]
-    steps = 0
-    while True:
-        take SetEEPoseAction(position, orientation)
-        steps += 1
-        ee_pos, _ = self.get_ee_pose(sim)
-        ee = np.array(ee_pos, dtype=float).flatten()[:3]
-        dist = np.linalg.norm(ee - target)
-        if dist <= threshold:
-            break
-        if max_steps is not None and steps >= max_steps:
-            break
+    startTime = sim.currentTime
+    try:
+        do _RepeatAction(MoveToEEPoseAction(position, orientation))
+    interrupt when _position_reached(self, sim, target, threshold):
+        abort
+    interrupt when sim.currentTime - startTime >= max_steps:
+        abort
+    if not _position_reached(self, sim, target, threshold):
+        raise ManipulatorTimeout(f"MoveEndEffectorTo did not converge within {max_steps} steps")
 
 
-behavior RotateEndEffectorTo(orientation, threshold=0.05, max_steps=None):
+behavior RotateEndEffectorTo(orientation, threshold=0.05, max_steps=600):
     sim = simulation()
     target = np.array(orientation, dtype=float).flatten()[:4]
-    steps = 0
-    while True:
-        ee_pos, _ = self.get_ee_pose(sim)
-        take SetEEPoseAction(ee_pos, target)
-        steps += 1
-        _, ee_orientation = self.get_ee_pose(sim)
-        if _quaternion_distance(ee_orientation, target) <= threshold:
-            break
-        if max_steps is not None and steps >= max_steps:
-            break
+    startTime = sim.currentTime
+    try:
+        do _StepRotate(orientation)
+    interrupt when _orientation_reached(self, sim, target, threshold):
+        abort
+    interrupt when sim.currentTime - startTime >= max_steps:
+        abort
+    if not _orientation_reached(self, sim, target, threshold):
+        raise ManipulatorTimeout(f"RotateEndEffectorTo did not converge within {max_steps} steps")
 
 
 behavior OpenGripper(threshold=0.002, max_steps=100):
     sim = simulation()
     target = np.array(self.get_gripper_target_positions(True), dtype=float)
-    steps = 0
-    while True:
-        take OpenGripperAction()
-        steps += 1
-        positions = np.array(self.get_gripper_positions(sim), dtype=float)
-        positions = positions.flatten()[:len(target)]
-        if np.linalg.norm(positions - target) <= threshold:
-            break
-        if max_steps is not None and steps >= max_steps:
-            break
+    startTime = sim.currentTime
+    try:
+        do _RepeatAction(OpenGripperAction())
+    interrupt when _gripper_reached(self, sim, target, threshold) or sim.currentTime - startTime >= max_steps:
+        abort
 
 
 behavior CloseGripper(threshold=0.002, max_steps=100):
     sim = simulation()
     target = np.array(self.get_gripper_target_positions(False), dtype=float)
-    steps = 0
-    while True:
-        take CloseGripperAction()
-        steps += 1
-        positions = np.array(self.get_gripper_positions(sim), dtype=float)
-        positions = positions.flatten()[:len(target)]
-        if np.linalg.norm(positions - target) <= threshold:
-            break
-        if max_steps is not None and steps >= max_steps:
-            break
+    startTime = sim.currentTime
+    try:
+        do _RepeatAction(CloseGripperAction())
+    interrupt when _gripper_reached(self, sim, target, threshold) or sim.currentTime - startTime >= max_steps:
+        abort
 
 
 behavior HoldPosition(max_steps=30):

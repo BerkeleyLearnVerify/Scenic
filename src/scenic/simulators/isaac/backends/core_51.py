@@ -183,9 +183,9 @@ class Core51Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
 
         usd_prim = prims.create_prim(prim_path=prim_path, usd_path=usd_path)
@@ -248,9 +248,9 @@ class Core51Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
         add_reference_to_stage(usd_path, prim_path)
         return Robot(
@@ -275,9 +275,9 @@ class Core51Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
         wrapper = WheeledRobot(
             prim_path=prim_path,

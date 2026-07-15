@@ -42,14 +42,14 @@ class PalletLoad(IsaacSimObject):
     length: 1.0
     height: 0.26
     density: 90
-    isaac_asset_path: "Isaac/Props/Pallet/pallet.usd"
+    isaacAssetPath: "Isaac/Props/Pallet/pallet.usd"
 
 
 class AckermannForkliftB(IsaacSimRobot):
     width: 1.3
     length: 2.8
     height: 2.2
-    isaac_asset_path: globalParameters.forkliftAssetPath
+    isaacAssetPath: globalParameters.forkliftAssetPath
     initial_rotation: (-90 deg, 0, 0)
     wheel_controller: "ackermann"
 

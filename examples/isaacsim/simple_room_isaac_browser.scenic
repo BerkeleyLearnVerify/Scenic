@@ -18,8 +18,8 @@ class IsaacAssetBox(IsaacSimObject):
     width: globalParameters.testAssetWidth
     length: globalParameters.testAssetLength
     height: globalParameters.testAssetHeight
-    # usd_path: globalParameters.testUSDPath
-    isaac_asset_path: "Isaac/Props/Rubiks_Cube/rubiks_cube.usd"
+    # usdPath: globalParameters.testUSDPath
+    isaacAssetPath: "Isaac/Props/Rubiks_Cube/rubiks_cube.usd"
     physics: False
 
 test_asset = new IsaacAssetBox on simple_room_table

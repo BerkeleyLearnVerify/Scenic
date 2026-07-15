@@ -1,6 +1,10 @@
 from scenic.core.simulators import Action
 
 
+class ManipulatorTimeout(Exception):
+    """Raised when a manipulator end-effector move does not converge within max_steps."""
+
+
 class _WheeledRobot:
     pass
 
@@ -71,7 +75,7 @@ class applyPickPlaceController(ManipulatorRobotAction):
 # backend for backend-owned robots like FrankaPanda.
 
 
-class SetEEPoseAction(ManipulatorRobotAction):
+class MoveToEEPoseAction(ManipulatorRobotAction):
     """Take one IK step moving the end effector toward a world pose.
 
     ``orientation`` is an Isaac wxyz quaternion, or None to keep the

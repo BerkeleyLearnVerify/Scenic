@@ -22,6 +22,7 @@ armMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
+from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
 
@@ -99,22 +100,25 @@ behavior UR5eSidePickPlace(target_object, place_pos):
         release_center[2] + retractHeight,
     )
 
-    do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
-    do OpenGripper()
-    do MoveEndEffectorTo(pre_pick_high, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(pre_pick_side, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(at_pick, orientation=SIDE_PICK_ORIENTATION, threshold=0.015)
-    do HoldPosition()
-    do CloseGripper()
-    do HoldPosition()
-    do MoveEndEffectorTo(carry_pick, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(carry_transfer, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(above_place, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(at_place, orientation=SIDE_PICK_ORIENTATION)
-    do OpenGripper()
-    do HoldPosition()
-    do MoveEndEffectorTo(post_place_high, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
+    try:
+        do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
+        do OpenGripper()
+        do MoveEndEffectorTo(pre_pick_high, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(pre_pick_side, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(at_pick, orientation=SIDE_PICK_ORIENTATION, threshold=0.015)
+        do HoldPosition()
+        do CloseGripper()
+        do HoldPosition()
+        do MoveEndEffectorTo(carry_pick, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(carry_transfer, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(above_place, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(at_place, orientation=SIDE_PICK_ORIENTATION)
+        do OpenGripper()
+        do HoldPosition()
+        do MoveEndEffectorTo(post_place_high, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
+    except ManipulatorTimeout as e:
+        print(f"Pick-place aborted: {e}", flush=True)
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),

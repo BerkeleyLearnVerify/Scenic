@@ -142,8 +142,8 @@ class IsaacSimSimulation(Simulation):
     def createObjectInSimulator(self, obj):
         if (
             obj.blueprint == "IsaacSimObject"
-            and not obj.usd_path
-            and not obj.isaac_asset_path
+            and not obj.usdPath
+            and not obj.isaacAssetPath
         ):
             objectScaledMesh = MeshVolumeRegion(
                 mesh=obj.shape.mesh,
@@ -160,7 +160,7 @@ class IsaacSimSimulation(Simulation):
                 raise SimulationCreationError(
                     f"Unable to convert the mesh for {obj.name} into a USD asset"
                 )
-            obj.usd_path = usd_file_path
+            obj.usdPath = usd_file_path
 
         isaac_sim_obj = obj.create()
         if isaac_sim_obj is None:

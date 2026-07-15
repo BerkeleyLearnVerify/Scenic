@@ -65,11 +65,11 @@ class LabBackend(IsaacBackend):
         return os.path.abspath(source)
 
     def usd_path_for_object(self, obj) -> str | None:
-        if getattr(obj, "usd_path", None):
-            return self.resolve_usd_path(obj.usd_path)
+        if getattr(obj, "usdPath", None):
+            return self.resolve_usd_path(obj.usdPath)
 
-        if getattr(obj, "isaac_asset_path", None):
-            return self.resolve_usd_path(obj.isaac_asset_path)
+        if getattr(obj, "isaacAssetPath", None):
+            return self.resolve_usd_path(obj.isaacAssetPath)
 
         return None
 
@@ -223,7 +223,7 @@ class LabBackend(IsaacBackend):
 
         prim_path = self.asset_prim_path(asset_name, num_envs)
         has_usd_asset = bool(
-            getattr(obj, "usd_path", None) or getattr(obj, "isaac_asset_path", None)
+            getattr(obj, "usdPath", None) or getattr(obj, "isaacAssetPath", None)
         )
 
         if not has_usd_asset:
@@ -280,7 +280,7 @@ class LabBackend(IsaacBackend):
         usd_path = self.usd_path_for_object(obj)
         if usd_path is None:
             raise SimulationCreationError(
-                f"Robot {getattr(obj, 'name', obj)!r} needs usd_path or isaac_asset_path."
+                f"Robot {getattr(obj, 'name', obj)!r} needs usdPath or isaacAssetPath."
             )
 
         pos, rot = self.scenic_pose(obj)
@@ -336,7 +336,7 @@ class LabBackend(IsaacBackend):
         if getattr(obj, "physics", False):
             self.apply_rigid_body_api_to_usd(usd_path, obj)
 
-        obj.usd_path = usd_path
+        obj.usdPath = usd_path
 
     def make_rigid_usd_wrapper(self, usd_path, obj, asset_name, tmp_mesh_dir):
         """Create a local rigid-body wrapper without modifying the source USD."""

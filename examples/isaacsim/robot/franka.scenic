@@ -15,7 +15,7 @@ class IsaacBin(IsaacSimObject):
     height: globalParameters.binHeight
     physics: False
     shape: BoxShape()
-    isaac_asset_path: "Isaac/Props/KLT_Bin/small_KLT.usd"
+    isaacAssetPath: "Isaac/Props/KLT_Bin/small_KLT.usd"
 
 class PickCube(IsaacSimObject):
     width: globalParameters.cubeSize

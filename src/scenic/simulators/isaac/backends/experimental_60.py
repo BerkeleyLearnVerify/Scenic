@@ -264,9 +264,9 @@ class Experimental60Backend(IsaacBackend):
         asset_prim_path = f"{prim_path}/asset"
 
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
 
         stage_utils.define_prim(prim_path, "Xform")
@@ -383,9 +383,9 @@ class Experimental60Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
         stage_utils.add_reference_to_stage(usd_path=usd_path, path=prim_path)
         wrapper = Articulation(
@@ -418,9 +418,9 @@ class Experimental60Backend(IsaacBackend):
 
         prim_path = f"/World/{obj.name}"
         usd_path = (
-            self.asset_path(obj.isaac_asset_path)
-            if obj.isaac_asset_path
-            else os.path.abspath(obj.usd_path)
+            self.asset_path(obj.isaacAssetPath)
+            if obj.isaacAssetPath
+            else os.path.abspath(obj.usdPath)
         )
 
         wrapper = WheeledRobot(

@@ -21,5 +21,5 @@ class Jetbot(IsaacSimRobot):
     width: 0.16
     length: 0.16
     height: 0.12
-    isaac_asset_path: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
+    isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
     control: jetbot_control

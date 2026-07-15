@@ -20,6 +20,7 @@ releaseGap = 0.02
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
+from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
 CUBE_POSITION = (0.5, 0.3)
@@ -31,7 +32,7 @@ class IsaacBin(IsaacSimObject):
     height: binHeight
     physics: False
     shape: BoxShape()
-    isaac_asset_path: "Isaac/Props/KLT_Bin/small_KLT.usd"
+    isaacAssetPath: "Isaac/Props/KLT_Bin/small_KLT.usd"
 
 class PickCube(IsaacSimObject):
     width: cubeSize
@@ -76,18 +77,21 @@ behavior FrankaMoveToPickPlace(target_object, place_pos):
     ))
     at_place = endEffectorTarget(release_pos)
 
-    do MoveEndEffectorTo(home)
-    do OpenGripper()
-    do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(at_pick, threshold=0.015)
-    do HoldPosition()
-    do CloseGripper()
-    do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(hover_place)
-    do MoveEndEffectorTo(at_place)
-    do OpenGripper()
-    do MoveEndEffectorTo(hover_place)
-    do MoveEndEffectorTo(home)
+    try:
+        do MoveEndEffectorTo(home)
+        do OpenGripper()
+        do MoveEndEffectorTo(hover_pick)
+        do MoveEndEffectorTo(at_pick, threshold=0.015)
+        do HoldPosition()
+        do CloseGripper()
+        do MoveEndEffectorTo(hover_pick)
+        do MoveEndEffectorTo(hover_place)
+        do MoveEndEffectorTo(at_place)
+        do OpenGripper()
+        do MoveEndEffectorTo(hover_place)
+        do MoveEndEffectorTo(home)
+    except ManipulatorTimeout as e:
+        print(f"Pick-place aborted: {e}", flush=True)
     terminate simulation
 
 ego = new FrankaPanda on table, at (0, 0),

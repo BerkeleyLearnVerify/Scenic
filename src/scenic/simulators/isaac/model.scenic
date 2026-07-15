@@ -74,8 +74,8 @@ class IsaacSimObject:
     physics: True
     mass: None
     density: None
-    usd_path: None
-    isaac_asset_path: None
+    usdPath: None
+    isaacAssetPath: None
     blueprint: "IsaacSimObject"
 
     def create(self):
@@ -95,8 +95,8 @@ class IsaacSimRobot(IsaacSimObject, _Robot):
     name: f"Robot_{uuid.uuid4().hex[:8]}"
     controller: None
     control: None
-    usd_path: None
-    isaac_asset_path: None
+    usdPath: None
+    isaacAssetPath: None
     initial_rotation: None
     blueprint: "Robot"
 
@@ -112,7 +112,7 @@ class Create3(IsaacSimRobot, _WheeledRobot):
     width: 0.335
     length: 0.335
     height: .1
-    isaac_asset_path: "Isaac/Robots/iRobot/Create3/create_3.usd"
+    isaacAssetPath: "Isaac/Robots/iRobot/Create3/create_3.usd"
 
     # Differential-drive metadata.
     wheel_radius: 0.03575
@@ -124,7 +124,7 @@ class Jetbot(IsaacSimRobot, _WheeledRobot):
     width: 0.16
     length: 0.16
     height: 0.12
-    isaac_asset_path: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
+    isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
    
     # Differential-drive metadata.
     wheel_radius: 0.03 
@@ -137,7 +137,7 @@ class Kaya(IsaacSimRobot, _HolonomicRobot):
     width: 0.2
     length: 0.2
     height: 0.2
-    isaac_asset_path: "Isaac/Robots/NVIDIA/Kaya/kaya.usd"
+    isaacAssetPath: "Isaac/Robots/NVIDIA/Kaya/kaya.usd"
 
     # Holonomic-drive metadata.
     wheel_dof_names: ["axle_0_joint", "axle_1_joint", "axle_2_joint"]

@@ -10,7 +10,7 @@ class Cube(IsaacSimObject):
     width: 0.2
     length: 0.2
     height: 0.2
-    isaac_asset_path: "Isaac/Props/Rubiks_Cube/rubiks_cube.usd"
+    isaacAssetPath: "Isaac/Props/Rubiks_Cube/rubiks_cube.usd"
 
 new Jetbot on floor, with behavior JetbotDrive
 

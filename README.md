@@ -355,8 +355,8 @@ attributes are:
 | `physics` | Whether the object participates in physics. Defaults to `True`. |
 | `mass`, `density` | Optional physical properties. |
 | `color` | Display color. |
-| `usd_path` | Local USD asset path. |
-| `isaac_asset_path` | Isaac content path such as `Isaac/Robots/...`. |
+| `usdPath` | Local USD asset path. |
+| `isaacAssetPath` | Isaac content path such as `Isaac/Robots/...`. |
 | `initial_rotation` | Fixed rotation used to align the USD asset with Scenic coordinates. |
 
 When a scenario loads an existing environment, use `getExistingObj` to refer
@@ -409,7 +409,7 @@ class MyDifferentialRobot(IsaacSimRobot):
     width: 0.4
     length: 0.5
     height: 0.25
-    usd_path: localPath("assets/my_robot.usd")
+    usdPath: localPath("assets/my_robot.usd")
 
     wheel_controller: "differential"
     wheel_radius: 0.06
@@ -459,7 +459,7 @@ class MyRobot(IsaacSimRobot):
     width: 0.5
     length: 0.5
     height: 0.5
-    usd_path: localPath("assets/my_robot.usd")
+    usdPath: localPath("assets/my_robot.usd")
     control: velocityControl
 
 behavior MoveJoints():
