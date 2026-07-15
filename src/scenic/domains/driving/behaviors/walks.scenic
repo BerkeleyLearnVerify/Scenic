@@ -153,7 +153,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
         plotPolygon(obst_multi_poly, plt, style="c--")
         plotPolygon(orig_path_ls, plt, style="y-")
         plotPolygon(path_ls, plt, style="g--")
-        plt.show()
+        plt.show(block=False)
         breakpoint()
 
     return path_ls
