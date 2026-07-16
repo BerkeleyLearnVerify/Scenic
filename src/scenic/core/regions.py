@@ -125,7 +125,7 @@ class Region(Samplable, ABC):
         pass
 
     @cached_property
-    def center(self):
+    def midpoint(self):
         return Vector(*self.AABB[0]) + Vector(*self.AABB[1]) / 2
 
     ## Overridable Methods ##
