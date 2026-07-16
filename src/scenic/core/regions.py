@@ -124,6 +124,10 @@ class Region(Samplable, ABC):
         """Axis-aligned bounding box for this `Region`."""
         pass
 
+    @cached_property
+    def center(self):
+        Vector(*self.AABB[0]) + Vector(*self.AABB[1]) / 2
+
     ## Overridable Methods ##
     # The following methods can be overriden to get better performance or if the region
     # has dependencies (in the case of sampleGiven).
