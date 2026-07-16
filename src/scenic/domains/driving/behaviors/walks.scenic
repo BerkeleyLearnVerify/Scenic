@@ -123,19 +123,23 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             else:
                 exterior_segments.sort(key=lambda x: x.length)
             mid_path = exterior_segments[0]
-            assert isinstance(mid_path, LineString)
-            mid_path = shapely.force_2d(mid_path)
+            if isinstance(mid_path, LineString):
+                mid_path = shapely.force_2d(mid_path)
 
-            # Reverse the mid path if needed.
-            if (ShapelyPoint(mid_path.coords[0]).distance(start_pt) > ShapelyPoint(mid_path.coords[0]).distance(end_pt)):
-                mid_path = mid_path.reverse()
+                # Reverse the mid path if needed.
+                if (ShapelyPoint(mid_path.coords[0]).distance(start_pt) > ShapelyPoint(mid_path.coords[0]).distance(end_pt)):
+                    mid_path = mid_path.reverse()
 
-            # If the closest point on the mid path is very close, cut start path short
-            # and aim directly for it. This helps avoid backtracking loop.
-            if self_pt.distance(mid_path) < 1:
-                mid_path = shapely.ops.substring(mid_path, mid_path.project(self_pt, normalized=True), 1, normalized=True)
-                start_pt = ShapelyPoint(mid_path.coords[0])
-                start_path = LineString([self_pt, start_pt])
+                # If the closest point on the mid path is very close, cut start path short
+                # and aim directly for it. This helps avoid backtracking loop.
+                if self_pt.distance(mid_path) < 1:
+                    mid_path = shapely.ops.substring(mid_path, mid_path.project(self_pt, normalized=True), 1, normalized=True)
+                    start_pt = ShapelyPoint(mid_path.coords[0])
+                    start_path = LineString([self_pt, start_pt])
+            elif isinstance(mid_path, ShapelyPoint):
+                continue
+            else:
+                assert False, mid_path
 
             path_ls = LineString(list(start_path.coords) + list(mid_path.coords) + list(end_path.coords))
             path_ls = shapely.remove_repeated_points(path_ls)

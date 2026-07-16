@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 import itertools
 import math
 import random
+from typing import Iterable
 import warnings
 
 import fcl
@@ -720,8 +721,8 @@ def toPolygon(thing):
         poly = thing.polygons
     elif hasattr(thing, "lineString"):
         poly = thing.lineString
-    elif isinstance(thing, Vector):
-        poly = shapely.Point(*thing)
+    elif isinstance(thing, (Iterable, Vector)):
+        poly = makeShapelyPoint(thing)
     else:
         return None
 
