@@ -1,4 +1,4 @@
-from .simulator import IsaacSimulator, IsaacSimSimulator
+from .simulator import IsaacSimSimulator, IsaacSimulator
 
 try:
     from .lab import IsaacLabSimulator

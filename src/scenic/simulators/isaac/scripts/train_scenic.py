@@ -1,10 +1,10 @@
 import argparse
+from datetime import datetime
 import logging
 import os
+from pathlib import Path
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
 
 # _SCENIC_SRC = Path(__file__).resolve().parents[4]
 # if str(_SCENIC_SRC) not in sys.path:
@@ -14,7 +14,9 @@ from isaaclab.app import AppLauncher
 
 from scenic.simulators.isaac.scripts import cli_args
 
-parser = argparse.ArgumentParser(description="Train an RSL-RL agent in Scenic Isaac Lab terrain.")
+parser = argparse.ArgumentParser(
+    description="Train an RSL-RL agent in Scenic Isaac Lab terrain."
+)
 parser.add_argument("--video", action="store_true", default=False)
 parser.add_argument("--video_length", type=int, default=200)
 parser.add_argument("--video_interval", type=int, default=2000)
@@ -50,10 +52,6 @@ import importlib.metadata as metadata
 import platform
 
 import gymnasium as gym
-import torch
-from packaging import version
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
-
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
@@ -63,11 +61,17 @@ from isaaclab.envs import (
 )
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.io import dump_yaml
-from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
-
+from isaaclab_rl.rsl_rl import (
+    RslRlBaseRunnerCfg,
+    RslRlVecEnvWrapper,
+    handle_deprecated_rsl_rl_cfg,
+)
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
+from packaging import version
+from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+import torch
 
 from scenic.simulators.isaac.scripts.common import (
     configure_initial_scenic_terrain,
@@ -83,7 +87,14 @@ if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
     command = (
         [r".\isaaclab.bat", "-p", "-m", "pip", "install", f"rsl-rl-lib=={RSL_RL_VERSION}"]
         if platform.system() == "Windows"
-        else ["./isaaclab.sh", "-p", "-m", "pip", "install", f"rsl-rl-lib=={RSL_RL_VERSION}"]
+        else [
+            "./isaaclab.sh",
+            "-p",
+            "-m",
+            "pip",
+            "install",
+            f"rsl-rl-lib=={RSL_RL_VERSION}",
+        ]
     )
     raise RuntimeError(
         f"rsl-rl-lib {RSL_RL_VERSION} or newer is required. "
@@ -97,16 +108,25 @@ torch.backends.cudnn.benchmark = False
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
-def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
+def main(
+    env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg,
+    agent_cfg: RslRlBaseRunnerCfg,
+):
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
-    env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
+    env_cfg.scene.num_envs = (
+        args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
+    )
     agent_cfg.max_iterations = (
-        args_cli.max_iterations if args_cli.max_iterations is not None else agent_cfg.max_iterations
+        args_cli.max_iterations
+        if args_cli.max_iterations is not None
+        else agent_cfg.max_iterations
     )
     agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
 
     env_cfg.seed = agent_cfg.seed
-    env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    env_cfg.sim.device = (
+        args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    )
     if args_cli.distributed and args_cli.device is not None and "cpu" in args_cli.device:
         raise ValueError("Distributed training requires a GPU device.")
 
@@ -120,7 +140,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     scenario = load_scenic_scenario(args_cli.scenario, args_cli.scenic_model)
     configure_initial_scenic_terrain(env_cfg, scenario, args_cli.terrain_border_width)
 
-    log_root_path = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name))
+    log_root_path = os.path.abspath(
+        os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+    )
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
     log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     print(f"Exact experiment name requested from command line: {log_dir}")
@@ -131,15 +153,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if isinstance(env_cfg, ManagerBasedRLEnvCfg):
         env_cfg.export_io_descriptors = args_cli.export_io_descriptors
     else:
-        logger.warning("IO descriptors are only supported for manager based RL environments.")
+        logger.warning(
+            "IO descriptors are only supported for manager based RL environments."
+        )
     env_cfg.log_dir = log_dir
 
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    env = gym.make(
+        args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None
+    )
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
     if agent_cfg.resume or agent_cfg.algorithm.class_name == "Distillation":
-        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+        resume_path = get_checkpoint_path(
+            log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint
+        )
 
     if args_cli.video:
         video_kwargs = {
@@ -157,9 +185,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     if agent_cfg.class_name == "OnPolicyRunner":
-        runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+        runner = OnPolicyRunner(
+            env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device
+        )
     elif agent_cfg.class_name == "DistillationRunner":
-        runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+        runner = DistillationRunner(
+            env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device
+        )
     else:
         raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
 
@@ -171,7 +203,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
 
-    runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+    runner.learn(
+        num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True
+    )
     print(f"Training time: {round(time.time() - start_time, 2)} seconds")
     env.close()
 

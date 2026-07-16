@@ -37,6 +37,11 @@ class Experimental51Backend(Experimental60Backend):
     def run_coroutine(self, coro):
         return IsaacBackend.run_coroutine(self, coro)
 
+    def enable_extension(self, name):
+        from isaacsim.core.utils.extensions import enable_extension
+
+        enable_extension(name)
+
     def open_environment_stage(self, usd_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
 
@@ -62,7 +67,14 @@ class Experimental51Backend(Experimental60Backend):
         return opened, stage
 
     def initialize_physics(self, world, objects):
+        # Referenced assets can enter the loading queue one update after it first empties.
+        ready_frames = 0
+        while ready_frames < 2:
+            world.app.update()
+            ready_frames = 0 if self.is_stage_loading() else ready_frames + 1
+        self._configure_manipulator_pick_objects_for_world(world, objects)
         world.core_world.initialize_physics()
+        world.app.update()
 
     def play_world(self, world):
         world.core_world.play()

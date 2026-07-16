@@ -13,7 +13,7 @@ import scenic.simulators.isaac.utils as scenic_utils
 
 
 class LabBackend(IsaacBackend):
-    
+
     name = "lab"
 
     def __init__(self):
@@ -65,11 +65,11 @@ class LabBackend(IsaacBackend):
         return os.path.abspath(source)
 
     def usd_path_for_object(self, obj) -> str | None:
-        if getattr(obj, "usd_path", None):
-            return self.resolve_usd_path(obj.usd_path)
+        if getattr(obj, "usdPath", None):
+            return self.resolve_usd_path(obj.usdPath)
 
-        if getattr(obj, "isaac_asset_path", None):
-            return self.resolve_usd_path(obj.isaac_asset_path)
+        if getattr(obj, "isaacAssetPath", None):
+            return self.resolve_usd_path(obj.isaacAssetPath)
 
         return None
 
@@ -82,8 +82,8 @@ class LabBackend(IsaacBackend):
         headless=True,
         overwrite=False,
     ):
-        default_mesh_path, default_info_path = scenic_utils.default_environment_mesh_paths(
-            environment_usd_path
+        default_mesh_path, default_info_path = (
+            scenic_utils.default_environment_mesh_paths(environment_usd_path)
         )
         mesh_path = (
             scenic_utils.resolvedPath(environment_mesh_path)
@@ -171,8 +171,8 @@ class LabBackend(IsaacBackend):
 
     def make_environment_cfg(self, environment_usd_path):
         """Create a static environment asset cloned into every Lab environment."""
-        import isaaclab.sim as sim_utils
         from isaaclab.assets import AssetBaseCfg
+        import isaaclab.sim as sim_utils
 
         usd_path = self.resolve_usd_path(environment_usd_path)
         if not urlparse(usd_path).scheme and not os.path.isfile(usd_path):
@@ -185,7 +185,9 @@ class LabBackend(IsaacBackend):
             spawn=sim_utils.UsdFileCfg(usd_path=usd_path),
         )
 
-    def make_asset_cfg(self, obj, asset_name: str, *, num_envs: int | None, tmp_mesh_dir: str):
+    def make_asset_cfg(
+        self, obj, asset_name: str, *, num_envs: int | None, tmp_mesh_dir: str
+    ):
         blueprint = obj.blueprint
 
         if blueprint == "GroundPlane":
@@ -202,8 +204,8 @@ class LabBackend(IsaacBackend):
         )
 
     def make_ground_plane_cfg(self, obj, asset_name: str, *, num_envs: int | None):
-        import isaaclab.sim as sim_utils
         from isaaclab.assets import AssetBaseCfg
+        import isaaclab.sim as sim_utils
 
         pos, rot = self.scenic_pose(obj)
 
@@ -217,13 +219,15 @@ class LabBackend(IsaacBackend):
             init_state=AssetBaseCfg.InitialStateCfg(pos=pos, rot=rot),
         )
 
-    def make_object_cfg(self, obj, asset_name: str, *, num_envs: int | None, tmp_mesh_dir: str):
-        import isaaclab.sim as sim_utils
+    def make_object_cfg(
+        self, obj, asset_name: str, *, num_envs: int | None, tmp_mesh_dir: str
+    ):
         from isaaclab.assets import AssetBaseCfg, RigidObjectCfg
+        import isaaclab.sim as sim_utils
 
         prim_path = self.asset_prim_path(asset_name, num_envs)
         has_usd_asset = bool(
-            getattr(obj, "usd_path", None) or getattr(obj, "isaac_asset_path", None)
+            getattr(obj, "usdPath", None) or getattr(obj, "isaacAssetPath", None)
         )
 
         if not has_usd_asset:
@@ -273,14 +277,14 @@ class LabBackend(IsaacBackend):
         )
 
     def make_robot_cfg(self, obj, asset_name: str, *, num_envs: int | None):
-        import isaaclab.sim as sim_utils
-        from isaaclab.assets import ArticulationCfg
         from isaaclab.actuators import ImplicitActuatorCfg
+        from isaaclab.assets import ArticulationCfg
+        import isaaclab.sim as sim_utils
 
         usd_path = self.usd_path_for_object(obj)
         if usd_path is None:
             raise SimulationCreationError(
-                f"Robot {getattr(obj, 'name', obj)!r} needs usd_path or isaac_asset_path."
+                f"Robot {getattr(obj, 'name', obj)!r} needs usdPath or isaacAssetPath."
             )
 
         pos, rot = self.scenic_pose(obj)
@@ -336,7 +340,7 @@ class LabBackend(IsaacBackend):
         if getattr(obj, "physics", False):
             self.apply_rigid_body_api_to_usd(usd_path, obj)
 
-        obj.usd_path = usd_path
+        obj.usdPath = usd_path
 
     def make_rigid_usd_wrapper(self, usd_path, obj, asset_name, tmp_mesh_dir):
         """Create a local rigid-body wrapper without modifying the source USD."""
@@ -434,7 +438,7 @@ class LabBackend(IsaacBackend):
                     pass
 
         stage.GetRootLayer().Save()
-    
+
     def apply_robot_control(self, sim, obj, command):
         """Buffer a robot command for application immediately before the Lab step."""
         if getattr(obj, "wheel_controller", None) or callable(
@@ -466,9 +470,15 @@ class LabBackend(IsaacBackend):
 
         if len(joint_ids) < 2:
             if debug:
-                print("[SCENIC ISAAC LAB DEBUG] Could not resolve wheel joints for", getattr(obj, "name", obj))
+                print(
+                    "[SCENIC ISAAC LAB DEBUG] Could not resolve wheel joints for",
+                    getattr(obj, "name", obj),
+                )
                 print("[SCENIC ISAAC LAB DEBUG] requested wheel names:", wheel_names)
-                print("[SCENIC ISAAC LAB DEBUG] available joints:", getattr(asset, "joint_names", None))
+                print(
+                    "[SCENIC ISAAC LAB DEBUG] available joints:",
+                    getattr(asset, "joint_names", None),
+                )
             return
 
         target = torch.zeros((int(asset.num_instances), 2), device=asset.device)

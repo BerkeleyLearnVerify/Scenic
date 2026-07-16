@@ -4,29 +4,31 @@ Run with:
     scenic -S -b examples/isaacsim/robot/ur5e_example_experimental_side.scenic
 """
 
-param isaacBackend = "experimental_60"
+param isaacBackend = "experimental_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 
 duration = 60
 cubeSize = 0.0515
 sideStandoff = cubeSize * 1.55
-sideGraspZBias = cubeSize * 0.35
+sideGraspZBias = 0.0
+sideGraspOffset = cubeSize * 0.4
 hoverHeight = cubeSize * 6
 retractHeight = cubeSize * 4
 releaseGap = cubeSize
 placeRegionSize = cubeSize * 2.3
 placeOffsetX = -0.135
 placeOffsetY = 0.788
+armMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
+from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
 
 cubeSpawnPosition = 0.4852 @ -0.4880
 PICK_APPROACH_AXIS = (0.0, -1.0, 0.0)
 SIDE_PICK_ORIENTATION = (0.70710678, 0.70710678, 0.0, 0.0)
-DOWNWARD_PLACE_ORIENTATION = (0.0, 0.70710678, 0.70710678, 0.0)
 
 class PickCube(IsaacSimObject):
     width: cubeSize
@@ -74,7 +76,7 @@ behavior UR5eSidePickPlace(target_object, place_pos):
         pick_center[2] + hoverHeight,
     ), clearance=sideStandoff)
     pre_pick_side = sideTarget(pick_center, clearance=sideStandoff)
-    at_pick = sideTarget(pick_center)
+    at_pick = sideTarget(pick_center, clearance=sideGraspOffset)
 
     carry_pick = sideTarget((
         pick_center[0],
@@ -98,26 +100,29 @@ behavior UR5eSidePickPlace(target_object, place_pos):
         release_center[2] + retractHeight,
     )
 
-    do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
-    do OpenGripper()
-    do MoveEndEffectorTo(pre_pick_high, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(pre_pick_side, orientation=SIDE_PICK_ORIENTATION)
-    do MoveEndEffectorTo(at_pick, orientation=SIDE_PICK_ORIENTATION)
-    do HoldPosition()
-    do CloseGripper()
-    do HoldPosition()
-    do MoveEndEffectorTo(carry_pick, orientation=SIDE_PICK_ORIENTATION)
-    do RotateEndEffectorTo(DOWNWARD_PLACE_ORIENTATION)
-    do MoveEndEffectorTo(carry_transfer, orientation=DOWNWARD_PLACE_ORIENTATION)
-    do MoveEndEffectorTo(above_place, orientation=DOWNWARD_PLACE_ORIENTATION)
-    do MoveEndEffectorTo(at_place, orientation=DOWNWARD_PLACE_ORIENTATION)
-    do OpenGripper()
-    do HoldPosition()
-    do MoveEndEffectorTo(post_place_high, orientation=DOWNWARD_PLACE_ORIENTATION)
-    do MoveEndEffectorTo(home, orientation=DOWNWARD_PLACE_ORIENTATION)
+    try:
+        do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
+        do OpenGripper()
+        do MoveEndEffectorTo(pre_pick_high, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(pre_pick_side, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(at_pick, orientation=SIDE_PICK_ORIENTATION, threshold=0.015)
+        do HoldPosition()
+        do CloseGripper()
+        do HoldPosition()
+        do MoveEndEffectorTo(carry_pick, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(carry_transfer, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(above_place, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(at_place, orientation=SIDE_PICK_ORIENTATION)
+        do OpenGripper()
+        do HoldPosition()
+        do MoveEndEffectorTo(post_place_high, orientation=SIDE_PICK_ORIENTATION)
+        do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
+    except ManipulatorTimeout as e:
+        print(f"Pick-place aborted: {e}", flush=True)
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
+    with arm_max_velocities armMaxVelocities,
     with behavior UR5eSidePickPlace(
         cube,
         place_pos,

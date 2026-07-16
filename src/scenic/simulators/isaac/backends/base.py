@@ -37,6 +37,9 @@ class IsaacBackend:
         else:
             app.close()
 
+    def attach_simulation_app(self, app):
+        self._simulation_app = app
+
     def get_simulation_app(self, headless=False):
         if self._simulation_app is None:
             from isaacsim.simulation_app import SimulationApp
@@ -386,10 +389,7 @@ class IsaacBackend:
     def create_wheeled_robot(self, obj):
         raise NotImplementedError
 
-    def create_franka_panda(self, obj):
-        raise NotImplementedError
-
-    def create_ur5e(self, obj):
+    def create_manipulator(self, obj):
         raise NotImplementedError
 
     def create_ground_plane(self, obj):
@@ -417,7 +417,7 @@ class IsaacBackend:
     def set_object_pose(self, sim, obj, position, orientation=None):
         raise NotImplementedError
 
-    def move_franka_pick_place(
+    def move_manipulator_pick_place(
         self,
         sim,
         obj,
@@ -428,46 +428,25 @@ class IsaacBackend:
     ):
         raise NotImplementedError
 
-    def move_franka_end_effector(self, sim, obj, position, orientation=None):
+    def move_manipulator_end_effector(self, sim, obj, position, orientation=None):
         raise NotImplementedError
 
-    def set_franka_gripper(self, sim, obj, opened):
+    def set_manipulator_gripper(self, sim, obj, opened):
         raise NotImplementedError
 
-    def set_franka_arm_joint_positions(self, sim, obj, joint_positions):
+    def set_manipulator_arm_joint_positions(self, sim, obj, joint_positions):
         raise NotImplementedError
 
-    def hold_franka_position(self, sim, obj):
+    def hold_manipulator_position(self, sim, obj):
         raise NotImplementedError
 
-    def get_franka_end_effector_pose(self, sim, obj):
+    def get_manipulator_end_effector_pose(self, sim, obj):
         raise NotImplementedError
 
-    def get_franka_gripper_positions(self, sim, obj):
+    def get_manipulator_gripper_positions(self, sim, obj):
         raise NotImplementedError
 
-    def franka_gripper_target_positions(self, opened):
-        raise NotImplementedError
-
-    def move_ur5e_end_effector(self, sim, obj, position, orientation=None):
-        raise NotImplementedError
-
-    def set_ur5e_gripper(self, sim, obj, opened):
-        raise NotImplementedError
-
-    def set_ur5e_arm_joint_positions(self, sim, obj, joint_positions):
-        raise NotImplementedError
-
-    def hold_ur5e_position(self, sim, obj):
-        raise NotImplementedError
-
-    def get_ur5e_end_effector_pose(self, sim, obj):
-        raise NotImplementedError
-
-    def get_ur5e_gripper_positions(self, sim, obj):
-        raise NotImplementedError
-
-    def ur5e_gripper_target_positions(self, opened):
+    def manipulator_gripper_target_positions(self, profile, opened):
         raise NotImplementedError
 
     def get_physics_properties(self, world, obj):

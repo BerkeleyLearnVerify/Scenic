@@ -1,5 +1,4 @@
 import scenic
-
 from scenic.simulators.isaac.lab_env import (
     ScenicIsaacLabEnvWrapper,
     configure_env_cfg_for_scenic_terrain,

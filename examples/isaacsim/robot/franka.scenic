@@ -1,3 +1,4 @@
+param isaacBackend = "core_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 param duration = 30
 param cubeSize = 0.0515
@@ -15,7 +16,7 @@ class IsaacBin(IsaacSimObject):
     height: globalParameters.binHeight
     physics: False
     shape: BoxShape()
-    isaac_asset_path: "Isaac/Props/KLT_Bin/small_KLT.usd"
+    isaacAssetPath: "Isaac/Props/KLT_Bin/small_KLT.usd"
 
 class PickCube(IsaacSimObject):
     width: globalParameters.cubeSize

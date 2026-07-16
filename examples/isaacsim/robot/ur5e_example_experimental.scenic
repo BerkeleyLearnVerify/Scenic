@@ -4,7 +4,7 @@ Run with:
     scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic
 """
 
-param isaacBackend = "experimental_60"
+param isaacBackend = "experimental_51"
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
 
 duration = 60
@@ -12,12 +12,14 @@ cubeSize = 0.0515
 binHeight = 0.1475
 hoverHeight = 0.3
 retractHeight = 0.2
-releaseGap = 0.02
 graspZBias = cubeSize * 0.15
-graspThreshold = 0.015
+releaseGap = binHeight + graspZBias + 0.02
+graspThreshold = 0.005
+armMaxVelocities = (2.175, 2.175, 2.175, 2.175, 2.61, 2.61)
 
 model scenic.simulators.isaac.model
 from scenic.simulators.isaac.utils import getExistingObj
+from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
 CUBE_POSITION = (0.5, 0.3)
@@ -29,7 +31,7 @@ class IsaacBin(IsaacSimObject):
     height: binHeight
     physics: False
     shape: BoxShape()
-    isaac_asset_path: "Isaac/Props/KLT_Bin/small_KLT.usd"
+    isaacAssetPath: "Isaac/Props/KLT_Bin/small_KLT.usd"
 
 class PickCube(IsaacSimObject):
     width: cubeSize
@@ -74,26 +76,30 @@ behavior UR5eMoveToPickPlace(target_object, place_pos):
     hover_place = endEffectorTarget((
         place_pos[0],
         place_pos[1],
-        place_pos[2] + retractHeight,
+        release_pos[2] + retractHeight,
     ))
     at_place = endEffectorTarget(release_pos)
 
-    do MoveEndEffectorTo(home)
-    do OpenGripper()
-    do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(at_pick, threshold=graspThreshold)
-    do HoldPosition()
-    do CloseGripper()
-    do HoldPosition()
-    do MoveEndEffectorTo(hover_pick)
-    do MoveEndEffectorTo(hover_place)
-    do MoveEndEffectorTo(at_place)
-    do OpenGripper()
-    do MoveEndEffectorTo(hover_place)
-    do MoveEndEffectorTo(home)
+    try:
+        do MoveEndEffectorTo(home)
+        do OpenGripper()
+        do MoveEndEffectorTo(hover_pick)
+        do MoveEndEffectorTo(at_pick, threshold=graspThreshold)
+        do HoldPosition()
+        do CloseGripper()
+        do HoldPosition()
+        do MoveEndEffectorTo(hover_pick)
+        do MoveEndEffectorTo(hover_place)
+        do MoveEndEffectorTo(at_place)
+        do OpenGripper()
+        do MoveEndEffectorTo(hover_place)
+        do MoveEndEffectorTo(home)
+    except ManipulatorTimeout as e:
+        print(f"Pick-place aborted: {e}", flush=True)
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
+    with arm_max_velocities armMaxVelocities,
     with behavior UR5eMoveToPickPlace(
         cube,
         place_pos,

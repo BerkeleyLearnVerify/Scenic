@@ -1,8 +1,8 @@
 import argparse
 import os
+from pathlib import Path
 import sys
 import time
-from pathlib import Path
 
 # _SCENIC_SRC = Path(__file__).resolve().parents[4]
 # if str(_SCENIC_SRC) not in sys.path:
@@ -12,7 +12,9 @@ from isaaclab.app import AppLauncher
 
 from scenic.simulators.isaac.scripts import cli_args
 
-parser = argparse.ArgumentParser(description="Play an RSL-RL checkpoint in Scenic Isaac Lab terrain.")
+parser = argparse.ArgumentParser(
+    description="Play an RSL-RL checkpoint in Scenic Isaac Lab terrain."
+)
 parser.add_argument("--video", action="store_true", default=False)
 parser.add_argument("--video_length", type=int, default=200)
 parser.add_argument("--disable_fabric", action="store_true", default=False)
@@ -45,10 +47,6 @@ simulation_app = app_launcher.app
 import importlib.metadata as metadata
 
 import gymnasium as gym
-import torch
-from packaging import version
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
-
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
@@ -66,10 +64,12 @@ from isaaclab_rl.rsl_rl import (
     handle_deprecated_rsl_rl_cfg,
 )
 from isaaclab_rl.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
-
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
+from packaging import version
+from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+import torch
 
 from scenic.simulators.isaac.scripts.common import (
     configure_initial_scenic_terrain,
@@ -81,38 +81,53 @@ installed_version = metadata.version("rsl-rl-lib")
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
-def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
+def main(
+    env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg,
+    agent_cfg: RslRlBaseRunnerCfg,
+):
     task_name = args_cli.task.split(":")[-1]
     train_task_name = task_name.replace("-Play", "")
 
     agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
-    env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
+    env_cfg.scene.num_envs = (
+        args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
+    )
     agent_cfg = handle_deprecated_rsl_rl_cfg(agent_cfg, installed_version)
 
     env_cfg.seed = agent_cfg.seed
-    env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    env_cfg.sim.device = (
+        args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    )
     if hasattr(env_cfg, "episode_length_s"):
         env_cfg.episode_length_s = 10.0
 
     scenario = load_scenic_scenario(args_cli.scenario, args_cli.scenic_model)
     configure_initial_scenic_terrain(env_cfg, scenario, args_cli.terrain_border_width)
 
-    log_root_path = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name))
+    log_root_path = os.path.abspath(
+        os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
+    )
     print(f"[INFO] Loading experiment from directory: {log_root_path}")
     if args_cli.use_pretrained_checkpoint:
         resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name)
         if not resume_path:
-            print("[INFO] No published pre-trained checkpoint is available for this task.")
+            print(
+                "[INFO] No published pre-trained checkpoint is available for this task."
+            )
             return
     elif args_cli.checkpoint:
         resume_path = retrieve_file_path(args_cli.checkpoint)
     else:
-        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+        resume_path = get_checkpoint_path(
+            log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint
+        )
 
     log_dir = os.path.dirname(resume_path)
     env_cfg.log_dir = log_dir
 
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    env = gym.make(
+        args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None
+    )
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 
@@ -132,9 +147,13 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     if agent_cfg.class_name == "OnPolicyRunner":
-        runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+        runner = OnPolicyRunner(
+            env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device
+        )
     elif agent_cfg.class_name == "DistillationRunner":
-        runner = DistillationRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
+        runner = DistillationRunner(
+            env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device
+        )
     else:
         raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
     runner.load(resume_path)
@@ -147,12 +166,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         runner.export_policy_to_jit(path=export_model_dir, filename="policy.pt")
         runner.export_policy_to_onnx(path=export_model_dir, filename="policy.onnx")
     else:
-        policy_nn = runner.alg.policy if version.parse(installed_version) >= version.parse("2.3.0") else runner.alg.actor_critic
+        policy_nn = (
+            runner.alg.policy
+            if version.parse(installed_version) >= version.parse("2.3.0")
+            else runner.alg.actor_critic
+        )
         normalizer = getattr(policy_nn, "actor_obs_normalizer", None)
         if normalizer is None:
             normalizer = getattr(policy_nn, "student_obs_normalizer", None)
-        export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
-        export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+        export_policy_as_jit(
+            policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt"
+        )
+        export_policy_as_onnx(
+            policy_nn,
+            normalizer=normalizer,
+            path=export_model_dir,
+            filename="policy.onnx",
+        )
 
     dt = env.unwrapped.step_dt
     obs = env.get_observations()

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import torch
-
 from isaaclab.envs import ManagerBasedEnvCfg
-from isaaclab.managers import ObservationGroupCfg as ObsGroup
-from isaaclab.managers import ObservationTermCfg as ObsTerm
+from isaaclab.managers import (
+    ObservationGroupCfg as ObsGroup,
+    ObservationTermCfg as ObsTerm,
+)
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
+import torch
 
 
 def zero_obs(env):
