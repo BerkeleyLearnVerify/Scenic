@@ -576,6 +576,26 @@ def test_terminate_when():
     assert tuple(actions) == (1, 2)
 
 
+def test_terminate_minimum_time():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            i = 0
+            while True:
+                i += 1
+                take i
+        ego = new Object with behavior Foo
+        terminate after 6 seconds
+        terminate after 4 steps
+        terminate after 5 steps
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert tuple(actions) == (1, 2, 3)
+    actions = sampleEgoActions(scenario, maxSteps=7)
+    assert tuple(actions) == (1, 2, 3, 4)
+
+
 # Reuse
 
 

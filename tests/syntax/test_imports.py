@@ -98,6 +98,7 @@ def test_inherit_terminate(runLocally):
             import helper_terminate
             ego = new Object
             record 1 as "foo"
+            terminate after 4 steps
             """
         )
 

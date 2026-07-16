@@ -27,6 +27,7 @@ class RequirementType(enum.Enum):
     monitor = "require monitor"
     terminateWhen = "terminate when"
     terminateSimulationWhen = "terminate simulation when"
+    terminateAfter = "terminate after"
 
     # recorded values, which aren't requirements but are handled similarly
     record = "record"

@@ -566,6 +566,21 @@ class DynamicScenario(Invocable):
             args = argsToString(self._args, self._kwargs)
             return f"{self.__class__.__name__}({args})"
 
+    def show2D(self, zoom=None, block=True):
+        """Render a 2D schematic of the scene for debugging."""
+        import matplotlib.pyplot as plt
+
+        plt.gca().set_aspect("equal")
+        # display map
+        self._workspace.show2D(plt)
+        # draw objects
+        for obj in self._objects:
+            obj.show2D(self._workspace, plt, highlight=(obj is self._ego))
+        # zoom in if requested
+        if zoom:
+            self._workspace.zoomAround(plt, self._objects, expansion=zoom)
+        plt.show(block=block)
+
 
 class LocalsSnapshot(Samplable):
     def __init__(self, locs):
