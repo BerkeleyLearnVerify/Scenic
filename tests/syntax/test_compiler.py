@@ -1710,20 +1710,58 @@ class TestCompiler:
                 assert False
 
     def test_terminate_after_seconds(self):
-        node, _ = compileScenicAST(TerminateAfter(Seconds(Constant(10))))
+        node, _ = compileScenicAST(TerminateAfter(Seconds(Constant(10)), lineno=2))
         match node:
             case Expr(
-                Call(Name("terminate_after"), [Constant(10), Constant("seconds")], [])
+                Call(
+                    Name("terminate_after"),
+                    [
+                        Constant(0),  # reqId
+                        Call(
+                            Name("AtomicProposition"),
+                            [
+                                Lambda(
+                                    arguments(),
+                                    Call(
+                                        Name("check_time"),
+                                        [Constant(10), Constant("seconds")],
+                                    ),
+                                )
+                            ],
+                        ),
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
             ):
                 assert True
             case _:
                 assert False
 
     def test_terminate_after_steps(self):
-        node, _ = compileScenicAST(TerminateAfter(Steps(Constant(20))))
+        node, _ = compileScenicAST(TerminateAfter(Steps(Constant(20)), lineno=2))
         match node:
             case Expr(
-                Call(Name("terminate_after"), [Constant(20), Constant("steps")], [])
+                Call(
+                    Name("terminate_after"),
+                    [
+                        Constant(0),  # reqId
+                        Call(
+                            Name("AtomicProposition"),
+                            [
+                                Lambda(
+                                    arguments(),
+                                    Call(
+                                        Name("check_time"),
+                                        [Constant(20), Constant("steps")],
+                                    ),
+                                )
+                            ],
+                        ),
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
             ):
                 assert True
             case _:

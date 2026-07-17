@@ -26,6 +26,7 @@ __all__ = (
     "terminate_when",
     "terminate_simulation_when",
     "terminate_after",
+    "check_time",
     "in_initial_scenario",
     "override",
     "record",
@@ -876,6 +877,22 @@ def terminate_simulation_when(reqID, req, line, name):
     )
 
 
+def terminate_after(reqId, req, line, _):
+    name = "terminate after on line {line}"
+    makeRequirement(requirements.RequirementType.terminateAfter, reqId, req, line, name)
+
+
+def check_time(timeLimit, terminator=None):
+    """Returns True if we have exceeded the time limit."""
+    if not isinstance(timeLimit, (builtins.float, builtins.int)):
+        raise TypeError('"terminate after N" with N not a number')
+    assert terminator in (None, "seconds", "steps")
+    inSeconds = terminator != "steps"
+
+    threshold = timeLimit / simulation().timestep if inSeconds else timeLimit
+    return simulation().currentTime >= threshold
+
+
 def makeRequirement(ty, reqID, req, line, name, recConfig=None):
     if evaluatingRequirement:
         raise InvalidScenarioError(f'tried to use "{ty.value}" inside a requirement')
@@ -885,14 +902,6 @@ def makeRequirement(ty, reqID, req, line, name, recConfig=None):
         currentScenario._addDynamicRequirement(ty, req, line, name)
     else:  # requirement being defined at compile time
         currentScenario._addRequirement(ty, reqID, req, line, name, 1, recConfig)
-
-
-def terminate_after(timeLimit, terminator=None):
-    if not isinstance(timeLimit, (builtins.float, builtins.int)):
-        raise TypeError('"terminate after N" with N not a number')
-    assert terminator in (None, "seconds", "steps")
-    inSeconds = terminator != "steps"
-    currentScenario._setTimeLimit(timeLimit, inSeconds=inSeconds)
 
 
 def resample(dist):

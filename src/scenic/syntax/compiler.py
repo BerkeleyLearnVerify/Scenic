@@ -1393,6 +1393,18 @@ class ScenicToPythonTransformer(Transformer):
             "terminate_simulation_when", node.cond, node.lineno, node.name
         )
 
+    @context(Context.TOP_LEVEL)
+    def visit_TerminateAfter(self, node: s.TerminateAfter):
+        cond = ast.Call(
+            func=ast.Name(id="check_time", ctx=loadCtx),
+            args=[
+                self.visit(node.duration.value),
+                ast.Constant(node.duration.unitStr),
+            ],
+            keywords=[],
+        )
+        return self.createRequirementLike("terminate_after", cond, node.lineno, None)
+
     def createRequirementLike(
         self,
         functionName: str,
@@ -1433,22 +1445,6 @@ class ScenicToPythonTransformer(Transformer):
                 ],
                 keywords=keywords,
             )
-        )
-
-    @context(Context.TOP_LEVEL)
-    def visit_TerminateAfter(self, node: s.TerminateAfter):
-        return ast.copy_location(
-            ast.Expr(
-                ast.Call(
-                    func=ast.Name(id="terminate_after", ctx=loadCtx),
-                    args=[
-                        self.visit(node.duration.value),
-                        ast.Constant(node.duration.unitStr),
-                    ],
-                    keywords=[],
-                )
-            ),
-            node,
         )
 
     @context(Context.TOP_LEVEL)

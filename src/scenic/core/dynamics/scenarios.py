@@ -497,6 +497,8 @@ class DynamicScenario(Invocable):
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:
             place = self._terminateSimulationConditions
+        elif req.ty is RequirementType.terminateAfter:
+            place = self._terminationConditions
         elif req.ty is RequirementType.record:
             place = self._recordedExprs
         elif req.ty is RequirementType.recordInitial:
