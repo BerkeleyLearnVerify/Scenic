@@ -117,7 +117,10 @@ class Workspace(Region):
         return self.region.distanceTo(point)
 
     def projectVector(self, point, onDirection):
-        raise self.region.projectVector(point, onDirection)
+        return self.region.projectVector(point, onDirection)
+
+    def closestPointTo(self, target):
+        return self.region.closestPointTo(target)
 
     @property
     def AABB(self):

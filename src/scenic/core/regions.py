@@ -118,15 +118,16 @@ class Region(Samplable, ABC):
         """Returns point projected onto this region along onDirection."""
         pass
 
+    @abstractmethod
+    def closestPointTo(self, target):
+        """Returns the closest point to target (also a point) that is contained in the region"""
+        pass
+
     @property
     @abstractmethod
     def AABB(self):
         """Axis-aligned bounding box for this `Region`."""
         pass
-
-    @cached_property
-    def midpoint(self):
-        return Vector(*self.AABB[0]) + Vector(*self.AABB[1]) / 2
 
     ## Overridable Methods ##
     # The following methods can be overriden to get better performance or if the region
@@ -267,6 +268,10 @@ class Region(Samplable, ABC):
             s += f" {self.name}"
         return s + f" at {hex(id(self))}>"
 
+    @cached_property
+    def midpoint(self):
+        return Vector(*self.AABB[0]) + Vector(*self.AABB[1]) / 2
+
 
 class PointInRegionDistribution(VectorDistribution):
     """Uniform distribution over points in a Region"""
@@ -335,6 +340,9 @@ class AllRegion(Region):
     def projectVector(self, point, onDirection):
         return point
 
+    def closestPointTo(self, target):
+        return toVector(target)
+
     @property
     def AABB(self):
         raise TypeError("AllRegion does not have a well defined AABB")
@@ -386,6 +394,9 @@ class EmptyRegion(Region):
 
     def projectVector(self, point, onDirection):
         raise RejectionException("Projecting vector onto empty Region")
+
+    def closestPointTo(self, target):
+        raise RejectionException("Finding closest point in empty Region")
 
     @property
     def AABB(self):
@@ -473,6 +484,9 @@ class IntersectionRegion(Region):
         raise NotImplementedError(
             f'{type(self).__name__} does not yet support projection using "on"'
         )
+
+    def closestPointTo(self, target):
+        raise NotImplementedError
 
     @property
     def AABB(self):
@@ -587,6 +601,12 @@ class UnionRegion(Region):
             f'{type(self).__name__} does not yet support projection using "on"'
         )
 
+    def closestPointTo(self, target):
+        target = toVector(target)
+        candidate_points = [region.closestPointTo(target) for region in self.regions]
+        candidate_points.sort(key=lambda pt: pt.distanceTo(target))
+        return candidate_points[0]
+
     @property
     def AABB(self):
         raise NotImplementedError
@@ -687,6 +707,9 @@ class DifferenceRegion(Region):
         raise NotImplementedError(
             f'{type(self).__name__} does not yet support projection using "on"'
         )
+
+    def closestPointTo(self, target):
+        raise NotImplementedError
 
     @property
     def AABB(self):
@@ -1009,6 +1032,10 @@ class MeshRegion(Region):
         closest_point = intersection_data[numpy.argmin(distances)]
 
         return Vector(*closest_point)
+
+    @distributionFunction
+    def closestPointTo(self, target):
+        return toVector(trimesh.proximity.closest_point(self.mesh, target))
 
     @cached_property
     @distributionFunction
@@ -1770,6 +1797,15 @@ class MeshVolumeRegion(MeshRegion):
         return abs(dist)
 
     @distributionFunction
+    def closestPointTo(self, target):
+        target = toVector(target)
+
+        if self.containsPoint(target):
+            return target
+
+        return super().closestPointTo(target)
+
+    @distributionFunction
     def minimumDistanceTo(self, other):
         """Get the minimum distance between this region and another.
 
@@ -2315,6 +2351,9 @@ class VoxelRegion(Region):
     def projectVector(self, point, onDirection):
         raise NotImplementedError
 
+    def closestPointTo(self, target):
+        raise NotImplementedError
+
     def uniformPointInner(self):
         # First generate a point uniformly in a box with dimensions
         # equal to scale, centered at the origin.
@@ -2605,6 +2644,12 @@ class PolygonalFootprintRegion(Region):
             f'{type(self).__name__} does not yet support projection using "on"'
         )
 
+    @distributionFunction
+    def closestPointTo(self, target):
+        target = toVector(target)
+        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, target)[0])
+        return Vector(pt_2d.x, pt_2d.y, target.z)
+
     @property
     def AABB(self):
         raise NotImplementedError
@@ -2842,6 +2887,9 @@ class PathRegion(Region):
         return Orientation.fromEuler(start.azimuthTo(end), start.altitudeTo(end), 0)
 
     def projectVector(self, point, onDirection):
+        raise NotImplementedError
+
+    def closestPointTo(self, target):
         raise NotImplementedError
 
     @cached_property
@@ -3139,6 +3187,12 @@ class PolygonalRegion(Region):
         point = toVector(point)
         dist2D = shapely.distance(self.polygons, makeShapelyPoint(point))
         return math.hypot(dist2D, point[2] - self.z)
+
+    @distributionFunction
+    def closestPointTo(self, target):
+        target = toVector(target)
+        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, target)[0])
+        return Vector(pt_2d.x, pt_2d.y, self.z)
 
     @cached_property
     @distributionFunction
@@ -3731,6 +3785,10 @@ class PolylineRegion(Region):
         dist2D = self.lineString.distance(makeShapelyPoint(point))
         return math.hypot(dist2D, point.z)
 
+    @distributionMethod
+    def closestPointTo(self, target):
+        return toVector(shapely.ops.nearest_points(self.lineString, target)[0])
+
     def projectVector(self, point, onDirection):
         raise TypeError('PolylineRegion does not support projection using "on"')
 
@@ -3958,6 +4016,12 @@ class PointSetRegion(Region):
         distance, _ = self.kdTree.query(point)
         return distance
 
+    @distributionMethod
+    def closestPointTo(self, target):
+        point = toVector(point).coordinates
+        _, neighbor_i = self.kdTree.query(point)
+        return toVector(self.points[neighbor_i])
+
     def projectVector(self, point, onDirection):
         raise TypeError('PointSetRegion does not support projection using "on"')
 
@@ -4081,6 +4145,9 @@ class GridRegion(PointSetRegion):
 
     def projectVector(self, point, onDirection):
         raise TypeError('GridRegion does not support projection using "on"')
+
+    def closestPointTo(self, target):
+        raise NotImplementedError
 
 
 ###################################################################################################

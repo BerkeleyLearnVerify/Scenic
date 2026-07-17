@@ -16,7 +16,7 @@ import warnings
 
 import numpy
 from scipy.spatial.transform import Rotation
-import shapely.geometry
+import shapely
 
 from scenic.core.distributions import (
     Distribution,
@@ -450,7 +450,9 @@ class Vector(Samplable, collections.abc.Sequence):
 
     @staticmethod
     def _canCoerceType(ty):
-        return issubclass(ty, (tuple, list, numpy.ndarray)) or hasattr(ty, "toVector")
+        return issubclass(ty, (tuple, list, numpy.ndarray, shapely.Point)) or hasattr(
+            ty, "toVector"
+        )
 
     @staticmethod
     def _coerce(thing) -> Vector:
@@ -461,6 +463,8 @@ class Vector(Samplable, collections.abc.Sequence):
                     "expected 2D/3D vector, got " f"{type(thing).__name__} of length {l}"
                 )
             return Vector(*thing)
+        elif isinstance(thing, shapely.Point):
+            return Vector(*thing.coords[0])
         else:
             return thing.toVector()
 
