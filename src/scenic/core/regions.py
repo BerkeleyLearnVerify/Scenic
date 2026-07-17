@@ -2647,7 +2647,7 @@ class PolygonalFootprintRegion(Region):
     @distributionFunction
     def closestPointTo(self, target):
         target = toVector(target)
-        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, target)[0])
+        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, toShapely(target))[0])
         return Vector(pt_2d.x, pt_2d.y, target.z)
 
     @property
@@ -3191,7 +3191,7 @@ class PolygonalRegion(Region):
     @distributionFunction
     def closestPointTo(self, target):
         target = toVector(target)
-        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, target)[0])
+        pt_2d = toVector(shapely.ops.nearest_points(self.polygons, toShapely(target))[0])
         return Vector(pt_2d.x, pt_2d.y, self.z)
 
     @cached_property
