@@ -1233,10 +1233,51 @@ class TestRecord:
                 assert False
 
     def test_record_named_fstr(self):
-        mod = parse_string_helper("record x as f'name'")
+        mod = parse_string_helper("record x as f'name_{3*2}'")
         stmt = mod.body[0]
         match stmt:
-            case Record(Name("x"), ast.JoinedStr(values=[ast.Constant(value="name")])):
+            case Record(
+                Name("x"),
+                ast.JoinedStr(
+                    values=[
+                        ast.Constant(value="name_"),
+                        ast.FormattedValue(
+                            value=ast.BinOp(
+                                left=ast.Constant(value=3),
+                                op=ast.Mult(),
+                                right=ast.Constant(value=2),
+                            )
+                        ),
+                    ]
+                ),
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_record_named_fstr_lambda(self):
+        mod = parse_string_helper("record x as f'name_{(lambda x: 3)(4)}'")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(
+                Name("x"),
+                ast.JoinedStr(
+                    values=[
+                        ast.Constant(value="name_"),
+                        ast.FormattedValue(
+                            value=ast.Call(
+                                func=ast.Lambda(
+                                    args=ast.arguments(
+                                        args=[ast.arg(arg="x")],
+                                    ),
+                                    body=ast.Constant(value=3),
+                                ),
+                                args=[ast.Constant(value=4)],
+                            )
+                        ),
+                    ]
+                ),
+            ):
                 assert True
             case _:
                 assert False
