@@ -457,7 +457,13 @@ class Simulation(abc.ABC):
                 return terminationType, terminationReason
             terminationReason = dynamicScenario._checkSimulationTerminationConditions()
             if terminationReason is not None:
-                return TerminationType.simulationTerminationCondition, terminationReason
+                if terminationReason.ty is RequirementType.terminateAfter:
+                    return TerminationType.timeLimit, terminationReason
+                else:
+                    return (
+                        TerminationType.simulationTerminationCondition,
+                        terminationReason,
+                    )
             if maxSteps and self.currentTime >= maxSteps:
                 return TerminationType.timeLimit, f"reached time limit ({maxSteps} steps)"
 
