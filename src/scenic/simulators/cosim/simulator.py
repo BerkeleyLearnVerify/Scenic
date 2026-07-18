@@ -40,7 +40,7 @@ class CosimSimulator(DrivingSimulator):
         metsr_host="localhost", # Not sure what this actually means here
         metsr_port=4000, 
         timestep=0.1, # Not entirely sure what the distinction between timestep and sim_timestep is in metsr
-        sim_timestep=0.1,
+        sim_timestep=0.05,
         traffic_manager_port=None,
         metsr_sim_dir=None,
         timeout=20,
@@ -52,12 +52,22 @@ class CosimSimulator(DrivingSimulator):
         metsr_render_freq=10,
     ):
         super().__init__()
-
+        # TODO rename these this is terrible
         self.timestep = timestep
         self.sim_timestep = sim_timestep # This should represent the timestep recorded in the METSR config 
+
+        if self.timestep < self.sim_timestep:
+            if self.sim_timestep % self.timestep == 0:
+                self.sim_ticks_per_carla = int(self.sim_timestep / self.timestep) 
+                self.sim_ticks_per_metsr = 1
+            else:
+                assert False, f"Cannot correctly identify timestep with metsr tick: {self.sim_timestep} and carla tick: {self.timestep}" 
+        elif self.timestep == self.sim_timestep:
+            self.sim_ticks_per_metsr = self.sim_ticks_per_carla = 1
+        else:
+            assert False, f"Invalid timestep"
+
         self.map_path = map_path
-        self.sim_ticks_per = int(round((timestep / sim_timestep)))
-        assert math.isclose(self.sim_ticks_per, timestep / sim_timestep)
 
         self.bubble_size = bubble_size
         self.render= render
@@ -113,15 +123,13 @@ class CosimSimulator(DrivingSimulator):
                                 verbose=verbose)
         
         if self.render:
-            print(f"Starting METS-R visualization server, client will timeout in 30 seconds")
+            verbosePrint(f"Starting METS-R visualization server, client will timeout in 30 seconds")
             self.metsr_client.start_viz(server_port=self.metsr_viz_port, startup_timeout=60)
             print(f"Please connect to METS-R at port: {self.metsr_viz_port}")
     
 
 
         verbosePrint("Clients have successfully been initialized")
-
-        verbosePrint(f"Creating CoSimulator with timestep: {self.timestep} and Ticks per step as: {self.sim_ticks_per}")
 
     def createSimulation(self,scene,*, timestep, **kwargs): #TODO: fix timestep
         if timestep is not None and timestep != self.timestep:
@@ -134,7 +142,8 @@ class CosimSimulator(DrivingSimulator):
             carla_client=self.carla_client,
             metsr_client=self.metsr_client,
             timestep=self.timestep,
-            sim_ticks_per=self.sim_ticks_per,
+            sim_ticks_per_carla=self.sim_ticks_per_carla,
+            sim_ticks_per_metsr=self.sim_ticks_per_metsr,
             tm=self.tm,
             bubble_size=self.bubble_size,
             render=self.render,
@@ -158,14 +167,14 @@ class CosimSimulator(DrivingSimulator):
 
 
 class CosimSimulation(DrivingSimulation):
-    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per, tm, render ,record, mappings, xml_to_xodr_intersections,metsr_render_freq=10, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
+    def __init__(self, scene, carla_client, metsr_client, timestep, sim_ticks_per_carla, sim_ticks_per_metsr, tm, render ,record, mappings, xml_to_xodr_intersections,metsr_render_freq=10, bubble_size=100, run_name=None, metsr_viz_port=8080, **kwargs ):
     
         # Carla and metrs simulators
         self.carla_client = carla_client
         self.metsr_client = metsr_client
         self.timestep = timestep    # Timestep for each step 
-        self.sim_ticks_per = sim_ticks_per
-        
+        self.sim_ticks_per_carla = sim_ticks_per_carla
+        self.sim_ticks_per_metsr = sim_ticks_per_metsr
         # Initializing CARLA params
         self.tm = tm # Carla Traffic manager
         self.carla_world = self.carla_client.get_world()
@@ -270,7 +279,15 @@ class CosimSimulation(DrivingSimulation):
         # Build METSR Visualization url
         self.map_id = 12
 
-        
+        # map_keys = {
+        #     "Town01": 4,
+        #     "Town02": 5,
+        #     "Town03": 6,
+        #     "Town04": 7,
+        #     "Town05": 8,
+        #     "Town06": 8
+        # }
+
         if self.render:
             print(f"Creating METS-R visualization server")
             build_metsr_vis_url(
@@ -633,7 +650,7 @@ class CosimSimulation(DrivingSimulation):
 
         Tick Carla client for a single step
         """
-        for _ in range(self.sim_ticks_per):
+        for _ in range(self.sim_ticks_per_carla):
             self.carla_world.tick()
   
     
@@ -643,7 +660,7 @@ class CosimSimulation(DrivingSimulation):
 
         Tick Metsr client for a single step
         """
-        for _ in range(self.sim_ticks_per):
+        for _ in range(self.sim_ticks_per_metsr):
             self.metsr_client.tick()
 
     def step(self) -> None:
@@ -912,7 +929,7 @@ class CosimSimulation(DrivingSimulation):
         self.bubble_roads_by_id = [road.id for road in self.bubble_roads]
         for obj in self.objects[1:]: 
             veh_data = all_veh_data[obj]
-            obj.spawn_guard = max(0, obj.spawn_guard - self.sim_ticks_per) # Total client ticks, always > 0
+            obj.spawn_guard = max(0, obj.spawn_guard - self.sim_ticks_per_carla) # Total client ticks, always > 0
 
             # Skip vehicles which have not entered the roadway or have completed their route 
             if ('roadID' not in veh_data) or obj in self.completed_route:
