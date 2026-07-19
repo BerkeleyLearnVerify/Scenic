@@ -266,7 +266,7 @@ def videoHandler(path, values, timestep, options):
 
 @fileHandler("npz")
 def npzHandler(path, values, timestep, options):
-    timesteps, values = zip(*values)
+    timesteps, values = zip(*values) if values else ([], [])
     np.savez_compressed(path, timesteps=timesteps, values=values)
 
 

@@ -387,15 +387,19 @@ class DynamicScenario(Invocable):
     def _recordTimeSeries(self):
         from scenic.syntax.veneer import currentSimulation
 
-        if self._recordedTime == currentSimulation.currentTime:
+        currentTime = currentSimulation.currentTime
+        if self._recordedTime == currentTime:
             # This time step was already recorded (e.g. the scenario was terminated
             # by a behavior after the current state was recorded).
             return
 
         for rec in self._recordedExprs:
-            currentSimulation._recordTimeSeries(rec.name, rec.evaluate())
+            value = rec.evaluate()
+            currentSimulation._recordTimeSeries(rec.name, value)
+            if (recConfig := rec.recConfig) and (recorder := recConfig.recorder):
+                recorder._record(value, currentTime)
 
-        self._recordedTime = currentSimulation.currentTime
+        self._recordedTime = currentTime
 
     def _runMonitors(self):
         terminationReason = None
