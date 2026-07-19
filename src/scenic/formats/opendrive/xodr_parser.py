@@ -1466,6 +1466,11 @@ class RoadMap:
             signal_elem.get("type"),
             signal_elem.get("subtype"),
             signal_elem.get("orientation"),
+            # other required fields not parsed:
+            # dynamic   signal_elem.get("dynamic"),
+            # s         signal_elem.get("s"),
+            # t         signal_elem.get("t"),
+            # zOffset   signal_elem.get("zOffset"),
             self.__parse_signal_validity(signal_elem.find("validity")),
         )
 
@@ -1890,12 +1895,38 @@ class RoadMap:
                             allRoads.append(outgoingRoad)
                             seenRoads.add(outgoingRoad.id)
 
+                        # Find the signal controlling this maneuver, if any
+                        controllingSignal = None
+                        # Candidate sources in priority order. Each triple pairs a
+                        # raw parser road (signals retain .validity) with its
+                        # converted Scenic road (domain Signal objects to store),
+                        # plus the OpenDRIVE lane ID to test against validity:
+                        #   1. connecting road / toID — turn-specific controls
+                        #   2. incoming road / fromID — approach signals
+                        for rawRoad, scenicRoad, laneID in (
+                            (self.roads[connectingID], connectingRoad, toID),
+                            (oldRoad, incomingRoad, fromID),
+                        ):
+                            for rawSignal, scenicSignal in zip(
+                                rawRoad.signals, scenicRoad.signals
+                            ):
+                                validity = rawSignal.validity
+                                if (
+                                    validity is None
+                                    or min(validity) <= laneID <= max(validity)
+                                ):
+                                    controllingSignal = scenicSignal
+                                    break
+                            if controllingSignal is not None:
+                                break
+
                         # TODO future OpenDRIVE extension annotating left/right turns?
                         maneuver = roadDomain.Maneuver(
                             startLane=fromLane.lane,
                             connectingLane=toLane.lane,
                             endLane=outgoingLane,
                             intersection=None,  # will be patched once the Intersection is created
+                            signal=controllingSignal,
                         )
                         maneuversForLane[fromLane.lane].append(maneuver)
 
@@ -1905,6 +1936,11 @@ class RoadMap:
                 assert lane.maneuvers == ()
                 lane.maneuvers = tuple(maneuvers)
                 allManeuvers.extend(maneuvers)
+
+            # Reverse mapping: accumulate maneuvers onto each controlling Signal.
+            for maneuver in allManeuvers:
+                if maneuver.signal is not None:
+                    maneuver.signal.controlledManeuvers += (maneuver,)
 
             # Order connected roads and lanes by adjacency
             def cyclicOrder(elements, contactStart=None):

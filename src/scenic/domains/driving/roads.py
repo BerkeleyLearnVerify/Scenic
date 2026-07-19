@@ -165,6 +165,8 @@ class Maneuver(_ElementReferencer):
     connectingLane: Union[Lane, None] = None
     #: intersection where the maneuver takes place, if any (`None` for lane mergers)
     intersection: Union[Intersection, None] = None
+    #: traffic signal controlling this maneuver, if any (`None` if uncontrolled or unknown)
+    signal: Optional[Signal] = None
 
     def __attrs_post_init__(self):
         assert self.type is ManeuverType.STRAIGHT or self.connectingLane is not None
@@ -825,6 +827,8 @@ class Signal:
     country: str
     #: Type identifier according to country code.
     type: str
+    #: Maneuvers that require this signal to be green (empty if unknown).
+    controlledManeuvers: Tuple[Maneuver, ...] = ()
 
     @property
     def isTrafficLight(self) -> bool:
