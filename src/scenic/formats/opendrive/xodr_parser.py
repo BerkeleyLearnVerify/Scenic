@@ -1911,9 +1911,8 @@ class RoadMap:
                                 rawRoad.signals, scenicRoad.signals
                             ):
                                 validity = rawSignal.validity
-                                if (
-                                    validity is None
-                                    or min(validity) <= laneID <= max(validity)
+                                if validity is None or min(validity) <= laneID <= max(
+                                    validity
                                 ):
                                     controllingSignal = scenicSignal
                                     break
