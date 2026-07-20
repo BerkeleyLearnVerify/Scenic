@@ -87,9 +87,7 @@ class ManipulatorProfile:
             )
         if self.gripper_style == "robotiq_2f85":
             missing = [
-                name
-                for name in ROBOTIQ_2F85_REQUIRED_FIELDS
-                if not hasattr(self, name)
+                name for name in ROBOTIQ_2F85_REQUIRED_FIELDS if not hasattr(self, name)
             ]
             if missing:
                 raise ValueError(

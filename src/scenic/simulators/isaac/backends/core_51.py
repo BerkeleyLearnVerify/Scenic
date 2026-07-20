@@ -386,9 +386,11 @@ class Core51Backend(IsaacBackend):
                 joint_prim_names=list(profile.gripper_dof_names),
                 joint_opened_positions=profile.open_gripper_positions.copy(),
                 joint_closed_positions=profile.closed_gripper_positions.copy(),
-                action_deltas=None
-                if action_deltas is None
-                else np.array(action_deltas, dtype=float),
+                action_deltas=(
+                    None
+                    if action_deltas is None
+                    else np.array(action_deltas, dtype=float)
+                ),
             )
         wrapper = SingleManipulator(
             prim_path=prim_path,
