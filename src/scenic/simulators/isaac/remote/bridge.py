@@ -167,6 +167,40 @@ class ScenicBridge:
         except Exception:
             pass
 
+    @staticmethod
+    def _reset_leaked_scenic_state():
+        """Clear compiler state leaked by a previously crashed job."""
+        import scenic.syntax.veneer as veneer
+
+        if not veneer.activity and not veneer.scenarioStack:
+            return
+        veneer.activity = 0
+        veneer.scenarioStack.clear()
+        veneer.runningScenarios.clear()
+        veneer.scenarios = []
+        veneer.currentSimulation = None
+        veneer.currentScenario = None
+        veneer.currentBehavior = None
+        veneer.simulatorFactory = None
+        veneer.loadingModel = False
+        veneer.lockedParameters = set()
+        veneer.lockedModel = None
+        veneer._globalParameters = {}
+
+    @staticmethod
+    def _remove_kit_fast_importer():
+        """Bypass kit's fast_importer during a job: it crashes (TypeError) on
+        scenario-local top-level imports like ``from lib import *``."""
+        removed = [
+            finder
+            for finder in sys.meta_path
+            if "fast_importer" in getattr(finder, "__module__", "")
+            or getattr(finder, "__name__", "") == "FastFinder"
+        ]
+        for finder in removed:
+            sys.meta_path.remove(finder)
+        return removed
+
     def _run_job(self, request, connection):
         try:
             scenario_path = request["scenario"]
@@ -200,6 +234,8 @@ class ScenicBridge:
             prior_flag = getattr(builtins, "ISAAC_LAUNCHED_FROM_TERMINAL", None)
             builtins.ISAAC_LAUNCHED_FROM_TERMINAL = False
             simulator = None
+            self._reset_leaked_scenic_state()
+            removed_finders = self._remove_kit_fast_importer()
             try:
                 scenario = scenic.scenarioFromFile(scenario_path, params=params)
                 results = []
@@ -213,6 +249,7 @@ class ScenicBridge:
                         str(simulation.result.terminationReason) if simulation else None
                     )
             finally:
+                sys.meta_path[:0] = removed_finders
                 sys.stdout, sys.stderr = real_out, real_err
                 if prior_flag is not None:
                     builtins.ISAAC_LAUNCHED_FROM_TERMINAL = prior_flag
