@@ -9,6 +9,7 @@ from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _
 
 @dataclass(frozen=True, kw_only=True)
 class UR5eProfile(ManipulatorProfile):
+    # Robotiq 2F-85 gripper authoring/tuning (the "robotiq_2f85" backend path).
     gripper_prim: str
     gripper_fully_closed_position: float
     gripper_contact_material_path: str

@@ -562,7 +562,7 @@ class Experimental60Backend(IsaacBackend):
         )
 
         robot_prim = stage_utils.add_reference_to_stage(
-            usd_path=self.asset_path(profile.usd_path),
+            usd_path=self.kit_usd_path(profile.usd_path),
             path=prim_path,
         )
         for variant_name, selection in profile.usd_variants:

@@ -61,6 +61,40 @@ def run_remote(
     return {"event": "error", "traceback": "bridge closed the connection early"}
 
 
+def run_remote_from_compilation(host=None, port=None):
+    """Ship the scenario currently being compiled to the bridge, then exit.
+
+    Called from model.scenic when the ``isaacRemote`` global parameter is set:
+    locates the top-level .scenic file on the stack, forwards the other
+    CLI-overridden params, and exits the process with the bridge result.
+    """
+    import inspect
+
+    import scenic.syntax.veneer as veneer
+
+    scenario_path = None
+    for frame_info in reversed(inspect.stack()):  # outermost frame first
+        if frame_info.filename.endswith(".scenic"):
+            scenario_path = frame_info.filename
+            break
+    if scenario_path is None:
+        raise RuntimeError("isaacRemote: could not determine the scenario file")
+
+    control = {"isaacRemote", "isaacRemoteHost", "isaacRemotePort"}
+    params = {
+        name: value
+        for name, value in veneer._globalParameters.items()
+        if name in veneer.lockedParameters and name not in control
+    }
+    result = run_remote(
+        scenario_path,
+        params=params,
+        host=host or DEFAULT_HOST,
+        port=port or DEFAULT_PORT,
+    )
+    sys.exit(0 if result.get("success") else 1)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="python -m scenic.simulators.isaac.remote",

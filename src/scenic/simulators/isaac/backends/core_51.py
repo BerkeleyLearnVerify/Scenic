@@ -357,7 +357,7 @@ class Core51Backend(IsaacBackend):
         profile = obj.manipulator_profile
         prim_path = f"/World/{obj.name}"
         robot_prim = add_reference_to_stage(
-            usd_path=self.asset_path(profile.usd_path),
+            usd_path=self.kit_usd_path(profile.usd_path),
             prim_path=prim_path,
         )
         for variant_name, selection in profile.usd_variants:
@@ -380,12 +380,15 @@ class Core51Backend(IsaacBackend):
                 use_mimic_joints=True,
             )
         else:
+            action_deltas = getattr(profile, "gripper_action_deltas", None)
             gripper = ParallelGripper(
                 end_effector_prim_path=end_effector_prim_path,
                 joint_prim_names=list(profile.gripper_dof_names),
                 joint_opened_positions=profile.open_gripper_positions.copy(),
                 joint_closed_positions=profile.closed_gripper_positions.copy(),
-                action_deltas=np.array(profile.gripper_action_deltas, dtype=float),
+                action_deltas=None
+                if action_deltas is None
+                else np.array(action_deltas, dtype=float),
             )
         wrapper = SingleManipulator(
             prim_path=prim_path,

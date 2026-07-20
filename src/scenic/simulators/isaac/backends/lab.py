@@ -31,6 +31,14 @@ class LabBackend(IsaacBackend):
         if self._simulation_app is not None:
             return self._simulation_app
 
+        # Preload before Kit starts: h5py's HDF5 DLLs must be the first copy loaded,
+        # or the one Kit bundles shadows them and `import h5py` inside the running
+        # app fails (entrypoint not found).
+        try:
+            import h5py  # noqa: F401
+        except ImportError:
+            pass
+
         from isaaclab.app import AppLauncher
 
         launcher_args = {"headless": headless}

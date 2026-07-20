@@ -26,7 +26,7 @@ from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
 
-cubeSpawnPosition = 0.4852 @ -0.4880
+cubeSpawnPosition = Range(0.455, 0.515) @ Range(-0.52, -0.455)
 PICK_APPROACH_AXIS = (0.0, -1.0, 0.0)
 SIDE_PICK_ORIENTATION = (0.70710678, 0.70710678, 0.0, 0.0)
 

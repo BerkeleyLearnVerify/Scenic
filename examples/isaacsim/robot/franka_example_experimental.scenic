@@ -24,8 +24,8 @@ from scenic.simulators.isaac.utils import getExistingObj
 from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
-CUBE_POSITION = (0.5, 0.3)
-BIN_POSITION = (0.3, -0.3)
+CUBE_POSITION = (Range(0.4, 0.6), Range(0.15, 0.45))
+BIN_POSITION = (Range(0.25, 0.45), Range(-0.45, -0.15))
 
 class IsaacBin(IsaacSimObject):
     length: 0.3

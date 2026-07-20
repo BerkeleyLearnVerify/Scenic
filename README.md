@@ -274,20 +274,28 @@ version (`--param isaacBackend NAME` forces one).
    bridge.start()
    ```
 
-2. From any shell with Scenic installed, run scenarios against it:
+2. From any shell with Scenic installed, run scenarios against it by setting
+   the `isaacRemote` parameter:
 
    ```bash
-   python -m scenic.simulators.isaac.remote \
-     examples/isaacsim/robot/ur5e_example_experimental.scenic
+   scenic -S -b examples/isaacsim/robot/ur5e_example_experimental.scenic \
+     --param isaacRemote 1
    ```
 
-   `--param NAME VALUE` (repeatable), `--count N`, `--max-steps N`, `--host`,
-   and `--port` are supported. Scenario output streams back to the client.
+   Other `--param NAME VALUE` overrides are forwarded to the bridge;
+   `--param isaacRemoteHost IP` and `--param isaacRemotePort N` select a
+   non-default bridge address. Scenario output streams back to the client.
+   (`python -m scenic.simulators.isaac.remote <file>` is the direct client,
+   adding `--count N` and `--max-steps N`.)
 
 The bridge listens on `127.0.0.1:8793` by default (`bridge.start(port=...)`
 to change) and runs one scenario at a time on Isaac's main update loop; each
 run opens the scenario's environment stage in the running editor.
-`bridge.stop()` stops it.
+`bridge.stop()` stops it. The bridge host is the address of the machine
+running Isaac Sim — the default `127.0.0.1` means the same machine. To run
+against a different machine, start the bridge on a routable interface there
+(`bridge.start(host="0.0.0.0")`) and pass its IP via
+`--param isaacRemoteHost` (or `--host` with the direct client).
 
 ## Running Scenic with Isaac Lab
 
@@ -537,30 +545,47 @@ class FrankaPanda(ManipulatorRobot):
     manipulator_profile: FRANKA_PROFILE
 ```
 
-Per-arm data lives in `src/scenic/simulators/isaac/backends/profiles/<arm>.py`.
-A profile carries the values that cannot be inferred from the USD asset (joint
-roles, control link, home pose, TCP offset, grasp orientation, gripper
-setpoints, drive/contact tuning) plus dispatch keys:
+A profile is a frozen dataclass (`ManipulatorProfile` in
+`src/scenic/simulators/isaac/backends/profiles/base.py`) carrying the values
+that cannot be inferred from the USD asset (joint roles, control link, home
+pose, TCP offset, grasp orientation, gripper setpoints, drive/contact tuning)
+plus dispatch keys:
 
 | Key | Meaning |
 | --- | --- |
-| `gripper_style` | Selects gripper-specific USD authoring and wrapper construction (`"franka_hand"`, `"robotiq_2f85"`). |
-| `gripper_control_mode` | How open/close is commanded (`"position"` or `"velocity"`). |
-| `supports_pick_place` | Enables the built-in pick-place controller (`PickPlaceObject` behavior). |
+| `gripper_style` | Selects gripper-specific USD authoring and wrapper construction. `"robotiq_2f85"` uses the closed-loop Robotiq path and requires the extra fields declared by `UR5eProfile`; any other value is treated as a plain parallel gripper (optional `gripper_action_deltas`, e.g. `"franka_hand"`). |
+| `gripper_control_mode` | How open/close is commanded (`"position"` or `"velocity"`, the latter requiring the gripper velocity fields). |
+| `supports_pick_place` | Enables the built-in pick-place controller (`PickPlaceObject` behavior). Currently validated only with Franka-style position-mode parallel grippers. |
 
 To add a new arm:
 
-1. Add `backends/profiles/<arm>.py` defining a profile instance (subclass
-   `ManipulatorProfile` if the arm needs extra tuning fields) and re-export it
-   from `backends/profiles/__init__.py`.
-2. Add a thin model class in `model.scenic` selecting the profile, as above.
-3. If the arm uses a new gripper mechanism, add a `gripper_style` branch for
-   its USD authoring in the backends.
-4. Add an example scenario. The generic manipulator actions
-   (`MoveToEEPoseAction`, gripper actions) and behaviors (`MoveEndEffectorTo`,
-   `OpenGripper`, `CloseGripper`, `HoldPosition`) are reused unchanged; the
-   end-effector move behaviors raise `ManipulatorTimeout` if a move does not
-   converge within `max_steps`.
+1. Define a profile instance in your own Python module next to your scenario
+   (Scenic puts the scenario's directory on the import path). `usd_path` may
+   be an Isaac asset reference (`Isaac/...`), a URL, or a local file path.
+2. Attach it to a `ManipulatorRobot` subclass in your scenario:
+
+   ```scenic
+   model scenic.simulators.isaac.model
+   from my_arm_profile import MY_ARM_PROFILE
+
+   class MyArm(ManipulatorRobot):
+       width: 0.3
+       length: 0.3
+       height: 0.8
+       manipulator_profile: MY_ARM_PROFILE
+   ```
+
+   The generic manipulator actions (`MoveToEEPoseAction`, gripper actions) and
+   behaviors (`MoveEndEffectorTo`, `OpenGripper`, `CloseGripper`,
+   `HoldPosition`) are reused unchanged; the end-effector move behaviors raise
+   `ManipulatorTimeout` if a move does not converge within `max_steps`.
+3. Only if the arm uses a new gripper *mechanism* (not covered by an existing
+   `gripper_style`): add a `gripper_style` branch for its USD authoring in the
+   backends — the one case that still requires internal edits.
+4. To contribute a robot upstream, move the profile to
+   `backends/profiles/<arm>.py`, re-export it from
+   `backends/profiles/__init__.py`, and add a thin model class in
+   `model.scenic` as above.
 
 The two backend families control the arms differently, bypassing the generic
 `control` path above:

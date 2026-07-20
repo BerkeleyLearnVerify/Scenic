@@ -29,6 +29,19 @@ param environmentMeshPath = None
 param headless = False
 param isaacBackend = DEFAULT_BACKEND_NAME
 param isaacLab = False
+
+# Remote mode: `scenic <file> --param isaacRemote 1` runs the scenario on the
+# bridge inside an already-running Isaac Sim instead of compiling it locally.
+param isaacRemote = False
+param isaacRemoteHost = None
+param isaacRemotePort = None
+if globalParameters.isaacRemote:
+    from scenic.simulators.isaac.remote.client import run_remote_from_compilation
+    run_remote_from_compilation(
+        host=globalParameters.isaacRemoteHost,
+        port=globalParameters.isaacRemotePort,
+    )
+
 environmentMeshPath = globalParameters.environmentMeshPath
 environmentInfoPath = globalParameters.environmentInfoPath
 set_default_backend(globalParameters.isaacBackend)
