@@ -553,7 +553,7 @@ def executeInRequirement(scenario, boundEgo, values):
         except RandomControlFlowError as e:
             # Such errors should not be possible inside a requirement, since all values
             # should have already been sampled: something's gone wrong with our rebinding.
-            raise RuntimeError(
+            raise AssertionError(
                 "internal error: requirement dependency not sampled"
             ) from e
         finally:

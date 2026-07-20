@@ -2249,6 +2249,7 @@ def test_termination_reason_monitor():
 
 
 ## Recording
+# (see also `test_recording.py`)
 
 
 def test_record():
