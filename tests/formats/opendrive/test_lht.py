@@ -126,8 +126,12 @@ def test_two_way_faster_slower_each_carriageway():
     network = load("03_two_way.xodr")
     assert_faster_slower(network, section_by_id(network, 2), faster_id=1, slower_id=None)
     assert_faster_slower(network, section_by_id(network, 1), faster_id=None, slower_id=2)
-    assert_faster_slower(network, section_by_id(network, -2), faster_id=-1, slower_id=None)
-    assert_faster_slower(network, section_by_id(network, -1), faster_id=None, slower_id=-2)
+    assert_faster_slower(
+        network, section_by_id(network, -2), faster_id=-1, slower_id=None
+    )
+    assert_faster_slower(
+        network, section_by_id(network, -1), faster_id=None, slower_id=-2
+    )
 
 
 @pytest.mark.parametrize("name", ALL_MAPS)
