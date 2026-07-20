@@ -220,9 +220,14 @@ All of the following parameters can be declared in a Scenic file with
 | Parameter | Default | Applies to | Description |
 | --- | --- | --- | --- |
 | `environmentUSDPath` | `None` | Sim and Lab | Local USD file, URL, or Isaac asset path such as `Isaac/Environments/...`. The interface loads the USD and prepares the mesh metadata Scenic needs for spatial reasoning. |
+| `environmentMeshPath` | `None` | Sim and Lab | Override the converted environment mesh file (normally derived from `environmentUSDPath` and cached automatically). |
+| `environmentInfoPath` | `None` | Sim and Lab | Override the environment info JSON accompanying the mesh (normally derived and cached with it). |
 | `headless` | `False` | Sim and Lab | Launch Isaac Sim without its graphical window. |
-| `isaacBackend` | `experimental_60` | Direct Sim | Selects `core_51`, `experimental_51`, or `experimental_60`. Match this to the installed Isaac Sim release. |
+| `isaacBackend` | `experimental_60` | Direct Sim | Selects `core_51`, `experimental_51`, or `experimental_60`. Match this to the installed Isaac Sim release. In remote mode, defaults to the version detected in the running Isaac Sim. |
 | `isaacLab` | `False` | Lab | When enabled, delegates simulation to the Isaac Lab manager-based interface. |
+| `isaacRemote` | `False` | Remote | Run the scenario on the bridge inside an already-running Isaac Sim instead of launching one locally (see Remote mode). |
+| `isaacRemoteHost` | `None` | Remote | Bridge address for `isaacRemote` (default `127.0.0.1`). |
+| `isaacRemotePort` | `None` | Remote | Bridge TCP port for `isaacRemote` (default `8793`). |
 | `labTask` | `None` | Lab | Registered Isaac Lab task ID, for example `Isaac-Velocity-Rough-H1-v0`. The task must use a manager-based configuration, not a Direct environment. |
 | `labEnvCfg` | `None` | Lab | Import string for a custom config class, for example `my_package.env_cfg:MyEnvCfg`. It must produce a `ManagerBasedEnvCfg` or `ManagerBasedRLEnvCfg`. |
 | `labDevice` | `cuda:0` | Lab | Isaac Lab simulation device, such as `cuda:0` or `cpu`. |
