@@ -1,8 +1,10 @@
 import ast
+import functools
 import inspect
+import operator
 import sys
 import typing
-from typing import Any, Optional, Union
+from typing import Any, ForwardRef, Optional, Union
 
 
 class AST(ast.AST):
@@ -18,14 +20,20 @@ class AST(ast.AST):
     def __init_subclass__(cls):
         super().__init_subclass__()
         fts = _getFields(cls)
-        if sys.version_info >= (3, 13):
-            # The Python 3.13+ ast.AST initializer expects types like X | None, but we
+        if sys.version_info[:2] == (3, 13):
+            # The Python 3.13 ast.AST initializer expects types like X | None, but we
             # use Optional[X] for compatibility; convert the latter into the former.
+            # (In 3.14+, Optional[X] and X | None are identical at runtime.)
             optionalTy = type(Optional[str])
             for field, ty in fts.items():
                 if isinstance(ty, optionalTy):
-                    raw = typing.get_args(ty)[0]
-                    fts[field] = raw | None
+                    args = typing.get_args(ty)
+                    if any(isinstance(arg, ForwardRef) for arg in args):
+                        # ForwardRef doesn't support | in 3.13, so simplify to Any
+                        newTy = Any | None
+                    else:
+                        newTy = functools.reduce(operator.or_, args)
+                    fts[field] = newTy
         cls._field_types = fts
         cls._fields = tuple(cls._field_types)
         cls.__match_args__ = tuple(cls._fields)

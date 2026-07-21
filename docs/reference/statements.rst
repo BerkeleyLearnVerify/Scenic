@@ -41,7 +41,12 @@ Behavior Definition
 Defines a :term:`dynamic behavior`, which can be assigned to a Scenic object by setting its :prop:`behavior` property using the :scenic:`with behavior {behavior}` specifier; this makes the object an :term:`agent`.
 See our tutorial on :ref:`dynamics` for examples of how to write behaviors.
 
-Behavior definitions have the same form as function definitions, with an argument list and a body consisting of one or more statements; the body may additionally begin with definitions of preconditions and invariants.
+Behavior definitions have a similar form to function definitions, with an argument list and a body consisting of one or more statements.
+A behavior may not use top-level definitional statements such as :keyword:`param`, :keyword:`mutate`, and :keyword:`terminate when`, and it cannot create Objects with :keyword:`new`.
+However, the :keyword:`require` statement *is* allowed, as are ordinary control-flow constructs and function definitions.
+In addition, there are many special statements allowed in behaviors to take actions, invoke sub-behaviors, etc.: see :ref:`dynamic_statements`.
+
+The body of a behavior may optionally begin with definitions of preconditions and invariants.
 Preconditions are checked when a behavior is started, and invariants are checked at every time step of the simulation while the behavior is executing (including time step zero, like preconditions, but *not* including time spent inside sub-behaviors: this allows sub-behaviors to break and restore invariants before they return).
 
 The body of a behavior executes in parallel with the simulation: in each time step, it must either :keyword:`take` specified action(s) or :keyword:`wait` and perform no actions.
@@ -102,7 +107,9 @@ Defines a Scenic :term:`modular scenario`.
 Scenario definitions, like :ref:`behavior definitions <behaviorDef>`, may include preconditions and invariants.
 The body of a scenario consists of two optional parts: a ``setup`` block and a ``compose`` block.
 The ``setup`` block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program (so it may create objects, define requirements, etc.).
-The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :keyword:`do` and any of the other statements allowed inside behaviors (except :keyword:`take`, which only makes sense for an individual :term:`agent`).
+The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :keyword:`do` and any of the other statements allowed inside a :ref:`behavior <behaviorDef>` (except :keyword:`take`, which only makes sense for an individual :term:`agent`).
+The constructs illegal in behaviors, such as defining global parameters and creating Objects with :keyword:`new`, are also illegal in ``compose`` blocks: they can be placed in the ``setup`` block of a sub-scenario instead.
+
 If a modular scenario does not use preconditions, invariants, or sub-scenarios (i.e., it only needs a ``setup`` block) it may be written in the second form above, where the entire body of the ``scenario`` comprises the ``setup`` block.
 
 .. seealso:: Our tutorial on :ref:`composition` gives many examples of how to use modular scenarios.
@@ -308,6 +315,8 @@ For a complete example, see :ref:`sensors`.
 
 If you need to customize the way files are saved (e.g. to specify a specific video codec), you may pass a `Recorder` object to the ``to`` clause instead of a string.
 
+
+.. _dynamic_statements:
 
 Dynamic Statements
 ==================

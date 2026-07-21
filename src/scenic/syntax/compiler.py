@@ -1297,9 +1297,11 @@ class ScenicToPythonTransformer(Transformer):
             ),
         )
 
+    @context(Context.DYNAMIC)
     def visit_DoChoose(self, node: s.DoChoose):
         return self.makeDoLike(node, node.elts, schedule="choose")
 
+    @context(Context.DYNAMIC)
     def visit_DoShuffle(self, node: s.DoChoose):
         return self.makeDoLike(node, node.elts, schedule="shuffle")
 
@@ -1464,6 +1466,9 @@ class ScenicToPythonTransformer(Transformer):
 
     # Instance & Specifier
 
+    # N.B. We can't use @context(Context.TOP_LEVEL) here because we actually
+    # allow `new Point` anywhere; we'll catch `new Object` inside behaviors in
+    # the veneer object registration code.
     def visit_New(self, node: s.New):
         return ast.Call(
             func=ast.Name(id="new", ctx=loadCtx),
