@@ -11,7 +11,14 @@ from scenic.core.simulators import (
     SimulatorGroup,
     TerminatedSimulationException,
 )
-from tests.utils import compileScenic, sampleResultFromScene, sampleSceneFrom
+from tests.utils import (
+    RejectSimulationException,
+    checkVeneerIsInactive,
+    compileScenic,
+    sampleResult,
+    sampleResultFromScene,
+    sampleSceneFrom,
+)
 
 
 def test_old_style_simulator():
@@ -221,3 +228,92 @@ def test_simulator_group_deterministic():
 
     assert len(results1) == len(results2)
     assert all((v1 is None) == (v2 is None) for v1, v2 in zip(results1, results2))
+
+
+def test_simulator_createObjectInSimulator_error_cleanup():
+    destroy_called = False
+
+    class TestException(Exception):
+        pass
+
+    class TestSimulator(DummySimulator):
+        def createSimulation(self, scene, **kwargs):
+            return TestSimulation(scene, drift=self.drift, **kwargs)
+
+    class TestSimulation(DummySimulation):
+        def createObjectInSimulator(self, obj):
+            raise TestException()
+
+        def destroy(self):
+            nonlocal destroy_called
+            destroy_called = True
+
+    simulator = TestSimulator()
+    checkVeneerIsInactive()
+    with pytest.raises(TestException):
+        sampleResult(compileScenic("ego = new Object"), simulator=simulator)
+    checkVeneerIsInactive()
+
+    assert destroy_called
+
+
+def test_simulator_step_error_cleanup():
+    destroy_called = False
+
+    class TestException(Exception):
+        pass
+
+    class TestSimulator(DummySimulator):
+        def createSimulation(self, scene, **kwargs):
+            return TestSimulation(scene, drift=self.drift, **kwargs)
+
+    class TestSimulation(DummySimulation):
+        def step(self):
+            raise TestException()
+
+        def destroy(self):
+            nonlocal destroy_called
+            destroy_called = True
+
+    simulator = TestSimulator()
+    checkVeneerIsInactive()
+    with pytest.raises(TestException):
+        sampleResult(compileScenic("ego = new Object"), simulator=simulator)
+    checkVeneerIsInactive()
+
+    assert destroy_called
+
+
+def test_simulator_rejection_cleanup():
+    destroy_called = False
+
+    class TestException(Exception):
+        pass
+
+    class TestSimulator(DummySimulator):
+        def createSimulation(self, scene, **kwargs):
+            return TestSimulation(scene, drift=self.drift, **kwargs)
+
+    class TestSimulation(DummySimulation):
+        def destroy(self):
+            nonlocal destroy_called
+            destroy_called = True
+
+    simulator = TestSimulator()
+    checkVeneerIsInactive()
+    with pytest.raises(RejectSimulationException):
+        sampleResult(
+            compileScenic(
+                """
+                ego = new Object
+                monitor Foo():
+                    require False
+                    wait
+                require monitor Foo()
+            """
+            ),
+            simulator=simulator,
+        )
+    checkVeneerIsInactive()
+
+    assert destroy_called

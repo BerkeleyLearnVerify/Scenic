@@ -278,7 +278,6 @@ class Simulator(abc.ABC):
                 **kwargs,
             ) as simulation:
                 simulation._run()
-
         except (RejectSimulationException, RejectionException, GuardViolation) as e:
             if verbosity >= 2:
                 print(
@@ -437,7 +436,7 @@ class Simulation(abc.ABC):
             # properties during setup.
             self.updateObjects()
 
-        except (RejectSimulationException, RejectionException, GuardViolation) as e:
+        except Exception as e:
             # This simulation will be thrown out, but attach it to the exception
             # to aid in debugging.
             self.cleanup()
