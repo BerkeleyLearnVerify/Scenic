@@ -474,8 +474,8 @@ class Simulation(abc.ABC):
                 {key: sensor.getObservation() for key, sensor in obj.sensors.items()}
             )
 
-            # Record current state of the simulation
-            self._recordCurrentState()
+        # Record current state of the simulation
+        self._recordCurrentState()
 
         # Run monitors
         newReason = self.dynamicScenario._runMonitors()
@@ -586,13 +586,6 @@ class Simulation(abc.ABC):
         # also reject if some `require eventually` condition was never satisfied).
         for scenario in tuple(reversed(veneer.runningScenarios)):
             scenario._stop("simulation terminated")
-
-        # Record finally-recorded values.
-        values = self.dynamicScenario._evaluateRecordedExprs(
-            RequirementType.recordFinal, self.currentTime
-        )
-        for name, val in values.items():
-            self.records[name] = val
 
         # Package up simulation results into a compact object.
         result = SimulationResult(
