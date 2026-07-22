@@ -1482,11 +1482,7 @@ class RoadMap:
     def __warn_priority_type_disagreement(self, signal):
         """Warn if a known legacy ``type`` conflicts with ``<priority>`` semantics."""
         legacy = self._LEGACY_TYPE_TO_PRIORITY.get(signal.type_)
-        if (
-            legacy is not None
-            and signal.priorities
-            and legacy not in signal.priorities
-        ):
+        if legacy is not None and signal.priorities and legacy not in signal.priorities:
             listed = ", ".join(p.value for p in signal.priorities)
             warn(
                 f'signal {signal.id_} has OpenDRIVE type "{signal.type_}" '

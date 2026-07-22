@@ -503,9 +503,7 @@ DEMO_SIGNALS = (
 
 def test_legacy_stop_and_yield_type_codes():
     """CARLA maps use country=OpenDRIVE type 206 (stop) and 205 (yield)."""
-    network = Network.fromFile(
-        DEMO_SIGNALS / "06_legacy_stop_yield.xodr", useCache=False
-    )
+    network = Network.fromFile(DEMO_SIGNALS / "06_legacy_stop_yield.xodr", useCache=False)
     by_start = {open_drive_id(m.startLane): m for m in all_maneuvers(network)}
     assert set(by_start) == {-1, -2}
 
