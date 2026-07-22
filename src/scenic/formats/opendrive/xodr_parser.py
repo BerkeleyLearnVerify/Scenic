@@ -1472,6 +1472,28 @@ class RoadMap:
             return None
         return [int(validity_elem.get("fromLane")), int(validity_elem.get("toLane"))]
 
+    # OpenDRIVE / CARLA country="OpenDRIVE" type codes with a known priority meaning.
+    _LEGACY_TYPE_TO_PRIORITY = {
+        "1000001": roadDomain.SignalPriorityType.TRAFFIC_LIGHT,
+        "206": roadDomain.SignalPriorityType.STOP,
+        "205": roadDomain.SignalPriorityType.YIELD,
+    }
+
+    def __warn_priority_type_disagreement(self, signal):
+        """Warn if a known legacy ``type`` conflicts with ``<priority>`` semantics."""
+        legacy = self._LEGACY_TYPE_TO_PRIORITY.get(signal.type_)
+        if (
+            legacy is not None
+            and signal.priorities
+            and legacy not in signal.priorities
+        ):
+            listed = ", ".join(p.value for p in signal.priorities)
+            warn(
+                f'signal {signal.id_} has OpenDRIVE type "{signal.type_}" '
+                f"(legacy {legacy.value}) but <priority> lists [{listed}]; "
+                f"using priorities for classification"
+            )
+
     def __parse_signal_priorities(self, signal_elem):
         """Parse ``<semantics><priority type="…"/>`` children (OpenDRIVE 1.8+).
 
@@ -1724,6 +1746,9 @@ class RoadMap:
                 for signal_elem in signals.iter("signal"):
                     signal = self.__parse_signal(signal_elem)
                     if signal.is_valid():
+                        # Check once here (not in __parse_signal): signals are also
+                        # parsed earlier into _temp_signals for signalReference.
+                        self.__warn_priority_type_disagreement(signal)
                         road.signals.append(signal)
 
                 for signal_ref_elem in signals.iter("signalReference"):
