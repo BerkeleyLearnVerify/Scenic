@@ -490,3 +490,158 @@ def test_intersection_backrefs_consistent(tmp_path):
                 if man.signal is not None:
                     assert_bidirectional(man)
                     assert man.signal.isTrafficLight
+
+
+# ---------------------------------------------------------------------------
+# Legacy OpenDRIVE type codes (CARLA: 1000001 / 206 / 205) and 1.8+ priorities
+# ---------------------------------------------------------------------------
+
+DEMO_SIGNALS = (
+    Path(__file__).resolve().parents[3] / "assets" / "maps" / "demo" / "signals"
+)
+
+
+def test_legacy_stop_and_yield_type_codes():
+    """CARLA maps use country=OpenDRIVE type 206 (stop) and 205 (yield)."""
+    network = Network.fromFile(
+        DEMO_SIGNALS / "06_legacy_stop_yield.xodr", useCache=False
+    )
+    by_start = {open_drive_id(m.startLane): m for m in all_maneuvers(network)}
+    assert set(by_start) == {-1, -2}
+
+    stop_man, yield_man = by_start[-1], by_start[-2]
+    assert stop_man.signal.openDriveID == "601"
+    assert yield_man.signal.openDriveID == "602"
+
+    assert stop_man.signal.priorities == ()
+    assert yield_man.signal.priorities == ()
+    assert stop_man.signal.type == "206"
+    assert yield_man.signal.type == "205"
+
+    assert stop_man.signal.isStop
+    assert not stop_man.signal.isYield
+    assert not stop_man.signal.isTrafficLight
+
+    assert yield_man.signal.isYield
+    assert not yield_man.signal.isStop
+    assert not yield_man.signal.isTrafficLight
+
+    assert_bidirectional(stop_man)
+    assert_bidirectional(yield_man)
+
+
+def test_priority_semantics_without_legacy_types():
+    """``<priority>`` classifies signals even when country type is uninformative."""
+    from scenic.domains.driving.roads import SignalPriorityType
+
+    network = Network.fromFile(
+        DEMO_SIGNALS / "07_priority_semantics.xodr", useCache=False
+    )
+    by_start = {open_drive_id(m.startLane): m for m in all_maneuvers(network)}
+    assert set(by_start) == {-1, -2, -3}
+
+    stop_man, yield_man, light_man = by_start[-1], by_start[-2], by_start[-3]
+    assert stop_man.signal.type == "-1"
+    assert yield_man.signal.type == "-1"
+    assert light_man.signal.type == "-1"
+
+    assert stop_man.signal.isStop
+    assert not stop_man.signal.isTrafficLight
+    assert stop_man.signal.priorities == (SignalPriorityType.STOP,)
+
+    assert yield_man.signal.isYield
+    assert not yield_man.signal.isStop
+    assert yield_man.signal.priorities == (SignalPriorityType.YIELD,)
+
+    assert light_man.signal.isTrafficLight
+    assert light_man.signal.isStopLine
+    assert not light_man.signal.isStop
+    assert light_man.signal.priorities == (
+        SignalPriorityType.TRAFFIC_LIGHT,
+        SignalPriorityType.STOP_LINE,
+    )
+
+    for man in (stop_man, yield_man, light_man):
+        assert_bidirectional(man)
+
+
+def test_updated_traffic_light_demo_maps_have_priorities():
+    """Regenerated TL demos keep type 1000001 and add ``<priority type="trafficLight"/>``."""
+    from scenic.domains.driving.roads import SignalPriorityType
+
+    for name in (
+        "01_signal_validity_lanes.xodr",
+        "02_signal_on_approach.xodr",
+        "03_t_junction_turn_signals.xodr",
+        "05_four_way_protected_left.xodr",
+    ):
+        network = Network.fromFile(DEMO_SIGNALS / name, useCache=False)
+        signals = [
+            sig
+            for road in list(network.roads) + list(network.connectingRoads)
+            for sig in road.signals
+        ]
+        assert signals, name
+        for sig in signals:
+            assert sig.type == "1000001", (name, sig.openDriveID)
+            assert SignalPriorityType.TRAFFIC_LIGHT in sig.priorities, (
+                name,
+                sig.openDriveID,
+            )
+            assert sig.isTrafficLight
+            assert not sig.isStop
+            assert not sig.isYield
+
+
+def test_legacy_traffic_light_fixture_still_works(tmp_path):
+    """Inline fixtures without ``<semantics>`` still detect type 1000001 lights."""
+    network = load_network(tmp_path, MAP_VALIDITY_LANES)
+    for man in all_maneuvers(network):
+        assert man.signal.priorities == ()
+        assert man.signal.isTrafficLight
+        assert man.signal.subtype == "-1"
+
+
+def test_priority_type_disagreement_warns_and_prefers_priorities(tmp_path):
+    """Legacy type and ``<priority>`` disagree → warn; priorities win."""
+    import warnings
+
+    from scenic.domains.driving.roads import SignalPriorityType
+    from scenic.formats.opendrive.xodr_parser import OpenDriveWarning
+
+    # Same geometry as MAP_VALIDITY_LANES but type 206 (stop) with trafficLight priority.
+    xml = MAP_VALIDITY_LANES.replace(
+        'type="1000001" country="OpenDRIVE"\n              subtype="-1" value="-1">\n'
+        '        <validity fromLane="-1" toLane="-1"/>\n'
+        "      </signal>",
+        'type="206" country="OpenDRIVE"\n              subtype="-1" value="-1">\n'
+        "        <semantics>\n"
+        '          <priority type="trafficLight"/>\n'
+        "        </semantics>\n"
+        '        <validity fromLane="-1" toLane="-1"/>\n'
+        "      </signal>",
+        1,  # only the first signal (id 101)
+    )
+    # Second signal unchanged (still legacy 1000001, no semantics).
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", OpenDriveWarning)
+        network = load_network(tmp_path, xml)
+
+    disagreement = [
+        w
+        for w in caught
+        if issubclass(w.category, OpenDriveWarning)
+        and "using priorities for classification" in str(w.message)
+        and 'type "206"' in str(w.message)
+    ]
+    assert len(disagreement) == 1, [str(w.message) for w in caught]
+
+    by_start = {open_drive_id(m.startLane): m for m in all_maneuvers(network)}
+    # Lane -1: priorities win → traffic light, not stop
+    assert by_start[-1].signal.isTrafficLight
+    assert not by_start[-1].signal.isStop
+    assert SignalPriorityType.TRAFFIC_LIGHT in by_start[-1].signal.priorities
+    # Lane -2: unchanged legacy light
+    assert by_start[-2].signal.isTrafficLight
+    assert by_start[-2].signal.priorities == ()
