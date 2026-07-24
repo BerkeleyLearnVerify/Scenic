@@ -158,12 +158,9 @@ class OptunaParameter(ExternalParameter):
     def suggestValue(self, trial):
         pass
 
-    @property
-    def optunaName(
-        self,
-    ):
+    def optunaName(self, extra=None):
         assert self.index is not None
-        return f"{type(self)}_{self.index}"
+        return f"{type(self).__name__}_{self.index}_{extra}"
 
 
 class OptunaRange(OptunaParameter):
@@ -178,7 +175,7 @@ class OptunaRange(OptunaParameter):
 
     def suggestValue(self, sampler, value):
         return sampler.trial.suggest_float(
-            self.optunaName, value[self.low], value[self.high]
+            self.optunaName(), value[self.low], value[self.high]
         )
 
 
@@ -197,7 +194,7 @@ class OptunaDiscreteRange(OptunaParameter):
         if value[self.low] > value[self.high]:
             raise RejectionException(self.emptyMessage if self.emptyMessage else "")
         return sampler.trial.suggest_int(
-            self.optunaName, value[self.low], value[self.high]
+            self.optunaName((self.low, self.high)), value[self.low], value[self.high]
         )
 
 
@@ -213,7 +210,7 @@ class _OptunaCategoricalHelper(OptunaParameter):
         optionsNums = list(range(value[self.numOptions] + 1))
         if len(optionsNums) == 0:
             raise RejectionException(self.emptyMessage)
-        return sampler.trial.suggest_categorical(self.optunaName, optionsNums)
+        return sampler.trial.suggest_categorical(self.optunaName(), optionsNums)
 
 
 class OptunaOptions(Options):
