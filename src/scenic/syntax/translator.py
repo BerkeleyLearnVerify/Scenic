@@ -740,6 +740,8 @@ def constructScenarioFrom(namespace, scenarioName=None):
     else:
         newExternalParams = []
 
+    breakpoint()
+
     scenario.createExternalSampler(newExternalParams)
 
     return scenario
