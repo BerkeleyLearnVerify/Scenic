@@ -8,6 +8,8 @@ from scenic.core.distributions import (
     Normal,
     Options,
     Range,
+    RejectionException,
+    UniformDistribution,
     toDistribution,
 )
 from scenic.core.external_params.external_params import *
@@ -90,18 +92,26 @@ class OptunaParameterConverter(ExternalParameterConverter):
             newDist = OptunaDiscreteRange(distCond.low, distCond.high)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
-        elif isinstance(distCond, Options):
-            for o in distCond.options:
-                self.convert(o)
-            newDist = OptunaOptions(distCond.options)
-            self.registerExternalParams(newDist)
-            dist.conditionTo(newDist)
         elif isinstance(distCond, Normal):
             self.convert(distCond.stddev)
             self.convert(distCond.mean)
             newDist = Normal.cdfinv(distCond.mean, distCond.stddev, OptunaRange(-1, 1))
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
+        elif isinstance(distCond, Options):
+            for o in distCond.options:
+                self.convert(o)
+            newDist = OptunaOptions(distCond.options)
+            self.registerExternalParams(newDist)
+            dist.conditionTo(newDist)
+        elif isinstance(distCond, UniformDistribution):
+            for o in distCond.options:
+                self.convert(o)
+            newSelector = _OptunaCategoricalHelper(
+                distCond.selector.high, emptyMessage="Empty Optuna UniformDistribution."
+            )
+            self.registerExternalParams(newSelector)
+            distCond.selector.conditionTo(newSelector)
         elif (
             isinstance(distCond, PointInRegionDistribution)
             and not distCond._deterministic
@@ -191,14 +201,16 @@ class OptunaDiscreteRange(OptunaParameter):
 class _OptunaCategoricalHelper(OptunaParameter):
     _defaultValueType = int
 
-    def __init__(self, numOptions):
-        super().__init__()
+    def __init__(self, numOptions, emptyMessage):
+        super().__init__(numOptions)
         self.numOptions = numOptions
+        self.emptyMessage = emptyMessage
 
-    def suggestValue(self, sampler, _):
-        return sampler.trial.suggest_categorical(
-            self.optunaName, list(range(self.numOptions + 1))
-        )
+    def suggestValue(self, sampler, value):
+        optionsNums = list(range(value[self.numOptions] + 1))
+        if len(optionsNums) == 0:
+            raise RejectionException(self.emptyMessage)
+        return sampler.trial.suggest_categorical(self.optunaName, optionsNums)
 
 
 class OptunaOptions(Options):
@@ -208,4 +220,4 @@ class OptunaOptions(Options):
     def makeSelector(n, weights):
         if weights:
             warnings.warn("Ignoring weights passed to OptunaOptions.")
-        return _OptunaCategoricalHelper(n)
+        return _OptunaCategoricalHelper(n, emptyMessage="Empty Optuna Options.")
