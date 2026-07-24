@@ -187,12 +187,15 @@ class OptunaDiscreteRange(OptunaParameter):
 
     _defaultValueType = int
 
-    def __init__(self, low, high):
+    def __init__(self, low, high, emptyMessage=None):
         super().__init__(low, high)
         self.low = low
         self.high = high
+        self.emptyMessage
 
     def suggestValue(self, sampler, value):
+        if value[self.low] > value[self.high]:
+            raise RejectionException(self.emptyMessage if self.emptyMessage else "")
         return sampler.trial.suggest_int(
             self.optunaName, value[self.low], value[self.high]
         )
