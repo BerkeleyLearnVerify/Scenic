@@ -56,6 +56,8 @@ class VectorDistribution(Distribution):
 
 
 class VectorOperatorDistribution(VectorDistribution):
+    _deterministic = True
+
     """Vector version of OperatorDistribution."""
 
     def __init__(self, operator, obj, operands):

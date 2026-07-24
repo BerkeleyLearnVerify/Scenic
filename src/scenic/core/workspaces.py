@@ -92,6 +92,9 @@ class Workspace(Region):
     def uniformPointInner(self):
         return self.region.uniformPointInner()
 
+    def parameterizedUniformPointInner(self):
+        return self.region.parameterizedUniformPointInner()
+
     def intersect(self, other, triedReversed=False):
         return self.region.intersect(other, triedReversed)
 
@@ -125,6 +128,10 @@ class Workspace(Region):
     @property
     def AABB(self):
         return self.region.AABB
+
+    @property
+    def _sampleVals(self):
+        return self.region._sampleVals
 
     @property
     def dimensionality(self):

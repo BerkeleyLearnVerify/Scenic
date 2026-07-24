@@ -126,6 +126,7 @@ class Samplable(LazilyEvaluable):
                 props.update(requiredProperties(dep))
         super().__init__(props, deps)
         self._conditioned = self  # version (partially) conditioned on requirements
+        self._conditionTarget = False
 
     @staticmethod
     def sampleAll(quantities):
@@ -172,6 +173,8 @@ class Samplable(LazilyEvaluable):
 
     def conditionTo(self, value):
         """Condition this value to another value with the same conditional distribution."""
+        assert not self._conditionTarget, "Attempted to double condition!"
+        value._conditionTarget = True
         assert isinstance(value, Samplable)
         self._conditioned = value
 
@@ -181,6 +184,17 @@ class Samplable(LazilyEvaluable):
         # Check that all dependencies have been evaluated
         assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
         return value
+
+    def recursiveDependencies(self):
+        self = self._conditioned
+        deps = set(
+            itertools.chain.from_iterable(
+                dep.recursiveDependencies() for dep in self._dependencies
+            )
+        )
+        if isinstance(self, Distribution) and not self._deterministic:
+            deps.add(self)
+        return deps
 
 
 class ConstantSamplable(Samplable):
@@ -1076,6 +1090,7 @@ class Normal(Distribution):
         return (1 + math.erf((x - mean) / (sqrt2 * stddev))) / 2
 
     @staticmethod
+    @distributionFunction
     def cdfinv(mean, stddev, x):
         import scipy  # slow import not often needed
 
@@ -1271,7 +1286,7 @@ class DiscreteRange(Distribution):
 
     def __repr__(self):
         weights = self.weights
-        if all(weight == weights[0] for weight in weights):
+        if not weights or all(weight == weights[0] for weight in weights):
             return f"DiscreteRange({self.low!r}, {self.high!r})"
         else:
             return f"DiscreteRange({self.low!r}, {self.high!r}, {self.weights})"

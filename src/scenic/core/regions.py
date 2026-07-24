@@ -8,6 +8,7 @@ Manipulations of meshes is done using the
 """
 
 from abc import ABC, abstractmethod
+import bisect
 import itertools
 import math
 import random
@@ -79,6 +80,11 @@ from scenic.core.vectors import (
 ###################################################################################################
 
 
+# TODO: Move this somewhere else?
+def randomIndexFromVal(val, weights):
+    return bisect.bisect(weights, val * weights[-1])
+
+
 class Region(Samplable, ABC):
     """An abstract base class for Scenic Regions"""
 
@@ -91,6 +97,14 @@ class Region(Samplable, ABC):
     @abstractmethod
     def uniformPointInner(self):
         """Do the actual random sampling. Implemented by subclasses."""
+        pass
+
+    @abstractmethod
+    def parameterizedUniformPointInner(self, vals):
+        """Sample from this region deterministically, given vals. Implemented by subclasses.
+
+        vals contains at least 3 distributions in [0,1].
+        """
         pass
 
     @abstractmethod
@@ -140,6 +154,11 @@ class Region(Samplable, ABC):
     @property
     def size(self):
         return None
+
+    @property
+    @abstractmethod
+    def _sampleVals(self):
+        pass
 
     def intersects(self, other, triedReversed=False) -> bool:
         """intersects(other)
@@ -276,13 +295,19 @@ class Region(Samplable, ABC):
 class PointInRegionDistribution(VectorDistribution):
     """Uniform distribution over points in a Region"""
 
-    def __init__(self, region, tag=None):
-        super().__init__(region)
+    def __init__(self, region, tag=None, sampleVals=None):
+        super().__init__(region, sampleVals)
         self.region = region
         self.tag = tag
+        self.sampleVals = sampleVals
 
     def sampleGiven(self, value):
-        return value[self.region].uniformPointInner()
+        if self.sampleVals is None:
+            return value[self.region].uniformPointInner()
+        else:
+            return value[self.region].parameterizedUniformPointInner(
+                value[self.sampleVals]
+            )
 
     @property
     def heading(self):
@@ -304,6 +329,10 @@ class PointInRegionDistribution(VectorDistribution):
     def __repr__(self):
         return f"PointIn({self.region!r})"
 
+    @property
+    def _deterministic(self):
+        return self.sampleVals is not None
+
 
 ###################################################################################################
 # Utility Regions and Functions
@@ -323,6 +352,9 @@ class AllRegion(Region):
         return self
 
     def uniformPointInner(self):
+        raise RuntimeError(f"Attempted to sample from everywhere (AllRegion)")
+
+    def parameterizedUniformPointInner(self, vals):
         raise RuntimeError(f"Attempted to sample from everywhere (AllRegion)")
 
     def containsPoint(self, point):
@@ -346,6 +378,10 @@ class AllRegion(Region):
     @property
     def AABB(self):
         raise TypeError("AllRegion does not have a well defined AABB")
+
+    @property
+    def _sampleVals(self):
+        return (0,)
 
     @property
     def dimensionality(self):
@@ -380,6 +416,9 @@ class EmptyRegion(Region):
     def uniformPointInner(self):
         raise RejectionException(f"sampling empty Region")
 
+    def parameterizedUniformPointInner(self, vals):
+        raise RejectionException(f"sampling empty Region")
+
     def containsPoint(self, point):
         return False
 
@@ -401,6 +440,10 @@ class EmptyRegion(Region):
     @property
     def AABB(self):
         raise TypeError("EmptyRegion does not have a well defined AABB")
+
+    @property
+    def _sampleVals(self):
+        return (0,)
 
     @property
     def dimensionality(self):
@@ -492,6 +535,11 @@ class IntersectionRegion(Region):
     def AABB(self):
         raise NotImplementedError
 
+    @property
+    def _sampleVals(self):
+        raise NotImplementedError
+        return tuple(r._sampleVals for r in self.regions)
+
     @cached_property
     def footprint(self):
         return convertToFootprint(self)
@@ -502,8 +550,12 @@ class IntersectionRegion(Region):
             sampler = self.genericSampler
         return self.orient(sampler(self))
 
+    def parameterizedUniformPointInner(self, vals):
+        assert len(vals) == len(self.regions)
+        return self.orient(self.genericSampler(self, vals))
+
     @staticmethod
-    def genericSampler(intersection):
+    def genericSampler(intersection, vals=None):
         regs = intersection.regions
         # Filter out all regions with known dimensionality greater than the minimum
         known_dim_regions = [
@@ -519,7 +571,10 @@ class IntersectionRegion(Region):
 
         for reg in sampling_regions:
             try:
-                point = reg.uniformPointInner()
+                if vals is None:
+                    point = reg.uniformPointInner()
+                else:
+                    point = reg.parameterizedUniformPointInner(vals[regs.index(reg)])
             except UndefinedSamplingException:
                 num_regs_undefined += 1
                 continue
@@ -611,6 +666,11 @@ class UnionRegion(Region):
     def AABB(self):
         raise NotImplementedError
 
+    @property
+    def _sampleVals(self):
+        raise NotImplementedError
+        return (1,) + tuple(r._sampleVals for r in self.regions)
+
     @cached_property
     def footprint(self):
         return convertToFootprint(self)
@@ -621,8 +681,12 @@ class UnionRegion(Region):
             sampler = self.genericSampler
         return self.orient(sampler(self))
 
+    def parameterizedUniformPointInner(self, vals):
+        assert len(vals) == 1 + len(self.regions)
+        return self.orient(self.genericSampler(self, vals))
+
     @staticmethod
-    def genericSampler(union):
+    def genericSampler(union, vals=None):
         regs = union.regions
 
         # Check that all regions have well defined dimensionality
@@ -638,13 +702,21 @@ class UnionRegion(Region):
         # Check that all large regions have well defined size
         if any(reg.size is None or reg.size == float("inf") for reg in large_regs):
             raise UndefinedSamplingException(
-                f"cannot sample union of Regions {regs} with " "ill-defined size"
+                f"cannot sample union of Regions {regs} with ill-defined size"
             )
 
         # Pick a sample, weighted by region size
         reg_sizes = tuple(reg.size for reg in large_regs)
-        target_reg = random.choices(large_regs, weights=reg_sizes)[0]
-        point = target_reg.uniformPointInner()
+
+        if vals is None:
+            target_reg = random.choices(large_regs, weights=reg_sizes)[0]
+            point = target_reg.uniformPointInner()
+        else:
+            target_values = vals[1 + regs.index(target_reg)]
+            cum_sizes = list(itertools.accumulate(reg_sizes))
+            target_reg = large_regs[randomIndexFromVal(vals[0], cum_sizes)]
+
+            point = target_reg.parameterizedUniformPointInner(target_values)
 
         # Potentially reject based on containment of the sample
         containment_count = sum(int(reg._trueContainsPoint(point)) for reg in regs)
@@ -715,6 +787,11 @@ class DifferenceRegion(Region):
     def AABB(self):
         raise NotImplementedError
 
+    @property
+    def _sampleVals(self):
+        raise NotImplementedError
+        return self.regionA._sampleVals
+
     @cached_property
     def footprint(self):
         return convertToFootprint(self)
@@ -725,10 +802,16 @@ class DifferenceRegion(Region):
             sampler = self.genericSampler
         return self.orient(sampler(self))
 
+    def parameterizedUniformPointInner(self):
+        return self.orient(self.genericSampler(self))
+
     @staticmethod
-    def genericSampler(difference):
+    def genericSampler(difference, vals=None):
         regionA, regionB = difference.regionA, difference.regionB
-        point = regionA.uniformPointInner()
+        if vals is None:
+            point = regionA.uniformPointInner()
+        else:
+            point = regionA.parameterizedUniformPointInner(vals)
         if regionB._trueContainsPoint(point):
             raise RejectionException(
                 f"sampling difference of Regions {regionA} and {regionB}"
@@ -1781,6 +1864,16 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return Vector(*sample[0])
 
+    def parameterizedUniformPointInner(self, vals):
+        # assert len(vals) == 3
+        point = Vector(
+            *(numpy.asarray(vals[:3]) * self.mesh.extents + self.mesh.bounds[0])
+        )
+        if self.containsPoint(point):
+            return point
+        else:
+            raise RejectionException
+
     @distributionFunction
     def distanceTo(self, point):
         """Get the minimum distance from this region to the specified point."""
@@ -1841,6 +1934,10 @@ class MeshVolumeRegion(MeshRegion):
     @property
     def dimensionality(self):
         return 3
+
+    @property
+    def _sampleVals(self):
+        return (3,)
 
     @cached_property
     def size(self):
@@ -2137,6 +2234,9 @@ class MeshSurfaceRegion(MeshRegion):
     def uniformPointInner(self):
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
+    def parameterizedUniformPointInner(self, vals):
+        raise NotImplementedError  # TODO
+
     @distributionFunction
     def distanceTo(self, point):
         """Get the minimum distance from this object to the specified point."""
@@ -2151,6 +2251,10 @@ class MeshSurfaceRegion(MeshRegion):
     @property
     def dimensionality(self):
         return 2
+
+    @property
+    def _sampleVals(self):
+        return (3,)
 
     @cached_property
     def size(self):
@@ -2366,6 +2470,9 @@ class VoxelRegion(Region):
 
         return Vector(*offset_pt)
 
+    def parameterizedUniformPointInner(self, vals):
+        raise NotImplementedError()
+
     def dilation(self, iterations, structure=None):
         """Returns a dilated/eroded version of this VoxelRegion.
 
@@ -2494,6 +2601,10 @@ class VoxelRegion(Region):
         )
 
     @property
+    def _sampleVals(self):
+        return (3,)
+
+    @property
     def size(self):
         return self.voxelGrid.volume
 
@@ -2591,6 +2702,11 @@ class PolygonalFootprintRegion(Region):
             f"Attempted to sample from a PolygonalFootprintRegion, for which uniform sampling is undefined"
         )
 
+    def parameterizedUniformPointInner(self):
+        raise UndefinedSamplingException(
+            f"Attempted to sample from a PolygonalFootprintRegion, for which uniform sampling is undefined"
+        )
+
     def containsPoint(self, point):
         """Checks if a point is contained in the polygonal footprint.
 
@@ -2625,10 +2741,10 @@ class PolygonalFootprintRegion(Region):
     def containsRegionInner(self, reg, tolerance):
         buffered_polygons = self.polygons.buffer(tolerance)
 
-        if isinstance(other, MeshRegion):
+        if isinstance(reg, MeshRegion):
             return buffered_polygons.contains(reg._boundingPolygon)
 
-        if isinstance(other, (PolygonalRegion, PolygonalFootprintRegion)):
+        if isinstance(reg, (PolygonalRegion, PolygonalFootprintRegion)):
             return buffered_polygons.contains(reg.polygons)
 
         raise NotImplementedError
@@ -2657,6 +2773,10 @@ class PolygonalFootprintRegion(Region):
     @property
     def dimensionality(self):
         return 3
+
+    @property
+    def _sampleVals(self):
+        return (0,)
 
     @property
     def size(self):
@@ -2831,6 +2951,8 @@ class PathRegion(Region):
 
             self.edge_lengths.append(c1.distanceTo(c2))
 
+        self.cum_edge_lengths = tuple(itertools.accumulate(self.edge_lengths))
+
         self.tolerance = tolerance
 
         self._edgeVectorArray = numpy.asarray(
@@ -2899,14 +3021,30 @@ class PathRegion(Region):
             tuple(numpy.amax(self.vertices, axis=0)),
         )
 
-    def uniformPointInner(self):
-        # Pick an edge, weighted by length, and extract its two points
-        edge = random.choices(population=self.edges, weights=self.edge_lengths, k=1)[0]
-        v1, v2 = edge
-        c1, c2 = self.vert_to_vec[v1], self.vert_to_vec[v2]
+    @property
+    def _sampleVals(self):
+        return (1,)
 
+    def uniformPointInner(self):
+        return self.parameterizedUniformPointInner([random.random()])
+
+    def parameterizedUniformPointInner(self, vals):
+        # assert len(vals) == 1
+
+        # Pick a random length along the path, and sample the point at that distance along the path.
+        length_along = vals[0] * self.cum_edge_lengths[-1]
+        edge_i = randomIndexFromVal(vals[0], self.cum_edge_lengths)
+        edge_dist = (
+            length_along
+            if edge_i == 0
+            else length_along - self.cum_edge_lengths[edge_i - 1]
+        )
+        edge_fraction = edge_dist / self.edge_lengths[edge_i]
+
+        v1, v2 = self.edges[edge_i]
+        c1, c2 = self.vert_to_vec[v1], self.vert_to_vec[v2]
         # Sample uniformly from the line segment
-        sampled_pt = c1 + random.uniform(0, 1) * (c2 - c1)
+        sampled_pt = c1 + edge_fraction * (c2 - c1)
 
         return sampled_pt
 
@@ -2916,7 +3054,7 @@ class PathRegion(Region):
 
     @cached_property
     def size(self):
-        return sum(self.edge_lengths)
+        return self.cum_edge_lengths[-1]
 
 
 ###################################################################################################
@@ -3051,6 +3189,19 @@ class PolygonalRegion(Region):
             x, y = random.uniform(minx, maxx), random.uniform(miny, maxy)
             if shapely.intersects_xy(triangle, x, y):
                 return self.orient(Vector(x, y, self.z))
+
+    def parameterizedUniformPointInner(self, vals):
+        # assert len(vals) == 3
+
+        trisAndBounds, cumulativeAreas = self._samplingData
+        triangle, bounds = trisAndBounds[randomIndexFromVal(vals[0], cumulativeAreas)]
+        minx, miny, maxx, maxy = bounds
+
+        x, y = minx + vals[1] * (maxx - minx), miny + vals[2] * (maxy - miny)
+        if shapely.intersects_xy(triangle, x, y):
+            return self.orient(Vector(x, y, self.z))
+        else:
+            raise RejectionException
 
     @distributionFunction
     def intersects(self, other, triedReversed=False):
@@ -3216,6 +3367,10 @@ class PolygonalRegion(Region):
     def AABB(self):
         xmin, ymin, xmax, ymax = self.polygons.bounds
         return ((xmin, ymin, self.z), (xmax, ymax, self.z))
+
+    @property
+    def _sampleVals(self):
+        return (3,)
 
     @distributionFunction
     def buffer(self, amount):
@@ -3703,15 +3858,17 @@ class PolylineRegion(Region):
         return start.angleTo(end)
 
     def uniformPointInner(self):
-        pointA, pointB = random.choices(
-            self.segments, cum_weights=self.cumulativeLengths
-        )[0]
-        interpolation = random.random()
-        x, y = averageVectors(pointA, pointB, weight=interpolation)
+        return self.parameterizedUniformPointInner([random.random()])
+
+    def parameterizedUniformPointInner(self, vals):
+        # assert len(vals) == 1
+
+        pt = self.pointAlongBy(vals[0], normalized=True)
+
         if self._usingDefaultOrientation:
-            return OrientedVector(x, y, 0, headingOfSegment(pointA, pointB))
+            return OrientedVector(pt.x, pt.y, 0, self.defaultOrientation(pt))
         else:
-            return self.orient(Vector(x, y, 0))
+            return self.orient(pt)
 
     def containsRegionInner(self, other, tolerance):
         poly = toPolygon(other)
@@ -3865,6 +4022,10 @@ class PolylineRegion(Region):
         xmin, ymin, xmax, ymax = self.lineString.bounds
         return ((xmin, ymin, 0), (xmax, ymax, 0))
 
+    @property
+    def _sampleVals(self):
+        return (1,)
+
     def show(self, plt, style="r-", **kwargs):
         plotPolygon(self.lineString, plt, style=style, **kwargs)
 
@@ -3960,7 +4121,11 @@ class PointSetRegion(Region):
         self.tolerance = tolerance
 
     def uniformPointInner(self):
-        i = random.randrange(0, len(self.points))
+        return self.parameterizedUniformPointInner([random.random()])
+
+    def parameterizedUniformPointInner(self, vals):
+        # assert len(vals) == 1
+        i = int(vals[0] * len(self.points))
         return self.orient(Vector(*self.points[i]))
 
     def intersects(self, other, triedReversed=False):
@@ -4031,6 +4196,10 @@ class PointSetRegion(Region):
             tuple(numpy.amin(self.points, axis=0)),
             tuple(numpy.amax(self.points, axis=0)),
         )
+
+    @property
+    def _sampleVals(self):
+        return (1,)
 
     def __eq__(self, other):
         if type(other) is not PointSetRegion:

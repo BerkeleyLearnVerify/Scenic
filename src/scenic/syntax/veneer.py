@@ -34,6 +34,7 @@ __all__ = (
     "record_final",
     "sin",
     "cos",
+    "tan",
     "hypot",
     "max",
     "min",
@@ -127,6 +128,12 @@ __all__ = (
     "VerifaiRange",
     "VerifaiDiscreteRange",
     "VerifaiOptions",
+    "VerifaiSampler",
+    "OptunaRange",
+    "OptunaDiscreteRange",
+    "OptunaParameter",
+    "OptunaOptions",
+    "OptunaSampler",
     "TimeSeries",
     "File",
     "Files",
@@ -208,14 +215,22 @@ from scenic.core.dynamics.guards import (
 )
 from scenic.core.dynamics.invocables import BlockConclusion, runTryInterrupt
 from scenic.core.dynamics.scenarios import DynamicScenario
-from scenic.core.external_params import (
-    TimeSeries,
+from scenic.core.external_params import TimeSeries
+from scenic.core.external_params.optuna import (
+    OptunaDiscreteRange,
+    OptunaOptions,
+    OptunaParameter,
+    OptunaRange,
+    OptunaSampler,
+)
+from scenic.core.external_params.verifai import (
     VerifaiDiscreteRange,
     VerifaiOptions,
     VerifaiParameter,
     VerifaiRange,
+    VerifaiSampler,
 )
-from scenic.core.geometry import cos, hypot, max, min, sin
+from scenic.core.geometry import cos, hypot, max, min, sin, tan
 from scenic.core.object_types import Mutator, Object, OrientedPoint, Point
 from scenic.core.regions import (
     BoxRegion,

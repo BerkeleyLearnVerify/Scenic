@@ -289,9 +289,7 @@ class Scenario(_ScenarioPickleMixin):
         self.egoObject = egoObject
         self.params = dict(params)
         self.externalParams = tuple(externalParams)
-        self.externalSampler = ExternalSampler.forParameters(
-            self.externalParams, self.params
-        )
+        self.externalSampler = None
         self.monitors = tuple(monitors)
         self.behaviorNamespaces = behaviorNamespaces
         self.dynamicScenario = dynamicScenario
@@ -328,6 +326,15 @@ class Scenario(_ScenarioPickleMixin):
     def setSampleChecker(self, checker):
         self.checker = checker
         self.checker.setRequirements(self.defaultRequirements + self.userRequirements)
+
+    def createExternalSampler(self, externalParams):
+        assert self.externalSampler is None
+        self.externalParams += tuple(
+            p for p in set(externalParams) if p not in self.externalParams
+        )
+        self.externalSampler = ExternalSampler.forParameters(
+            self.externalParams, self.params
+        )
 
     def containerOfObject(self, obj):
         if hasattr(obj, "regionContainedIn") and obj.regionContainedIn is not None:

@@ -29,6 +29,11 @@ def cos(x) -> float:
     return math.cos(x)
 
 
+@distributionFunction
+def tan(x) -> float:
+    return math.tan(x)
+
+
 @monotonicDistributionFunction
 def hypot(*args) -> float:
     return math.hypot(*args)

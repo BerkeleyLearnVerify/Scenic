@@ -29,16 +29,19 @@ import importlib.abc
 import importlib.util
 import inspect
 import io
+import itertools
 import os
 import sys
 import time
 import types
 from typing import Optional
+import warnings
 
-from scenic.core.distributions import RejectionException, toDistribution
+from scenic.core.distributions import Distribution, RejectionException, toDistribution
 from scenic.core.dynamics.scenarios import DynamicScenario
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, PythonCompileError
+from scenic.core.external_params import ExternalParameter, ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.pruning as pruning
 from scenic.core.serialization import deterministicHash
@@ -702,5 +705,41 @@ def constructScenarioFrom(namespace, scenarioName=None):
 
     # Validate scenario
     scenario.validate()
+
+    # Convert distributions to ExternalParameters if requested, and create
+    # the external sampler.
+    if scenario.params.get("convertDistributions", False):
+        from scenic.core.external_params.verifai import VerifaiSampler
+
+        externalParamConverter = scenario.params.get(
+            "externalSampler", VerifaiSampler
+        ).getExternalParameterConverter()
+
+        for dep in scenario.dependencies:
+            externalParamConverter.convert(dep)
+            print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
+
+        ## DEBUG ##
+        test = {
+            d
+            for dep in scenario.dependencies
+            for d in dep.recursiveDependencies()
+            if (
+                isinstance(d, Distribution)
+                and not d._conditioned._deterministic
+                and not isinstance(d._conditioned, ExternalParameter)
+            )
+        }
+        for d in test:
+            print()
+            print(type(d))
+            print(d)
+            print()
+
+        newExternalParams = externalParamConverter.externalParams
+    else:
+        newExternalParams = []
+
+    scenario.createExternalSampler(newExternalParams)
 
     return scenario
