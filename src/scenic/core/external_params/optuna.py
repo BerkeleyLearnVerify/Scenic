@@ -104,14 +104,16 @@ class OptunaParameterConverter(ExternalParameterConverter):
             newDist = OptunaOptions(distCond.options)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
-        # elif isinstance(distCond, UniformDistribution):
-        #     for o in distCond.options:
-        #         self.convert(o)
-        #     newSelector = _OptunaCategoricalHelper(
-        #         distCond.selector.high, emptyMessage="Empty Optuna UniformDistribution."
-        #     )
-        #     self.registerExternalParams(newSelector)
-        #     distCond.selector.conditionTo(newSelector)
+        elif isinstance(distCond, UniformDistribution):
+            for o in distCond.options:
+                self.convert(o)
+            newSelector = OptunaDiscreteRange(
+                0,
+                distCond.selector.high,
+                emptyMessage="Empty Optuna UniformDistribution.",
+            )
+            self.registerExternalParams(newSelector)
+            distCond.selector.conditionTo(newSelector)
         elif (
             isinstance(distCond, PointInRegionDistribution)
             and not distCond._deterministic
