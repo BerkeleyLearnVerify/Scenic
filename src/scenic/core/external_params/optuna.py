@@ -125,8 +125,8 @@ class OptunaParameterConverter(ExternalParameterConverter):
             #         return toDistribution(tuple(OptunaRange(0,1) for _ in range(dims)))
             #     else:
             #         assert False, dims
-
             # sampleVals = makeSampleVals(dist.region._sampleVals)
+
             sampleVals = toDistribution(tuple(OptunaRange(0, 1) for _ in range(3)))
             self.registerExternalParams(sampleVals)
             newDist = PointInRegionDistribution(
