@@ -66,13 +66,13 @@ class OptunaSampler(ExternalSampler):
 
         return self.study.ask()
 
-    def valueFor(self, param):
+    def valueFor(self, param, value):
         if param.isTimeSeries:
             raise ValueError(
                 "OptunaSampler does currently support timeSeries parameters."
             )
 
-        return param.suggestValue(self)
+        return param.suggestValue(self, value)
 
 
 class OptunaParameterConverter(ExternalParameterConverter):
@@ -131,9 +131,18 @@ class OptunaParameterConverter(ExternalParameterConverter):
 
 
 class OptunaParameter(ExternalParameter):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.index = None
+
+    def sampleGiven(self, value):
+        """Specialization of  `Samplable.sampleGiven` for external parameters.
+
+        By default, this method simply looks up the value previously sampled by
+        `ExternalSampler.sample`.
+        """
+        assert self.sampler is not None
+        return self.sampler.valueFor(self, value)
 
     @abstractmethod
     def suggestValue(self, trial):
@@ -153,12 +162,14 @@ class OptunaRange(OptunaParameter):
     _defaultValueType = float
 
     def __init__(self, low, high):
-        super().__init__()
+        super().__init__(low, high)
         self.low = low
         self.high = high
 
-    def suggestValue(self, sampler):
-        return sampler.trial.suggest_float(self.optunaName, self.low, self.high)
+    def suggestValue(self, sampler, value):
+        return sampler.trial.suggest_float(
+            self.optunaName, value[self.low], value[self.high]
+        )
 
 
 class OptunaDiscreteRange(OptunaParameter):
@@ -167,12 +178,14 @@ class OptunaDiscreteRange(OptunaParameter):
     _defaultValueType = int
 
     def __init__(self, low, high):
-        super().__init__()
+        super().__init__(low, high)
         self.low = low
         self.high = high
 
-    def suggestValue(self, sampler):
-        return sampler.trial.suggest_int(self.optunaName, self.low, self.high)
+    def suggestValue(self, sampler, value):
+        return sampler.trial.suggest_int(
+            self.optunaName, value[self.low], value[self.high]
+        )
 
 
 class _OptunaCategoricalHelper(OptunaParameter):
@@ -182,7 +195,7 @@ class _OptunaCategoricalHelper(OptunaParameter):
         super().__init__()
         self.numOptions = numOptions
 
-    def suggestValue(self, sampler):
+    def suggestValue(self, sampler, _):
         return sampler.trial.suggest_categorical(
             self.optunaName, list(range(self.numOptions + 1))
         )

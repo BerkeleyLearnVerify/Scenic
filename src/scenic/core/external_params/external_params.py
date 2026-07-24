@@ -191,8 +191,8 @@ class ExternalSampler:
 class ExternalParameter(Distribution):
     """A value determined by external code rather than Scenic's internal sampler."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.sampler = None
         self.isTimeSeries = False
         import scenic.syntax.veneer as veneer  # TODO improve?
