@@ -215,7 +215,7 @@ from scenic.core.dynamics.guards import (
 )
 from scenic.core.dynamics.invocables import BlockConclusion, runTryInterrupt
 from scenic.core.dynamics.scenarios import DynamicScenario
-from scenic.core.external_params.external_params import TimeSeries
+from scenic.core.external_params import TimeSeries
 from scenic.core.external_params.optuna import (
     OptunaDiscreteRange,
     OptunaOptions,
