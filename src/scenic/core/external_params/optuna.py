@@ -191,7 +191,7 @@ class OptunaDiscreteRange(OptunaParameter):
         super().__init__(low, high)
         self.low = low
         self.high = high
-        self.emptyMessage
+        self.emptyMessage = emptyMessage
 
     def suggestValue(self, sampler, value):
         if value[self.low] > value[self.high]:
