@@ -41,7 +41,6 @@ from scenic.core.distributions import Distribution, RejectionException, toDistri
 from scenic.core.dynamics.scenarios import DynamicScenario
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, PythonCompileError
-from scenic.core.external_params import ExternalParameter, ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.pruning as pruning
 from scenic.core.serialization import deterministicHash
@@ -709,6 +708,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
     # Convert distributions to ExternalParameters if requested, and create
     # the external sampler.
     if scenario.params.get("convertDistributions", False):
+        from scenic.core.external_params import ExternalParameter
         from scenic.core.external_params.verifai import VerifaiSampler
 
         externalParamConverter = scenario.params.get(
