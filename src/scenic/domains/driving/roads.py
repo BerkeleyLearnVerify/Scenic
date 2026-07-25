@@ -893,13 +893,25 @@ class Signal:
 
     @property
     def isStop(self) -> bool:
-        """Whether or not this signal is a stop sign (semantics only)."""
-        return self.hasPriority(SignalPriorityType.STOP)
+        """Whether or not this signal is a stop sign.
+
+        Uses ``priorities`` when present; otherwise falls back to the legacy
+        OpenDRIVE Signal Reference type code ``206``.
+        """
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.STOP)
+        return self.type == "206"
 
     @property
     def isYield(self) -> bool:
-        """Whether or not this signal is a yield sign (semantics only)."""
-        return self.hasPriority(SignalPriorityType.YIELD)
+        """Whether or not this signal is a yield sign.
+
+        Uses ``priorities`` when present; otherwise falls back to the legacy
+        OpenDRIVE Signal Reference type code ``205``.
+        """
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.YIELD)
+        return self.type == "205"
 
     @property
     def isStopLine(self) -> bool:
