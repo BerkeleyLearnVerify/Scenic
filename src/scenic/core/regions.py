@@ -3181,27 +3181,36 @@ class PolygonalRegion(Region):
         return trianglesAndBounds, cumulativeTriangleAreas
 
     def uniformPointInner(self):
-        trisAndBounds, cumulativeAreas = self._samplingData
-        triangle, bounds = random.choices(trisAndBounds, cum_weights=cumulativeAreas)[0]
-        minx, miny, maxx, maxy = bounds
-        # TODO improve?
-        while True:
-            x, y = random.uniform(minx, maxx), random.uniform(miny, maxy)
-            if shapely.intersects_xy(triangle, x, y):
-                return self.orient(Vector(x, y, self.z))
+        return self.parameterizedUniformPointInner(
+            tuple(random.random() for _ in range(3))
+        )
+        # trisAndBounds, cumulativeAreas = self._samplingData
+        # triangle, bounds = random.choices(trisAndBounds, cum_weights=cumulativeAreas)[0]
+        # minx, miny, maxx, maxy = bounds
+        # # TODO improve?
+        # while True:
+        #     x, y = random.uniform(minx, maxx), random.uniform(miny, maxy)
+        #     if shapely.intersects_xy(triangle, x, y):
+        #         return self.orient(Vector(x, y, self.z))
 
     def parameterizedUniformPointInner(self, vals):
         # assert len(vals) == 3
 
         trisAndBounds, cumulativeAreas = self._samplingData
-        triangle, bounds = trisAndBounds[randomIndexFromVal(vals[0], cumulativeAreas)]
-        minx, miny, maxx, maxy = bounds
+        triangle, _ = trisAndBounds[randomIndexFromVal(vals[0], cumulativeAreas)]
 
-        x, y = minx + vals[1] * (maxx - minx), miny + vals[2] * (maxy - miny)
-        if shapely.intersects_xy(triangle, x, y):
-            return self.orient(Vector(x, y, self.z))
-        else:
-            raise RejectionException
+        # Pick a point in the parallelogram of this triangle and its reflection
+        p1, p2, p3 = [Vector(*p) for p in triangle.exterior.coords[:3]]
+        v1 = p2 - p1
+        v2 = p3 - p1
+        pt = p1 + vals[1] * v1 + vals[2] * v2
+
+        # If the point is in the triangle's reflection, reflect it back.
+        if not triangle.contains(toShapely(pt)):
+            midpoint = (p3 + p2) / 2
+            pt = pt + 2 * (midpoint - pt)
+
+        return self.orient(Vector(pt.x, pt.y, self.z))
 
     @distributionFunction
     def intersects(self, other, triedReversed=False):
