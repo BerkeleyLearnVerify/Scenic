@@ -52,11 +52,11 @@ def sideTarget(center, clearance=0.0):
         center[2] - PICK_APPROACH_AXIS[2] * clearance,
     )
 
-behavior UR5eSidePickPlace(target_object, place_pos):
+behavior UR5eSidePickPlace(targetObject, place_pos):
     pick_center = (
-        target_object.x,
-        target_object.y,
-        target_object.z + sideGraspZBias,
+        targetObject.x,
+        targetObject.y,
+        targetObject.z + sideGraspZBias,
     )
     release_center = (
         place_pos[0],
@@ -122,7 +122,7 @@ behavior UR5eSidePickPlace(target_object, place_pos):
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
-    with arm_max_velocities armMaxVelocities,
+    with armMaxVelocities armMaxVelocities,
     with behavior UR5eSidePickPlace(
         cube,
         place_pos,

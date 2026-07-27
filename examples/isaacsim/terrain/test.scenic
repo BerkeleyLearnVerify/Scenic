@@ -18,5 +18,5 @@ param slope = VerifaiRange(0.3, 0.8)
 stairs_terrain = new PyramidStairsTerrain at (0, 0, 0),
                  with width 20,
                  with length 20,
-                 with step_width 0.2,
-                 with step_height 0.1
+                 with stepWidth 0.2,
+                 with stepHeight 0.1

@@ -7,7 +7,7 @@ import trimesh
 from scenic.core.regions import MeshVolumeRegion
 from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 from scenic.core.vectors import Vector
-from scenic.simulators.isaac.backends import get_backend
+from scenic.simulators.isaac.backends import getBackend
 import scenic.simulators.isaac.utils as utils
 
 
@@ -37,8 +37,8 @@ class IsaacSimSimulator(Simulator):
     def __init__(self, headless=False, environmentUSDPath=None, backend=None):
         super().__init__()
 
-        self.backend = get_backend(backend)
-        self.client = self.backend.get_simulation_app(headless=headless)
+        self.backend = getBackend(backend)
+        self.client = self.backend.getSimulationApp(headless=headless)
         self.environmentUSDPath = environmentUSDPath
         self.headless = headless
 
@@ -54,7 +54,7 @@ class IsaacSimSimulator(Simulator):
 
     def destroy(self):
         super().destroy()
-        self.backend.close_simulation_app(self.client)
+        self.backend.closeSimulationApp(self.client)
 
 
 class IsaacSimSimulation(Simulation):
@@ -70,7 +70,7 @@ class IsaacSimSimulation(Simulation):
         **kwargs,
     ):
         self.backend = backend
-        self.backend.enable_extension("omni.kit.asset_converter")
+        self.backend.enableExtension("omni.kit.asset_converter")
 
         timestep = 1.0 / 60.0 if timestep is None else timestep
         self.client = client
@@ -80,22 +80,22 @@ class IsaacSimSimulation(Simulation):
         self.tmpMeshDir = tempfile.mkdtemp()
 
         if self.environmentUSDPath:
-            self.load_environment_stage()
+            self.loadEnvironmentStage()
 
-        self.world = self.backend.create_world(timestep)
+        self.world = self.backend.createWorld(timestep)
 
         super().__init__(scene, timestep=timestep, **kwargs)
 
-    def environment_usd_path(self):
+    def environmentUsdPath(self):
         source = os.fspath(self.environmentUSDPath)
         if source.startswith("Isaac/"):
-            return self.backend.asset_path(source)
+            return self.backend.assetPath(source)
         if urlparse(source).scheme:
             return source
         return os.path.abspath(source)
 
-    def load_environment_stage(self):
-        usd_path = self.environment_usd_path()
+    def loadEnvironmentStage(self):
+        usd_path = self.environmentUsdPath()
 
         if not urlparse(usd_path).scheme:
             if not os.path.isfile(usd_path):
@@ -108,7 +108,7 @@ class IsaacSimSimulation(Simulation):
                 )
 
         try:
-            opened = self.backend.open_environment_stage(usd_path)
+            opened = self.backend.openEnvironmentStage(usd_path)
         except Exception as exc:
             raise SimulationCreationError(
                 f"Unable to open Isaac Sim environment USD {usd_path!r}"
@@ -122,10 +122,10 @@ class IsaacSimSimulation(Simulation):
     def setup(self):
         super().setup()
 
-        self.backend.setup_lighting(self.headless)
-        self.backend.update_app(self.client)
-        self.backend.initialize_physics(self.world, self.objects)
-        self.backend.update_app(self.client)
+        self.backend.setupLighting(self.headless)
+        self.backend.updateApp(self.client)
+        self.backend.initializePhysics(self.world, self.objects)
+        self.backend.updateApp(self.client)
 
         from scenic.simulators.isaac.utils import setCollidersExistingObj
 
@@ -134,10 +134,10 @@ class IsaacSimSimulation(Simulation):
         # according to the USD schema
         setCollidersExistingObj(verbose=True)
 
-        self.backend.play_world(self.world)
+        self.backend.playWorld(self.world)
 
     def step(self):
-        self.backend.step_world(self.world)
+        self.backend.stepWorld(self.world)
 
     def createObjectInSimulator(self, obj):
         if (
@@ -149,11 +149,11 @@ class IsaacSimSimulation(Simulation):
                 mesh=obj.shape.mesh,
                 dimensions=(obj.width, obj.length, obj.height),
             ).mesh
-            objectObjMesh = utils.mesh_to_obj_frame(objectScaledMesh)
+            objectObjMesh = utils.meshToObjFrame(objectScaledMesh)
             obj_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.obj")
             usd_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.usd")
             trimesh.exchange.export.export_mesh(objectObjMesh, obj_file_path)
-            success = self.backend.convert_sync(
+            success = self.backend.convertSync(
                 obj_file_path, usd_file_path, load_materials=True
             )
             if not success:
@@ -167,7 +167,7 @@ class IsaacSimSimulation(Simulation):
             return
 
         try:
-            self.backend.add_object(self.world, isaac_sim_obj, scenic_obj=obj)
+            self.backend.addObject(self.world, isaac_sim_obj, scenic_obj=obj)
         except Exception as exc:
             raise SimulationCreationError(f"Unable to add {obj.name} to world") from exc
 
@@ -175,7 +175,7 @@ class IsaacSimSimulation(Simulation):
         if not obj.physics:
             return {prop: getattr(obj, prop) for prop in properties}
 
-        raw = self.backend.get_physics_properties(self.world, obj)
+        raw = self.backend.getPhysicsProperties(self.world, obj)
         return dict(
             position=Vector(*raw["position"]),
             velocity=Vector(*raw["velocity"]),
@@ -189,6 +189,6 @@ class IsaacSimSimulation(Simulation):
 
     def destroy(self):
         if self.world is not None:
-            self.backend.stop_and_clear_world(self.world)
-            self.backend.release_world(self.world)
+            self.backend.stopAndClearWorld(self.world)
+            self.backend.releaseWorld(self.world)
             self.world = None

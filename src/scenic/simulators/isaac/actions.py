@@ -2,7 +2,7 @@ from scenic.core.simulators import Action
 
 
 class ManipulatorTimeout(Exception):
-    """Raised when a manipulator end-effector move does not converge within max_steps."""
+    """Raised when a manipulator end-effector move does not converge within maxSteps."""
 
 
 class _WheeledRobot:
@@ -35,7 +35,7 @@ class RobotAction(Action):
         return isinstance(agent, _Robot)
 
 
-class applyController(RobotAction):
+class ApplyControllerAction(RobotAction):
 
     def __init__(self, command):
         self.command = command
@@ -44,27 +44,27 @@ class applyController(RobotAction):
         obj.move(sim, self.command)
 
 
-class applyPickPlaceController(ManipulatorRobotAction):
+class ApplyPickPlaceControllerAction(ManipulatorRobotAction):
 
     def __init__(
         self,
-        target_object,
-        goal_position,
-        end_effector_offset=None,
-        end_effector_orientation=None,
+        targetObject,
+        goalPosition,
+        endEffectorOffset=None,
+        endEffectorOrientation=None,
     ):
-        self.target_object = target_object
-        self.goal_position = goal_position
-        self.end_effector_offset = end_effector_offset
-        self.end_effector_orientation = end_effector_orientation
+        self.targetObject = targetObject
+        self.goalPosition = goalPosition
+        self.endEffectorOffset = endEffectorOffset
+        self.endEffectorOrientation = endEffectorOrientation
 
     def applyTo(self, obj, sim):
         obj.move(
             sim,
-            self.target_object,
-            self.goal_position,
-            self.end_effector_offset,
-            self.end_effector_orientation,
+            self.targetObject,
+            self.goalPosition,
+            self.endEffectorOffset,
+            self.endEffectorOrientation,
         )
 
 
@@ -87,33 +87,33 @@ class MoveToEEPoseAction(ManipulatorRobotAction):
         self.orientation = orientation
 
     def applyTo(self, obj, sim):
-        obj.move_to_pose(sim, self.position, self.orientation)
+        obj.moveToPose(sim, self.position, self.orientation)
 
 
 class SetArmJointPoseAction(ManipulatorRobotAction):
     """Command explicit arm joint position targets."""
 
-    def __init__(self, joint_positions):
-        self.joint_positions = joint_positions
+    def __init__(self, jointPositions):
+        self.jointPositions = jointPositions
 
     def applyTo(self, obj, sim):
-        obj.set_joint_positions(sim, self.joint_positions)
+        obj.setJointPositions(sim, self.jointPositions)
 
 
 class OpenGripperAction(ManipulatorRobotAction):
 
     def applyTo(self, obj, sim):
-        obj.set_gripper(sim, True)
+        obj.setGripper(sim, True)
 
 
 class CloseGripperAction(ManipulatorRobotAction):
 
     def applyTo(self, obj, sim):
-        obj.set_gripper(sim, False)
+        obj.setGripper(sim, False)
 
 
 class HoldPositionAction(ManipulatorRobotAction):
     """Hold the current arm targets so the arm settles in place."""
 
     def applyTo(self, obj, sim):
-        obj.hold_position(sim)
+        obj.holdPosition(sim)

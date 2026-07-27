@@ -10,7 +10,7 @@ ego = new IsaacSimObject at (-1, 0, 10), with shape ConeShape(),
 
 chair = new IsaacSimObject at (4,0,2),
             with shape MeshShape.fromFile(localPath("../../assets/meshes/chair.obj.bz2"),
-                initial_rotation=(0,90 deg,0), dimensions=(1,1,1)), with physics False,
+                initialRotation=(0,90 deg,0), dimensions=(1,1,1)), with physics False,
             with color (1, 0, 0)
 
 plane_shape = MeshShape.fromFile(path=localPath("../../assets/meshes/classic_plane.obj.bz2"), initial_rotation=(-90 deg, 0, 0))

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import numpy as np
 
 
-def remove_ground_plane(file_path, output_path):
+def removeGroundPlane(file_path, output_path):
     from pxr import Usd
 
     stage = Usd.Stage.Open(file_path)
@@ -17,7 +17,7 @@ def remove_ground_plane(file_path, output_path):
     stage.GetRootLayer().Export(output_path)
 
 
-def compute_bbox(prim):
+def computeBbox(prim):
     from pxr import Usd, UsdGeom
 
     imageable = UsdGeom.Imageable(prim)
@@ -26,7 +26,7 @@ def compute_bbox(prim):
     return bound.ComputeAlignedBox()
 
 
-def flatten_usd(file_path, output_path):
+def flattenUsd(file_path, output_path):
     from pxr import Usd
 
     stage = Usd.Stage.Open(file_path)
@@ -36,7 +36,7 @@ def flatten_usd(file_path, output_path):
     flattened_layer.Export(output_path)
 
 
-def decompose_matrix(mat):
+def decomposeMatrix(mat):
     from pxr import Gf
 
     reversed_ident_mtx = reversed(Gf.Matrix3d())
@@ -47,7 +47,7 @@ def decompose_matrix(mat):
     return translate, rotate, scale
 
 
-def compute_bbox(prim):
+def computeBbox(prim):
     from pxr import Usd, UsdGeom
 
     cache = UsdGeom.BBoxCache(
@@ -58,7 +58,7 @@ def compute_bbox(prim):
     return cache.ComputeWorldBound(prim).ComputeAlignedBox()
 
 
-def compute_local_mesh_bbox(prim):
+def computeLocalMeshBbox(prim):
     from pxr import UsdGeom
 
     mesh = UsdGeom.Mesh(prim)
@@ -76,11 +76,11 @@ def compute_local_mesh_bbox(prim):
     return local_min, local_max, local_center, local_size
 
 
-def vec3_to_list(vec):
+def vec3ToList(vec):
     return [float(vec[0]), float(vec[1]), float(vec[2])]
 
 
-def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
+def getMeshInfo(usd_path, output_path, info_path, open_stage_func=None):
     import omni
     from pxr import Usd, UsdGeom
 
@@ -107,18 +107,18 @@ def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
         parent_path = prim_path.GetParentPath()
         new_path = parent_path.AppendChild(new_name)
 
-        bbox = compute_bbox(prim)
+        bbox = computeBbox(prim)
 
         world_min = bbox.GetMin()
         world_max = bbox.GetMax()
         world_center = (world_min + world_max) * 0.5
         world_size = world_max - world_min
 
-        local_min, local_max, local_center, local_size = compute_local_mesh_bbox(prim)
+        local_min, local_max, local_center, local_size = computeLocalMeshBbox(prim)
 
         xformable = UsdGeom.Xformable(prim)
         matrix = xformable.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
-        _, rot, scale = decompose_matrix(matrix)
+        _, rot, scale = decomposeMatrix(matrix)
 
         scale_np = np.abs(np.array(scale, dtype=float))
         local_size_scaled = np.array(local_size, dtype=float) * scale_np
@@ -157,13 +157,13 @@ def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
         transforms[new_name] = {
             "full_path": prim_path,
             "orientation": np.array(rot).tolist(),
-            "position": vec3_to_list(world_center),
-            "world_bbox_center": vec3_to_list(world_center),
-            "world_bbox_min": vec3_to_list(world_min),
-            "world_bbox_max": vec3_to_list(world_max),
-            "world_bbox_size": vec3_to_list(world_size),
+            "position": vec3ToList(world_center),
+            "world_bbox_center": vec3ToList(world_center),
+            "world_bbox_min": vec3ToList(world_min),
+            "world_bbox_max": vec3ToList(world_max),
+            "world_bbox_size": vec3ToList(world_size),
             # This is used for the dimensions parameter in MeshShape(..., dimensions=...).
-            "usd_dimensions": vec3_to_list(local_size_scaled),
+            "usd_dimensions": vec3ToList(local_size_scaled),
         }
 
     omni.usd.get_context().save_as_stage(output_path)
@@ -174,7 +174,7 @@ def get_mesh_info(usd_path, output_path, info_path, open_stage_func=None):
     print(f"---Added {info_path}")
 
 
-def validate_gltf_geometry(gltf_path):
+def validateGltfGeometry(gltf_path):
     with open(gltf_path, "r") as in_file:
         gltf = json.load(in_file)
 
@@ -188,11 +188,11 @@ def validate_gltf_geometry(gltf_path):
     )
 
 
-def converted_dir_for_folder(folder):
+def convertedDirForFolder(folder):
     return os.path.join(folder, "_converted")
 
 
-def convert_environment_usd(
+def convertEnvironmentUsd(
     usd_path,
     gltf_path,
     info_path,
@@ -214,29 +214,29 @@ def convert_environment_usd(
     model_name = Path(parsed.path if parsed.scheme else usd_path).stem or "environment"
 
     flattened_usd = os.path.join(tmp_dir, f"{model_name}_flattened.usd")
-    flatten_usd(usd_path, flattened_usd)
+    flattenUsd(usd_path, flattened_usd)
 
     renamed_usd = os.path.join(tmp_dir, f"{model_name}_renamed.usd")
-    get_mesh_info(flattened_usd, renamed_usd, info_path, open_stage_func=open_stage_func)
+    getMeshInfo(flattened_usd, renamed_usd, info_path, open_stage_func=open_stage_func)
 
     if overwrite or not os.path.exists(gltf_path):
-        from scenic.simulators.isaac.backends import get_backend
+        from scenic.simulators.isaac.backends import getBackend
 
-        status = get_backend(backend_name).convert_sync(
+        status = getBackend(backend_name).convertSync(
             renamed_usd, gltf_path, load_materials=load_materials
         )
         if not status:
             raise RuntimeError(f"failed to convert environment USD to GLTF: {usd_path}")
         print(f"---Added {gltf_path}")
 
-    validate_gltf_geometry(gltf_path)
+    validateGltfGeometry(gltf_path)
 
 
-def asset_convert(args):
+def assetConvert(args):
     import omni.client
 
     for folder in args.folders:
-        local_asset_output = converted_dir_for_folder(folder)
+        local_asset_output = convertedDirForFolder(folder)
         omni.client.create_folder(f"{local_asset_output}")
 
     tmp_dir = tempfile.mkdtemp()
@@ -261,28 +261,28 @@ def asset_convert(args):
             input_model_path = folder + "/" + model
             if model in args.environments:
                 flattened_usd = os.path.join(tmp_dir, f"{model_name}_flattened.usd")
-                flatten_usd(input_model_path, flattened_usd)
+                flattenUsd(input_model_path, flattened_usd)
                 renamed_usd = os.path.join(tmp_dir, f"{model_name}_renamed.usd")
                 info_path = os.path.join(local_asset_output, f"{model_name}_info.json")
-                get_mesh_info(flattened_usd, renamed_usd, info_path)
+                getMeshInfo(flattened_usd, renamed_usd, info_path)
                 input_model_path = renamed_usd
             else:
                 usd_without_ground = os.path.join(tmp_dir, f"{model}.usd")
-                remove_ground_plane(input_model_path, usd_without_ground)
+                removeGroundPlane(input_model_path, usd_without_ground)
                 input_model_path = usd_without_ground
 
             converted_model_path = os.path.join(
                 local_asset_output, f"{model_name}_{model_format}.gltf"
             )
             if args.overwrite or not os.path.exists(converted_model_path):
-                from scenic.simulators.isaac.backends import get_backend
+                from scenic.simulators.isaac.backends import getBackend
 
-                status = get_backend("core_51").convert_sync(
+                status = getBackend("core_51").convertSync(
                     input_model_path, converted_model_path, True
                 )
                 if not status:
                     print(f"ERROR Status is {status}")
-                validate_gltf_geometry(converted_model_path)
+                validateGltfGeometry(converted_model_path)
                 print(f"---Added {converted_model_path}")
             else:
-                validate_gltf_geometry(converted_model_path)
+                validateGltfGeometry(converted_model_path)

@@ -11,7 +11,7 @@ class ScenicTerrainData:
     flat_patches: dict = field(default_factory=dict)
 
 
-def heightfield_to_trimesh(heightfield, horizontal_scale, vertical_scale):
+def heightfieldToTrimesh(heightfield, horizontal_scale, vertical_scale):
     rows, cols = heightfield.shape
     xs = np.arange(rows, dtype=np.float32) * horizontal_scale
     ys = np.arange(cols, dtype=np.float32) * horizontal_scale
@@ -38,7 +38,7 @@ def heightfield_to_trimesh(heightfield, horizontal_scale, vertical_scale):
     return trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
 
 
-def build_scenic_terrain_data(terrains, *, border_width=20.0):
+def buildScenicTerrainData(terrains, *, border_width=20.0):
     terrains = list(terrains)
     if not terrains:
         raise ValueError("Isaac Lab mode requires at least one Scenic Terrain object")
@@ -114,7 +114,7 @@ def build_scenic_terrain_data(terrains, *, border_width=20.0):
                 heightfield[height_x, height_y] * vertical_scale
             )
 
-    mesh = heightfield_to_trimesh(heightfield, horizontal_scale, vertical_scale)
+    mesh = heightfieldToTrimesh(heightfield, horizontal_scale, vertical_scale)
     mesh.apply_translation(
         (
             min_x * horizontal_scale + x_center_offset - border_width,
@@ -126,5 +126,5 @@ def build_scenic_terrain_data(terrains, *, border_width=20.0):
     return ScenicTerrainData(terrain_mesh=mesh, terrain_origins=terrain_origins)
 
 
-def terrain_objects_from_scene(scene):
+def terrainObjectsFromScene(scene):
     return [obj for obj in scene.objects if getattr(obj, "blueprint", None) == "Terrain"]

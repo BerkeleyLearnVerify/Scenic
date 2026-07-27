@@ -18,11 +18,11 @@ def _coerce(value):
     return value
 
 
-def run_remote(
+def runRemote(
     scenario,
     params=None,
     count=1,
-    max_steps=None,
+    maxSteps=None,
     host=DEFAULT_HOST,
     port=DEFAULT_PORT,
     connect_timeout=10.0,
@@ -32,7 +32,7 @@ def run_remote(
         "scenario": os.path.abspath(scenario),
         "params": params or {},
         "count": count,
-        "maxSteps": max_steps,
+        "maxSteps": maxSteps,
     }
     with socket.create_connection((host, port), timeout=connect_timeout) as sock:
         sock.settimeout(None)
@@ -61,7 +61,7 @@ def run_remote(
     return {"event": "error", "traceback": "bridge closed the connection early"}
 
 
-def run_remote_from_compilation(host=None, port=None):
+def runRemoteFromCompilation(host=None, port=None):
     """Ship the scenario currently being compiled to the bridge, then exit.
 
     Called from model.scenic when the ``isaacRemote`` global parameter is set:
@@ -86,7 +86,7 @@ def run_remote_from_compilation(host=None, port=None):
         for name, value in veneer._globalParameters.items()
         if name in veneer.lockedParameters and name not in control
     }
-    result = run_remote(
+    result = runRemote(
         scenario_path,
         params=params,
         host=host or DEFAULT_HOST,
@@ -111,11 +111,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     params = {name: _coerce(value) for name, value in args.param}
-    result = run_remote(
+    result = runRemote(
         args.scenario,
         params=params,
         count=args.count,
-        max_steps=args.max_steps,
+        maxSteps=args.max_steps,
         host=args.host,
         port=args.port,
     )

@@ -7,13 +7,13 @@ from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _
 
 @dataclass(frozen=True, kw_only=True)
 class FrankaProfile(ManipulatorProfile):
-    gripper_action_deltas: tuple
+    gripperActionDeltas: tuple
 
 
 FRANKA_PROFILE = FrankaProfile(
-    usd_path="Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd",
-    usd_variants=(("Gripper", "AlternateFinger"), ("Mesh", "Performance")),
-    arm_dof_names=(
+    usdPath="Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd",
+    usdVariants=(("Gripper", "AlternateFinger"), ("Mesh", "Performance")),
+    armDofNames=(
         "panda_joint1",
         "panda_joint2",
         "panda_joint3",
@@ -22,21 +22,21 @@ FRANKA_PROFILE = FrankaProfile(
         "panda_joint6",
         "panda_joint7",
     ),
-    gripper_dof_names=("panda_finger_joint1", "panda_finger_joint2"),
-    control_link_name="panda_hand",
-    end_effector_prim="panda_hand",
-    gripper_frame_prim="panda_rightfinger",
-    default_arm_pose=_arr([0.012, -0.568, 0.0, -2.811, 0.0, 3.037, 0.741]),
-    downward_orientation=_arr([0.0, 1.0, 0.0, 0.0]),
-    tcp_offset=_arr([0.0, 0.0, 0.0877]),
-    open_gripper_positions=_arr([0.05, 0.05]),
-    closed_gripper_positions=_arr([0.01, 0.01]),
-    gripper_style="franka_hand",
-    gripper_control_mode="position",
-    supports_pick_place=True,
-    ik_damping=0.05,
-    ik_step_scale=1.0,
-    rmpflow_policy_name="Franka",
-    rmpflow_uses_tcp_offset=False,
-    gripper_action_deltas=(0.01, 0.01),
+    gripperDofNames=("panda_finger_joint1", "panda_finger_joint2"),
+    controlLinkName="panda_hand",
+    endEffectorPrim="panda_hand",
+    gripperFramePrim="panda_rightfinger",
+    defaultArmPose=_arr([0.012, -0.568, 0.0, -2.811, 0.0, 3.037, 0.741]),
+    downwardOrientation=_arr([0.0, 1.0, 0.0, 0.0]),
+    tcpOffset=_arr([0.0, 0.0, 0.0877]),
+    openGripperPositions=_arr([0.05, 0.05]),
+    closedGripperPositions=_arr([0.01, 0.01]),
+    gripperStyle="franka_hand",
+    gripperControlMode="position",
+    supportsPickPlace=True,
+    ikDamping=0.05,
+    ikStepScale=1.0,
+    rmpflowPolicyName="Franka",
+    rmpflowUsesTcpOffset=False,
+    gripperActionDeltas=(0.01, 0.01),
 )

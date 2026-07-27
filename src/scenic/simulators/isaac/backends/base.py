@@ -16,7 +16,7 @@ class IsaacBackend:
     def __init__(self):
         self._simulation_app = None
 
-    def _simulation_app_config(self, headless):
+    def _simulationAppConfig(self, headless):
         return {
             "headless": headless,
             "sync_loads": True,
@@ -25,46 +25,46 @@ class IsaacBackend:
             "max_gpu_count": 1,
         }
 
-    def _close_simulation_app_at_exit(self):
+    def _closeSimulationAppAtExit(self):
         if self._simulation_app is not None:
             self._simulation_app.close()
             self._simulation_app = None
 
-    def close_simulation_app(self, app):
+    def closeSimulationApp(self, app):
         if app is self._simulation_app:
             app.close()
             self._simulation_app = None
         else:
             app.close()
 
-    def attach_simulation_app(self, app):
+    def attachSimulationApp(self, app):
         self._simulation_app = app
 
-    def get_simulation_app(self, headless=False):
+    def getSimulationApp(self, headless=False):
         if self._simulation_app is None:
             from isaacsim.simulation_app import SimulationApp
 
             self._simulation_app = SimulationApp(
-                launch_config=self._simulation_app_config(headless)
+                launch_config=self._simulationAppConfig(headless)
             )
-            atexit.register(self._close_simulation_app_at_exit)
+            atexit.register(self._closeSimulationAppAtExit)
         return self._simulation_app
 
-    def create_world(self, timestep):
+    def createWorld(self, timestep):
         raise NotImplementedError
 
-    def get_assets_root_path(self):
+    def getAssetsRootPath(self):
         from isaacsim.storage.native import get_assets_root_path
 
         return get_assets_root_path()
 
-    def asset_path(self, relative_path):
-        return f"{self.get_assets_root_path()}/{relative_path}"
+    def assetPath(self, relative_path):
+        return f"{self.getAssetsRootPath()}/{relative_path}"
 
-    def open_environment_stage(self, usd_path):
+    def openEnvironmentStage(self, usd_path):
         raise NotImplementedError
 
-    def set_mesh_collision_approximation(self, prim_path, approximation):
+    def setMeshCollisionApproximation(self, prim_path, approximation):
         import omni.usd
         from pxr import UsdPhysics
 
@@ -79,10 +79,10 @@ class IsaacBackend:
 
         print(f"[DEBUG] {prim_path} approximation set to {approximation}")
 
-    def enable_extension(self, name):
+    def enableExtension(self, name):
         raise NotImplementedError
 
-    def setup_lighting(self, headless):
+    def setupLighting(self, headless):
         import omni.kit.actions.core
 
         action = None
@@ -95,36 +95,36 @@ class IsaacBackend:
         if action is not None:
             action.execute()
 
-    def update_app(self, app):
+    def updateApp(self, app):
         app.update()
 
-    def is_stage_loading(self):
+    def isStageLoading(self):
         from isaacsim.core.utils.stage import is_stage_loading
 
         return is_stage_loading()
 
-    def initialize_physics(self, world, objects):
+    def initializePhysics(self, world, objects):
         raise NotImplementedError
 
-    def play_world(self, world):
+    def playWorld(self, world):
         raise NotImplementedError
 
-    def step_world(self, world):
+    def stepWorld(self, world):
         raise NotImplementedError
 
-    def stop_and_clear_world(self, world):
+    def stopAndClearWorld(self, world):
         raise NotImplementedError
 
-    def release_world(self, world):
+    def releaseWorld(self, world):
         pass
 
-    def add_object(self, world, obj):
+    def addObject(self, world, obj):
         pass
 
     async def convert(self, in_file, out_file, load_materials=False):
         import omni.kit.asset_converter
 
-        def progress_callback(progress, total_steps):
+        def progressCallback(progress, total_steps):
             pass
 
         converter_context = omni.kit.asset_converter.AssetConverterContext()
@@ -135,7 +135,7 @@ class IsaacBackend:
         converter_context.create_world_as_default_root_prim = True
         instance = omni.kit.asset_converter.get_instance()
         task = instance.create_converter_task(
-            in_file, out_file, progress_callback, converter_context
+            in_file, out_file, progressCallback, converter_context
         )
         while True:
             success = await task.wait_until_finished()
@@ -143,7 +143,7 @@ class IsaacBackend:
                 return True
             await asyncio.sleep(0.1)
 
-    def run_coroutine(self, coro):
+    def runCoroutine(self, coro):
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -161,12 +161,12 @@ class IsaacBackend:
 
         return loop.run_until_complete(coro)
 
-    def convert_sync(self, in_file, out_file, load_materials=False):
-        return self.run_coroutine(
+    def convertSync(self, in_file, out_file, load_materials=False):
+        return self.runCoroutine(
             self.convert(in_file, out_file, load_materials=load_materials)
         )
 
-    def kit_app_running(self):
+    def kitAppRunning(self):
         try:
             import omni.kit.app
 
@@ -174,15 +174,15 @@ class IsaacBackend:
         except Exception:
             return False
 
-    def kit_usd_path(self, environment_usd_path):
-        source = os.fspath(environment_usd_path)
-        if scenic_utils.is_isaac_asset_reference(source):
-            return self.asset_path(source)
-        if scenic_utils.has_url_scheme(source):
+    def kitUsdPath(self, environmentUsdPath):
+        source = os.fspath(environmentUsdPath)
+        if scenic_utils.isIsaacAssetReference(source):
+            return self.assetPath(source)
+        if scenic_utils.hasUrlScheme(source):
             return source
         return str(scenic_utils.resolvedPath(source))
 
-    def scenic_to_isaac_orientation(self, orientation, initial_rotation=None):
+    def scenicToIsaacOrientation(self, orientation, initial_rotation=None):
         """Convert a Scenic Orientation to an Isaac Sim wxyz quaternion.
 
         Scenic Euler convention:
@@ -218,7 +218,7 @@ class IsaacBackend:
 
         return q_wxyz / norm
 
-    def isaac_quat_to_scenic_euler_angles(self, quat):
+    def isaacQuatToScenicEulerAngles(self, quat):
         """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll.
 
         Scenic Euler convention:
@@ -246,7 +246,7 @@ class IsaacBackend:
         yaw, pitch, roll = R.from_quat(q_xyzw).as_euler("ZXY", degrees=False)
         return float(yaw), float(pitch), float(roll)
 
-    def compute_prim_world_bbox(self, prim_path):
+    def computePrimWorldBbox(self, prim_path):
         """Return world-space bbox min, max, center, and size for a prim."""
         from isaacsim.core.utils import prims
         from pxr import Usd, UsdGeom
@@ -255,18 +255,18 @@ class IsaacBackend:
         if prim is None or not prim.IsValid():
             raise ValueError(f"invalid prim path: {prim_path}")
 
-        return self.compute_prim_bbox(prim)
+        return self.computePrimBbox(prim)
 
-    def compute_usd_asset_bbox(self, usd_path):
+    def computeUsdAssetBbox(self, usd_path):
         """Return the composed bbox of a USD asset referenced at the origin."""
         from pxr import Usd
 
         stage = Usd.Stage.CreateInMemory()
         prim = stage.DefinePrim("/Asset", "Xform")
         prim.GetReferences().AddReference(os.fspath(usd_path))
-        return self.compute_prim_bbox(prim)
+        return self.computePrimBbox(prim)
 
-    def compute_prim_bbox(self, prim):
+    def computePrimBbox(self, prim):
         """Return world-space bbox min, max, center, and size for a USD prim."""
         from pxr import Usd, UsdGeom
 
@@ -292,7 +292,7 @@ class IsaacBackend:
 
         return mn, mx, center, size
 
-    def rotate_vector_by_wxyz_quat(self, quat_wxyz, vec):
+    def rotateVectorByWxyzQuat(self, quat_wxyz, vec):
         """Rotate a vector by an Isaac/Usd wxyz quaternion."""
         from scipy.spatial.transform import Rotation as R
 
@@ -306,7 +306,7 @@ class IsaacBackend:
 
         return R.from_quat(q_xyzw).apply(vec)
 
-    def compute_usd_scale_and_root_position(
+    def computeUsdScaleAndRootPosition(
         self, obj, prim_path, scenic_position, orientation
     ):
         """Compute local USD scale so the referenced asset matches Scenic dimensions.
@@ -317,8 +317,8 @@ class IsaacBackend:
             native_size: measured unscaled USD bbox size
             native_center: measured unscaled USD bbox center relative to the root placement
         """
-        _, _, native_center, native_size = self.compute_prim_world_bbox(prim_path)
-        return self.compute_scale_and_root_position(
+        _, _, native_center, native_size = self.computePrimWorldBbox(prim_path)
+        return self.computeScaleAndRootPosition(
             obj,
             native_center,
             native_size,
@@ -326,7 +326,7 @@ class IsaacBackend:
             orientation,
         )
 
-    def compute_usd_asset_scale_and_root_position(
+    def computeUsdAssetScaleAndRootPosition(
         self,
         obj,
         usd_path,
@@ -334,8 +334,8 @@ class IsaacBackend:
         orientation,
     ):
         """Compute Scenic scale and root position before a USD asset is spawned."""
-        _, _, native_center, native_size = self.compute_usd_asset_bbox(usd_path)
-        return self.compute_scale_and_root_position(
+        _, _, native_center, native_size = self.computeUsdAssetBbox(usd_path)
+        return self.computeScaleAndRootPosition(
             obj,
             native_center,
             native_size,
@@ -343,7 +343,7 @@ class IsaacBackend:
             orientation,
         )
 
-    def compute_scale_and_root_position(
+    def computeScaleAndRootPosition(
         self,
         obj,
         native_center,
@@ -371,7 +371,7 @@ class IsaacBackend:
         # scaling changes that offset. We compensate so the final visual bbox
         # center lands at Scenic's obj.position.
         scaled_center_offset_local = native_center * local_scale
-        scaled_center_offset_world = self.rotate_vector_by_wxyz_quat(
+        scaled_center_offset_world = self.rotateVectorByWxyzQuat(
             orientation,
             scaled_center_offset_local,
         )
@@ -380,77 +380,77 @@ class IsaacBackend:
 
         return root_position, local_scale, native_size, native_center
 
-    def create_generic_object(self, obj):
+    def createGenericObject(self, obj):
         raise NotImplementedError
 
-    def create_robot(self, obj):
+    def createRobot(self, obj):
         raise NotImplementedError
 
-    def create_wheeled_robot(self, obj):
+    def createWheeledRobot(self, obj):
         raise NotImplementedError
 
-    def create_manipulator(self, obj):
+    def createManipulator(self, obj):
         raise NotImplementedError
 
-    def create_ground_plane(self, obj):
+    def createGroundPlane(self, obj):
         raise NotImplementedError
 
-    def apply_robot_control(self, sim, obj, command):
+    def applyRobotControl(self, sim, obj, command):
         raise NotImplementedError
 
-    def apply_wheeled_control(self, sim, obj, command):
+    def applyWheeledControl(self, sim, obj, command):
         raise NotImplementedError
 
-    def apply_articulation_action(self, sim, obj, action):
+    def applyArticulationAction(self, sim, obj, action):
         raise NotImplementedError
 
-    def articulation_dof_names(self, sim, obj):
+    def articulationDofNames(self, sim, obj):
         raise NotImplementedError
 
-    def articulation_dof_indices(self, sim, obj, names):
-        dof_names = self.articulation_dof_names(sim, obj)
+    def articulationDofIndices(self, sim, obj, names):
+        dof_names = self.articulationDofNames(sim, obj)
         return [dof_names.index(name) for name in names]
 
-    def get_object_pose(self, sim, obj):
+    def getObjectPose(self, sim, obj):
         raise NotImplementedError
 
-    def set_object_pose(self, sim, obj, position, orientation=None):
+    def setObjectPose(self, sim, obj, position, orientation=None):
         raise NotImplementedError
 
-    def move_manipulator_pick_place(
+    def moveManipulatorPickPlace(
         self,
         sim,
         obj,
-        target_object,
-        goal_position,
-        end_effector_offset=None,
-        end_effector_orientation=None,
+        targetObject,
+        goalPosition,
+        endEffectorOffset=None,
+        endEffectorOrientation=None,
     ):
         raise NotImplementedError
 
-    def move_manipulator_end_effector(self, sim, obj, position, orientation=None):
+    def moveManipulatorEndEffector(self, sim, obj, position, orientation=None):
         raise NotImplementedError
 
-    def set_manipulator_gripper(self, sim, obj, opened):
+    def setManipulatorGripper(self, sim, obj, opened):
         raise NotImplementedError
 
-    def set_manipulator_arm_joint_positions(self, sim, obj, joint_positions):
+    def setManipulatorArmJointPositions(self, sim, obj, joint_positions):
         raise NotImplementedError
 
-    def hold_manipulator_position(self, sim, obj):
+    def holdManipulatorPosition(self, sim, obj):
         raise NotImplementedError
 
-    def get_manipulator_end_effector_pose(self, sim, obj):
+    def getManipulatorEndEffectorPose(self, sim, obj):
         raise NotImplementedError
 
-    def get_manipulator_gripper_positions(self, sim, obj):
+    def getManipulatorGripperPositions(self, sim, obj):
         raise NotImplementedError
 
-    def manipulator_gripper_target_positions(self, profile, opened):
+    def manipulatorGripperTargetPositions(self, profile, opened):
         raise NotImplementedError
 
-    def get_physics_properties(self, world, obj):
+    def getPhysicsProperties(self, world, obj):
         raise NotImplementedError
 
-    def articulation_action(self, **kwargs):
+    def articulationAction(self, **kwargs):
         return dict(kwargs)

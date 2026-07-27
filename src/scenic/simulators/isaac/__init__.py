@@ -7,5 +7,5 @@ except ModuleNotFoundError:
 
 
 class TerrainBase:
-    horizontal_scale: float = 0.1
-    vertical_scale: float = 0.005
+    horizontalScale: float = 0.1
+    verticalScale: float = 0.005

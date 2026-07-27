@@ -10,30 +10,30 @@ from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _
 @dataclass(frozen=True, kw_only=True)
 class UR5eProfile(ManipulatorProfile):
     # Robotiq 2F-85 gripper authoring/tuning (the "robotiq_2f85" backend path).
-    gripper_prim: str
-    gripper_fully_closed_position: float
-    gripper_contact_material_path: str
-    object_contact_material_path: str
-    gripper_static_friction: float
-    gripper_dynamic_friction: float
-    object_static_friction: float
-    object_dynamic_friction: float
-    contact_offset: float
-    rest_offset: float
-    pick_object_mass_kg: float
-    gripper_max_force: float
-    gripper_stiffness: float
-    gripper_damping: float
-    gripper_max_joint_velocity_deg_per_sec: float
-    mimic_natural_frequency: float
-    mimic_damping_ratio: float
-    outer_finger_parallel_stiffness: float
+    gripperPrim: str
+    gripperFullyClosedPosition: float
+    gripperContactMaterialPath: str
+    objectContactMaterialPath: str
+    gripperStaticFriction: float
+    gripperDynamicFriction: float
+    objectStaticFriction: float
+    objectDynamicFriction: float
+    contactOffset: float
+    restOffset: float
+    pickObjectMassKg: float
+    gripperMaxForce: float
+    gripperStiffness: float
+    gripperDamping: float
+    gripperMaxJointVelocityDegPerSec: float
+    mimicNaturalFrequency: float
+    mimicDampingRatio: float
+    outerFingerParallelStiffness: float
 
 
 UR5E_PROFILE = UR5eProfile(
-    usd_path="Isaac/Robots/UniversalRobots/ur5e/ur5e.usd",
-    usd_variants=(("Gripper", "Robotiq_2f_85"),),
-    arm_dof_names=(
+    usdPath="Isaac/Robots/UniversalRobots/ur5e/ur5e.usd",
+    usdVariants=(("Gripper", "Robotiq_2f_85"),),
+    armDofNames=(
         "shoulder_pan_joint",
         "shoulder_lift_joint",
         "elbow_joint",
@@ -41,42 +41,42 @@ UR5E_PROFILE = UR5eProfile(
         "wrist_2_joint",
         "wrist_3_joint",
     ),
-    gripper_dof_names=("finger_joint",),
-    control_link_name="wrist_3_link",
-    end_effector_prim="wrist_3_link",
-    gripper_frame_prim="Gripper/Robotiq_2F_85/base_link",
-    default_arm_pose=_arr(
+    gripperDofNames=("finger_joint",),
+    controlLinkName="wrist_3_link",
+    endEffectorPrim="wrist_3_link",
+    gripperFramePrim="Gripper/Robotiq_2F_85/base_link",
+    defaultArmPose=_arr(
         [-np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, -np.pi / 2.0, np.pi / 2.0, 0.0]
     ),
-    downward_orientation=_arr([0.0, 0.70710678, 0.70710678, 0.0]),
-    tcp_offset=_arr([0.0, 0.0, 0.135]),
-    open_gripper_positions=_arr([0.0]),
-    closed_gripper_positions=_arr([float(np.deg2rad(40.0))]),
-    gripper_open_velocity=float(-np.deg2rad(45.0)),
-    gripper_close_velocity=float(np.deg2rad(90.0)),
-    gripper_style="robotiq_2f85",
-    gripper_control_mode="velocity",
-    supports_pick_place=False,
-    ik_damping=0.08,
-    ik_step_scale=0.25,
-    rmpflow_policy_name="UR5e",
-    rmpflow_uses_tcp_offset=True,
-    gripper_prim="Gripper/Robotiq_2F_85",
-    gripper_fully_closed_position=47.0,
-    gripper_contact_material_path="/World/UR5eRobotiqGripMaterial",
-    object_contact_material_path="/World/UR5ePickObjectGripMaterial",
-    gripper_static_friction=2.0,
-    gripper_dynamic_friction=2.0,
-    object_static_friction=2.0,
-    object_dynamic_friction=2.0,
-    contact_offset=0.002,
-    rest_offset=0.0,
-    pick_object_mass_kg=0.475,
-    gripper_max_force=5.0,
-    gripper_stiffness=0.0,
-    gripper_damping=5000.0,
-    gripper_max_joint_velocity_deg_per_sec=130.0,
-    mimic_natural_frequency=0.0,
-    mimic_damping_ratio=0.0,
-    outer_finger_parallel_stiffness=0.05,
+    downwardOrientation=_arr([0.0, 0.70710678, 0.70710678, 0.0]),
+    tcpOffset=_arr([0.0, 0.0, 0.135]),
+    openGripperPositions=_arr([0.0]),
+    closedGripperPositions=_arr([float(np.deg2rad(40.0))]),
+    gripperOpenVelocity=float(-np.deg2rad(45.0)),
+    gripperCloseVelocity=float(np.deg2rad(90.0)),
+    gripperStyle="robotiq_2f85",
+    gripperControlMode="velocity",
+    supportsPickPlace=False,
+    ikDamping=0.08,
+    ikStepScale=0.25,
+    rmpflowPolicyName="UR5e",
+    rmpflowUsesTcpOffset=True,
+    gripperPrim="Gripper/Robotiq_2F_85",
+    gripperFullyClosedPosition=47.0,
+    gripperContactMaterialPath="/World/UR5eRobotiqGripMaterial",
+    objectContactMaterialPath="/World/UR5ePickObjectGripMaterial",
+    gripperStaticFriction=2.0,
+    gripperDynamicFriction=2.0,
+    objectStaticFriction=2.0,
+    objectDynamicFriction=2.0,
+    contactOffset=0.002,
+    restOffset=0.0,
+    pickObjectMassKg=0.475,
+    gripperMaxForce=5.0,
+    gripperStiffness=0.0,
+    gripperDamping=5000.0,
+    gripperMaxJointVelocityDegPerSec=130.0,
+    mimicNaturalFrequency=0.0,
+    mimicDampingRatio=0.0,
+    outerFingerParallelStiffness=0.05,
 )

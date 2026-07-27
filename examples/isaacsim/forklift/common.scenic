@@ -50,25 +50,25 @@ class AckermannForkliftB(IsaacSimRobot):
     length: 2.8
     height: 2.2
     isaacAssetPath: globalParameters.forkliftAssetPath
-    initial_rotation: (-90 deg, 0, 0)
-    wheel_controller: "ackermann"
+    initialRotation: (-90 deg, 0, 0)
+    wheelController: "ackermann"
 
     # ForkliftB geometry/controller metadata.
-    wheel_base: 1.65
-    track_width: 0.82
-    wheel_radius: 0.255
-    front_wheel_radius: 0.255
-    back_wheel_radius: 0.255
+    wheelBase: 1.65
+    trackWidth: 0.82
+    wheelRadius: 0.255
+    frontWheelRadius: 0.255
+    backWheelRadius: 0.255
 
-    max_wheel_velocity: 8.0
-    max_wheel_rotation_angle: 0.69813
-    max_acceleration: 0.8
-    max_steering_angle_velocity: 1.0
+    maxWheelVelocity: 8.0
+    maxWheelRotationAngle: 0.69813
+    maxAcceleration: 0.8
+    maxSteeringAngleVelocity: 1.0
 
     # ForkliftB is a single rear-drive / rear-steer vehicle.
-    wheel_dof_names: ["back_wheel_drive"]
-    steering_dof_names: ["back_wheel_swivel"]
-    lift_dof_names: ["lift_joint"]
+    wheelDofNames: ["back_wheel_drive"]
+    steeringDofNames: ["back_wheel_swivel"]
+    liftDofNames: ["lift_joint"]
 
     steering_sign: 1.0
 
@@ -80,14 +80,14 @@ class AckermannForkliftB(IsaacSimRobot):
         steering, speed, lift_position = command
 
         if not hasattr(self, "_forklift_cached_dofs"):
-            self._drive_dof_indices = sim.backend.articulation_dof_indices(
-                sim, self, self.wheel_dof_names
+            self._drive_dof_indices = sim.backend.articulationDofIndices(
+                sim, self, self.wheelDofNames
             )
-            self._steer_dof_indices = sim.backend.articulation_dof_indices(
-                sim, self, self.steering_dof_names
+            self._steer_dof_indices = sim.backend.articulationDofIndices(
+                sim, self, self.steeringDofNames
             )
-            self._lift_dof_indices = sim.backend.articulation_dof_indices(
-                sim, self, self.lift_dof_names
+            self._lift_dof_indices = sim.backend.articulationDofIndices(
+                sim, self, self.liftDofNames
             )
             self._forklift_cached_dofs = True
 
@@ -108,15 +108,15 @@ class AckermannForkliftB(IsaacSimRobot):
         steering_position = float(steering_positions[0])
         wheel_velocity = float(wheel_velocities[0])
 
-        action = sim.backend.articulation_action(
-            joint_positions=[steering_position, float(lift_position)],
+        action = sim.backend.articulationAction(
+            jointPositions=[steering_position, float(lift_position)],
             joint_position_indices=(
                 self._steer_dof_indices + self._lift_dof_indices
             ),
             joint_velocities=[wheel_velocity],
             joint_velocity_indices=self._drive_dof_indices,
         )
-        sim.backend.apply_articulation_action(
+        sim.backend.applyArticulationAction(
             sim,
             self,
             action,
@@ -124,28 +124,28 @@ class AckermannForkliftB(IsaacSimRobot):
 
 behavior HoldForks(liftPosition, steps=30):
     for _ in range(steps):
-        take applyController([0.0, 0.0, liftPosition])
+        take ApplyControllerAction([0.0, 0.0, liftPosition])
 
 
 behavior DriveStraight(speed, liftPosition, steps):
     for _ in range(steps):
-        take applyController([0.0, speed, liftPosition])
+        take ApplyControllerAction([0.0, speed, liftPosition])
 
 
 behavior DriveToObject(target, stopDistance, speed, liftPosition):
     while (distance from ego to target) > stopDistance:
-        take applyController([0.0, speed, liftPosition])
+        take ApplyControllerAction([0.0, speed, liftPosition])
 
-    take applyController([0.0, 0.0, liftPosition])
+    take ApplyControllerAction([0.0, 0.0, liftPosition])
 
 
 behavior TurnToHeading(targetHeading, liftPosition):
     while abs(headingErrorTo(targetHeading, ego)) > TURN_TOLERANCE:
         error = headingErrorTo(targetHeading, ego)
         steering = math.copysign(MAX_STEERING, error)
-        take applyController([steering, TURN_SPEED, liftPosition])
+        take ApplyControllerAction([steering, TURN_SPEED, liftPosition])
 
-    take applyController([0.0, 0.0, liftPosition])
+    take ApplyControllerAction([0.0, 0.0, liftPosition])
 
 
 behavior LowerForks():
@@ -191,4 +191,4 @@ behavior AckermannForkliftPickup(load, shelf):
 
     # 9. Stop.
     while True:
-        take applyController([0.0, 0.0, RELEASE_LIFT_POSITION])
+        take ApplyControllerAction([0.0, 0.0, RELEASE_LIFT_POSITION])

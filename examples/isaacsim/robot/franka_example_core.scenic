@@ -51,8 +51,8 @@ place_pos = (small_bin.x, small_bin.y, cube.z)
 def endEffectorTarget(pos):
     return pos
 
-behavior FrankaMoveToPickPlace(target_object, place_pos):
-    pick_pos = (target_object.x, target_object.y, target_object.z)
+behavior FrankaMoveToPickPlace(targetObject, place_pos):
+    pick_pos = (targetObject.x, targetObject.y, targetObject.z)
     home = endEffectorTarget((
         0.30,
         0.0,

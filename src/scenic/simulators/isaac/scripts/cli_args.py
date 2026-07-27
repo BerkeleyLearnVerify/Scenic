@@ -1,4 +1,4 @@
-def add_rsl_rl_args(parser):
+def addRslRlArgs(parser):
     group = parser.add_argument_group("rsl_rl")
     group.add_argument("--experiment_name", type=str, default=None)
     group.add_argument("--run_name", type=str, default=None)
@@ -9,7 +9,7 @@ def add_rsl_rl_args(parser):
     group.add_argument("--log_project_name", type=str, default=None)
 
 
-def update_rsl_rl_cfg(agent_cfg, args_cli):
+def updateRslRlCfg(agent_cfg, args_cli):
     if args_cli.seed is not None:
         agent_cfg.seed = args_cli.seed
     if args_cli.resume:

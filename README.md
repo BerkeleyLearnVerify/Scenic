@@ -469,14 +469,14 @@ class MyDifferentialRobot(IsaacSimRobot):
     height: 0.25
     usdPath: localPath("assets/my_robot.usd")
 
-    wheel_controller: "differential"
-    wheel_radius: 0.06
-    wheel_base: 0.32
-    wheel_dof_names: ["left_wheel_joint", "right_wheel_joint"]
+    wheelController: "differential"
+    wheelRadius: 0.06
+    wheelBase: 0.32
+    wheelDofNames: ["left_wheel_joint", "right_wheel_joint"]
 
 behavior Drive():
     while True:
-        take applyController([0.5, 0.0])
+        take ApplyControllerAction([0.5, 0.0])
 
 floor = new GroundPlane
 ego = new MyDifferentialRobot on floor, with behavior Drive
@@ -488,9 +488,9 @@ path currently provides built-in command handling for differential drive.
 
 The direct Isaac Sim backends also support:
 
-* Holonomic robots with `wheel_controller: "holonomic"` and a command of
+* Holonomic robots with `wheelController: "holonomic"` and a command of
   `[x_velocity, y_velocity, yaw_velocity]`.
-* Ackermann robots with `wheel_controller: "ackermann"`, drive and steering
+* Ackermann robots with `wheelController: "ackermann"`, drive and steering
   DOF names, wheel base, track width, and wheel radius. The controller command
   is `[steering_angle, steering_angle_velocity, forward_speed, acceleration, dt]`.
 
@@ -505,10 +505,10 @@ For a robot that does not fit a built-in wheeled controller, provide a
 
 ```scenic
 model scenic.simulators.isaac.model
-from scenic.simulators.isaac.backends import articulation_action
+from scenic.simulators.isaac.backends import articulationAction
 
 def velocityControl(command):
-    return articulation_action(
+    return articulationAction(
         joint_velocities=command,
         joint_velocity_indices=[0, 1]
     )
@@ -522,7 +522,7 @@ class MyRobot(IsaacSimRobot):
 
 behavior MoveJoints():
     while True:
-        take applyController([1.0, -1.0])
+        take ApplyControllerAction([1.0, -1.0])
 ```
 
 An articulation action can provide `joint_positions`, `joint_velocities`, or
@@ -547,7 +547,7 @@ class FrankaPanda(ManipulatorRobot):
     width: 0.3
     length: 0.3
     height: 0.9
-    manipulator_profile: FRANKA_PROFILE
+    manipulatorProfile: FRANKA_PROFILE
 ```
 
 A profile is a frozen dataclass (`ManipulatorProfile` in
@@ -558,14 +558,14 @@ plus dispatch keys:
 
 | Key | Meaning |
 | --- | --- |
-| `gripper_style` | Selects gripper-specific USD authoring and wrapper construction. `"robotiq_2f85"` uses the closed-loop Robotiq path and requires the extra fields declared by `UR5eProfile`; any other value is treated as a plain parallel gripper (optional `gripper_action_deltas`, e.g. `"franka_hand"`). |
-| `gripper_control_mode` | How open/close is commanded (`"position"` or `"velocity"`, the latter requiring the gripper velocity fields). |
-| `supports_pick_place` | Enables the built-in pick-place controller (`PickPlaceObject` behavior). Currently validated only with Franka-style position-mode parallel grippers. |
+| `gripperStyle` | Selects gripper-specific USD authoring and wrapper construction. `"robotiq_2f85"` uses the closed-loop Robotiq path and requires the extra fields declared by `UR5eProfile`; any other value is treated as a plain parallel gripper (optional `gripperActionDeltas`, e.g. `"franka_hand"`). |
+| `gripperControlMode` | How open/close is commanded (`"position"` or `"velocity"`, the latter requiring the gripper velocity fields). |
+| `supportsPickPlace` | Enables the built-in pick-place controller (`PickPlaceObject` behavior). Currently validated only with Franka-style position-mode parallel grippers. |
 
 To add a new arm:
 
 1. Define a profile instance in your own Python module next to your scenario
-   (Scenic puts the scenario's directory on the import path). `usd_path` may
+   (Scenic puts the scenario's directory on the import path). `usdPath` may
    be an Isaac asset reference (`Isaac/...`), a URL, or a local file path.
 2. Attach it to a `ManipulatorRobot` subclass in your scenario:
 
@@ -577,15 +577,15 @@ To add a new arm:
        width: 0.3
        length: 0.3
        height: 0.8
-       manipulator_profile: MY_ARM_PROFILE
+       manipulatorProfile: MY_ARM_PROFILE
    ```
 
    The generic manipulator actions (`MoveToEEPoseAction`, gripper actions) and
    behaviors (`MoveEndEffectorTo`, `OpenGripper`, `CloseGripper`,
    `HoldPosition`) are reused unchanged; the end-effector move behaviors raise
-   `ManipulatorTimeout` if a move does not converge within `max_steps`.
+   `ManipulatorTimeout` if a move does not converge within `maxSteps`.
 3. Only if the arm uses a new gripper *mechanism* (not covered by an existing
-   `gripper_style`): add a `gripper_style` branch for its USD authoring in the
+   `gripperStyle`): add a `gripperStyle` branch for its USD authoring in the
    backends — the one case that still requires internal edits.
 4. To contribute a robot upstream, move the profile to
    `backends/profiles/<arm>.py`, re-export it from
@@ -700,7 +700,7 @@ record the evaluation.
   names, joint limits, authored drive gains); DOF names are already validated
   against the live articulation. Example clearances and thresholds are
   scenario policy, exposed as Scenic parameters.
-* `arm_max_velocities` is honored by the experimental backends (joint-velocity
+* `armMaxVelocities` is honored by the experimental backends (joint-velocity
   clamp); the `core_51` RMPFlow path ignores it.
 * A local copy of the Isaac Sim assets can be obtained
   [here](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release).

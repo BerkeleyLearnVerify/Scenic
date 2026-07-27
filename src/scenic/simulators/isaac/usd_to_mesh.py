@@ -1,13 +1,13 @@
 import argparse
 
-from scenic.simulators.isaac.backends.core_51_usd_to_mesh import asset_convert
+from scenic.simulators.isaac.backends.core_51_usd_to_mesh import assetConvert
 
 if __name__ == "__main__":
-    from scenic.simulators.isaac.backends import get_backend
+    from scenic.simulators.isaac.backends import getBackend
 
-    backend = get_backend("core_51")
-    kit = backend.get_simulation_app()
-    backend.enable_extension("omni.kit.asset_converter")
+    backend = getBackend("core_51")
+    kit = backend.getSimulationApp()
+    backend.enableExtension("omni.kit.asset_converter")
 
     parser = argparse.ArgumentParser("Convert OBJ/STL assets to USD")
     parser.add_argument(
@@ -43,8 +43,8 @@ if __name__ == "__main__":
 
     args, unknown_args = parser.parse_known_args()
     if args.folders is not None:
-        asset_convert(args)
+        assetConvert(args)
     else:
         print("No folders specified via --folders argument, exiting")
 
-    backend.close_simulation_app(kit)
+    backend.closeSimulationApp(kit)

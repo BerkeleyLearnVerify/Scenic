@@ -15,7 +15,7 @@ from scenic.simulators.isaac.actions import (
     _ManipulatorRobot,
 )
 from scenic.simulators.isaac.behaviors import *
-from scenic.simulators.isaac.backends import DEFAULT_BACKEND_NAME, get_backend, set_default_backend
+from scenic.simulators.isaac.backends import DEFAULT_BACKEND_NAME, getBackend, setDefaultBackend
 from scenic.simulators.isaac.backends.profiles import FRANKA_PROFILE, UR5E_PROFILE
 from scenic.simulators.isaac import TerrainBase
 from scenic.simulators.isaac.simulator import IsaacSimulator
@@ -36,16 +36,16 @@ param isaacRemote = False
 param isaacRemoteHost = None
 param isaacRemotePort = None
 if globalParameters.isaacRemote:
-    from scenic.simulators.isaac.remote.client import run_remote_from_compilation
-    run_remote_from_compilation(
+    from scenic.simulators.isaac.remote.client import runRemoteFromCompilation
+    runRemoteFromCompilation(
         host=globalParameters.isaacRemoteHost,
         port=globalParameters.isaacRemotePort,
     )
 
 environmentMeshPath = globalParameters.environmentMeshPath
 environmentInfoPath = globalParameters.environmentInfoPath
-set_default_backend(globalParameters.isaacBackend)
-isaac_backend = get_backend("lab" if globalParameters.isaacLab else globalParameters.isaacBackend)
+setDefaultBackend(globalParameters.isaacBackend)
+isaac_backend = getBackend("lab" if globalParameters.isaacLab else globalParameters.isaacBackend)
 
 param labEnvCfg = None
 param labDevice = "cuda:0"
@@ -93,13 +93,13 @@ class IsaacSimObject:
     blueprint: "IsaacSimObject"
 
     def create(self):
-        return isaac_backend.create_generic_object(self)
+        return isaac_backend.createGenericObject(self)
 
 class ExistingIsaacSimObject(IsaacSimObject):
     allowCollisions: True
     blueprint: "ExistingIsaacSimObject"
     physics: False
-    prim_path: None
+    primPath: None
 
     def create(self):
         return None
@@ -111,14 +111,14 @@ class IsaacSimRobot(IsaacSimObject, _Robot):
     control: None
     usdPath: None
     isaacAssetPath: None
-    initial_rotation: None
+    initialRotation: None
     blueprint: "Robot"
 
     def create(self):
-        return isaac_backend.create_robot(self)
+        return isaac_backend.createRobot(self)
     
     def move(self, sim, command):
-        sim.backend.apply_robot_control(sim, self, command)
+        sim.backend.applyRobotControl(sim, self, command)
 
 class Create3(IsaacSimRobot, _WheeledRobot):
 
@@ -129,10 +129,10 @@ class Create3(IsaacSimRobot, _WheeledRobot):
     isaacAssetPath: "Isaac/Robots/iRobot/Create3/create_3.usd"
 
     # Differential-drive metadata.
-    wheel_radius: 0.03575
-    wheel_base: 0.233
-    wheel_dof_names: ["left_wheel_joint", "right_wheel_joint"]
-    wheel_controller: "differential"
+    wheelRadius: 0.03575
+    wheelBase: 0.233
+    wheelDofNames: ["left_wheel_joint", "right_wheel_joint"]
+    wheelController: "differential"
 
 class Jetbot(IsaacSimRobot, _WheeledRobot):
     width: 0.16
@@ -141,10 +141,10 @@ class Jetbot(IsaacSimRobot, _WheeledRobot):
     isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
    
     # Differential-drive metadata.
-    wheel_radius: 0.03 
-    wheel_base: 0.1125
-    wheel_dof_names: ["left_wheel_joint", "right_wheel_joint"]
-    wheel_controller: "differential"
+    wheelRadius: 0.03 
+    wheelBase: 0.1125
+    wheelDofNames: ["left_wheel_joint", "right_wheel_joint"]
+    wheelController: "differential"
 
 class Kaya(IsaacSimRobot, _HolonomicRobot):
 
@@ -154,54 +154,54 @@ class Kaya(IsaacSimRobot, _HolonomicRobot):
     isaacAssetPath: "Isaac/Robots/NVIDIA/Kaya/kaya.usd"
 
     # Holonomic-drive metadata.
-    wheel_dof_names: ["axle_0_joint", "axle_1_joint", "axle_2_joint"]
-    wheel_controller: "holonomic"
+    wheelDofNames: ["axle_0_joint", "axle_1_joint", "axle_2_joint"]
+    wheelController: "holonomic"
 
 class ManipulatorRobot(IsaacSimRobot, _ManipulatorRobot):
 
-    manipulator_profile: None
-    end_effector_offset: [0.0, 0.0, 0.0]
-    end_effector_orientation: None
-    arm_max_velocities: None
+    manipulatorProfile: None
+    endEffectorOffset: [0.0, 0.0, 0.0]
+    endEffectorOrientation: None
+    armMaxVelocities: None
 
     def move(
         self,
         sim,
-        target_object,
-        goal_position,
-        end_effector_offset=None,
-        end_effector_orientation=None,
+        targetObject,
+        goalPosition,
+        endEffectorOffset=None,
+        endEffectorOrientation=None,
     ):
-        sim.backend.move_manipulator_pick_place(
+        sim.backend.moveManipulatorPickPlace(
             sim,
             self,
-            target_object,
-            goal_position,
-            end_effector_offset,
-            end_effector_orientation,
+            targetObject,
+            goalPosition,
+            endEffectorOffset,
+            endEffectorOrientation,
         )
 
-    def move_to_pose(self, sim, position, orientation=None):
-        sim.backend.move_manipulator_end_effector(sim, self, position, orientation)
+    def moveToPose(self, sim, position, orientation=None):
+        sim.backend.moveManipulatorEndEffector(sim, self, position, orientation)
 
-    def set_gripper(self, sim, opened):
-        sim.backend.set_manipulator_gripper(sim, self, opened)
+    def setGripper(self, sim, opened):
+        sim.backend.setManipulatorGripper(sim, self, opened)
 
-    def set_joint_positions(self, sim, joint_positions):
-        sim.backend.set_manipulator_arm_joint_positions(sim, self, joint_positions)
+    def setJointPositions(self, sim, jointPositions):
+        sim.backend.setManipulatorArmJointPositions(sim, self, jointPositions)
 
-    def hold_position(self, sim):
-        sim.backend.hold_manipulator_position(sim, self)
+    def holdPosition(self, sim):
+        sim.backend.holdManipulatorPosition(sim, self)
 
-    def get_ee_pose(self, sim):
-        return sim.backend.get_manipulator_end_effector_pose(sim, self)
+    def getEePose(self, sim):
+        return sim.backend.getManipulatorEndEffectorPose(sim, self)
 
-    def get_gripper_positions(self, sim):
-        return sim.backend.get_manipulator_gripper_positions(sim, self)
+    def getGripperPositions(self, sim):
+        return sim.backend.getManipulatorGripperPositions(sim, self)
 
-    def get_gripper_target_positions(self, opened):
-        return isaac_backend.manipulator_gripper_target_positions(
-            self.manipulator_profile, opened
+    def getGripperTargetPositions(self, opened):
+        return isaac_backend.manipulatorGripperTargetPositions(
+            self.manipulatorProfile, opened
         )
 
 class FrankaPanda(ManipulatorRobot):
@@ -210,7 +210,7 @@ class FrankaPanda(ManipulatorRobot):
     width: 0.3
     length: 0.3
     height: 0.9
-    manipulator_profile: FRANKA_PROFILE
+    manipulatorProfile: FRANKA_PROFILE
 
 class UR5e(ManipulatorRobot):
 
@@ -218,7 +218,7 @@ class UR5e(ManipulatorRobot):
     width: 0.4
     length: 0.4
     height: 0.515
-    manipulator_profile: UR5E_PROFILE
+    manipulatorProfile: UR5E_PROFILE
 
 class GroundPlane(IsaacSimObject):
     
@@ -230,11 +230,11 @@ class GroundPlane(IsaacSimObject):
     blueprint: "GroundPlane"
 
     def create(self):
-        return isaac_backend.create_ground_plane(self)
+        return isaac_backend.createGroundPlane(self)
 
 class Terrain:
-    horizontal_scale: TerrainBase.horizontal_scale
-    vertical_scale: TerrainBase.vertical_scale
+    horizontalScale: TerrainBase.horizontal_scale
+    verticalScale: TerrainBase.vertical_scale
     width: 10.0
     length: 10.0
     size: (self.width, self.length)
@@ -250,19 +250,19 @@ class Terrain:
 class RandomUniformTerrain(Terrain):
     name: f"RandomUniformTerrain_{uuid.uuid4().hex[:8]}"
 
-    noise_range: (0.0, 1.0)
-    noise_step: 0.01
-    downsampled_scale: 1.0
+    noiseRange: (0.0, 1.0)
+    noiseStep: 0.01
+    downsampledScale: 1.0
 
     def create(self):
         from scenic.core.terrain import random_uniform_terrain, RandomUniformTerrainCfg, subterrain_to_mesh
         # Build configuration and register the generator function for the simulator.
         terrain_cfg = RandomUniformTerrainCfg(
-            noise_range=self.noise_range,
-            noise_step=self.noise_step,
-            downsampled_scale=self.downsampled_scale,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            noise_range=self.noiseRange,
+            noise_step=self.noiseStep,
+            downsampled_scale=self.downsampledScale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
             border_width=1.0,
             size=self.size,
         )
@@ -278,8 +278,8 @@ class SlopedTerrain(Terrain):
         from scenic.core.terrain import sloped_terrain, SlopedTerrainCfg, subterrain_to_mesh
         terrain_cfg = SlopedTerrainCfg(
             slope=self.slope,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
             size=self.size,
         )
         subterrain = sloped_terrain(cfg=terrain_cfg, difficulty=self.difficulty)
@@ -289,15 +289,15 @@ class SlopedTerrain(Terrain):
 class PyramidSlopedTerrain(Terrain):
     name: f"PyramidSlopedTerrain_{uuid.uuid4().hex[:8]}"
     slope: 0.25
-    platform_size: 1.0
+    platformSize: 1.0
 
     def create(self):
         from scenic.core.terrain import pyramid_sloped_terrain, PyramidSlopedTerrainCfg, subterrain_to_mesh
         terrain_cfg = PyramidSlopedTerrainCfg(
             slope=self.slope,
-            platform_size=self.platform_size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            platform_size=self.platformSize,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
             size=self.size,
         )
         subterrain = pyramid_sloped_terrain(cfg=terrain_cfg, difficulty=self.difficulty)
@@ -306,22 +306,22 @@ class PyramidSlopedTerrain(Terrain):
 
 class DiscreteObstaclesTerrain(Terrain):
     name: f"DiscreteObstaclesTerrain_{uuid.uuid4().hex[:8]}"
-    max_height: 0.2
-    min_size: 0.5
-    max_size: 2.0
-    num_rects: 5
-    platform_size: 1.0
+    maxHeight: 0.2
+    minSize: 0.5
+    maxSize: 2.0
+    numRects: 5
+    platformSize: 1.0
 
     def create(self):
         from scenic.core.terrain import discrete_obstacles_terrain, DiscreteObstaclesTerrainCfg, subterrain_to_mesh
         terrain_cfg = DiscreteObstaclesTerrainCfg(
-            max_height=self.max_height,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            num_rects=self.num_rects,
-            platform_size=self.platform_size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            max_height=self.maxHeight,
+            min_size=self.minSize,
+            max_size=self.maxSize,
+            num_rects=self.numRects,
+            platform_size=self.platformSize,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
             size=self.size,
         )
         subterrain = discrete_obstacles_terrain(cfg=terrain_cfg, difficulty=self.difficulty)
@@ -330,17 +330,17 @@ class DiscreteObstaclesTerrain(Terrain):
 
 class WaveTerrain(Terrain):
     name: f"WaveTerrain_{uuid.uuid4().hex[:8]}"
-    num_waves: 1
+    numWaves: 1
     amplitude: 1.0
 
     def create(self):
         from scenic.core.terrain import wave_terrain, WaveTerrainCfg, subterrain_to_mesh
         cfg = WaveTerrainCfg(
-            num_waves=self.num_waves,
+            num_waves=self.numWaves,
             amplitude=self.amplitude,
             size=self.size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
         )
         sub = wave_terrain(cfg=cfg, difficulty=self.difficulty)
         self.mesh = subterrain_to_mesh(sub)
@@ -348,17 +348,17 @@ class WaveTerrain(Terrain):
 
 class StairsTerrain(Terrain):
     name: f"StairsTerrain_{uuid.uuid4().hex[:8]}"
-    step_width: 1.0
-    step_height: 0.1
+    stepWidth: 1.0
+    stepHeight: 0.1
 
     def create(self):
         from scenic.core.terrain import stairs_terrain, StairsTerrainCfg, subterrain_to_mesh
         cfg = StairsTerrainCfg(
-            step_width=self.step_width,
-            step_height=self.step_height,
+            step_width=self.stepWidth,
+            step_height=self.stepHeight,
             size=self.size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
         )
         sub = stairs_terrain(cfg=cfg, difficulty=self.difficulty)
         self.mesh = subterrain_to_mesh(sub)
@@ -366,19 +366,19 @@ class StairsTerrain(Terrain):
 
 class PyramidStairsTerrain(Terrain):
     name: f"PyramidStairsTerrain_{uuid.uuid4().hex[:8]}"
-    step_width: 1.0
-    step_height: 0.1
-    platform_size: 1.0
+    stepWidth: 1.0
+    stepHeight: 0.1
+    platformSize: 1.0
 
     def create(self):
         from scenic.core.terrain import pyramid_stairs_terrain, PyramidStairsTerrainCfg, subterrain_to_mesh
         cfg = PyramidStairsTerrainCfg(
-            step_width=self.step_width,
-            step_height=self.step_height,
-            platform_size=self.platform_size,
+            step_width=self.stepWidth,
+            step_height=self.stepHeight,
+            platform_size=self.platformSize,
             size=self.size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
         )
         sub = pyramid_stairs_terrain(cfg=cfg, difficulty=self.difficulty)
         self.mesh = subterrain_to_mesh(sub)
@@ -386,23 +386,23 @@ class PyramidStairsTerrain(Terrain):
 
 class SteppingStonesTerrain(Terrain):
     name: f"SteppingStonesTerrain_{uuid.uuid4().hex[:8]}"
-    stone_size: 1.0
-    stone_distance: 1.0
-    max_height: 0.2
-    platform_size: 1.0
+    stoneSize: 1.0
+    stoneDistance: 1.0
+    maxHeight: 0.2
+    platformSize: 1.0
     depth: -10.0
 
     def create(self):
         from scenic.core.terrain import stepping_stones_terrain, SteppingStonesTerrainCfg, subterrain_to_mesh
         cfg = SteppingStonesTerrainCfg(
-            stone_size=self.stone_size,
-            stone_distance=self.stone_distance,
-            max_height=self.max_height,
-            platform_size=self.platform_size,
+            stone_size=self.stoneSize,
+            stone_distance=self.stoneDistance,
+            max_height=self.maxHeight,
+            platform_size=self.platformSize,
             depth=self.depth,
             size=self.size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
         )
         sub = stepping_stones_terrain(cfg=cfg, difficulty=self.difficulty)
         self.mesh = subterrain_to_mesh(sub)
@@ -417,8 +417,8 @@ class PolesTerrain(Terrain):
         cfg = PolesTerrainCfg(
             difficulty=self.difficulty,
             size=self.size,
-            horizontal_scale=self.horizontal_scale,
-            vertical_scale=self.vertical_scale,
+            horizontal_scale=self.horizontalScale,
+            vertical_scale=self.verticalScale,
         )
         sub = poles_terrain(cfg=cfg, difficulty=self.difficulty)
         self.mesh = subterrain_to_mesh(sub)
@@ -427,7 +427,7 @@ class PolesTerrain(Terrain):
 if globalParameters.environmentUSDPath:
 
     try:
-        environmentMeshPath, environmentInfoPath = isaac_backend.ensure_environment_mesh_paths(
+        environmentMeshPath, environmentInfoPath = isaac_backend.ensureEnvironmentMeshPaths(
             globalParameters.environmentUSDPath,
             environmentMeshPath,
             environmentInfoPath,
@@ -506,7 +506,7 @@ if globalParameters.environmentUSDPath:
             newObj = new ExistingIsaacSimObject at world_center,
                         with shape MeshShape(shape_mesh, dimensions=dimensions),
                         with name path,
-                        with prim_path path,
+                        with primPath path,
                         facing (yaw, pitch, roll)
 
             _addExistingObj(newObj)

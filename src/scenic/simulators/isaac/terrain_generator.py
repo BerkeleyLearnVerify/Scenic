@@ -13,7 +13,7 @@ class ScenicTerrainGenerator(TerrainGenerator):
         self.flat_patches = dict(terrain_data.flat_patches)
 
 
-def scenic_terrain_generator_class(terrain_data):
+def scenicTerrainGeneratorClass(terrain_data):
     class _ScenicTerrainGenerator(ScenicTerrainGenerator):
         def __init__(self, cfg, device="cpu"):
             super().__init__(cfg, device=device, terrain_data=terrain_data)

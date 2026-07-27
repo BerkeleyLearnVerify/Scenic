@@ -24,7 +24,7 @@ class _RunningApp:
 
         omni.kit.app.get_app().update()
 
-    def run_coroutine(self, coro):
+    def runCoroutine(self, coro):
         import omni.kit.app
         import omni.kit.async_engine
 
@@ -38,17 +38,17 @@ class _RunningApp:
         pass
 
 
-def detect_isaac_version():
+def detectIsaacVersion():
     from isaacsim.core.version import get_version
 
     fields = get_version()
     return fields[0], str(fields[2])
 
 
-def resolve_backend(requested=None):
+def resolveBackend(requested=None):
     if requested and requested != "auto":
         return requested
-    _, major = detect_isaac_version()
+    _, major = detectIsaacVersion()
     return _VERSION_BACKENDS.get(major, "experimental_60")
 
 
@@ -92,13 +92,13 @@ class ScenicBridge:
         server.listen(1)
         self._socket = server
         self._running = True
-        threading.Thread(target=self._accept_loop, daemon=True).start()
+        threading.Thread(target=self._acceptLoop, daemon=True).start()
 
         import omni.kit.app
 
         stream = omni.kit.app.get_app().get_update_event_stream()
         self._update_subscription = stream.create_subscription_to_pop(
-            self._on_update, name="scenic.remote.bridge"
+            self._onUpdate, name="scenic.remote.bridge"
         )
         print(f"[scenic-bridge] listening on {self.host}:{self.port}")
         return self
@@ -111,17 +111,17 @@ class ScenicBridge:
             self._socket = None
         print("[scenic-bridge] stopped")
 
-    def _accept_loop(self):
+    def _acceptLoop(self):
         while self._running:
             try:
                 connection, _ = self._socket.accept()
             except OSError:
                 return
             threading.Thread(
-                target=self._receive_request, args=(connection,), daemon=True
+                target=self._receiveRequest, args=(connection,), daemon=True
             ).start()
 
-    def _receive_request(self, connection):
+    def _receiveRequest(self, connection):
         try:
             data = b""
             while b"\n" not in data:
@@ -144,7 +144,7 @@ class ScenicBridge:
         except OSError:
             pass
 
-    def _on_update(self, _event):
+    def _onUpdate(self, _event):
         if self._busy:
             return
         try:
@@ -153,13 +153,13 @@ class ScenicBridge:
             return
         self._busy = True
         try:
-            self._run_job(request, connection)
+            self._runJob(request, connection)
         finally:
             self._busy = False
             connection.close()
 
     @staticmethod
-    def _clear_world_singleton():
+    def _clearWorldSingleton():
         try:
             from isaacsim.core.api import World
 
@@ -168,7 +168,7 @@ class ScenicBridge:
             pass
 
     @staticmethod
-    def _reset_leaked_scenic_state():
+    def _resetLeakedScenicState():
         """Clear compiler state leaked by a previously crashed job."""
         import scenic.syntax.veneer as veneer
 
@@ -188,7 +188,7 @@ class ScenicBridge:
         veneer._globalParameters = {}
 
     @staticmethod
-    def _remove_kit_fast_importer():
+    def _removeKitFastImporter():
         """Bypass kit's fast_importer during a job: it crashes (TypeError) on
         scenario-local top-level imports like ``from lib import *``."""
         removed = [
@@ -201,15 +201,15 @@ class ScenicBridge:
             sys.meta_path.remove(finder)
         return removed
 
-    def _run_job(self, request, connection):
+    def _runJob(self, request, connection):
         try:
             scenario_path = request["scenario"]
             if not os.path.isfile(scenario_path):
                 raise FileNotFoundError(f"scenario not found: {scenario_path}")
             params = dict(request.get("params") or {})
-            backend_name = resolve_backend(params.get("isaacBackend"))
+            backend_name = resolveBackend(params.get("isaacBackend"))
             params["isaacBackend"] = backend_name
-            isaac_version, _ = detect_isaac_version()
+            isaac_version, _ = detectIsaacVersion()
             self._send(
                 connection,
                 {
@@ -219,10 +219,10 @@ class ScenicBridge:
                 },
             )
 
-            from scenic.simulators.isaac.backends import get_backend
+            from scenic.simulators.isaac.backends import getBackend
 
-            get_backend(backend_name).attach_simulation_app(_RunningApp())
-            self._clear_world_singleton()
+            getBackend(backend_name).attachSimulationApp(_RunningApp())
+            self._clearWorldSingleton()
 
             import scenic
 
@@ -234,8 +234,8 @@ class ScenicBridge:
             prior_flag = getattr(builtins, "ISAAC_LAUNCHED_FROM_TERMINAL", None)
             builtins.ISAAC_LAUNCHED_FROM_TERMINAL = False
             simulator = None
-            self._reset_leaked_scenic_state()
-            removed_finders = self._remove_kit_fast_importer()
+            self._resetLeakedScenicState()
+            removed_finders = self._removeKitFastImporter()
             try:
                 scenario = scenic.scenarioFromFile(scenario_path, params=params)
                 results = []

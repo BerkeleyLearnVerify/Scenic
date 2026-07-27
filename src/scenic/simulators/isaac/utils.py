@@ -8,49 +8,49 @@ import numpy as np
 import trimesh
 
 
-def convert_sync(in_file, out_file, load_materials=False):
-    from scenic.simulators.isaac.backends import get_backend
+def convertSync(in_file, out_file, load_materials=False):
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().convert_sync(in_file, out_file, load_materials=load_materials)
-
-
-def get_simulation_app(headless=False):
-    from scenic.simulators.isaac.backends import get_backend
-
-    return get_backend().get_simulation_app(headless=headless)
+    return getBackend().convertSync(in_file, out_file, load_materials=load_materials)
 
 
-def close_simulation_app(app):
-    from scenic.simulators.isaac.backends import get_backend
+def getSimulationApp(headless=False):
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().close_simulation_app(app)
-
-
-def get_assets_root_path():
-    from scenic.simulators.isaac.backends import get_backend
-
-    return get_backend().get_assets_root_path()
+    return getBackend().getSimulationApp(headless=headless)
 
 
-def asset_path(relative_path):
-    from scenic.simulators.isaac.backends import get_backend
+def closeSimulationApp(app):
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().asset_path(relative_path)
+    return getBackend().closeSimulationApp(app)
+
+
+def getAssetsRootPath():
+    from scenic.simulators.isaac.backends import getBackend
+
+    return getBackend().getAssetsRootPath()
+
+
+def assetPath(relative_path):
+    from scenic.simulators.isaac.backends import getBackend
+
+    return getBackend().assetPath(relative_path)
 
 
 def resolvedPath(path):
     return Path(os.fspath(path)).expanduser().resolve()
 
 
-def is_isaac_asset_reference(path):
+def isIsaacAssetReference(path):
     return os.fspath(path).startswith("Isaac/")
 
 
-def has_url_scheme(path):
+def hasUrlScheme(path):
     return bool(urlparse(os.fspath(path)).scheme)
 
 
-def _environment_cache_dir(source):
+def _environmentCacheDir(source):
     source = os.fspath(source)
     digest = hashlib.sha1(source.encode("utf-8")).hexdigest()[:12]
     stem = Path(urlparse(source).path).stem or "environment"
@@ -59,12 +59,12 @@ def _environment_cache_dir(source):
     )
 
 
-def default_environment_mesh_paths(environment_usd_path):
-    source = os.fspath(environment_usd_path)
+def defaultEnvironmentMeshPaths(environmentUsdPath):
+    source = os.fspath(environmentUsdPath)
     stem = Path(urlparse(source).path).stem
 
-    if is_isaac_asset_reference(source) or has_url_scheme(source):
-        output_dir = _environment_cache_dir(source)
+    if isIsaacAssetReference(source) or hasUrlScheme(source):
+        output_dir = _environmentCacheDir(source)
     else:
         output_dir = resolvedPath(source).parent / "_converted"
 
@@ -74,14 +74,14 @@ def default_environment_mesh_paths(environment_usd_path):
     )
 
 
-def environment_outputs_current(environment_usd_path, mesh_path, info_path):
+def environmentOutputsCurrent(environmentUsdPath, mesh_path, info_path):
     mesh_path = Path(mesh_path)
     info_path = Path(info_path)
     if not mesh_path.is_file() or not info_path.is_file():
         return False
 
-    source = os.fspath(environment_usd_path)
-    if is_isaac_asset_reference(source) or has_url_scheme(source):
+    source = os.fspath(environmentUsdPath)
+    if isIsaacAssetReference(source) or hasUrlScheme(source):
         return True
 
     usd_path = resolvedPath(source)
@@ -95,18 +95,18 @@ def environment_outputs_current(environment_usd_path, mesh_path, info_path):
     )
 
 
-def ensure_environment_mesh_paths(
-    environment_usd_path,
+def ensureEnvironmentMeshPaths(
+    environmentUsdPath,
     environment_mesh_path=None,
     environment_info_path=None,
     *,
     headless=True,
     overwrite=False,
 ):
-    from scenic.simulators.isaac.backends import get_backend
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().ensure_environment_mesh_paths(
-        environment_usd_path,
+    return getBackend().ensureEnvironmentMeshPaths(
+        environmentUsdPath,
         environment_mesh_path,
         environment_info_path,
         headless=headless,
@@ -126,13 +126,13 @@ class EnvironmentMeshCache:
             f"{self.environment_mesh_path.stem}_repaired"
         )
         self.manifest_path = self.cache_dir / "manifest.json"
-        self.sources = self._source_signatures()
-        self.manifest = self._load_manifest()
+        self.sources = self._sourceSignatures()
+        self.manifest = self._loadManifest()
         self.changed = False
 
     def get(self, node_name, mesh):
-        cache_file = self._cache_file(node_name)
-        if self._manifest_current() and cache_file.is_file():
+        cache_file = self._cacheFile(node_name)
+        if self._manifestCurrent() and cache_file.is_file():
             try:
                 cached = trimesh.load(cache_file, force="mesh", process=False)
                 if cached.is_volume:
@@ -140,7 +140,7 @@ class EnvironmentMeshCache:
             except Exception:
                 pass
 
-        repaired = self._repair_mesh(mesh)
+        repaired = self._repairMesh(mesh)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         repaired.export(cache_file)
         self.manifest["nodes"][node_name] = cache_file.name
@@ -161,11 +161,11 @@ class EnvironmentMeshCache:
             json.dump(self.manifest, out_file, indent=2)
         self.changed = False
 
-    def _cache_file(self, node_name):
+    def _cacheFile(self, node_name):
         digest = hashlib.sha1(node_name.encode("utf-8")).hexdigest()[:16]
         return self.cache_dir / f"{digest}.ply"
 
-    def _load_manifest(self):
+    def _loadManifest(self):
         default = {"version": self.version, "sources": self.sources, "nodes": {}}
         try:
             with open(self.manifest_path, "r") as in_file:
@@ -177,19 +177,19 @@ class EnvironmentMeshCache:
             return default
         return manifest
 
-    def _manifest_current(self):
+    def _manifestCurrent(self):
         return (
             self.manifest.get("version") == self.version
             and self.manifest.get("sources") == self.sources
         )
 
-    def _source_signatures(self):
+    def _sourceSignatures(self):
         return {
             str(path): {"mtime_ns": path.stat().st_mtime_ns, "size": path.stat().st_size}
             for path in (self.environment_mesh_path, self.environment_info_path)
         }
 
-    def _repair_mesh(self, mesh):
+    def _repairMesh(self, mesh):
         from scenic.core.utils import repairMesh
 
         mesh = mesh.copy()
@@ -212,7 +212,7 @@ def colorToArray(color):
     return np.array(color, dtype=float) if color else None
 
 
-def mesh_to_obj_frame(mesh):
+def meshToObjFrame(mesh):
     obj_mesh = mesh.copy()
     transform = trimesh.transformations.rotation_matrix(-np.pi / 2, (1, 0, 0))
     obj_mesh.apply_transform(transform)
@@ -237,24 +237,24 @@ def isPlanar(mesh, tolerance=1e-3):
 
 
 def scenicToIsaacSimOrientation(orientation, initial_rotation=None):
-    from scenic.simulators.isaac.backends import get_backend
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().scenic_to_isaac_orientation(
+    return getBackend().scenicToIsaacOrientation(
         orientation, initial_rotation=initial_rotation
     )
 
 
-def apply_visual_material(wrapper, obj):
-    from scenic.simulators.isaac.backends import get_backend
+def applyVisualMaterial(wrapper, obj):
+    from scenic.simulators.isaac.backends import getBackend
 
-    return get_backend().apply_visual_material(wrapper, obj)
+    return getBackend().applyVisualMaterial(wrapper, obj)
 
 
 _existingObj = {}
 
 
 def _addExistingObj(obj):
-    for key in (getattr(obj, "prim_path", None), getattr(obj, "name", None)):
+    for key in (getattr(obj, "primPath", None), getattr(obj, "name", None)):
         if key is not None:
             _existingObj[str(key)] = obj
 
@@ -275,7 +275,7 @@ def existingObjects():
     objs_by_prim_path = {}
 
     for obj in _existingObj.values():
-        prim_path = getattr(obj, "prim_path", None)
+        prim_path = getattr(obj, "primPath", None)
         if prim_path is None:
             continue
         objs_by_prim_path[str(prim_path)] = obj
@@ -286,7 +286,7 @@ def existingObjects():
 def setCollidersExistingObj(verbose=False):
     from pxr import UsdPhysics
 
-    from scenic.simulators.isaac.backends import get_backend
+    from scenic.simulators.isaac.backends import getBackend
 
     approximation = UsdPhysics.Tokens.none
 
@@ -294,14 +294,14 @@ def setCollidersExistingObj(verbose=False):
     failed = []
 
     for obj in existingObjects():
-        prim_path = getattr(obj, "prim_path", None)
+        prim_path = getattr(obj, "primPath", None)
         if prim_path is None:
             continue
 
         prim_path = str(prim_path)
 
         try:
-            get_backend().set_mesh_collision_approximation(prim_path, approximation)
+            getBackend().setMeshCollisionApproximation(prim_path, approximation)
             changed.append(prim_path)
 
             if verbose:

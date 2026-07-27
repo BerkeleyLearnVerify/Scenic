@@ -9,8 +9,8 @@ from typing import Any
 
 from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 from scenic.core.vectors import Vector
-from scenic.simulators.isaac.backends import get_backend
-from scenic.simulators.isaac.terrain_utils import build_scenic_terrain_data
+from scenic.simulators.isaac.backends import getBackend
+from scenic.simulators.isaac.terrain_utils import buildScenicTerrainData
 
 DEFAULT_EMPTY_ENV_CFG = "scenic.simulators.isaac.empty_env_cfg:ScenicEmptyEnvCfg"
 
@@ -75,7 +75,7 @@ class IsaacLabSimulator(Simulator):
         self.app_launcher_args = dict(app_launcher_args or {})
         self.app_launcher = None
         self.client = None
-        self.backend = get_backend("lab")
+        self.backend = getBackend("lab")
 
         self.terrain_data = None
 
@@ -83,7 +83,7 @@ class IsaacLabSimulator(Simulator):
 
         # If an env is already provided, assume the caller owns the app/env.
         if self.env is None:
-            self._ensure_app()
+            self._ensureApp()
 
         if (
             self.env is None
@@ -93,12 +93,12 @@ class IsaacLabSimulator(Simulator):
         ):
             self.env_cfg_entry_point = DEFAULT_EMPTY_ENV_CFG
 
-    def _ensure_app(self):
+    def _ensureApp(self):
         """Launch Isaac Sim through Isaac Lab's AppLauncher."""
         if self.client is not None:
             return self.client
 
-        self.client = self.backend.ensure_app(
+        self.client = self.backend.ensureApp(
             headless=self.headless,
             device=self.device,
             app_launcher_args=self.app_launcher_args,
@@ -140,7 +140,7 @@ class IsaacLabSimulator(Simulator):
             return
 
         if self.client is not None:
-            self.backend.close_app()
+            self.backend.closeApp()
             self.client = None
             self.app_launcher = None
 
@@ -220,12 +220,12 @@ class IsaacLabSimulation(Simulation):
         self._scenic_robot_asset_names = {}
 
         if self._owns_env:
-            self.simulator._ensure_app()
+            self.simulator._ensureApp()
 
         self.debug_lifecycle = debug_lifecycle
         self._step_count = 0
 
-        self.backend = get_backend("lab")
+        self.backend = getBackend("lab")
 
         super().__init__(scene, timestep=timestep, **kwargs)
 
@@ -235,8 +235,8 @@ class IsaacLabSimulation(Simulation):
 
         if self.env is None:
             try:
-                self.env_cfg = self._build_env_cfg()
-                self.env = self._make_env(self.env_cfg)
+                self.env_cfg = self._buildEnvCfg()
+                self.env = self._makeEnv(self.env_cfg)
             except Exception as exc:
                 import traceback
 
@@ -249,24 +249,24 @@ class IsaacLabSimulation(Simulation):
                 traceback.print_exc()
                 raise
 
-        self._reset_env_once()
+        self._resetEnvOnce()
 
-    def _build_env_cfg(self):
+    def _buildEnvCfg(self):
         """Create, validate, and patch an Isaac Lab manager-based env cfg."""
-        cfg = self._materialize_env_cfg()
-        self._validate_manager_based_cfg(cfg)
-        self._apply_standard_overrides(cfg)
-        self._apply_scenic_to_env_cfg(cfg)
+        cfg = self._materializeEnvCfg()
+        self._validateManagerBasedCfg(cfg)
+        self._applyStandardOverrides(cfg)
+        self._applyScenicToEnvCfg(cfg)
         return cfg
 
-    def _materialize_env_cfg(self):
+    def _materializeEnvCfg(self):
         """Resolve env cfg from task, cfg object/class, or entry point."""
 
         if self.raw_env_cfg is not None:
-            return self._instantiate_cfg(self.raw_env_cfg)
+            return self._instantiateCfg(self.raw_env_cfg)
 
         if self.env_cfg_entry_point is not None:
-            return self._instantiate_cfg(self.env_cfg_entry_point)
+            return self._instantiateCfg(self.env_cfg_entry_point)
 
         if self.task is not None:
             import isaaclab_tasks
@@ -283,9 +283,9 @@ class IsaacLabSimulation(Simulation):
             "IsaacLabSimulation requires one of: env, task, env_cfg, or env_cfg_entry_point."
         )
 
-    def _instantiate_cfg(self, cfg_like):
+    def _instantiateCfg(self, cfg_like):
         if isinstance(cfg_like, str):
-            return self._instantiate_cfg(self._load_entry_point(cfg_like))
+            return self._instantiateCfg(self._loadEntryPoint(cfg_like))
 
         if isinstance(cfg_like, type):
             return cfg_like()
@@ -295,7 +295,7 @@ class IsaacLabSimulation(Simulation):
 
         return copy.deepcopy(cfg_like)
 
-    def _load_entry_point(self, entry_point: str):
+    def _loadEntryPoint(self, entry_point: str):
         """Load 'package.module:ClassName'."""
         if ":" not in entry_point:
             raise SimulationCreationError(
@@ -311,7 +311,7 @@ class IsaacLabSimulation(Simulation):
                 f"Could not load Isaac Lab env cfg entry point {entry_point!r}."
             ) from exc
 
-    def _validate_manager_based_cfg(self, cfg):
+    def _validateManagerBasedCfg(self, cfg):
         from isaaclab.envs import ManagerBasedEnvCfg, ManagerBasedRLEnvCfg
 
         if not isinstance(cfg, (ManagerBasedEnvCfg, ManagerBasedRLEnvCfg)):
@@ -322,7 +322,7 @@ class IsaacLabSimulation(Simulation):
                 "not one of the '-Direct-' environments."
             )
 
-    def _apply_standard_overrides(self, cfg):
+    def _applyStandardOverrides(self, cfg):
         """Apply common simulator-level overrides to the env cfg."""
         if self.device is not None and hasattr(cfg, "sim"):
             cfg.sim.device = self.device
@@ -346,7 +346,7 @@ class IsaacLabSimulation(Simulation):
         if self.env_spacing is not None and hasattr(cfg, "scene"):
             cfg.scene.env_spacing = self.env_spacing
 
-    def _apply_scenic_to_env_cfg(self, cfg):
+    def _applyScenicToEnvCfg(self, cfg):
         """Patch Isaac Lab cfg using objects sampled by Scenic.
 
         - If a Scenic object name matches an existing cfg.scene field, patch
@@ -361,23 +361,23 @@ class IsaacLabSimulation(Simulation):
             raise SimulationCreationError("Isaac Lab env cfg has no .scene field.")
 
         if self.terrains:
-            self.terrain_data = build_scenic_terrain_data(
+            self.terrain_data = buildScenicTerrainData(
                 self.terrains,
                 border_width=self.terrainBorderWidth,
             )
             self.simulator.terrain_data = self.terrain_data
-            self._install_scenic_terrain_into_cfg(cfg, self.terrain_data)
+            self._installScenicTerrainIntoCfg(cfg, self.terrain_data)
 
         if self.environmentUSDPath is not None:
-            self._add_environment_usd_to_cfg(cfg)
+            self._addEnvironmentUsdToCfg(cfg)
         else:
             for obj in self.scenic_existing_objects:
-                self._patch_or_register_scenic_object(cfg, obj, must_exist=True)
+                self._patchOrRegisterScenicObject(cfg, obj, must_exist=True)
 
         for obj in self.scenic_objects:
-            self._patch_or_register_scenic_object(cfg, obj, must_exist=False)
+            self._patchOrRegisterScenicObject(cfg, obj, must_exist=False)
 
-    def _install_scenic_terrain_into_cfg(self, cfg, terrain_data):
+    def _installScenicTerrainIntoCfg(self, cfg, terrain_data):
         """Install Scenic terrain into an Isaac Lab env config."""
         if not hasattr(cfg, "scene") or not hasattr(cfg.scene, "terrain"):
             raise SimulationCreationError(
@@ -386,31 +386,31 @@ class IsaacLabSimulation(Simulation):
                 "or you need to fall back to spawning the terrain mesh as a static collider."
             )
 
-        from scenic.simulators.isaac.lab_env import configure_env_cfg_for_scenic_terrain
+        from scenic.simulators.isaac.lab_env import configureEnvCfgForScenicTerrain
 
-        configure_env_cfg_for_scenic_terrain(cfg, terrain_data)
+        configureEnvCfgForScenicTerrain(cfg, terrain_data)
 
-    def _add_environment_usd_to_cfg(self, cfg):
+    def _addEnvironmentUsdToCfg(self, cfg):
         """Add the environment USD under each Isaac Lab environment namespace."""
         setattr(
             cfg.scene,
             "scenic_environment",
-            self.backend.make_environment_cfg(self.environmentUSDPath),
+            self.backend.makeEnvironmentCfg(self.environmentUSDPath),
         )
 
-    def _patch_or_register_scenic_object(self, cfg, obj, *, must_exist: bool):
+    def _patchOrRegisterScenicObject(self, cfg, obj, *, must_exist: bool):
         scenic_name = getattr(obj, "name", obj.__class__.__name__)
-        asset_name = self.backend._safe_asset_name(scenic_name)
+        asset_name = self.backend._safeAssetName(scenic_name)
 
         if hasattr(cfg.scene, asset_name):
             lab_asset_cfg = getattr(cfg.scene, asset_name)
-            self.backend.patch_asset_initial_pose(lab_asset_cfg, obj)
+            self.backend.patchAssetInitialPose(lab_asset_cfg, obj)
         elif must_exist:
             raise SimulationCreationError(
                 f"Existing object {scenic_name!r} has no matching cfg.scene field {asset_name!r}."
             )
         else:
-            lab_asset_cfg = self.backend.make_asset_cfg(
+            lab_asset_cfg = self.backend.makeAssetCfg(
                 obj,
                 asset_name,
                 num_envs=self.num_envs,
@@ -423,7 +423,7 @@ class IsaacLabSimulation(Simulation):
         if getattr(obj, "blueprint", None) == "Robot":
             self._scenic_robot_asset_names[scenic_name] = asset_name
 
-    def _make_env(self, cfg):
+    def _makeEnv(self, cfg):
         """Construct the actual Isaac Lab environment."""
         if self.task is not None:
             import gymnasium as gym
@@ -433,7 +433,7 @@ class IsaacLabSimulation(Simulation):
             # "isaaclab.envs:ManagerBasedRLEnv"
             return gym.make(self.task, cfg=cfg, render_mode=self.render_mode)
 
-        env_cls = self._resolve_env_cls(cfg)
+        env_cls = self._resolveEnvCls(cfg)
 
         from isaaclab.envs import ManagerBasedRLEnv
 
@@ -442,11 +442,11 @@ class IsaacLabSimulation(Simulation):
 
         return env_cls(cfg=cfg)
 
-    def _resolve_env_cls(self, cfg):
+    def _resolveEnvCls(self, cfg):
         """Pick ManagerBasedEnv or ManagerBasedRLEnv from the cfg type."""
         if self.env_cls is not None:
             if isinstance(self.env_cls, str):
-                return self._load_entry_point(self.env_cls)
+                return self._loadEntryPoint(self.env_cls)
             return self.env_cls
 
         from isaaclab.envs import (
@@ -492,7 +492,7 @@ class IsaacLabSimulation(Simulation):
 
         2. Scenic-controlled robot commands:
         - Used by Scenic behaviors like KeepMoving on Create3.
-        - Buffered by LabBackend.apply_robot_control and applied directly to the
+        - Buffered by LabBackend.applyRobotControl and applied directly to the
             corresponding Isaac Lab Articulation before env.step(...).
         """
         import traceback
@@ -502,7 +502,7 @@ class IsaacLabSimulation(Simulation):
         try:
             # This calls action.applyTo(obj, self), which calls obj.move(self, ...).
             super().executeActions(allActions)
-            self._pending_lab_action = self.scenic_actions_to_lab_action(allActions)
+            self._pending_lab_action = self.scenicActionsToLabAction(allActions)
         except Exception as exc:
             print(
                 f"[SCENIC ISAAC LAB ERROR] Exception while applying Scenic actions at step "
@@ -512,7 +512,7 @@ class IsaacLabSimulation(Simulation):
             traceback.print_exc()
             raise
 
-    def scenic_actions_to_lab_action(self, allActions):
+    def scenicActionsToLabAction(self, allActions):
         """Map Scenic actions into an Isaac Lab action tensor.
 
         This returns a zero action tensor with the exact shape Isaac Lab expects,
@@ -550,14 +550,14 @@ class IsaacLabSimulation(Simulation):
         import torch
 
         try:
-            self._reset_env_once()
+            self._resetEnvOnce()
 
             # Apply Scenic-controlled robot commands before stepping the Lab env.
-            self._apply_pending_robot_commands()
+            self._applyPendingRobotCommands()
 
             action = self._pending_lab_action
             if action is None:
-                action = self.scenic_actions_to_lab_action([])
+                action = self.scenicActionsToLabAction([])
 
             with torch.inference_mode():
                 self._last_step_output = self.env.step(action)
@@ -581,19 +581,19 @@ class IsaacLabSimulation(Simulation):
             traceback.print_exc()
             raise
 
-    def _apply_pending_robot_commands(self):
+    def _applyPendingRobotCommands(self):
         """Apply buffered Scenic robot commands to Isaac Lab articulations."""
         if not self._pending_robot_commands:
             return
 
         for _, (obj, command) in self._pending_robot_commands.items():
-            controller = getattr(obj, "wheel_controller", None)
+            controller = getattr(obj, "wheelController", None)
 
             if controller == "differential":
-                asset = self._asset_for_scenic_object(obj)
-                self.backend.apply_differential_drive_command(asset, obj, command)
+                asset = self._assetForScenicObject(obj)
+                self.backend.applyDifferentialDriveCommand(asset, obj, command)
             elif callable(getattr(obj, "control", None)):
-                self.backend.apply_articulation_action(self, obj, obj.control(command))
+                self.backend.applyArticulationAction(self, obj, obj.control(command))
             else:
                 if self.debug_lifecycle:
                     print(
@@ -603,7 +603,7 @@ class IsaacLabSimulation(Simulation):
                         getattr(obj, "name", obj),
                     )
 
-    def _reset_env_once(self):
+    def _resetEnvOnce(self):
         if self.env is None or self._has_reset:
             return
         self.env.reset()
@@ -615,48 +615,48 @@ class IsaacLabSimulation(Simulation):
             return {prop: getattr(obj, prop) for prop in properties}
 
         if self.env is None:
-            defaults = self._default_physics_values()
+            defaults = self._defaultPhysicsValues()
             return {prop: defaults[prop] for prop in properties}
 
-        asset = self._asset_for_scenic_object(obj)
+        asset = self._assetForScenicObject(obj)
         if asset is None:
-            defaults = self._default_physics_values()
+            defaults = self._defaultPhysicsValues()
             return {prop: defaults[prop] for prop in properties}
 
-        values = self._physics_values_from_asset(asset, env_id=0)
+        values = self._physicsValuesFromAsset(asset, env_id=0)
         return {prop: values[prop] for prop in properties}
 
-    def _asset_for_scenic_object(self, obj):
+    def _assetForScenicObject(self, obj):
         scenic_name = getattr(obj, "name", None)
         if scenic_name is None:
             return None
 
         asset_name = self._object_name_to_asset_name.get(scenic_name)
         if asset_name is None:
-            asset_name = self.backend._safe_asset_name(scenic_name)
+            asset_name = self.backend._safeAssetName(scenic_name)
 
         env = self.env.unwrapped if hasattr(self.env, "unwrapped") else self.env
         return env.scene[asset_name]
 
-    def _physics_values_from_asset(self, asset, env_id: int = 0):
+    def _physicsValuesFromAsset(self, asset, env_id: int = 0):
         data = getattr(asset, "data", None)
         if data is None:
-            return self._default_physics_values()
+            return self._defaultPhysicsValues()
 
-        pos = self.backend._tensor_row(
+        pos = self.backend._tensorRow(
             getattr(data, "root_pos_w", None), env_id, default=(0.0, 0.0, 0.0)
         )
-        quat = self.backend._tensor_row(
+        quat = self.backend._tensorRow(
             getattr(data, "root_quat_w", None), env_id, default=(1.0, 0.0, 0.0, 0.0)
         )
-        lin_vel = self.backend._tensor_row(
+        lin_vel = self.backend._tensorRow(
             getattr(data, "root_lin_vel_w", None), env_id, default=(0.0, 0.0, 0.0)
         )
-        ang_vel = self.backend._tensor_row(
+        ang_vel = self.backend._tensorRow(
             getattr(data, "root_ang_vel_w", None), env_id, default=(0.0, 0.0, 0.0)
         )
 
-        yaw, pitch, roll = self.backend.isaac_quat_to_scenic_euler_angles(quat)
+        yaw, pitch, roll = self.backend.isaacQuatToScenicEulerAngles(quat)
 
         speed = math.sqrt(sum(v * v for v in lin_vel))
         angular_speed = math.sqrt(sum(v * v for v in ang_vel))
@@ -672,7 +672,7 @@ class IsaacLabSimulation(Simulation):
             roll=roll,
         )
 
-    def _default_physics_values(self):
+    def _defaultPhysicsValues(self):
         return dict(
             position=Vector(0, 0, 0),
             velocity=Vector(0, 0, 0),

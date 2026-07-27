@@ -36,7 +36,7 @@ parser.add_argument(
 parser.add_argument("--scenic_model", type=str, default="scenic.simulators.isaac.model")
 parser.add_argument("--terrain_border_width", type=float, default=20.0)
 
-cli_args.add_rsl_rl_args(parser)
+cli_args.addRslRlArgs(parser)
 AppLauncher.add_app_launcher_args(parser)
 args_cli, hydra_args = parser.parse_known_args()
 
@@ -74,9 +74,9 @@ from rsl_rl.runners import DistillationRunner, OnPolicyRunner
 import torch
 
 from scenic.simulators.isaac.scripts.common import (
-    configure_initial_scenic_terrain,
-    load_scenic_scenario,
-    wrap_with_scenic,
+    configureInitialScenicTerrain,
+    loadScenicScenario,
+    wrapWithScenic,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ def main(
     env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg,
     agent_cfg: RslRlBaseRunnerCfg,
 ):
-    agent_cfg = cli_args.update_rsl_rl_cfg(agent_cfg, args_cli)
+    agent_cfg = cli_args.updateRslRlCfg(agent_cfg, args_cli)
     env_cfg.scene.num_envs = (
         args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     )
@@ -137,8 +137,8 @@ def main(
         env_cfg.seed = seed
         agent_cfg.seed = seed
 
-    scenario = load_scenic_scenario(args_cli.scenario, args_cli.scenic_model)
-    configure_initial_scenic_terrain(env_cfg, scenario, args_cli.terrain_border_width)
+    scenario = loadScenicScenario(args_cli.scenario, args_cli.scenic_model)
+    configureInitialScenicTerrain(env_cfg, scenario, args_cli.terrain_border_width)
 
     log_root_path = os.path.abspath(
         os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
@@ -180,7 +180,7 @@ def main(
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
 
-    env = wrap_with_scenic(env, scenario, args_cli.terrain_border_width)
+    env = wrapWithScenic(env, scenario, args_cli.terrain_border_width)
     start_time = time.time()
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 

@@ -49,11 +49,11 @@ place_pos = (small_bin.x, small_bin.y, cube.z)
 def endEffectorTarget(pos):
     return pos
 
-behavior UR5eMoveToPickPlace(target_object, place_pos):
+behavior UR5eMoveToPickPlace(targetObject, place_pos):
     pick_pos = (
-        target_object.x,
-        target_object.y,
-        target_object.z + graspZBias,
+        targetObject.x,
+        targetObject.y,
+        targetObject.z + graspZBias,
     )
     home = endEffectorTarget((
         0.30,

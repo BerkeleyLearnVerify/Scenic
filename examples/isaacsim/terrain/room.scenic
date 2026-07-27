@@ -9,7 +9,7 @@ param uniform_noise_range = (Range(0.1, 0.2), Range(0.2, 0.5))
 terrain = new RandomUniformTerrain at (0, 0, 0), 
                 with width 20, 
                 with length 20, 
-                with noise_range globalParameters.uniform_noise_range
+                with noiseRange globalParameters.uniform_noise_range
 
 sofa = new Couch on terrain
 

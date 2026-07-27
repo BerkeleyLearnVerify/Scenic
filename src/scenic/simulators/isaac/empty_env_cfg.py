@@ -10,7 +10,7 @@ from isaaclab.utils import configclass
 import torch
 
 
-def zero_obs(env):
+def zeroObs(env):
     """Dummy observation so ManagerBasedEnv has a valid policy observation."""
     return torch.zeros((env.num_envs, 1), device=env.device)
 
@@ -35,7 +35,7 @@ class ActionsCfg:
 class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
-        zero = ObsTerm(func=zero_obs)
+        zero = ObsTerm(func=zeroObs)
 
         def __post_init__(self):
             self.enable_corruption = False

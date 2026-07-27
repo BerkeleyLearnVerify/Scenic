@@ -11,7 +11,7 @@ class Experimental51World:
     timestep: float
     objects: dict = field(default_factory=dict)
 
-    def get_object(self, name):
+    def getObject(self, name):
         return self.objects[name]
 
 
@@ -20,7 +20,7 @@ class Experimental51Backend(Experimental60Backend):
 
     name = "experimental_51"
 
-    def create_world(self, timestep):
+    def createWorld(self, timestep):
         from isaacsim.core.api import World
 
         core_world = World(
@@ -34,30 +34,30 @@ class Experimental51Backend(Experimental60Backend):
             timestep=timestep,
         )
 
-    def run_coroutine(self, coro):
-        return IsaacBackend.run_coroutine(self, coro)
+    def runCoroutine(self, coro):
+        return IsaacBackend.runCoroutine(self, coro)
 
-    def enable_extension(self, name):
+    def enableExtension(self, name):
         from isaacsim.core.utils.extensions import enable_extension
 
         enable_extension(name)
 
-    def open_environment_stage(self, usd_path):
+    def openEnvironmentStage(self, usd_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
 
-        opened, stage = self._open_stage(stage_utils, usd_path)
+        opened, stage = self._openStage(stage_utils, usd_path)
         if not opened:
             return False
         stage.SetEditTarget(stage.GetSessionLayer())
         return True
 
-    def _open_stage_for_conversion(self, usd_path):
+    def _openStageForConversion(self, usd_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
 
-        opened, _ = self._open_stage(stage_utils, usd_path)
+        opened, _ = self._openStage(stage_utils, usd_path)
         return opened
 
-    def _open_stage(self, stage_utils, usd_path):
+    def _openStage(self, stage_utils, usd_path):
         result = stage_utils.open_stage(usd_path)
         if isinstance(result, tuple):
             opened, stage = result
@@ -66,31 +66,31 @@ class Experimental51Backend(Experimental60Backend):
             stage = stage_utils.get_current_stage() if opened else None
         return opened, stage
 
-    def initialize_physics(self, world, objects):
+    def initializePhysics(self, world, objects):
         # Referenced assets can enter the loading queue one update after it first empties.
         ready_frames = 0
         while ready_frames < 2:
             world.app.update()
-            ready_frames = 0 if self.is_stage_loading() else ready_frames + 1
-        self._configure_manipulator_pick_objects_for_world(world, objects)
+            ready_frames = 0 if self.isStageLoading() else ready_frames + 1
+        self._configureManipulatorPickObjectsForWorld(world, objects)
         world.core_world.initialize_physics()
         world.app.update()
 
-    def play_world(self, world):
+    def playWorld(self, world):
         world.core_world.play()
 
-    def step_world(self, world):
+    def stepWorld(self, world):
         world.core_world.step()
 
-    def stop_and_clear_world(self, world):
+    def stopAndClearWorld(self, world):
         world.core_world.stop()
         world.core_world.clear()
         world.objects.clear()
 
-    def release_world(self, world):
+    def releaseWorld(self, world):
         from isaacsim.core.api import World
 
         World.clear_instance()
 
-    def add_object(self, world, obj, *, scenic_obj=None):
+    def addObject(self, world, obj, *, scenic_obj=None):
         world.objects[scenic_obj.name] = obj

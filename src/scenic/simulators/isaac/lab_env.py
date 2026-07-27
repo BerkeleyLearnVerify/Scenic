@@ -1,16 +1,16 @@
 import gymnasium as gym
 
 from scenic.simulators.isaac.terrain_utils import (
-    build_scenic_terrain_data,
-    terrain_objects_from_scene,
+    buildScenicTerrainData,
+    terrainObjectsFromScene,
 )
 
 
-def _unwrap_env(env):
+def _unwrapEnv(env):
     return getattr(env, "unwrapped", env)
 
 
-def _remove_imported_terrain(terrain, name):
+def _removeImportedTerrain(terrain, name):
     cfg = getattr(terrain, "cfg", None)
     prim_path = f"{cfg.prim_path}/{name}" if getattr(cfg, "prim_path", None) else None
 
@@ -33,8 +33,8 @@ def _remove_imported_terrain(terrain, name):
             mapping.pop(name, None)
 
 
-def install_scenic_terrain(env, terrain_data):
-    unwrapped = _unwrap_env(env)
+def installScenicTerrain(env, terrain_data):
+    unwrapped = _unwrapEnv(env)
     scene = getattr(unwrapped, "scene", None)
     terrain = getattr(scene, "terrain", None) if scene is not None else None
     if terrain is None and scene is not None:
@@ -43,7 +43,7 @@ def install_scenic_terrain(env, terrain_data):
         raise RuntimeError("Isaac Lab environment does not expose a scene terrain")
 
     cfg = getattr(terrain, "cfg", None)
-    _remove_imported_terrain(terrain, "terrain")
+    _removeImportedTerrain(terrain, "terrain")
 
     terrain.import_mesh("terrain", terrain_data.terrain_mesh)
     terrain.configure_env_origins(terrain_data.terrain_origins)
@@ -54,10 +54,10 @@ def install_scenic_terrain(env, terrain_data):
         terrain.set_debug_vis(True)
 
 
-def configure_env_cfg_for_scenic_terrain(env_cfg, terrain_data):
+def configureEnvCfgForScenicTerrain(env_cfg, terrain_data):
     from isaaclab.terrains import TerrainGeneratorCfg
 
-    from scenic.simulators.isaac.terrain_generator import scenic_terrain_generator_class
+    from scenic.simulators.isaac.terrain_generator import scenicTerrainGeneratorClass
 
     terrain_cfg = env_cfg.scene.terrain
     generator_cfg = terrain_cfg.terrain_generator
@@ -74,7 +74,7 @@ def configure_env_cfg_for_scenic_terrain(env_cfg, terrain_data):
         terrain_cfg.terrain_generator = generator_cfg
 
     terrain_cfg.terrain_type = "generator"
-    generator_cfg.class_type = scenic_terrain_generator_class(terrain_data)
+    generator_cfg.class_type = scenicTerrainGeneratorClass(terrain_data)
     generator_cfg.num_rows = int(num_rows)
     generator_cfg.num_cols = int(num_cols)
     generator_cfg.sub_terrains = {}
@@ -99,18 +99,18 @@ class ScenicIsaacLabEnvWrapper(gym.Wrapper):
             raise AttributeError(name)
         return getattr(self.env, name)
 
-    def _sample_terrain(self):
+    def _sampleTerrain(self):
         scene, _ = self.scenario.generate(maxIterations=self.max_iterations)
-        terrain_data = build_scenic_terrain_data(
-            terrain_objects_from_scene(scene), border_width=self.terrain_border_width
+        terrain_data = buildScenicTerrainData(
+            terrainObjectsFromScene(scene), border_width=self.terrain_border_width
         )
         self.current_scene = scene
         self.current_terrain_data = terrain_data
         return terrain_data
 
     def reset(self, *, seed=None, options=None):
-        terrain_data = self._sample_terrain()
-        install_scenic_terrain(self.env, terrain_data)
+        terrain_data = self._sampleTerrain()
+        installScenicTerrain(self.env, terrain_data)
         return self.env.reset(seed=seed, options=options)
 
     def step(self, action):
