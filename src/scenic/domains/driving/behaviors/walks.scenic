@@ -202,9 +202,9 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
         # wait until it's clear.
         background_objects = [obj for obj in simulation().objects if obj is not self]
         immediate_path = shapely.ops.substring(path_ls, 0, targetSpeed)
-        danger_objects = [obj for obj in background_objects if obj.speed > 0.44 and obj.isVehicle]
+        danger_objects = [obj for obj in background_objects if obj.isVehicle and obj.speed > 0.44]
         moving_obj_danger_zone = shapely.union_all(
-            [obj._boundingPolygon.buffer(bufferCalc(obj)) for obj in danger_objects]
+            [obj._boundingPolygon for obj in danger_objects]
         )
         if immediate_path.intersects(moving_obj_danger_zone):
             do TieBreakingPause()
