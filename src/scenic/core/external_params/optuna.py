@@ -105,7 +105,6 @@ class OptunaParameterConverter(ExternalParameterConverter):
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, UniformDistribution):
-            breakpoint()
             for o in distCond.options:
                 self.convert(o)
             newSelector = _OptunaCategoricalHelper(
