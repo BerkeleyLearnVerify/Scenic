@@ -104,14 +104,15 @@ class OptunaParameterConverter(ExternalParameterConverter):
             newDist = OptunaOptions(distCond.options)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
-        # elif isinstance(distCond, UniformDistribution):
-        #     for o in distCond.options:
-        #         self.convert(o)
-        #     newSelector = _OptunaCategoricalHelper(
-        #         distCond.selector.high, emptyMessage="Empty Optuna UniformDistribution."
-        #     )
-        #     self.registerExternalParams(newSelector)
-        #     distCond.selector.conditionTo(newSelector)
+        elif isinstance(distCond, UniformDistribution):
+            breakpoint()
+            for o in distCond.options:
+                self.convert(o)
+            newSelector = _OptunaCategoricalHelper(
+                distCond.selector.high, emptyMessage="Empty Optuna UniformDistribution."
+            )
+            self.registerExternalParams(newSelector)
+            distCond.selector.conditionTo(newSelector)
         elif (
             isinstance(distCond, PointInRegionDistribution)
             and not distCond._deterministic
@@ -210,7 +211,9 @@ class _OptunaCategoricalHelper(OptunaParameter):
         optionsNums = list(range(value[self.numOptions] + 1))
         if len(optionsNums) == 0:
             raise RejectionException(self.emptyMessage)
-        return sampler.trial.suggest_categorical(self.optunaName(), optionsNums)
+        return sampler.trial.suggest_categorical(
+            self.optunaName(self.numOptions), optionsNums
+        )
 
 
 class OptunaOptions(Options):
