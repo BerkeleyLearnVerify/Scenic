@@ -191,10 +191,12 @@ class OptunaDiscreteRange(OptunaParameter):
         self.emptyMessage = emptyMessage
 
     def suggestValue(self, sampler, value):
-        if value[self.low] > value[self.high]:
+        if value[self.low] > value[self.low]:
             raise RejectionException(self.emptyMessage if self.emptyMessage else "")
         return sampler.trial.suggest_int(
-            self.optunaName((self.low, self.high)), value[self.low], value[self.high]
+            self.optunaName((value[self.low], value[self.low])),
+            value[self.low],
+            value[self.high],
         )
 
 
@@ -211,7 +213,7 @@ class _OptunaCategoricalHelper(OptunaParameter):
         if len(optionsNums) == 0:
             raise RejectionException(self.emptyMessage)
         return sampler.trial.suggest_categorical(
-            self.optunaName(self.numOptions), optionsNums
+            self.optunaName(value[self.numOptions]), optionsNums
         )
 
 
