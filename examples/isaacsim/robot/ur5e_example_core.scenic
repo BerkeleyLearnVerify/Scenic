@@ -21,8 +21,11 @@ from scenic.simulators.isaac.utils import getExistingObj
 from scenic.simulators.isaac.actions import ManipulatorTimeout
 
 table = getExistingObj("/Root/table_low_327/table_low")
-CUBE_POSITION = (Range(0.45, 0.55), Range(0.25, 0.35))
-BIN_POSITION = (Range(0.25, 0.35), Range(-0.35, -0.25))
+# Mirror the whole task across the y axis: the cube spawns on either side
+# of the robot, with the bin always on the opposite side.
+taskSide = Uniform(-1, 1)
+CUBE_POSITION = (Range(0.45, 0.55), taskSide * Range(0.25, 0.35))
+BIN_POSITION = (Range(0.25, 0.35), -taskSide * Range(0.25, 0.35))
 
 class IsaacBin(IsaacSimObject):
     length: 0.3
@@ -93,8 +96,8 @@ behavior UR5eMoveToPickPlace(targetObject, place_pos):
         do OpenGripper()
         do MoveEndEffectorTo(hover_place)
         do MoveEndEffectorTo(home)
-    except ManipulatorTimeout as e:
-        print(f"Pick-place aborted: {e}", flush=True)
+    except ManipulatorTimeout:
+        print("Pick-place aborted", flush=True)
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),

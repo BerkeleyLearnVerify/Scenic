@@ -117,8 +117,8 @@ behavior UR5eSidePickPlace(targetObject, place_pos):
         do HoldPosition()
         do MoveEndEffectorTo(post_place_high, orientation=SIDE_PICK_ORIENTATION)
         do MoveEndEffectorTo(home, orientation=SIDE_PICK_ORIENTATION)
-    except ManipulatorTimeout as e:
-        print(f"Pick-place aborted: {e}", flush=True)
+    except ManipulatorTimeout:
+        print("Pick-place aborted", flush=True)
     terminate simulation
 
 ego = new UR5e on table, at (0, 0),
