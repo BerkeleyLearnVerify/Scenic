@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 from shapely.geometry import (
     GeometryCollection,
     LineString,
@@ -60,6 +60,19 @@ def separate(polyA, polyB):
 
     assert not polyA.overlaps(polyB)
     return polyA, polyB
+
+
+def create_center_line(leftPoints, rightPoints, leftEdge, rightEdge):
+    if len(leftPoints) == len(rightPoints):
+        centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
+    else:
+        num = max(len(leftPoints), len(rightPoints))
+        centerPoints = []
+        for d in np.linspace(0, 1, num):
+            l = leftEdge.lineString.interpolate(d, normalized=True)
+            r = rightEdge.lineString.interpolate(d, normalized=True)
+            centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
+    return PolylineRegion(cleanChain(centerPoints))
 
 
 class Poly3:
@@ -165,7 +178,7 @@ class Cubic(Curve):
         root_func = lambda x: self.arclength(x) - s
         u = float(brentq(root_func, 0, self.ubound))
         dv_du = self.poly.grad_at(u)
-        local_heading = math.atan2(dv_du, 1)
+        local_heading = math.atan(dv_du)
         global_heading = local_heading + self.hdg
         return normalizeAngle(global_heading)
 
@@ -944,43 +957,31 @@ class Road:
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
 
-            # Heuristically create some kind of reasonable centerline
-            if len(leftPoints) == len(rightPoints):
-                centerPoints = list(
-                    averageVectors(l, r) for l, r in zip(leftPoints, rightPoints)
-                )
-            else:
-                num = max(len(leftPoints), len(rightPoints))
-                centerPoints = []
-                for d in np.linspace(0, 1, num):
-                    l = leftEdge.lineString.interpolate(d, normalized=True)
-                    r = rightEdge.lineString.interpolate(d, normalized=True)
-                    centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
-            centerline = PolylineRegion(cleanChain(centerPoints))
+            centerline = create_center_line(
+                leftPoints, rightPoints, leftEdge, rightEdge
+            )
             union = buffer_union(allPolys, tolerance=tolerance)
             direction = "Backward" if backward else "Forward"
             id_ = f"road{self.id_}_{name}{direction}"
             return id_, union, centerline, leftEdge, rightEdge
 
-        def makeCrosswalk():
-            pedestrian_crossings = []
-            for cw in self.crosswalks:
-                crossing = roadDomain.PedestrianCrossing(
-                    id=cw.id_,
-                    polygon=cw.polygon,
-                    centerline=cw.centerline,
-                    leftEdge=cw.leftEdge,
-                    rightEdge=cw.rightEdge,
-                    parent=None,
-                    startSidewalk=None,
-                    endSidewalk=None,
-                )
-                pedestrian_crossings.append(crossing)
-                allElements.append(crossing)
+        pedestrian_crossings = []
+        for cw in self.crosswalks:
+            crossing = roadDomain.PedestrianCrossing(
+                id=cw.id_,
+                polygon=cw.polygon,
+                centerline=cw.centerline,
+                leftEdge=cw.leftEdge,
+                rightEdge=cw.rightEdge,
+                parent=None,
+                startSidewalk=None,
+                endSidewalk=None,
+            )
+            pedestrian_crossings.append((cw.s, crossing))
+            allElements.append(crossing)
 
-            return pedestrian_crossings
-
-        pedestrian_crossings = makeCrosswalk()
+        pedestrian_crossings.sort(key=lambda pair: pair[0])
+        pedestrian_crossings = [crossing for _, crossing in pedestrian_crossings]
 
         def makeSidewalk(sections, backward=False):
             sections = tuple(sections)
@@ -996,7 +997,7 @@ class Road:
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
                 road=None,
-                crossings=(pedestrian_crossings),
+                crossings=tuple(pedestrian_crossings),
             )
             allElements.append(sidewalk)
             return sidewalk
@@ -1321,7 +1322,7 @@ class Road:
         (_, _, _), road_heading = self.xyz_heading_at_s(s)
         yaw = hdg + road_heading
 
-        r = R.from_euler('zyx', [yaw, pitch, roll], degrees=False)
+        r = Rotation.from_euler('ZYX', [yaw, pitch, roll], degrees=False)
         local_vector = np.array([u, v, z_local])
         rotated_vector = r.apply(local_vector)
 
@@ -1330,40 +1331,36 @@ class Road:
         z = z0 + rotated_vector[2]
         return (x, y, z)
 
-    def create_center_line(self, leftEdge, rightEdge):
-        leftPoints = list(leftEdge.lineString.coords)
-        rightPoints = list(rightEdge.lineString.coords)
-
-        if len(leftPoints) == len(rightPoints):
-            centerPoints = list(
-                averageVectors(l, r) for l, r in zip(leftPoints, rightPoints)
-            )
-        else:
-            num = max(len(leftPoints), len(rightPoints))
-            centerPoints = []
-            for d in np.linspace(0, 1, num):
-                l = leftEdge.lineString.interpolate(d, normalized=True)
-                r = rightEdge.lineString.interpolate(d, normalized=True)
-                centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
-        centerline = PolylineRegion(cleanChain(centerPoints))
-        return centerline
-
     def construct_crosswalk_polys(self, cw, tolerance):
+        """Build the polygon, centerline, and side edges of a crosswalk.
+
+        The outline gives a closed ring of points but no indication of which
+        parts of the ring are the crosswalk's ends (where pedestrians step on and
+        off) and which are its sides. To recover that, we take the minimum
+        rotated rectangle of the polygon: its two short edges approximate the two
+        ends. Each segment of the ring is scored by its distance to those short
+        edges, and the closest segment to each is taken as the "top" and "bottom"
+        cut. Splitting the ring at those two cuts leaves two chains, which become
+        the left and right edges of the crossing; averaging them gives the
+        centerline.
+        """
         points = []
         for outline in cw.outlines:
-            for corner_local in outline:
-                u = corner_local['u']
-                v = corner_local['v']
-                z_local = corner_local['z']
-
-                x, y, z = self.uv_to_xyz(
-                    float(cw.s), float(cw.t), float(cw.zOffset),
-                    u, v, z_local,
-                    float(cw.hdg), float(cw.pitch), float(cw.roll),
-                )
+            for corner in outline:
+                if 'u' in corner:
+                    x, y, z = self.uv_to_xyz(
+                        float(cw.s), float(cw.t), float(cw.zOffset),
+                        corner['u'], corner['v'], corner['z'],
+                        float(cw.hdg), float(cw.pitch), float(cw.roll),
+                    )
+                else:
+                    # cornerRoad: already given in road coordinates.
+                    x, y, z = self.st_to_xyz(corner['s'], corner['t'], corner['dz'])
                 points.append((x, y))
 
-        crosswalk_polygon = cleanPolygon(Polygon(points), tolerance)
+        crosswalk_polygon = Polygon(points)
+        if not crosswalk_polygon.is_valid:
+            crosswalk_polygon = cleanPolygon(crosswalk_polygon, tolerance)
         crosswalk_polygon_coords = list(crosswalk_polygon.exterior.coords[:-1])
 
         mrr = list(crosswalk_polygon.minimum_rotated_rectangle.exterior.coords)[:-1]
@@ -1382,10 +1379,10 @@ class Road:
             distance = math.hypot(dx, dy)
             lengths.append(distance)
 
-        get_mrr_shortest_indices = np.argsort(lengths)[:2]
+        shortest_index = int(np.argmin(lengths))
 
-        mrr_shortest_edge = edges[get_mrr_shortest_indices[0]]
-        mrr_shortest_opp_edge = edges[get_mrr_shortest_indices[1]]
+        mrr_shortest_edge = edges[shortest_index]
+        mrr_shortest_opp_edge = edges[(shortest_index + 2) % 4]
 
         def get_edge_midpoint(vertex1, vertex2):
             return (np.asarray(vertex1) + np.asarray(vertex2)) / 2
@@ -1467,7 +1464,12 @@ class Road:
 
         leftEdge = PolylineRegion(cleanChain(left_edge))
         rightEdge = PolylineRegion(cleanChain(right_edge))
-        centerLine = self.create_center_line(leftEdge, rightEdge)
+        centerLine = create_center_line(
+            list(leftEdge.lineString.coords),
+            list(rightEdge.lineString.coords),
+            leftEdge,
+            rightEdge,
+        )
 
         return crosswalk_polygon, centerLine, leftEdge, rightEdge
 
@@ -1492,9 +1494,6 @@ class Crosswalk:
         self.centerline = None
         self.leftEdge = None
         self.rightEdge = None
-
-    def is_valid(self):
-        return self.length > 0 and self.width > 0
 
 
 class Signal:
@@ -2266,7 +2265,11 @@ class RoadMap:
                 outgoingLanes=cyclicOrder(allOutgoingLanes, contactStart=True),
                 maneuvers=tuple(allManeuvers),
                 signals=tuple(allSignals),
-                crossings=tuple(junctionCrossings),
+                crossings=(
+                    cyclicOrder(junctionCrossings, contactStart=True)
+                    if junctionCrossings
+                    else ()
+                ),
             )
             register(intersection)
             intersections[jid] = intersection
@@ -2305,7 +2308,13 @@ class RoadMap:
                 groups.append(road.backwardLanes)
         lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
-        crossings = [cr for road in allRoads for cr in road.crossings]
+        crossings = []
+        seenCrossings = set()
+        for element in (*allRoads, *intersections):
+            for crossing in element.crossings:
+                if crossing not in seenCrossings:
+                    seenCrossings.add(crossing)
+                    crossings.append(crossing)
         sidewalks, shoulders = [], []
         for group in groups:
             sidewalk = group._sidewalk

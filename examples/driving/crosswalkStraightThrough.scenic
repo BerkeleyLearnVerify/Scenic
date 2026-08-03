@@ -37,8 +37,7 @@ behavior EgoBehavior(target_speed=10, trajectory=None):
         take SetBrakeAction(brakeIntensity)
 
 behavior PedestrianCrossBehavior(threshold=20, walking_speed=1.2, walking_direction=0):
-    while (distance from self to ego) > threshold:
-        wait
+    wait until distance from self to ego <= threshold
     take SetWalkingDirectionAction(walking_direction), SetWalkingSpeedAction(walking_speed)
 
 # GEOMETRY
@@ -68,7 +67,6 @@ endLane = straight_maneuver.endLane
 
 lane_traj = [startLane, connectingLane, endLane]
 intersection_edge = startLane.centerline[-1]
-egoStartPoint = new OrientedPoint at intersection_edge
 
 # --
 
@@ -77,7 +75,7 @@ pedStartPoint = new OrientedPoint at pedSpawn,
                     facing walkDirection
 
 # PLACEMENT
-ego = new Car following roadDirection from egoStartPoint for EGO_OFFSET,
+ego = new Car following roadDirection from intersection_edge for EGO_OFFSET,
         with behavior EgoBehavior(target_speed=EGO_SPEED, trajectory=lane_traj)
 
 ped = new Pedestrian at pedStartPoint,
