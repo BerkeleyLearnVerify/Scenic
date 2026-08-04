@@ -12,6 +12,7 @@ simulation as a `SimulationResult` object).
 
 import abc
 from collections import OrderedDict, defaultdict
+from collections.abc import Iterable
 from contextlib import AbstractContextManager, contextmanager
 import enum
 import io
@@ -20,6 +21,7 @@ import multiprocessing
 import numbers
 import os
 import random
+import signal
 import sys
 import time
 import types
@@ -1084,6 +1086,7 @@ class SimulatorGroup:
         mute=True,
         returnFinalState=False,
         returnTrajectory=False,
+        timeout=10,
     ):
         if numWorkers <= 0:
             raise ValueError("`numWorkers` must be at least 1.")
@@ -1092,7 +1095,7 @@ class SimulatorGroup:
         simulatorParams = simulatorParams if simulatorParams else dict()
         if isinstance(simulatorParams, dict):
             self.simulatorParams = [simulatorParams for _ in range(numWorkers)]
-        elif isinstance(simulatorParams, collections.abc.Iterable):
+        elif isinstance(simulatorParams, Iterable):
             if len(simulatorParams) != numWorkers:
                 raise ValueError(
                     "Length of `simulatorParams` does not match `numWorkers`."
@@ -1106,6 +1109,7 @@ class SimulatorGroup:
         self.mute = mute
         self.returnFinalState = returnFinalState
         self.returnTrajectory = returnTrajectory
+        self.timeout = timeout
 
     def _jobName(self, jobId):
         return f"Scene{jobId}"
@@ -1259,9 +1263,20 @@ class SimulatorGroup:
                 yield simulationResult
 
         finally:
-            # Close processes and queues
-            for process in processes:
-                process.terminate()
+            # Attempt to cleanly kill workers
+            for p in processes:
+                if p.is_alive():
+                    os.kill(p.pid, signal.SIGINT)
+
+            waits = 0
+            while any(p.is_alive() for p in processes) and waits < self.timeout:
+                waits += 1
+                time.sleep(1)
+
+            # Terminate any remaining processes and close queues
+            for p in processes:
+                if p.is_alive():
+                    p.terminate()
 
             jobQueue.close()
             resultQueue.close()
@@ -1292,23 +1307,22 @@ def simulatorGroupHelper(
         _cacheImports=False,
     )
 
-    simulator = simulatorClass(**simulatorParams)
+    with simulatorClass(**simulatorParams) as simulator:
+        while True:
+            jobId, serializedScene, simulateParams, seed = jobQueue.get()
+            setSeed(seed)
 
-    while True:
-        jobId, serializedScene, simulateParams, seed = jobQueue.get()
-        setSeed(seed)
+            scene = scenario.sceneFromBytes(serializedScene, verify=False)
+            simulation = simulator.simulate(scene, **simulateParams)
 
-        scene = scenario.sceneFromBytes(serializedScene, verify=False)
-        simulation = simulator.simulate(scene, **simulateParams)
+            if simulation:
+                simulationResult = simulation.result
+                simulationResult.actions = None
+                if not returnFinalState:
+                    simulationResult.finalState = None
+                if not returnTrajectory:
+                    simulationResult.trajectory = None
+            else:
+                simulationResult = None
 
-        if simulation:
-            simulationResult = simulation.result
-            simulationResult.actions = None
-            if not returnFinalState:
-                simulationResult.finalState = None
-            if not returnTrajectory:
-                simulationResult.trajectory = None
-        else:
-            simulationResult = None
-
-        resultQueue.put((jobId, simulationResult))
+            resultQueue.put((jobId, simulationResult))
