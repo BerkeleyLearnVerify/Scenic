@@ -12,7 +12,7 @@ simulation as a `SimulationResult` object).
 
 import abc
 from collections import OrderedDict, defaultdict
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 import enum
 import io
 import math
@@ -326,6 +326,9 @@ class Simulator(abc.ABC):
         if self._destroyed:
             raise RuntimeError("Simulator.destroy() called twice")
         self._destroyed = True
+
+    def __exit__(self, exc_type, exc, tb):
+        self.destroy()
 
 
 class Simulation(abc.ABC):

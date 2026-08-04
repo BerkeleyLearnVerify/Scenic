@@ -66,6 +66,9 @@ class DynamicScenario(Invocable):
         self._requirements = []
         # things needing to be sampled to evaluate the requirements
         self._requirementDeps = set()
+        # If this scenario is a top level scenario imported into another scenario,
+        # this value points to the original top-level scenario.
+        self._inherited = self
 
         self._agents = []
         self._monitors = []

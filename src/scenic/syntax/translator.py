@@ -419,6 +419,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
         # objects, parameters, etc. from this one
         if veneer.isActive():
             veneer.currentScenario._inherit(module._scenario)
+            # module._scenario._inherited = veneer.currentScenario._inherited
 
     def is_package(self, fullname):
         return False

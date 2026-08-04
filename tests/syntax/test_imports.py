@@ -82,7 +82,7 @@ def test_inherit_records(runLocally):
         scenario = compileScenic(
             """
             import helper_record
-            ego = new Object
+            ego = new Object with foo 1
             """
         )
 
