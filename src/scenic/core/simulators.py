@@ -327,6 +327,9 @@ class Simulator(abc.ABC):
             raise RuntimeError("Simulator.destroy() called twice")
         self._destroyed = True
 
+    def __enter__(self):
+        return self
+
     def __exit__(self, exc_type, exc, tb):
         self.destroy()
 
