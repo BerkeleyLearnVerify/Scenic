@@ -1280,6 +1280,7 @@ class SimulatorGroup:
             waits = 0
             while any(p.is_alive() for p in processes) and waits < self.timeout:
                 waits += 1
+                print("Waiting for simulator group processes to terminate...")
                 time.sleep(1)
 
             # Terminate any remaining processes and close queues
