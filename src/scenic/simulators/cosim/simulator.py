@@ -200,7 +200,6 @@ class CosimSimulation(DrivingSimulation):
         # Per-step caches (see PERF_PLAN.md A1/A2). Both are refreshed inside step();
         # None means "not captured yet", which makes the pre-simulation paths in setup()
         # fall back to querying CARLA / METS-R directly.
-        self.carla_snapshot = None      # A2: one WorldSnapshot per step, read locally
         self._step_veh_data = None      # A1: one METS-R vehicle query per step, shared
 
         # CoSim related params
@@ -560,17 +559,9 @@ class CosimSimulation(DrivingSimulation):
         return objects properties from the Carla simulator
         """
         carlaActor = obj.carlaActor
-        snapshot = None
-        if self.carla_snapshot is not None and self.carla_snapshot.has_actor(carlaActor.id):
-            snapshot = self.carla_snapshot.find(carlaActor.id)
-        if snapshot is not None:
-            currTransform = snapshot.get_transform()
-            currVel = snapshot.get_velocity()
-            currAngVel = snapshot.get_angular_velocity()
-        else:
-            currTransform = carlaActor.get_transform()
-            currVel = carlaActor.get_velocity()
-            currAngVel = carlaActor.get_angular_velocity()
+        currTransform = carlaActor.get_transform()
+        currVel = carlaActor.get_velocity()
+        currAngVel = carlaActor.get_angular_velocity()
         currLoc = currTransform.location
         currRot = currTransform.rotation
 
@@ -669,7 +660,6 @@ class CosimSimulation(DrivingSimulation):
         """
         for _ in range(self.sim_ticks_per_carla):
             self.carla_world.tick()
-        self.carla_snapshot = self.carla_world.get_snapshot()
   
     
     def tick_metsr(self) -> None:
@@ -839,11 +829,7 @@ class CosimSimulation(DrivingSimulation):
 
             for obj in carla_actors: # TODO clean up all this special handling as some of these cases are unneccesary
                 try:
-                    actor_id = obj.carlaActor.id
-                    if self.carla_snapshot is not None and self.carla_snapshot.has_actor(actor_id):
-                        transform = self.carla_snapshot.find(actor_id).get_transform()
-                    else:
-                        transform = obj.carlaActor.get_transform()
+                    transform = obj.carlaActor.get_transform()
                     loc = transform.location
                 except Exception as e:
                     print(f"Caught error {e}")
