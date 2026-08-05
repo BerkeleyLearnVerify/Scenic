@@ -26,7 +26,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
         return trimmed_path.buffer(bufferCalc(obj) + + shapely.minimum_bounding_radius(obj._boundingPolygon))
     future_polys = [future_poly_helper(obj) for obj in backgroundObjects
-        if not obj.isVehicle and all(v is not None for v in getattr(obj, "_planData", (None, None)))]
+        if not obj.isVehicle and getattr(obj, "_planData", None) is not None]
 
     obst_multi_poly = shapely.union_all(raw_obst_polys + future_polys)
 
@@ -212,7 +212,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
 
         # Modify path to route around objects.
         path_ls = getBugPath(self, path_ls, background_objects, bufferCalc, lookaheadTime, vehBuffer, nonVehBuffer)
-        self._planData = path_ls, targetSpeed
+        self._planData = (path_ls, targetSpeed) if path_ls else None
 
         # If path_ls is None, our goal is inside the danger zone and we can't
         # proceed further right now.
