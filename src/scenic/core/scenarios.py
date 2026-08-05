@@ -177,6 +177,7 @@ class Scene(_ScenarioPickleMixin):
         self.dynamicScenario = dynamicScenario
         self.sample = sample
         self.compileOptions = compileOptions
+        self._externalSamplerInfo = None
 
     def dumpAsScenicCode(self, stream=sys.stdout):
         """Dump Scenic code reproducing this scene to the given stream.
@@ -632,7 +633,7 @@ class Scenario(_ScenarioPickleMixin):
                     yield getNextResult()
                     returnedResultCount += 1
 
-                    if putSeedCount < numWorkers:
+                    if putSeedCount < numScenes:
                         putSeed()
 
             finally:
@@ -667,7 +668,9 @@ class Scenario(_ScenarioPickleMixin):
             iterations += 1
             try:
                 if self.externalSampler is not None:
-                    self.externalSampler.sample(feedback)
+                    externalSamplerInfo = self.externalSampler.sample(feedback)
+                else:
+                    externalSamplerInfo = None
                 sample = Samplable.sampleAll(self.dependencies)
             except RejectionException as e:
                 optionallyDebugRejection(e)
@@ -692,6 +695,7 @@ class Scenario(_ScenarioPickleMixin):
 
         # obtained a valid sample; assemble a scene from it
         scene = self._makeSceneFromSample(sample)
+        scene._externalSamplerInfo = externalSamplerInfo
         return scene, iterations
 
     def generateDefaultRequirements(self):
@@ -899,7 +903,7 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             SerializationError: if the scene could not be properly decoded.
         """
-        ser = Serializer(data, allowPickle=allowPickle)
+        ser = Serializer(data, allowPickle=allowPickle, detectEnd=True)
         return ser.readScene(self, verify=verify)
 
     def simulationToBytes(self, simulation, allowPickle=False):

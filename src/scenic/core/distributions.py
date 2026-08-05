@@ -1010,8 +1010,8 @@ class MultiplexerDistribution(Distribution):
     def serializeValue(self, values, serializer):
         # We override this method to save space: we don't need to serialize all
         # of our options, only the one we're selecting.
-        serializer.writeSamplable(self.index, values)
-        choice = self.options[values[self.index]]
+        serializer.writeSamplable(self._conditioned.index, values)
+        choice = self.options[values[self._conditioned.index]]
         serializer.writeSamplable(choice, values)
 
     def deserializeValue(self, serializer, values):

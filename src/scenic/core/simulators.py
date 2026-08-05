@@ -603,6 +603,7 @@ class Simulation(abc.ABC):
             terminationType,
             terminationReason,
             self.records,
+            self.scene._externalSamplerInfo,
         )
         self.result = result
 
@@ -1043,7 +1044,14 @@ class SimulationResult:
     """
 
     def __init__(
-        self, name, trajectory, actions, terminationType, terminationReason, records
+        self,
+        name,
+        trajectory,
+        actions,
+        terminationType,
+        terminationReason,
+        records,
+        externalSamplerInfo,
     ):
         self.name = name
         self.trajectory = tuple(trajectory)
@@ -1053,6 +1061,7 @@ class SimulationResult:
         self.terminationType = terminationType
         self.terminationReason = str(terminationReason)
         self.records = dict(records)
+        self.externalSamplerInfo = externalSamplerInfo
 
 
 class TerminatedSimulationException(Exception):

@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import math
+from pathlib import Path
 
 import optuna
 
@@ -28,13 +29,20 @@ class OptunaSampler(ExternalSampler):
 
         self.sampler = globalParams.get("optunaSampler", None)
         self.study_name = globalParams.get("optunaStudyName", None)
-        self.storage = globalParams.get("optunaStorage", None)
+        rawStorage = globalParams.get("optunaStorage", None)
+        if isinstance(rawStorage, Path):
+            self.storage = optuna.storages.JournalStorage(
+                optuna.storages.journal.JournalFileBackend(str(rawStorage.resolve()))
+            )
+        else:
+            self.storage = rawStorage
         self.study = optuna.create_study(
             sampler=self.sampler,
             study_name=self.study_name,
             pruner=optuna.pruners.NopPruner(),
             storage=self.storage,
             direction="minimize",
+            load_if_exists=True,
         )
         self.params = tuple(params)
         for index, param in enumerate(self.params):
@@ -56,6 +64,10 @@ class OptunaSampler(ExternalSampler):
     @property
     def trial(self):
         return self.cachedSample
+
+    def sample(self, feedback):
+        super().sample(feedback)
+        return str(self.trial._trial_id)
 
     def nextSample(self, feedback):
         if feedback is not None:
