@@ -179,9 +179,9 @@ class Serializer:
         self.stream.write(optionsHash)
         self.writeSample(scenario.dependencies, scene.sample)
         # TODO: Improve
-        if scene._externalSamplerInfo:
-            assert isinstance(scene._externalSamplerInfo, str)
-            self.writeValue(scene._externalSamplerInfo, str)
+        if scene.externalSamplerInfo:
+            assert isinstance(scene.externalSamplerInfo, str)
+            self.writeValue(scene.externalSamplerInfo, str)
 
     def readScene(self, scenario, verify=True):
         versionField = self.stream.read(2)
@@ -207,7 +207,7 @@ class Serializer:
         # TODO: Improve
         # Support for older serialized values.
         if not self.atEnd():
-            scene._externalSamplerInfo = self.readValue(str)
+            scene.externalSamplerInfo = self.readValue(str)
         return scene
 
     def writeSample(self, objects, values):

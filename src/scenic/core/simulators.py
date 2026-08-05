@@ -603,7 +603,7 @@ class Simulation(abc.ABC):
             terminationType,
             terminationReason,
             self.records,
-            self.scene._externalSamplerInfo,
+            self.scene.externalSamplerInfo,
         )
         self.result = result
 

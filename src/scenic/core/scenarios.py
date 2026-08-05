@@ -177,7 +177,7 @@ class Scene(_ScenarioPickleMixin):
         self.dynamicScenario = dynamicScenario
         self.sample = sample
         self.compileOptions = compileOptions
-        self._externalSamplerInfo = None
+        self.externalSamplerInfo = None
 
     def dumpAsScenicCode(self, stream=sys.stdout):
         """Dump Scenic code reproducing this scene to the given stream.
@@ -695,7 +695,7 @@ class Scenario(_ScenarioPickleMixin):
 
         # obtained a valid sample; assemble a scene from it
         scene = self._makeSceneFromSample(sample)
-        scene._externalSamplerInfo = externalSamplerInfo
+        scene.externalSamplerInfo = externalSamplerInfo
         return scene, iterations
 
     def generateDefaultRequirements(self):
