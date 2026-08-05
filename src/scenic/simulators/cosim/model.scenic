@@ -24,6 +24,7 @@ param bubble_size = 50
 param metsr_sim_dir = None
 param run_name = None
 param metsr_viz_port = 8080
+param render = True
 
 
 simulator CosimSimulator(
@@ -39,6 +40,7 @@ simulator CosimSimulator(
     run_name = globalParameters.run_name,
     metsr_sim_dir = globalParameters.metsr_sim_dir,
     metsr_viz_port = globalParameters.metsr_viz_port,
+    render = globalParameters.render,
     )
 
 param startTime = 6*60*60
@@ -148,7 +150,7 @@ behavior StateBehavior(state_map, eval_func, verbose=False):
     """
     while True:
         curr_state = eval_func()
-        behavior = state_map(curr_state)
+        behavior = state_map[curr_state]
         do behavior until curr_state != eval_func()
         
 behavior CustomBubbleBehavior():

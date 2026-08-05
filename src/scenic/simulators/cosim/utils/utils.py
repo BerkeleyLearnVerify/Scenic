@@ -1,7 +1,45 @@
 import xml.etree.ElementTree as ET
+import math
 import os
 import numpy as np
 import carla
+
+
+def point_to_segment_distance(px, py, ax, ay, bx, by) -> float:
+    """Perpendicular distance from (px,py) to the segment (ax,ay)-(bx,by)."""
+    dx, dy = bx - ax, by - ay
+    seg_sq = dx * dx + dy * dy
+    if seg_sq == 0.0:                       # degenerate segment
+        return math.hypot(px - ax, py - ay)
+    t = ((px - ax) * dx + (py - ay) * dy) / seg_sq
+    t = max(0.0, min(1.0, t))               # clamp so we stay on the segment
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def polyline_distance(point, polyline) -> float:
+    """Distance from a point to the nearest part of a centerline polyline."""
+    px, py = point
+    if not polyline:
+        return math.inf
+    if len(polyline) == 1:
+        return math.hypot(px - polyline[0][0], py - polyline[0][1])
+    return min(
+        point_to_segment_distance(px, py, ax, ay, bx, by)
+        for (ax, ay), (bx, by) in zip(polyline, polyline[1:])
+    )
+
+
+def circle_aabb_intersects(cx, cy, radius, bounds) -> bool:
+    """Conservative circle/bounding-box overlap test.
+
+    Returns True whenever the circle *could* touch the box, so it is safe to use as a
+    cheap pre-filter in front of an exact polygon intersection: it never rejects a
+    shape the exact test would have accepted.
+    """
+    xmin, ymin, xmax, ymax = bounds
+    dx = max(xmin - cx, 0.0, cx - xmax)
+    dy = max(ymin - cy, 0.0, cy - ymax)
+    return dx * dx + dy * dy <= radius * radius
 
 def generate_map(map):
     try:
@@ -88,16 +126,19 @@ def within_threshold_to(object, cars, verbose=False) -> bool:
     is_close = False
     object_pos = np.array(object.position)
     obj_distances = {}
+    danger_veh = None
+    min_dist = 1000
     for car in cars:
         if car != object:
-            threshold = 1.2 * object.length
-            dist = np.linalg.norm(np.array(car.position[:2]) - object_pos[:2])
-            if dist < threshold:
+            dist = np.linalg.norm(np.array(car.position) - object_pos)
+            if dist < min_dist:
                 is_close=True
+                danger_veh = car
+                min_dist = dist
             obj_distances[car.name] = dist
     if verbose:
         print(f"Min Distance for {object} was: {min(obj_distances.values())}")
-    return is_close
+    return is_close, danger_veh
 
 def get_metsr_rotation(carla_yaw):
     """
