@@ -3,7 +3,7 @@ import time
 import warnings
 
 import scenic
-from scenic.core.utils import SimulatorGroup
+from scenic.core.simulators import SimulatorGroup
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 
 NUM_WORKERS = 8
@@ -35,7 +35,9 @@ NUM_SAMPLES = 128
 
 
 def run_benchmark(path, params):
-    simulator = MetaDriveSimulator(sumo_map=SUMO_MAP_PATH, render=False, real_time=False)
+    simulator = MetaDriveSimulator(
+        xodr_map=MAP_PATH, sumo_map=SUMO_MAP_PATH, render=False, real_time=False
+    )
     scenario = scenic.scenarioFromFile(
         BENCHMARKS_BASE_PATH / path, params=params, mode2D=params.get("mode2D", False)
     )
@@ -54,7 +56,12 @@ def run_benchmark_parallel(path, params, *, numWorkers):
     sim_group = SimulatorGroup(
         numWorkers=numWorkers,
         simulatorClass=MetaDriveSimulator,
-        simulatorParams={"sumo_map": SUMO_MAP_PATH, "render": False, "real_time": False},
+        simulatorParams={
+            "xodr_map": MAP_PATH,
+            "sumo_map": SUMO_MAP_PATH,
+            "render": False,
+            "real_time": False,
+        },
         mute=False,
     )
     sim_group.simulateBatch(scenario=scenario, scenes=scene_stream)

@@ -1,5 +1,7 @@
 import itertools
+import multiprocessing
 import random
+import time
 
 import pytest
 
@@ -228,6 +230,53 @@ def test_simulator_group_deterministic():
 
     assert len(results1) == len(results2)
     assert all((v1 is None) == (v2 is None) for v1, v2 in zip(results1, results2))
+
+
+class BlockingSimulator(DummySimulator):
+    def __init__(self, *args, **kwargs):
+        self.cleanupEvent = kwargs.pop("cleanupEvent", None)
+        assert self.cleanupEvent is not None
+        super().__init__(*args, **kwargs)
+
+    def createSimulation(self, *args, **kwargs):
+        return BlockingSimulation(*args, cleanupEvent=self.cleanupEvent, **kwargs)
+
+
+class BlockingSimulation(DummySimulation):
+    def __init__(self, *args, **kwargs):
+        self.cleanupEvent = kwargs.pop("cleanupEvent", None)
+        assert self.cleanupEvent is not None
+        super().__init__(*args, **kwargs)
+
+    def destroy(self):
+        self.cleanupEvent.set()
+        return super().destroy()
+
+
+def test_simulator_group_cleanup():
+    scenario = compileScenic("ego = new Object")
+    scenes, _ = scenario.generateBatch(10, serialized=True)
+
+    class TestException(Exception):
+        pass
+
+    cleanupEvent = multiprocessing.Event()
+
+    sim_group = SimulatorGroup(
+        numWorkers=1,
+        simulatorClass=BlockingSimulator,
+        simulatorParams={"cleanupEvent": cleanupEvent},
+        mute=False,
+    )
+
+    with pytest.raises(TestException):
+        resultStream = sim_group.simulateStream(
+            scenario, scenes, simulateParams={"maxSteps": 10}
+        )
+        next(resultStream)
+        raise TestException
+
+    assert cleanupEvent.is_set()
 
 
 def test_simulator_createObjectInSimulator_error_cleanup():

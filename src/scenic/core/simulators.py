@@ -13,7 +13,7 @@ simulation as a `SimulationResult` object).
 import abc
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 import enum
 import io
 import math
@@ -23,6 +23,7 @@ import os
 import random
 import signal
 import sys
+import threading
 import time
 import types
 import warnings
@@ -1095,7 +1096,7 @@ class SimulatorGroup:
         mute=True,
         returnFinalState=False,
         returnTrajectory=False,
-        timeout=10,
+        timeout=20,
     ):
         if numWorkers <= 0:
             raise ValueError("`numWorkers` must be at least 1.")
@@ -1155,6 +1156,9 @@ class SimulatorGroup:
         seed = int(rand_generator.integers(2**32))
 
         return (jobId, serializedScene, jobParams, seed)
+
+    def __enter__(self):
+        pass
 
     def simulateBatch(self, scenario, scenes, simulateParams=None, serialized=True):
         """Simulate and return a batch of `SimulationResult` objects.
@@ -1280,12 +1284,16 @@ class SimulatorGroup:
             waits = 0
             while any(p.is_alive() for p in processes) and waits < self.timeout:
                 waits += 1
-                print("Waiting for simulator group processes to terminate...")
+                if errors.verbosityLevel > 0:
+                    print(
+                        f"Waiting for simulator group processes to terminate ({waits}/{self.timeout}s elapsed)..."
+                    )
                 time.sleep(1)
 
             # Terminate any remaining processes and close queues
             for p in processes:
                 if p.is_alive():
+                    warnings.warn("Forcefully killing SimulatorGroup worker!")
                     p.terminate()
 
             jobQueue.close()
