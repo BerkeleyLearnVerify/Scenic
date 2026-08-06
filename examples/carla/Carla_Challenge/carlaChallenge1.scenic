@@ -3,6 +3,9 @@ Traffic Scenario 01.
 Control loss without previous action.
 The ego-vehicle loses control due to bad conditions on the road and it must recover, coming back to
 its original lane.
+
+To run this file using the Carla simulator:
+    scenic examples/carla/Carla_Challenge/carlaChallenge1.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

@@ -495,8 +495,9 @@ class Scenario(_ScenarioPickleMixin):
         requirements = []
 
         ## Optional Requirements ##
-        # Any collision indicates an intersection
-        requirements.append(BlanketCollisionRequirement(self.objects))
+        # Any collision between object surfaces indicates an intersection
+        if INITIAL_COLLISION_CHECK:
+            requirements.append(BlanketCollisionRequirement(self.objects))
 
         ## Mandatory Requirements ##
         # Pairwise object intersection

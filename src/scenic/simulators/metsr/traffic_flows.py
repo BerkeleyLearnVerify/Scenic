@@ -14,11 +14,11 @@ class ConstantTrafficFlow(TrafficFlow):
     def __init__(self, num_vehs, stime=None, etime=None):
         self.num_vehs = num_vehs
         self.stime = stime if stime is not None else 0
-        self.etime = etime if stime is not None else 24 * 60 * 60
-        if etime <= stime:
-            raise ValueError("etime must be greater than stime.")
+        self.etime = etime if etime is not None else 24 * 60 * 60
+        if self.etime <= self.stime:
+            raise ValueError(f"etime must be greater than stime {self.stime, self.etime}.")
 
-        self.vps = self.num_vehs / (etime - stime)
+        self.vps = self.num_vehs / (self.etime - self.stime)
 
     def expected_vehs(self, stime, etime):
         if etime <= stime:

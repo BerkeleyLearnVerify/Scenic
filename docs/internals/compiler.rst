@@ -18,18 +18,10 @@ A Scenic AST is an abstract syntax tree for representing Scenic programs.
 It is a superset of Python AST and includes nodes for Scenic-specific
 language constructs.
 
-The `scenic.syntax.ast` module defines all Scenic-specific AST nodes, which are instances of the `AST` class defined in the same file.
-
-AST nodes should include fields to store objects. To add fields, add a
-parameter to the initializer and define fields by assigning values to
-``self``.
-
-When adding fields, be sure to update the ``_fields`` and
-``__match_args__`` fields. ``_fields`` lists the names of the fields in
-the AST node and is used by the AST module to traverse the tree, fill in
-the missing information, etc. :obj:`~object.__match_args__` is used by the test
-suite to assert the structure of the AST node using Python's structural
-pattern matching.
+The `scenic.syntax.ast` module defines all Scenic-specific AST nodes, which
+are subclasses of the `AST` class defined in the same file. AST nodes are
+defined by declaring type-annotated attributes for any child nodes or values
+they store; the base class handles the rest.
 
 Scenic Grammar
 ~~~~~~~~~~~~~~
@@ -86,39 +78,23 @@ operator using the new parser architecture.
 Step 1: Add AST Nodes
 ~~~~~~~~~~~~~~~~~~~~~
 
-First, we define AST nodes that represent the syntax. Since the
+First, we define an AST node that represents the syntax. Since the
 ``implies`` operator is a binary operator, the AST node will have two
-fields for each operand.
+attributes for its operands:
 
 .. code-block:: python
     :linenos:
 
     class ImpliesOp(AST):
-        __match_args__ = ("hypothesis", "conclusion")
-
-        def __init__(
-           self, hypothesis: ast.AST, conclusion: ast.AST, *args: Any, **kwargs: Any
-        ) -> None:
-           super().__init__(*args, **kwargs)
-           self.hypothesis = hypothesis
-           self.conclusion = conclusion
-           self._fields = ["hypothesis", "conclusion"]
+        hypothesis: ast.AST
+        conclusion: ast.AST
 
 * On line 1, `AST` (`scenic.syntax.ast.AST`, not :external:obj:`ast.AST`) is the base class that all Scenic AST nodes extend.
 
-* On line 2, ``__match_args__`` is a syntax for using `structural pattern
-  matching <https://peps.python.org/pep-0636/#matching-positional-attributes>`__
-  on argument positions. This is to make it easier to write parser tests.
+* The attributes ``hypothesis`` and ``conclusion`` are typed as
+  :external:obj:`ast.AST`, which is the base class for *all* AST nodes,
+  including both Scenic AST nodes and Python AST nodes.
 
-* On line 5, the initializer takes two required arguments corresponding to the operator's operands (``hypothesis`` and ``conclusion``). Note
-  that their types are :external:obj:`ast.AST`, which is the base class for *all* AST nodes,
-  including both Scenic AST nodes and Python AST nodes. The additional arguments ``*args`` and
-  ``**kwargs`` should be passed to the base class’ initializer to store
-  extra information such as line number, offset, etc.
-
-* On line 10, ``_fields`` is a special field that specifies the child nodes. This is used by
-  the library functions such as ``generic_visit`` to traverse the
-  syntax tree.
 
 Step 2: Add Grammar
 ~~~~~~~~~~~~~~~~~~~

@@ -64,11 +64,11 @@ class Road(OSMObject):
         ]
         self.waypoints = tuple(cleanChain(pts, 0.05))
         assert len(self.waypoints) > 1, pts
-        self.width = float(attrs.get("width", 7))
-        self.lanes = int(attrs.get("numberOfLanes", 2))
+        self.width = float(attrs.get("width", (7,))[0])
+        self.lanes = int(attrs.get("numberOfLanes", (2,))[0])
         if self.lanes < 1:
             raise RuntimeError(f"Road {self.osmID} has fewer than 1 lane!")
-        self.forwardLanes = int(attrs.get("numberOfForwardLanes", 1))
+        self.forwardLanes = int(attrs.get("numberOfForwardLanes", (1,))[0])
         # if self.forwardLanes < 1:
         #   raise RuntimeError(f'Road {self.osmID} has fewer than 1 forward lane!')
         self.backwardLanes = self.lanes - self.forwardLanes

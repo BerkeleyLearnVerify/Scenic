@@ -1,1 +1,1 @@
-""" Scenic examples"""
+"""Scenic examples"""

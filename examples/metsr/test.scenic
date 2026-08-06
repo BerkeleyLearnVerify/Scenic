@@ -12,3 +12,4 @@ scenario Main():
     compose:
         foo = Test()
         do foo for 500 seconds
+

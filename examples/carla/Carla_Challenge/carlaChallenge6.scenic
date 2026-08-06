@@ -2,6 +2,9 @@
 Based on CARLA Challenge Scenario 6: https://carlachallenge.org/challenge/nhtsa/
 Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
+
+To run this file using the Carla simulator:
+    scenic examples/carla/Carla_Challenge/carlaChallenge6.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 # N.B. Town07 is not included with CARLA by default; see installation instructions at

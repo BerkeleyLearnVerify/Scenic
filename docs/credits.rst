@@ -26,6 +26,7 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Abolfazl Karimi
 	* Kevin Li
 	* Guillermo López
+	* Lola Marrero
 	* Shalin Mehta
 	* Joel Moriana
 	* Gaurav Rao

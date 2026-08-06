@@ -6,12 +6,14 @@ import dataclasses
 import functools
 import inspect
 import sys
+import types
 import warnings
 import weakref
 
 import rv_ltl
 
 import scenic
+from scenic.core.distributions import Samplable
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
@@ -60,7 +62,7 @@ class DynamicScenario(Invocable):
         self._objects = []  # ordered for reproducibility
         self._sampledObjects = self._objects
         self._externalParameters = []
-        self._pendingRequirements = defaultdict(list)
+        self._pendingRequirements = []
         self._requirements = []
         # things needing to be sampled to evaluate the requirements
         self._requirementDeps = set()
@@ -86,6 +88,7 @@ class DynamicScenario(Invocable):
 
         self._timeLimitInSteps = None  # computed at simulation time
         self._elapsedTime = 0
+        self._recordedTime = None
         self._eventuallySatisfied = None
         self._overrides = {}
 
@@ -185,8 +188,9 @@ class DynamicScenario(Invocable):
         # Compute time limit now that we know the simulation timestep
         self._elapsedTime = 0
         self._timeLimitInSteps = self._timeLimit
+        timestep = veneer.currentSimulation.timestep
         if self._timeLimitIsInSeconds:
-            self._timeLimitInSteps /= veneer.currentSimulation.timestep
+            self._timeLimitInSteps /= timestep
 
         # create monitors for each requirement used for this simulation
         self._requirementMonitors = [r.toMonitor() for r in self._temporalRequirements]
@@ -196,10 +200,8 @@ class DynamicScenario(Invocable):
             # Start compose block
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
-                    from scenic.syntax.translator import composeBlock
-
                     raise InvalidScenarioError(
-                        f'"{composeBlock}" does not invoke any scenarios'
+                        '"compose" block does not invoke any scenarios'
                     )
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
@@ -211,6 +213,16 @@ class DynamicScenario(Invocable):
             # Initialize monitor coroutines
             for monitor in self._monitors:
                 monitor._start()
+
+        # Prepare recorders
+        simName = veneer.currentSimulation.name
+        currentTime = veneer.currentSimulation.currentTime
+        globalParams = types.MappingProxyType(veneer._globalParameters)
+        for req in self._recordedExprs:
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
+                recorder.beginRecording(
+                    recConfig, simName, timestep, globalParams, currentTime
+                )
 
     def _step(self):
         """Execute the (already-started) scenario for one time step.
@@ -244,7 +256,8 @@ class DynamicScenario(Invocable):
         else:
 
             def alarmHandler(signum, frame):
-                if sys.gettrace():
+                # NOTE: if using pytest-cov, sys.gettrace() may be set by coverage, but we still want timeout warnings enabled
+                if sys.gettrace() and "coverage" not in str(type(sys.gettrace())):
                     return  # skip the warning if we're in the debugger
                 warnings.warn(
                     f"the compose block of scenario {self} is taking a long time; "
@@ -285,6 +298,15 @@ class DynamicScenario(Invocable):
 
         assert self._isRunning
 
+        if not quiet:
+            # Record finally-recorded values.
+            sim = veneer.currentSimulation
+            for rec in self._recordedFinalExprs:
+                sim._record(rec.name, rec.evaluate())
+
+            # Record ordinary `record` statements too if they haven't been already.
+            self._recordTimeSeries()
+
         # Stop monitors and subscenarios.
         for monitor in self._monitors:
             if monitor._isRunning:
@@ -303,12 +325,24 @@ class DynamicScenario(Invocable):
         veneer.endScenario(self, reason, quiet=quiet)
         super()._stop(reason)
 
-        # Reject if a temporal requirement was not satisfied.
+        # Check if a temporal requirement was not satisfied.
+        rejection = None
         if not quiet:
             for req in self._requirementMonitors:
                 if req.lastValue.is_falsy:
-                    raise RejectSimulationException(str(req))
+                    rejection = str(req)
+                    break
         self._requirementMonitors = None
+
+        # Stop recorders.
+        cancelRecordings = quiet or rejection is not None
+        for req in self._recordedExprs:
+            if (recConfig := req.recConfig) and (recorder := recConfig.recorder):
+                recorder.endRecording(canceled=cancelRecordings)
+
+        # If a temporal requirement was violated, reject (now that we're cleaned up).
+        if rejection is not None:
+            raise RejectSimulationException(rejection)
 
         return reason
 
@@ -335,25 +369,33 @@ class DynamicScenario(Invocable):
             # Check if any sub-scenarios stopped during action execution
             self._subScenarios = [sub for sub in self._subScenarios if sub._isRunning]
 
-    def _evaluateRecordedExprs(self, ty):
-        if ty is RequirementType.record:
-            place = "_recordedExprs"
-        elif ty is RequirementType.recordInitial:
-            place = "_recordedInitialExprs"
-        elif ty is RequirementType.recordFinal:
-            place = "_recordedFinalExprs"
-        else:
-            assert False, "invalid record type requested"
-        return self._evaluateRecordedExprsAt(place)
+    def _updateRecords(self):
+        from scenic.syntax.veneer import currentSimulation
 
-    def _evaluateRecordedExprsAt(self, place):
-        values = {}
-        for rec in getattr(self, place):
-            values[rec.name] = rec.evaluate()
+        # _step() was called earlier this time step, so at time step 0 we will
+        # already have _elapsedTime == 1
+        assert self._elapsedTime >= 1
+        if self._elapsedTime == 1:
+            for rec in self._recordedInitialExprs:
+                currentSimulation._record(rec.name, rec.evaluate())
+
+        self._recordTimeSeries()
+
         for sub in self._subScenarios:
-            subvals = sub._evaluateRecordedExprsAt(place)
-            values.update(subvals)
-        return values
+            sub._updateRecords()
+
+    def _recordTimeSeries(self):
+        from scenic.syntax.veneer import currentSimulation
+
+        if self._recordedTime == currentSimulation.currentTime:
+            # This time step was already recorded (e.g. the scenario was terminated
+            # by a behavior after the current state was recorded).
+            return
+
+        for rec in self._recordedExprs:
+            currentSimulation._recordTimeSeries(rec.name, rec.evaluate())
+
+        self._recordedTime = currentSimulation.currentTime
 
     def _runMonitors(self):
         terminationReason = None
@@ -388,6 +430,8 @@ class DynamicScenario(Invocable):
         return agents
 
     def _inherit(self, other):
+        if not self._ego:
+            self._ego = other._ego
         if not self._workspace:
             self._workspace = other._workspace
         self._instances.extend(other._instances)
@@ -409,11 +453,10 @@ class DynamicScenario(Invocable):
 
         obj._parentScenario = weakref.ref(self)
 
-    def _addRequirement(self, ty, reqID, req, line, name, prob):
+    def _addRequirement(self, ty, reqID, req, line, name, prob, recConfig=None):
         """Save a requirement defined at compile-time for later processing."""
-        assert reqID not in self._pendingRequirements
-        preq = PendingRequirement(ty, req, line, prob, name, self._ego)
-        self._pendingRequirements[reqID] = preq
+        preq = PendingRequirement(ty, req, line, prob, name, self._ego, recConfig, self)
+        self._pendingRequirements.append((reqID, preq))
 
     def _addDynamicRequirement(self, ty, req, line, name):
         """Add a requirement defined during a dynamic simulation."""
@@ -431,7 +474,7 @@ class DynamicScenario(Invocable):
         namespace = self._dummyNamespace if self._dummyNamespace else self.__dict__
         requirementSyntax = self._requirementSyntax
         assert requirementSyntax is not None
-        for reqID, requirement in self._pendingRequirements.items():
+        for reqID, requirement in self._pendingRequirements:
             syntax = requirementSyntax[reqID] if requirementSyntax else None
 
             # Catch the simple case where someone has most likely forgotten the "monitor"
@@ -512,6 +555,13 @@ class DynamicScenario(Invocable):
         )  # TODO unify these!
         return scenario
 
+    def _makeLocalsSnapshot(self):
+        locs = {}
+        for local in self._locals:
+            if local in self.__dict__:
+                locs[local] = self.__dict__[local]
+        return LocalsSnapshot(locs)
+
     def __getattr__(self, name):
         if name in self._locals:
             return DelayedArgument(
@@ -525,3 +575,13 @@ class DynamicScenario(Invocable):
         else:
             args = argsToString(self._args, self._kwargs)
             return f"{self.__class__.__name__}({args})"
+
+
+class LocalsSnapshot(Samplable):
+    def __init__(self, locs):
+        self._locs = locs
+        self.__dict__.update(locs)
+        super().__init__(locs.values())
+
+    def sampleGiven(self, value):
+        return LocalsSnapshot({name: value[val] for name, val in self._locs.items()})
