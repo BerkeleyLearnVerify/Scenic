@@ -433,7 +433,7 @@ class CosimSimulation(DrivingSimulation):
         try:
             carlaActor = self.carla_world.spawn_actor(blueprint, transform)
         except Exception as e:
-            if obj not in self.bubble_spawn_queue():
+            if obj not in self.bubble_spawn_queue:
                 print(f"Exception: {e}")
                 print(f"Failed to spawn actor {obj.name} in position: {transform.location}, and Scenic Pos {obj.position} with rot {rot}")
                 out, danger_veh = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
