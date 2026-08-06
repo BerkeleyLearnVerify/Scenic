@@ -65,7 +65,7 @@ class CosimSimulator(DrivingSimulator):
         elif self.timestep == self.sim_timestep:
             self.sim_ticks_per_metsr = self.sim_ticks_per_carla = 1
         else:
-            assert False, f"Invalid timestep with METSR: {self.sim_ticks_per_metsr} and CARLA: {self.sim_ticks_per_carla}"
+            assert False, f"Invalid timestep with METSR: {sim_timestep} and CARLA: {timestep}"
 
         self.map_path = map_path
 
@@ -356,28 +356,27 @@ class CosimSimulation(DrivingSimulation):
             "destination": obj.route[-1],
         }
 
-        # print(f"Teleporting obj to position: {obj.position.x, obj.position.y}")
         self.metsr_client.generate_trip_between_roads(**call_kwargs)
 
         vehID = self.getMetsrPrivateVehId(obj)
-        laneID = self.identify_metsr_lane(obj, obj.route[0])
-        # print(f"Teleporting obj in lane : {obj._lane.id if obj._lane else None} with selected laneID: {laneID}")
+
+        print(f"Creating obj: {self.getMetsrPrivateVehId(obj)}")
 
         self.metsr_client.teleport_trace_replay_vehicle(vehID=vehID,
                                         roadID=obj.route[0],
-                                        laneID=laneID,
+                                        laneID=0,
                                         x=obj.position.x, 
                                         y=obj.position.y,  
                                         private_veh = True, 
                                         transform_coords=True)
-        
-        if obj.route[0] in self.carla_control_roads:
-            local_orientation = Orientation.fromEuler(obj.yaw, obj.pitch, obj.roll)
-            global_orientation = obj.parentOrientation * local_orientation
-            bearing, _, _ = global_orientation.eulerAngles
-            bearing = -math.degrees(bearing) % 360
-            # print(f"teleporting obj: {obj.name} to precise location with bearing: {bearing} ")
-            self.metsr_client.teleport_cosim_vehicle(vehID, obj.position.x, obj.position.y, bearing=bearing, private_veh = True, transform_coords = True)
+
+        # if obj.route[0] in self.carla_control_roads:
+        #     local_orientation = Orientation.fromEuler(obj.yaw, obj.pitch, obj.roll)
+        #     global_orientation = obj.parentOrientation * local_orientation
+        #     bearing, _, _ = global_orientation.eulerAngles
+        #     bearing = -math.degrees(bearing) % 360
+        #     # print(f"teleporting obj: {obj.name} to precise location with bearing: {bearing} ")
+        #     self.metsr_client.teleport_cosim_vehicle(vehID, obj.position.x, obj.position.y, bearing=bearing, private_veh = True, transform_coords = True)
    
         self.metsr_client.update_vehicle_route(self.getMetsrPrivateVehId(obj), route['road_list'], private_veh=True)
         # print(f"Checking client synchronization after object creation")
@@ -434,20 +433,24 @@ class CosimSimulation(DrivingSimulation):
         try:
             carlaActor = self.carla_world.spawn_actor(blueprint, transform)
         except Exception as e:
-            print(f"Exception: {e}")
-            print(f"Failed to spawn actor {obj.name} in position: {transform.location}, and Scenic Pos {obj.position} with rot {rot}")
-            out, danger_veh = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
-            if out:
-                print(f"Within thershold to: {out} with danger veh: {danger_veh}")
+            if obj not in self.bubble_spawn_queue():
+                print(f"Exception: {e}")
+                print(f"Failed to spawn actor {obj.name} in position: {transform.location}, and Scenic Pos {obj.position} with rot {rot}")
+                out, danger_veh = _utils.within_threshold_to(obj, self.carla_actors, verbose=True)
                 veh_data = self._collect_metsr_vehicle_data([obj, danger_veh])
-                print(f"Failed spawn was: {obj.name}, collision caused by: {danger_veh.name}")
-                print(f"Displaying Collision veh details")
-                for veh in [obj, danger_veh]:
-                    print("Metsr rep ",veh_data[veh]["x"], veh_data[veh]["y"])
-                    print(f"Scenic rep: {veh.position}") 
-            else:
-                print(f'No collision detected')
-            # assert carlaActor is not None, f"why?"
+                if out:
+                    print(f"Within thershold to: {out} with danger veh: {danger_veh}")
+                    print(f"Failed spawn was: {obj.name}, collision caused by: {danger_veh.name}")
+                    print(f"Displaying Collision veh details")
+                    for veh in [obj, danger_veh]:
+                        print("Metsr rep ",veh_data[veh]["x"], veh_data[veh]["y"])
+                        print(f"Scenic rep: {veh.position}") 
+                else:
+                    print(f'No collision detected')
+                    print(veh_data[obj])
+                self.bubble_spawn_queue.add(obj)
+
+            assert carlaActor is not None, f"why?"
             return False
 
         obj.carlaActor = carlaActor
@@ -548,43 +551,44 @@ class CosimSimulation(DrivingSimulation):
         assert spawn_success, f"Invalid spawn selection point at : {obj.position}" 
 
     def getCarlaProperties(self, obj : Object, properties : dict) -> dict[str, float | Vector | int]:
-        """
-        Docstring for getCarlaProperties
+            """
+            Docstring for getCarlaProperties
 
-        :param obj: Cosimulation car object
-        :type obj: Scenic Object
-        
-        return objects properties from the Carla simulator
-        """
-        carlaActor = obj.carlaActor
-        currTransform = carlaActor.get_transform()
-        currVel = carlaActor.get_velocity()
-        currAngVel = carlaActor.get_angular_velocity()
-        currLoc = currTransform.location
-        currRot = currTransform.rotation
+            :param obj: Cosimulation car object
+            :type obj: Scenic Object
+            
+            return objects properties from the Carla simulator
+            """
+            # Extract Carla properties
+            carlaActor = obj.carlaActor
+            currTransform = carlaActor.get_transform()
+            currLoc = currTransform.location
+            currRot = currTransform.rotation
+            currVel = carlaActor.get_velocity()
+            currAngVel = carlaActor.get_angular_velocity()
 
-        # Prepare Scenic object properties
-        position = utils.carlaToScenicPosition(currLoc)
-        velocity = utils.carlaToScenicPosition(currVel)
-        speed = math.hypot(*velocity)
-        angularSpeed = utils.carlaToScenicAngularSpeed(currAngVel)
-        angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
-        globalOrientation = utils.carlaToScenicOrientation(currRot)
-        yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
-        elevation = utils.carlaToScenicElevation(currLoc)
+            # Prepare Scenic object properties
+            position = utils.carlaToScenicPosition(currLoc)
+            velocity = utils.carlaToScenicPosition(currVel)
+            speed = math.hypot(*velocity)
+            angularSpeed = utils.carlaToScenicAngularSpeed(currAngVel)
+            angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
+            globalOrientation = utils.carlaToScenicOrientation(currRot)
+            yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
+            elevation = utils.carlaToScenicElevation(currLoc)
 
-        values = dict(
-            position=position,
-            velocity=velocity,
-            speed=speed,
-            angularSpeed=angularSpeed,
-            angularVelocity=angularVelocity,
-            yaw=yaw,
-            pitch=pitch,
-            roll=roll,
-            elevation=elevation,
-        )
-        return values
+            values = dict(
+                position=position,
+                velocity=velocity,
+                speed=speed,
+                angularSpeed=angularSpeed,
+                angularVelocity=angularVelocity,
+                yaw=yaw,
+                pitch=pitch,
+                roll=roll,
+                elevation=elevation,
+            )
+            return values
 
 
     def getMetsrProperties(self, obj: object, properties : dict) -> dict[str, float | Vector | int]:
@@ -602,7 +606,7 @@ class CosimSimulation(DrivingSimulation):
         bearing = math.radians(-raw_data["bearing"])
         globalOrientation = Orientation.fromEuler(bearing,0,0)
         yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
-        velocity = Vector(0, speed, 0).rotatedBy(globalOrientation)
+        velocity = Vector(0, speed, 0).rotatedBy(yaw)
         angularSpeed = 0
         angularVelocity = Vector(0,0,0)
 
@@ -615,7 +619,7 @@ class CosimSimulation(DrivingSimulation):
             yaw=yaw,
             pitch=pitch,
             roll=roll,
-            elevation=float(0)
+            elevation=position.z
         )
         return values
 
@@ -851,12 +855,15 @@ class CosimSimulation(DrivingSimulation):
                     roads = self.network_helper.scenic_to_metsr_map_lanes[key]
                     if len(roads) > 1:
                         metsr_road = self.identify_nearest_road(obj, roads)
+                        # print(f"Resolving non-unique mapping for roads: {roads}")
                     else:
                         metsr_road = roads[0].split("_")[0]
                     if metsr_road in self.network_helper.metsr_represented_roads:
                         road_id = metsr_road
                 if veh_data["roadID"] != road_id and road_id is not None: # Entering new road within metsr network
                     self.metsr_client.enter_next_road(vehID, roadID=road_id, private_veh = True)
+                    print(f"moving: {vehID} to road: {road_id} with prev: {veh_data['roadID']}")
+                    # print(f"Key was: {key} mapping was: {roads} concrete was: {metsr_road}")
                     if road_id == veh_data["destRoadID"]:
                         self.completed_route[obj] = True
                         obj.finished_route = self.count
@@ -864,7 +871,9 @@ class CosimSimulation(DrivingSimulation):
             bearing = _utils.get_metsr_rotation(obj.carlaActor.get_transform().rotation.yaw)
             # Check if objects are desynchronized
             if not math.isclose(loc.x, veh_data['x']) or not math.isclose(-loc.y, veh_data['y']):
-                # print(f'teleporting cosim veh: {obj.name} to {loc.x, -loc.y} with road id: {road_id}')
+                pass
+                # if vehID != 0:
+                #     print(f"teleporting cosim veh: {vehID} to {loc.x, -loc.y} from orig loc: {veh_data['x'], veh_data['y']} with old road id: {veh_data['roadID']} and new: {road_id}")
                 veh_ids.append(vehID)
                 pos_xs.append(loc.x)
                 pos_ys.append(-loc.y)
@@ -872,7 +881,7 @@ class CosimSimulation(DrivingSimulation):
 
         if veh_ids:
             self.metsr_client.teleport_cosim_vehicle(veh_ids, pos_xs, pos_ys, bearing=bearings, private_veh = True, transform_coords = True)
-            # self.check_client_synchronization()
+            self.check_client_synchronization()
         
     def identify_nearest_road(self, obj: Object, roads: list[str] ) -> str:
         """
@@ -963,7 +972,7 @@ class CosimSimulation(DrivingSimulation):
             # Skip vehicles which have not entered the roadway or have completed their route 
             if ('roadID' not in veh_data) or obj in self.completed_route:
                 if obj.carla_actor_flag:
-                    # print(f"Removing obj: {obj.name} after completeing route")
+                    print(f"Removing obj: {obj.name} after completeing route")
                     self.remove_bubble_object(obj) # TODO this is a feature for the case studies not the simulator interface itself
                     # self.metsr_client.reach_dest(self.getMetsrPrivateVehId(obj), private_veh=True)
                 else:
@@ -992,9 +1001,9 @@ class CosimSimulation(DrivingSimulation):
 
             else:  # inside bubble
                 if not obj.carla_actor_flag:
-                    print(f'creating Obj: {obj.name} : METS-R properties were: {veh_data["x"], veh_data["y"]} with road: {veh_data["roadID"]} at {self.count}')     
                     success = self.createObjectInCarla(obj,update_velocity=True)      
                     if success: 
+                        print(f'creating Obj: {obj.name} : METS-R properties were: {veh_data["x"], veh_data["y"]} with road: {veh_data["roadID"]} at {self.count}')     
                         self.carla_actors.append(obj)
                         if obj in self.metsr_actors:
                             self.metsr_actors.remove(obj)
@@ -1306,62 +1315,6 @@ class CosimSimulation(DrivingSimulation):
                 expected_pos = [veh_data["x"], veh_data["y"]]
 
             if not math.isclose(obj.position.x, expected_pos[0]) or not math.isclose(obj.position.y, expected_pos[1]):
-                print(f"Obj: {obj.name} is out of sync discrepancy is:")
+                print(f"Obj: {obj.name} on road: {veh_data['roadID']} is out of sync discrepancy is:")
                 print(f'(METSR : SCENIC) : x: {veh_data["x"], obj.position.x} y: {veh_data["y"], obj.position.y} z {veh_data["y"], obj.position.y}')
 
-
-    def identify_metsr_lane(self, obj: Object, roadID: str, default: int = 0) -> int:
-        """
-        Choose the METS-R lane index on `roadID` that `obj` actually occupies.
-
-        Scenic and METS-R number lanes from opposite sides, so converting by index
-        arithmetic is easy to get backwards and fails silently. Instead we ask
-        METS-R for each lane's own centerline and take whichever passes closest to
-        the object -- the numbering convention never enters into it, and the answer
-        is correct even if the two networks disagree about lane counts.
-
-        Note that `teleport_trace_replay_vehicle` projects x/y onto the lane named
-        here, so a wrong index moves the vehicle laterally by a full lane width.
-        """
-        group = obj._laneGroup
-        scenic_lane_count = len(group.lanes) if group is not None else 0
-
-        # Probe past Scenic's count in case METS-R models more lanes than Scenic does.
-        centerlines = self._metsr_lane_centerlines(roadID, max(scenic_lane_count, 1) + 2)
-
-        if not centerlines:
-            return default
-
-        point = (obj.position.x, obj.position.y)
-        best_lane, best_dist = default, math.inf
-        for lane_index, polyline in enumerate(centerlines):
-            dist = _utils.polyline_distance(point, polyline)
-            if dist < best_dist:
-                best_dist, best_lane = dist, lane_index
-
-        return best_lane
-
-    def _metsr_lane_centerlines(self, roadID: str, probe_limit: int) -> list[list[tuple]]:
-        """
-        Fetch and cache METS-R's per-lane centerlines for a road.
-
-        METS-R exposes no lane count, so we walk lane indices upward until the
-        server stops returning geometry. Static geometry, so one pass per road.
-        """
-        if roadID in self.metsr_lane_cache:
-            return self.metsr_lane_cache[roadID]
-
-        centerlines = []
-        for lane_index in range(probe_limit):
-            try:
-                data = self.metsr_client.query_centerline(
-                    roadID, lane_index=lane_index, transform_coords=True
-                )["DATA"]
-            except Exception:
-                break                       # no such lane on this road
-            if not data or not data[0].get("centerline"):
-                break
-            centerlines.append([(p[0], p[1]) for p in data[0]["centerline"]])
-
-        self.metsr_lane_cache[roadID] = centerlines
-        return centerlines
