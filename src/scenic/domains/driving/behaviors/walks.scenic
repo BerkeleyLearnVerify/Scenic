@@ -116,7 +116,8 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
             # Extract the mid_path. If paths are very close in length,
             # bias to the right.
             # TODO: Bias to the appropriate driving direction
-            if 0.95 < exterior_segments[0].length/exterior_segments[1].length < 1.05:
+            if (all(s.length != 0 for s in exterior_segments)
+                and 0.95 < exterior_segments[0].length/exterior_segments[1].length < 1.05):
                 def angle_helper(ls):
                     return actor.apparentHeadingTo(Vector(*ls.centroid.coords[0]))
                 exterior_segments.sort(key=lambda x: angle_helper(x))
