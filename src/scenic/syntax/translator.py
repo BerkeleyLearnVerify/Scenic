@@ -716,23 +716,13 @@ def constructScenarioFrom(namespace, scenarioName=None):
             "externalSampler", VerifaiSampler
         ).getExternalParameterConverter()
 
-        for dep in scenario.dependencies:
-            externalParamConverter.convert(dep)
-            print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
-
         ## DEBUG ##
         for dep in scenario.dependencies:
             print(f"DEP: {dep}")
-            # for d in dep.recursiveDependencies():
-            #     if (
-            #         isinstance(d, Distribution)
-            #         and not d._conditioned._deterministic
-            #         and not isinstance(d._conditioned, ExternalParameter)
-            #     ):
-            #         for d in test:
-            #             print(type(d))
-            #             print(d)
-            # print()
+
+        for dep in scenario.dependencies:
+            externalParamConverter.convert(dep)
+            print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
 
         newExternalParams = externalParamConverter.externalParams
     else:
