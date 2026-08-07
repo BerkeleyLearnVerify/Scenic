@@ -644,7 +644,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
     We'll need to rebind any sampled values in them at runtime.
     """
-    print(f"TYPE: {type(sys.modules["scenic.domains.driving.model"])}")
+    print(f"TYPE: {type(sys.modules['scenic.domains.driving.model'])}")
     behaviorNamespaces = {}
 
     def registerNamespace(modName, ns):
