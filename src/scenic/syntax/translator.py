@@ -721,20 +721,17 @@ def constructScenarioFrom(namespace, scenarioName=None):
             print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
 
         ## DEBUG ##
-        test = {
-            d
-            for dep in scenario.dependencies
-            for d in dep.recursiveDependencies()
-            if (
-                isinstance(d, Distribution)
-                and not d._conditioned._deterministic
-                and not isinstance(d._conditioned, ExternalParameter)
-            )
-        }
-        for d in test:
-            print()
-            print(type(d))
-            print(d)
+        for dep in scenario.dependencies:
+            print(f"DEP: {dep}")
+            for d in dep.recursiveDependencies():
+                if (
+                    isinstance(d, Distribution)
+                    and not d._conditioned._deterministic
+                    and not isinstance(d._conditioned, ExternalParameter)
+                ):
+                    for d in test:
+                        print(type(d))
+                        print(d)
             print()
 
         newExternalParams = externalParamConverter.externalParams
