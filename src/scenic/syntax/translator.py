@@ -665,6 +665,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
                 # Convert values requiring sampling to Distributions
                 dval = toDistribution(value)
                 if dval is not value:
+                    print(f"ADDING {name} = {dval}")
                     ns[name] = dval
 
     for behavior in behaviors:
