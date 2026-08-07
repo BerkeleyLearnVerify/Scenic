@@ -244,6 +244,7 @@ class Constructible(Samplable):
 
         if getattr(cls, "isPedestrian", False):
             print("WITHSPECIFIERS ORIENTATION: ", properties["orientation"])
+            breakpoint()
 
         if constProps is None:
             constProps = consts
