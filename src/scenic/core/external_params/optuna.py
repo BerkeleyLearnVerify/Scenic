@@ -93,30 +93,35 @@ class OptunaParameterConverter(ExternalParameterConverter):
     def convertInner(self, dist):
         distCond = dist._conditioned
         if isinstance(distCond, Range):
+            print("CONVERTING RANGE")
             self.convert(distCond.low)
             self.convert(distCond.high)
             newDist = OptunaRange(distCond.low, distCond.high)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, DiscreteRange):
+            print("CONVERTING DISCRETE RANGE")
             self.convert(distCond.low)
             self.convert(distCond.high)
             newDist = OptunaDiscreteRange(distCond.low, distCond.high)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, Normal):
+            print("CONVERTING NORMAL")
             self.convert(distCond.stddev)
             self.convert(distCond.mean)
             newDist = Normal.cdfinv(distCond.mean, distCond.stddev, OptunaRange(-1, 1))
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, Options) and not isinstance(distCond, OptunaOptions):
+            print("CONVERTING OPTUNA OPTIONS")
             for o in distCond.options:
                 self.convert(o)
             newDist = OptunaOptions(distCond.options)
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, UniformDistribution):
+            print("CONVERTING UNIFORM")
             for o in distCond.options:
                 self.convert(o)
             newSelector = _OptunaCategoricalHelper(
@@ -128,6 +133,7 @@ class OptunaParameterConverter(ExternalParameterConverter):
             isinstance(distCond, PointInRegionDistribution)
             and not distCond._deterministic
         ):
+            print("CONVERTING POINT IN REGION")
             self.convert(distCond.region)
 
             # def makeSampleVals(dims):
