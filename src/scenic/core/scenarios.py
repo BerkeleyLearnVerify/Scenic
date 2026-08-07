@@ -317,6 +317,7 @@ class Scenario(_ScenarioPickleMixin):
             for value in namespace.values():
                 if isinstance(value, Samplable):
                     behaviorDeps.append(value)
+        breakpoint()
         self.dependencies = (
             self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
         )
