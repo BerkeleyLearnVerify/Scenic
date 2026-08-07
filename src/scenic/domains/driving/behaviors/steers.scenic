@@ -49,6 +49,7 @@ def getFollowLanePath(obj, minPathDistance, preferStraight, laneToFollow=None, p
         initial_path = path_metadata[1]
     
     assert isinstance(initial_path, shapely.geometry.LineString)
+    initial_path = shapely.remove_repeated_points(initial_path)
 
     def mergeLineStrings(geoms):
         return shapely.geometry.LineString(itertools.chain.from_iterable(geom.coords for geom in geoms))

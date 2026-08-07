@@ -150,6 +150,7 @@ class Scene(_ScenarioPickleMixin):
         objects,
         egoObject,
         params,
+        scenario,
         temporalReqs=(),
         terminationConds=(),
         termSimulationConds=(),
@@ -166,6 +167,7 @@ class Scene(_ScenarioPickleMixin):
         self.objects = tuple(objects)
         self.egoObject = egoObject
         self.params = params
+        # self.scenario = scenario
         self.temporalRequirements = tuple(temporalReqs)
         self.terminationConditions = tuple(terminationConds)
         self.terminateSimulationConditions = tuple(termSimulationConds)
@@ -499,6 +501,10 @@ class Scenario(_ScenarioPickleMixin):
             earlier in the stream. Despite this, the overall distribution of the returned scenes still
             matches the scenario. When generating an infinite stream, ``deterministic`` must be set to ``True``.
 
+        .. note::
+            NOTE: If sampling an infinite number of scenes, it is advisable to call close() on the generator
+            when done so as to trigger cleanup.
+
         Args:
             numScenes (int): Number of scenes to generate, or ``float('inf')`` to sample an infinite stream
                 of Scenes.
@@ -797,6 +803,7 @@ class Scenario(_ScenarioPickleMixin):
             sampledObjects,
             ego,
             sampledParams,
+            self,
             temporalReqs,
             terminationConds,
             termSimulationConds,
@@ -903,7 +910,7 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             SerializationError: if the scene could not be properly decoded.
         """
-        ser = Serializer(data, allowPickle=allowPickle, detectEnd=True)
+        ser = Serializer(data, allowPickle=allowPickle)
         return ser.readScene(self, verify=verify)
 
     def simulationToBytes(self, simulation, allowPickle=False):

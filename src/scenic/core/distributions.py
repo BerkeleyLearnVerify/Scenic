@@ -1015,8 +1015,8 @@ class MultiplexerDistribution(Distribution):
         serializer.writeSamplable(choice, values)
 
     def deserializeValue(self, serializer, values):
-        serializer.readSamplable(self.index, values)
-        choice = self.options[values[self.index]]
+        serializer.readSamplable(self._conditioned.index, values)
+        choice = self.options[values[self._conditioned.index]]
         serializer.readSamplable(choice, values)
         return values[choice]
 

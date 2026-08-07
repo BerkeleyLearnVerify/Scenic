@@ -24,7 +24,7 @@ def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, veh
     def future_poly_helper(obj):
         planned_path, planned_speed = obj._planData
         trimmed_path = shapely.ops.substring(planned_path, 0, planned_speed*lookaheadTime)
-        return trimmed_path.buffer(bufferCalc(obj) + + shapely.minimum_bounding_radius(obj._boundingPolygon))
+        return trimmed_path.buffer(bufferCalc(obj) + shapely.minimum_bounding_radius(obj._boundingPolygon))
     future_polys = [future_poly_helper(obj) for obj in backgroundObjects
         if not obj.isVehicle and getattr(obj, "_planData", None) is not None]
 
@@ -180,7 +180,7 @@ behavior _WalkPathHelper(path, targetSpeed):
         take SetWalkingDirectionAction(heading), SetWalkingSpeedAction(actual_speed)
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
-    terminationThresh=0.1, replanTime=0.1, lookaheadTime=4,
+    terminationThresh=0.1, replanTime=0.5, lookaheadTime=4,
     vehBuffer=2, nonVehBuffer=0.2):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):

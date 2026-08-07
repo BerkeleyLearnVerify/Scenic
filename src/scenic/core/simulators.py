@@ -1063,6 +1063,7 @@ class SimulationResult:
         self.terminationReason = str(terminationReason)
         self.records = dict(records)
         self.externalSamplerInfo = externalSamplerInfo
+        self.replayBytes = None  # TODO
 
 
 class TerminatedSimulationException(Exception):
@@ -1096,6 +1097,7 @@ class SimulatorGroup:
         mute=True,
         returnFinalState=False,
         returnTrajectory=False,
+        returnBytes=False,
         timeout=20,
     ):
         if numWorkers <= 0:
@@ -1119,6 +1121,7 @@ class SimulatorGroup:
         self.mute = mute
         self.returnFinalState = returnFinalState
         self.returnTrajectory = returnTrajectory
+        self.returnBytes = returnBytes
         self.timeout = timeout
 
     def _jobName(self, jobId):
@@ -1181,6 +1184,9 @@ class SimulatorGroup:
     ):
         """Generate a stream of `SimulationResult` objects.
 
+        .. note::
+            NOTE: It is advisable to call close() on the generator when done so as to trigger cleanup.
+
         Args:
             scenario: The scenario that the scenes are sampled from.
             scenes: An iterator of `Scene` objects sampled from ``scenario``.
@@ -1213,6 +1219,7 @@ class SimulatorGroup:
                 self.mute,
                 self.returnFinalState,
                 self.returnTrajectory,
+                self.returnBytes,
             )
             processes.append(
                 multiprocessing.Process(target=simulatorGroupHelper, args=params)
@@ -1309,6 +1316,7 @@ def simulatorGroupHelper(
     mute,
     returnFinalState,
     returnTrajectory,
+    returnBytes,
 ):
     if mute:
         sys.stdout = open(os.devnull, "w")
@@ -1340,6 +1348,8 @@ def simulatorGroupHelper(
                     simulationResult.finalState = None
                 if not returnTrajectory:
                     simulationResult.trajectory = None
+                if returnBytes:  # TODO: Swap to wipe if not desired instead of adding
+                    simulationResult.replayBytes = scenario.simulationToBytes(simulation)
             else:
                 simulationResult = None
 

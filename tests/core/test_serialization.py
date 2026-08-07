@@ -13,6 +13,7 @@ import sys
 import numpy
 import pytest
 
+import scenic
 from scenic.core.serialization import (
     SerializationError,
     Serializer,
@@ -500,6 +501,34 @@ class TestSimulationReplay:
         data = scenario.simulationToBytes(sim1)
         sim2 = scenario.simulationFromBytes(data, simulator, maxSteps=1)
         assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)
+
+    def test_staged_serialization(self):
+        scenario = compileScenic(
+            """
+            behavior Foo():
+                take Range(0, 1) + self.bar
+            ego = new Object with behavior Foo, with bar Range(0,1)
+        """
+        )
+        seed = random.getrandbits(32)
+        sceneOrig = sampleScene(scenario)
+        simulator = DummySimulator()
+
+        sceneBytes = scenario.sceneToBytes(sceneOrig)
+        sceneRestored = scenario.sceneFromBytes(sceneBytes)
+        scenic.setSeed(seed)
+        simOrig = simulator.simulate(sceneOrig, maxSteps=1, maxIterations=1)
+        scenic.setSeed(seed)
+        simRestored = simulator.simulate(sceneRestored, maxSteps=1, maxIterations=1)
+        simBytes = scenario.simulationToBytes(simRestored)
+        simRestoredRestored = scenario.simulationFromBytes(
+            simBytes, simulator, maxSteps=1
+        )
+        assert (
+            getEgoActionsFrom(simOrig)
+            == getEgoActionsFrom(simRestored)
+            == getEgoActionsFrom(simRestoredRestored)
+        )
 
 
 def test_deterministic_hash_non_scalar_values():
