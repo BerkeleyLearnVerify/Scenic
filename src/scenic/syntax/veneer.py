@@ -45,6 +45,8 @@ __all__ = (
     "round",
     "len",
     "range",
+    "orientedRegion",
+    "unorientedRegion",
     # Prefix operators
     "Visible",
     "NotVisible",
