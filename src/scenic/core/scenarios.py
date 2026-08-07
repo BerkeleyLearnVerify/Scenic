@@ -319,10 +319,10 @@ class Scenario(_ScenarioPickleMixin):
                     behaviorDeps.append(value)
 
         print("DEPENDENCIES: ")
-        print(f"self._instances: {self._instances}")
-        print(f"paramDeps: {paramDeps}")
-        print(f"requirementDeps: {requirementDeps}")
-        print(f"behaviorDeps: {behaviorDeps}")
+        print(f"self._instances: {len(self._instances)}")
+        print(f"paramDeps: {len(paramDeps)}")
+        print(f"requirementDeps: {len(requirementDeps)}")
+        print(f"behaviorDeps: {len(behaviorDeps)}")
         print()
 
         self.dependencies = (
