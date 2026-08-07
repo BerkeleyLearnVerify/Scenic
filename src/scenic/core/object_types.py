@@ -238,11 +238,13 @@ class Constructible(Samplable):
     @classmethod
     def _withSpecifiers(cls, specifiers, constProps=None, register=True):
         """Create an instance from the given specifiers."""
-        if getattr(cls, "isPedestrian", False):
-            breakpoint()
         # Resolve specifiers
         newspecs = cls._prepareSpecifiers(specifiers)
         properties, consts = cls._resolveSpecifiers(newspecs)
+
+        if getattr(cls, "isPedestrian", False):
+            print("WITHSPECIFIERS ORIENTATION: ", properties["orientation"])
+
         if constProps is None:
             constProps = consts
 
