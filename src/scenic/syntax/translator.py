@@ -175,6 +175,19 @@ def _scenarioFromStream(
     }
     stream = io.BytesIO(streamLines)
 
+    print(
+        "Scenario Creation Hash: ",
+        hash(
+            (
+                stream,
+                compileOptions.items(),
+                filename,
+                scenario,
+                path,
+            )
+        ),
+    )
+
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
