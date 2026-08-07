@@ -242,10 +242,6 @@ class Constructible(Samplable):
         newspecs = cls._prepareSpecifiers(specifiers)
         properties, consts = cls._resolveSpecifiers(newspecs)
 
-        if getattr(cls, "isPedestrian", False):
-            print("WITHSPECIFIERS ORIENTATION: ", properties["orientation"])
-            breakpoint()
-
         if constProps is None:
             constProps = consts
 
@@ -312,6 +308,9 @@ class Constructible(Samplable):
         # For each property specified by a normal specifier:
         #   - If not in properties specified, properties[p] = specifier
         #   - Otherwise, if property specified, check if specifier's priority is higher. If so, replace it with specifier
+
+        if getattr(cls, "isPedestrian", False):
+            breakpoint()
 
         # Priorties are inversed: A lower priority number means semantically that it has a higher priority level
         for spec in normal_specifiers:
