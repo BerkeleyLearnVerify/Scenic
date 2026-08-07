@@ -1655,9 +1655,7 @@ def alwaysProvidesOrientation(region):
     ):
         return True
     else:  # TODO improve somehow!
-        warnings.warn(
-            f"Cannot infer whether or not {region} always provides orientation."
-        )
+        warnings.warn(f"Cannot infer whether or not target always provides orientation.")
         breakpoint()
         try:
             sample = region.sample()
