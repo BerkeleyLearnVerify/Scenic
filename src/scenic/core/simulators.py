@@ -1324,19 +1324,6 @@ def simulatorGroupHelper(
 
     from scenic.syntax.translator import _scenarioFromStream
 
-    print(
-        "Scenario Creation Hash: ",
-        (
-            (
-                hash(scenarioCreationData["streamLines"]),
-                scenarioCreationData["compileOptions"].hash,
-                scenarioCreationData["filename"],
-                scenarioCreationData["scenario"],
-                scenarioCreationData["path"],
-            )
-        ),
-    )
-
     scenario = _scenarioFromStream(
         stream=io.BytesIO(scenarioCreationData["streamLines"]),
         compileOptions=scenarioCreationData["compileOptions"],
