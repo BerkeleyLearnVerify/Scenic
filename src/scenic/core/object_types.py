@@ -368,7 +368,7 @@ class Constructible(Samplable):
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
 
-        if len(specifiers) != 0 and getattr(cls, "isPedestrian", False):
+        if len(specifiers) != 0 and cls.__name__ == "Pedestrian":
             print(priorities)
             breakpoint()
 
