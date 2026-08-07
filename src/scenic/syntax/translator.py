@@ -180,7 +180,7 @@ def _scenarioFromStream(
         hash(
             (
                 stream,
-                hash(compileOptions),
+                compileOptions.hash,
                 filename,
                 scenario,
                 path,
