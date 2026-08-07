@@ -175,19 +175,6 @@ def _scenarioFromStream(
     }
     stream = io.BytesIO(streamLines)
 
-    print(
-        "Scenario Creation Hash: ",
-        hash(
-            (
-                hash(streamLines),
-                compileOptions.hash,
-                filename,
-                scenario,
-                path,
-            )
-        ),
-    )
-
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
@@ -416,7 +403,6 @@ class ScenicLoader(importlib.abc.InspectLoader):
         return ScenicModule(spec.name)
 
     def exec_module(self, module):
-        print(f"MODULE: {module}")
         # Read source file and compile it
         with open(self.filepath, "r") as stream:
             source = stream.read()
@@ -645,7 +631,6 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
     We'll need to rebind any sampled values in them at runtime.
     """
-    print(f"TYPE: {type(sys.modules['scenic.domains.driving.model'])}")
     behaviorNamespaces = {}
 
     def registerNamespace(modName, ns):
@@ -662,7 +647,6 @@ def gatherBehaviorNamespacesFrom(behaviors):
         behaviorNamespaces[modName] = ns
         for name, value in ns.items():
             if isinstance(value, ScenicModule):
-                print(f"ADDING {value.__name__}")
                 registerNamespace(value.__name__, value.__dict__)
             else:
                 # Convert values requiring sampling to Distributions

@@ -1333,8 +1333,6 @@ def simulatorGroupHelper(
         _cacheImports=False,
     )
 
-    print("DONE BUILDING")
-
     with simulatorClass(**simulatorParams) as simulator:
         while True:
             jobId, serializedScene, simulateParams, seed = jobQueue.get()

@@ -318,13 +318,6 @@ class Scenario(_ScenarioPickleMixin):
                 if isinstance(value, Samplable):
                     behaviorDeps.append(value)
 
-        print("DEPENDENCIES: ")
-        print(f"self._instances: {len(self._instances)}")
-        print(f"paramDeps: {len(paramDeps)}")
-        print(f"requirementDeps: {len(requirementDeps)}")
-        print(f"behaviorDeps: {len(behaviorDeps)}")
-        print()
-
         self.dependencies = (
             self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
         )
