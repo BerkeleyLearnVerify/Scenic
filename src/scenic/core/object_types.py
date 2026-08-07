@@ -446,7 +446,7 @@ class Constructible(Samplable):
                 cls._specify(context, prop, value)
         properties = LazilyEvaluable.getContextValues(context)
 
-        if getattr(self, "isPedestrian", False):
+        if getattr(cls, "isPedestrian", False):
             print(properties)
             breakpoint()
 
