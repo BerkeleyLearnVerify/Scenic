@@ -117,6 +117,9 @@ class Constructible(Samplable):
     def __init_subclass__(cls):
         super().__init_subclass__()
 
+        if getattr(cls, "isPedestrian", False):
+            breakpoint()
+
         if "_defaults" in cls.__dict__:
             # This class is being unpickled by value; the pickled class already was
             # transformed by __init_subclass__, so we skip it now.
@@ -445,10 +448,6 @@ class Constructible(Samplable):
                 value = toDistribution(specifiedValues[prop])
                 cls._specify(context, prop, value)
         properties = LazilyEvaluable.getContextValues(context)
-
-        if getattr(cls, "isPedestrian", False):
-            print(properties)
-            breakpoint()
 
         constProps = frozenset(
             {prop for prop in _defaultedProperties if not needsSampling(properties[prop])}
