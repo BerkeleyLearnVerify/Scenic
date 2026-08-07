@@ -41,8 +41,7 @@ from scenic.domains.driving.roads import (ManeuverType, Network, Road, Lane, Lan
                                           LaneGroup, Intersection, PedestrianCrossing,
                                           NetworkElement)
 from scenic.domains.driving.actions import *
-from scenic.domains.driving.behaviors.steers import *
-from scenic.domains.driving.behaviors.walks import *
+from scenic.domains.driving.behaviors import *
 
 from scenic.core.sensors import Sensor
 from scenic.core.distributions import RejectionException
