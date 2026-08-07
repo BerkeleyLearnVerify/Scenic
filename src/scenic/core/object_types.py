@@ -309,9 +309,6 @@ class Constructible(Samplable):
         #   - If not in properties specified, properties[p] = specifier
         #   - Otherwise, if property specified, check if specifier's priority is higher. If so, replace it with specifier
 
-        if getattr(cls, "isPedestrian", False):
-            breakpoint()
-
         # Priorties are inversed: A lower priority number means semantically that it has a higher priority level
         for spec in normal_specifiers:
             assert isinstance(spec, Specifier), (name, spec)
@@ -371,7 +368,9 @@ class Constructible(Samplable):
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
 
-        print(priorities)
+        if getattr(cls, "isPedestrian", False):
+            print(priorities)
+            breakpoint()
 
         # Add any default specifiers needed
         _defaultedProperties = set()
