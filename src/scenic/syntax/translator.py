@@ -724,7 +724,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
         #     externalParamConverter.convert(dep)
         #     print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
 
-        # newExternalParams = externalParamConverter.externalParams
+        newExternalParams = externalParamConverter.externalParams
     else:
         newExternalParams = []
 
