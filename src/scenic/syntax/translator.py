@@ -177,9 +177,9 @@ def _scenarioFromStream(
 
     print(
         "Scenario Creation Hash: ",
-        hash(
+        (
             (
-                stream,
+                hash(stream),
                 compileOptions.hash,
                 filename,
                 scenario,

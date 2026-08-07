@@ -1326,9 +1326,9 @@ def simulatorGroupHelper(
 
     print(
         "Scenario Creation Hash: ",
-        hash(
+        (
             (
-                scenarioCreationData["streamLines"],
+                hash(scenarioCreationData["streamLines"]),
                 scenarioCreationData["compileOptions"].hash,
                 scenarioCreationData["filename"],
                 scenarioCreationData["scenario"],
