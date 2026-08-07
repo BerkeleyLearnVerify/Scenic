@@ -416,6 +416,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
         return ScenicModule(spec.name)
 
     def exec_module(self, module):
+        print(f"MODULE: {module}")
         # Read source file and compile it
         with open(self.filepath, "r") as stream:
             source = stream.read()
@@ -644,7 +645,6 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
     We'll need to rebind any sampled values in them at runtime.
     """
-    breakpoint()
     print(f"TYPE: {type(sys.modules['scenic.domains.driving.model'])}")
     behaviorNamespaces = {}
 
