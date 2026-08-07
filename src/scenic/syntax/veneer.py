@@ -1589,6 +1589,7 @@ def On(thing):
 
     props = {"position": 1}
 
+    breakpoint()
     if isA(target, Region) and alwaysProvidesOrientation(target):
         props["parentOrientation"] = 2
 
