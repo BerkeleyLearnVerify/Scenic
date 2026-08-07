@@ -372,6 +372,8 @@ class Constructible(Samplable):
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
 
+        print(priorities)
+
         # Add any default specifiers needed
         _defaultedProperties = set()
         for prop, default_spec in defaults.items():
