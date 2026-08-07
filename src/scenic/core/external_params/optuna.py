@@ -94,8 +94,6 @@ class OptunaParameterConverter(ExternalParameterConverter):
         distCond = dist._conditioned
         if isinstance(distCond, Range):
             print(f"CONVERTING RANGE: {dist}, {distCond}")
-            if distCond.low == 0 and distCond.high == 360:
-                breakpoint()
             self.convert(distCond.low)
             self.convert(distCond.high)
             newDist = OptunaRange(distCond.low, distCond.high)
