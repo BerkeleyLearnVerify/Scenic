@@ -644,6 +644,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
     We'll need to rebind any sampled values in them at runtime.
     """
+    breakpoint()
     print(f"TYPE: {type(sys.modules['scenic.domains.driving.model'])}")
     behaviorNamespaces = {}
 
