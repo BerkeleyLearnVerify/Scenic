@@ -121,7 +121,7 @@ class OptunaParameterConverter(ExternalParameterConverter):
             self.registerExternalParams(newDist)
             dist.conditionTo(newDist)
         elif isinstance(distCond, UniformDistribution) and not isinstance(
-            distCond._conditioned.selector, _OptunaCategoricalHelper
+            distCond.selector._conditioned, _OptunaCategoricalHelper
         ):
             print("CONVERTING UNIFORM")
             for o in distCond.options:
