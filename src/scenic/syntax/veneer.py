@@ -1645,9 +1645,7 @@ def alwaysProvidesOrientation(region):
     else:  # TODO improve somehow!
         try:
             sample = region.sample()
-            result = sample.orientation is not None or sample is nowhere
-            print(f"ALWAYS PROVIDES ORIENTATION: {result}")
-            return result
+            return sample.orientation is not None or sample is nowhere
         except RejectionException:
             return False
         except Exception as e:

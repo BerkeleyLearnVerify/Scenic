@@ -446,6 +446,10 @@ class Constructible(Samplable):
                 cls._specify(context, prop, value)
         properties = LazilyEvaluable.getContextValues(context)
 
+        if getattr(self, "isPedestrian", False):
+            print(properties)
+            breakpoint()
+
         constProps = frozenset(
             {prop for prop in _defaultedProperties if not needsSampling(properties[prop])}
         )
