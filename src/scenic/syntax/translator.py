@@ -660,7 +660,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
         behaviorNamespaces[modName] = ns
         for name, value in ns.items():
             if isinstance(value, ScenicModule):
-                print(f"ADDING {value.__name__} = {value.__dict__}")
+                print(f"ADDING {value.__name__}")
                 registerNamespace(value.__name__, value.__dict__)
             else:
                 # Convert values requiring sampling to Distributions
