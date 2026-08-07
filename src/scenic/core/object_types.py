@@ -368,10 +368,6 @@ class Constructible(Samplable):
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
 
-        if len(specifiers) != 0 and cls.__name__ == "Pedestrian":
-            print(priorities)
-            breakpoint()
-
         # Add any default specifiers needed
         _defaultedProperties = set()
         for prop, default_spec in defaults.items():

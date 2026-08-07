@@ -1589,7 +1589,6 @@ def On(thing):
 
     props = {"position": 1}
 
-    breakpoint()
     if isA(target, Region) and alwaysProvidesOrientation(target):
         props["parentOrientation"] = 2
 
@@ -1635,6 +1634,16 @@ def projectVectorHelper(region, pos, onDirection):
         return on_pos
 
 
+@distributionFunction
+def orientedRegion(region):
+    return region
+
+
+@distributionFunction
+def unorientedRegion(region):
+    return region
+
+
 def alwaysProvidesOrientation(region):
     """Whether a Region or distribution over Regions always provides an orientation."""
     if isinstance(region, Region):
@@ -1644,10 +1653,13 @@ def alwaysProvidesOrientation(region):
     ):
         return True
     else:  # TODO improve somehow!
+        warnings.warn(
+            f"Cannot infer whether or not {region} always provides orientation."
+        )
+        breakpoint()
         try:
             sample = region.sample()
             result = sample.orientation is not None or sample is nowhere
-            print(f"ALWAYS PROVIDES ORIENTATION: {result}")
             return result
         except RejectionException:
             return False
