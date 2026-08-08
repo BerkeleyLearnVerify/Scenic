@@ -235,13 +235,6 @@ class ExternalParameterConverter:
         sampCond = samp._conditioned
 
         if isinstance(sampCond, self.paramType) or not isinstance(sampCond, Distribution):
-            from scenic.core.distributions import RandomControlFlowError
-
-            try:
-                if getattr(sampCond, "isPedestrian", False):
-                    print(f"PED ORIENTATION: {sampCond.orientation}")
-            except RandomControlFlowError:
-                pass
             for dep in sampCond._dependencies:
                 self.convert(dep)
         else:
