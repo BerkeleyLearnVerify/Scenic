@@ -1643,23 +1643,23 @@ def orientedRegion(region):
     return region
 
 
-orientedRegion.alwaysProvidesOrientation = True
-
-
 @distributionFunction
 def unorientedRegion(region):
     return region
 
 
-unorientedRegion.alwaysProvidesOrientation = True
-
-
 def alwaysProvidesOrientation(region):
     """Whether a Region or distribution over Regions always provides an orientation."""
-    providesOrientationInfo = lambda r: (
+    isOriented = lambda r: (
         isinstance(region, TypecheckedDistribution)
         and isinstance(region._dist, FunctionDistribution)
-        and hasattr(region._dist.function, "alwaysProvidesOrientation")
+        and region._dist.function.__name__ == "orientedRegion"  # TODO: IMPROVE THIS!!!
+    )
+
+    isUnoriented = lambda r: (
+        isinstance(region, TypecheckedDistribution)
+        and isinstance(region._dist, FunctionDistribution)
+        and region._dist.function.__name__ == "unorientedRegion"  # TODO: IMPROVE THIS!!!
     )
 
     if isinstance(region, Region):
@@ -1668,9 +1668,10 @@ def alwaysProvidesOrientation(region):
         alwaysProvidesOrientation(opt) for opt in region.options
     ):
         return True
-    elif providesOrientationInfo(region):
-        breakpoint()
-        return region._dist.function.alwaysProvidesOrientation
+    elif isOriented(region):
+        return True
+    elif isUnoriented(region):
+        return False
     else:  # TODO improve somehow!
         warnings.warn(f"Cannot infer whether or not target always provides orientation.")
         breakpoint()
