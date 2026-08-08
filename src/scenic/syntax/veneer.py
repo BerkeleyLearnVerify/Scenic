@@ -1643,7 +1643,7 @@ def orientedRegion(region):
     return region
 
 
-orientedRegion._alwaysProvidesOrientation = True
+orientedRegion.alwaysProvidesOrientation = True
 
 
 @distributionFunction
@@ -1651,7 +1651,7 @@ def unorientedRegion(region):
     return region
 
 
-unorientedRegion._alwaysProvidesOrientation = True
+unorientedRegion.alwaysProvidesOrientation = True
 
 
 def alwaysProvidesOrientation(region):
