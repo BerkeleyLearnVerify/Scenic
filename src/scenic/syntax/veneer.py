@@ -1657,7 +1657,7 @@ unorientedRegion._alwaysProvidesOrientation = True
 def alwaysProvidesOrientation(region):
     """Whether a Region or distribution over Regions always provides an orientation."""
     providesOrientationInfo = lambda r: (
-        isinstance(region, TypeCheckedDistribution)
+        isinstance(region, TypecheckedDistribution)
         and isinstance(region._dist, FunctionDistribution)
         and hasattr(region._dist.function, "_alwaysProvidesOrientation")
     )
