@@ -718,9 +718,6 @@ def constructScenarioFrom(namespace, scenarioName=None):
 
         ## DEBUG ##
         for dep in scenario.dependencies:
-            print(f"DEP: {dep}")
-
-        for dep in scenario.dependencies:
             externalParamConverter.convert(dep)
             print(f"{dep}: {len(set(externalParamConverter.externalParams))}")
 
