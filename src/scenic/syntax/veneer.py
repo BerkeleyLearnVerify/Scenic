@@ -283,6 +283,7 @@ import warnings
 
 from scenic.core.distributions import (
     Distribution,
+    FunctionDistribution,
     MultiplexerDistribution,
     RejectionException,
     StarredDistribution,
@@ -314,6 +315,7 @@ from scenic.core.simulators import RejectSimulationException
 from scenic.core.specifiers import ModifyingSpecifier, Specifier
 from scenic.core.type_support import (
     Heading,
+    TypecheckedDistribution,
     canCoerce,
     coerce,
     evaluateRequiringEqualTypes,
@@ -1641,19 +1643,34 @@ def orientedRegion(region):
     return region
 
 
+orientedRegion._alwaysProvidesOrientation = True
+
+
 @distributionFunction
 def unorientedRegion(region):
     return region
 
 
+unorientedRegion._alwaysProvidesOrientation = True
+
+
 def alwaysProvidesOrientation(region):
     """Whether a Region or distribution over Regions always provides an orientation."""
+    providesOrientationInfo = lambda r: (
+        isinstance(region, TypeCheckedDistribution)
+        and isinstance(region._dist, FunctionDistribution)
+        and hasattr(region._dist.function, "_alwaysProvidesOrientation")
+    )
+
     if isinstance(region, Region):
         return region.orientation is not None
     elif isinstance(region, MultiplexerDistribution) and all(
         alwaysProvidesOrientation(opt) for opt in region.options
     ):
         return True
+    elif providesOrientationInfo(region):
+        breakpoint()
+        return region._dist.function._alwaysProvidesOrientation
     else:  # TODO improve somehow!
         warnings.warn(f"Cannot infer whether or not target always provides orientation.")
         breakpoint()
