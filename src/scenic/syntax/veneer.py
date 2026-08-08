@@ -1659,7 +1659,7 @@ def alwaysProvidesOrientation(region):
     providesOrientationInfo = lambda r: (
         isinstance(region, TypecheckedDistribution)
         and isinstance(region._dist, FunctionDistribution)
-        and hasattr(region._dist.function, "_alwaysProvidesOrientation")
+        and hasattr(region._dist.function, "alwaysProvidesOrientation")
     )
 
     if isinstance(region, Region):
@@ -1670,7 +1670,7 @@ def alwaysProvidesOrientation(region):
         return True
     elif providesOrientationInfo(region):
         breakpoint()
-        return region._dist.function._alwaysProvidesOrientation
+        return region._dist.function.alwaysProvidesOrientation
     else:  # TODO improve somehow!
         warnings.warn(f"Cannot infer whether or not target always provides orientation.")
         breakpoint()
