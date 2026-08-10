@@ -9,10 +9,9 @@ from scenic.core.type_support import toVector
 from scenic.domains.driving.actions import *
 
 ## Pedestrian Behaviors
-def getBugPath(actor, path_ls, backgroundObjects, bufferCalc, lookaheadTime, vehBuffer, nonVehBuffer):
+def getBugPath(actor, path_ls, backgroundObjects, lookaheadTime, vehBuffer, nonVehBuffer):
     """ Refine a walking path using a Bug algorithm approach."""
     assert isinstance(path_ls, LineString)
-    orig_path_ls = path_ls #TODO: TEMP
 
     # Lambda to compute buffer const.
     baseBuffer = shapely.minimum_bounding_radius(actor._boundingPolygon)
@@ -181,13 +180,10 @@ behavior _WalkPathHelper(path, targetSpeed):
 
 behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
     terminationThresh=0.1, replanTime=0.5, lookaheadTime=4,
-    vehBuffer=2, nonVehBuffer=0.2):
+    vehBuffer=1.5, nonVehBuffer=0.2):
     """ Walk a path at targetSpeed, stopping at the end."""
     if not isinstance(path, PolylineRegion):
         raise ValueError("`path` must be a `PolylineRegion`.")
-
-    bufferCalc = lambda obj: (shapely.minimum_bounding_radius(self._boundingPolygon)
-        + (vehBuffer if obj.isVehicle else nonVehBuffer))
 
     while distance from self to path.end > terminationThresh:
         path_ls = shapely.force_2d(path.lineString)
@@ -199,7 +195,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
         path_ls =  LineString([self_pt] + list(path_ls.coords))
         path_ls = shapely.remove_repeated_points(path_ls)
 
-        # If our immediate path has us cross through any objects in motion, stop and 
+        # If our immediate path has us cross through any "dangerous" objects, stop and 
         # wait until it's clear.
         background_objects = [obj for obj in simulation().objects if obj is not self]
         immediate_path = shapely.ops.substring(path_ls, 0, targetSpeed)
@@ -212,7 +208,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
             continue
 
         # Modify path to route around objects.
-        path_ls = getBugPath(self, path_ls, background_objects, bufferCalc, lookaheadTime, vehBuffer, nonVehBuffer)
+        path_ls = getBugPath(self, path_ls, background_objects, lookaheadTime, vehBuffer, nonVehBuffer)
         self._planData = (path_ls, targetSpeed) if path_ls else None
 
         # If path_ls is None, our goal is inside the danger zone and we can't

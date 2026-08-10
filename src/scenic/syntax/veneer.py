@@ -1673,8 +1673,13 @@ def alwaysProvidesOrientation(region):
     elif isUnoriented(region):
         return False
     else:  # TODO improve somehow!
-        warnings.warn(f"Cannot infer whether or not target always provides orientation.")
-        breakpoint()
+        raise RuntimeError(
+            "Cannot infer whether or not target always provides orientation."
+        )
+        warnings.warn(
+            f"Cannot infer whether or not target always provides orientation.",
+            stacklevel=2,
+        )
         try:
             sample = region.sample()
             result = sample.orientation is not None or sample is nowhere

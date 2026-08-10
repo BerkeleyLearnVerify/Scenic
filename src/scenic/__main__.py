@@ -65,6 +65,11 @@ mainOptions.add_argument(
 mainOptions.add_argument(
     "--2d", action="store_true", help="run Scenic in 2D compatibility mode"
 )
+mainOptions.add_argument(
+    "--bytes",
+    default=None,
+    help="if provided, use the serialized bytes in file specified to sample a scene and run a simulation (if --simulate is passed)",
+)
 
 # Simulation options
 simOpts = parser.add_argument_group("dynamic simulation options")
@@ -181,6 +186,24 @@ translator.dumpScenicAST = args.dump_scenic_ast
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
 translator.usePruning = not args.no_pruning
+
+if args.bytes:
+    if args.count > 1:
+        warnings.warn(
+            "--count value greater than 1 provided along with --bytes. Ignoring..."
+        )
+
+    args.count = 1
+
+    bytesPath = Path(args.bytes).resolve()
+
+    if not bytesPath.is_file():
+        raise ValueError(f"Provided bytes path is not a file: {bytesPath}")
+
+    replayBytes = bytesPath.read_bytes()
+else:
+    replayBytes = None
+
 if args.seed is not None:
     if args.verbosity >= 1:
         print(f"Using random seed = {args.seed}")
@@ -255,7 +278,9 @@ def runSimulation(scene, sceneCount):
 
 
 try:
-    if args.gather_stats is None:
+    if replayBytes:
+        scenario.simulationFromBytes(replayBytes, simulator)
+    elif args.gather_stats is None:
         # Generate scenes interactively until killed/count reached
         if not args.simulate:  # will need matplotlib to draw scene schematic
             import matplotlib
