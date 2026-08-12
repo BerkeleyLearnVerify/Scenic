@@ -83,8 +83,9 @@ class Simulator(abc.ABC):
     necessary cleanup.
     """
 
-    def __init__(self):
+    def __init__(self, verbosity=None):
         self._destroyed = False
+        self.verbosity = verbosity if verbosity else errors.verbosityLevel
 
     def simulate(
         self,
@@ -183,7 +184,7 @@ class Simulator(abc.ABC):
                 "(the destroy() method has already been called)"
             )
         if verbosity is None:
-            verbosity = errors.verbosityLevel
+            verbosity = self.verbosity
 
         # Repeatedly run simulations until we find one satisfying the requirements
         iterations = 0
@@ -232,7 +233,7 @@ class Simulator(abc.ABC):
                 "(the destroy() method has already been called)"
             )
         if verbosity is None:
-            verbosity = errors.verbosityLevel
+            verbosity = self.verbosity
 
         simulation = self.createSimulation(
             scene,

@@ -174,7 +174,10 @@ class OptunaParameter(ExternalParameter):
 
     def optunaName(self, extra=None):
         assert self.index is not None
-        return f"{type(self).__name__}_{self.index}_{extra}"
+        name = f"type(self).__name___{self.index}"
+        if extra:
+            name += f"_{extra}"
+        return name
 
 
 class OptunaRange(OptunaParameter):
