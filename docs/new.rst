@@ -20,7 +20,7 @@ Scenic 3.2.0
 
 Minor new features:
 
-	* Added a :ref:`minimum distance from` operator to compute the minimum distance between the occupied space of two objects.
+	* Added a :ref:`minimum distance from` operator which computes the minimum distance between the occupied space of two objects.
 
 Scenic 3.1.1
 ------------
