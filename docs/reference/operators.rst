@@ -40,7 +40,7 @@ The distance to the given position from ego (or the position provided with the o
 
 minimum distance [from *Object*] to *Object*
 --------------------------------------------
-The minimum distance to the given Object from ego (or the Object provided with the optional from Object). Unlike :ref:`distance from`, this operator takes into account the Objects' shapes, sizes, etc...
+The minimum distance to the given Object from ego (or the Object provided with the optional :scenic:`from {Object}`). Unlike :ref:`distance from`, which computes the distance between the :prop:`position` of the objects, this operator takes into account the objects' :prop:`shape` and dimensions.
 
 
 .. _angle [from {vector}] to {vector}:

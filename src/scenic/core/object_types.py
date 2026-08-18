@@ -1172,7 +1172,7 @@ class Object(OrientedPoint):
     def minimumDistanceTo(self, other):
         """The minimal distance between this object and another."""
         if not isinstance(other, Object):
-            raise RuntimeError(
+            raise TypeError(
                 f"Cannot compute minimum distance between Object and {type(other)} "
             )
 
