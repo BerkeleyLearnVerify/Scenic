@@ -87,7 +87,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 ]
 dev = [
 	"scenic[test-full]",
-	"black ~= 25.1.0",
+	"black ~= 23.12.1",
 	"isort ~= 5.12.0",
 	"pre-commit ~= 3.0",
 	"pytest-cov >= 3.0.0",
