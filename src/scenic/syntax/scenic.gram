@@ -1853,6 +1853,8 @@ scenic_prefix_operators:
     # distance past
     | "distance" "past" e1=expression 'of' e2=scenic_prefix_operators { s.DistancePastOp(target=e1, base=e2, LOCATIONS) }
     | "distance" "past" e1=scenic_prefix_operators { s.DistancePastOp(target=e1, LOCATIONS) }
+    # minimum distance from/to
+    | &"minimum" scenic_min_distance_from_op
     # angle from/to
     | &"angle" scenic_angle_from_op
     # altitude from/to
@@ -1867,6 +1869,11 @@ scenic_distance_from_op:
     | "distance" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
     | "distance" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
     | "distance" ('to'|'from') e1=scenic_prefix_operators { s.DistanceFromOp(target=e1, LOCATIONS) }
+
+scenic_min_distance_from_op:
+    | "minimum" "distance" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.MinDistanceFromOp(target=e1, base=e2, LOCATIONS) }
+    | "minimum" "distance" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.MinDistanceFromOp(target=e1, base=e2, LOCATIONS) }
+    | "minimum" "distance" ('to'|'from') e1=scenic_prefix_operators { s.MinDistanceFromOp(target=e1, LOCATIONS) }
 
 scenic_angle_from_op:
     | "angle" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.AngleFromOp(base=e1, target=e2, LOCATIONS) }

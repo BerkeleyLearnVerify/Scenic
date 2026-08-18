@@ -2337,6 +2337,33 @@ class TestOperator:
             case _:
                 assert False
 
+    def test_min_distance_to(self):
+        mod = parse_string_helper("minimum distance to x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(MinDistanceFromOp(Name("x"), None)):
+                assert True
+            case _:
+                assert False
+
+    def test_min_distance_from_to(self):
+        mod = parse_string_helper("minimum distance from x to y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(MinDistanceFromOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_min_distance_to_from(self):
+        mod = parse_string_helper("minimum distance to x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(MinDistanceFromOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
     @pytest.mark.parametrize(
         "code,expected",
         [
