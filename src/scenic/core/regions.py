@@ -1759,6 +1759,22 @@ class MeshVolumeRegion(MeshRegion):
 
         return abs(dist)
 
+    @distributionFunction
+    def minimumDistanceTo(self, other):
+        """Get the minimum distance between this region and another.
+
+        Currently only supports other as a `MeshVolumeRegion`, and is
+        primarily used for computing minimum distance between objects.
+        """
+        if not isinstance(other, MeshVolumeRegion):
+            raise NotImplementedError(
+                f"Cannot compute distance between MeshVolumeRegion and {type(other)}"
+            )
+
+        selfObj = fcl.CollisionObject(*self._fclData)
+        otherObj = fcl.CollisionObject(*other._fclData)
+        return fcl.distance(selfObj, otherObj)
+
     @cached_property
     @distributionFunction
     def inradius(self):
