@@ -237,10 +237,24 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
 
     #: Which types of vehicles (car, bicycle, etc.) can be here.
     vehicleTypes: FrozenSet[VehicleType] = frozenset([VehicleType.CAR])
-    #: Optional speed limit, which may be inherited from parent.
+    #: Optional speed limit, which may be inherited from parent. (depreciated)
     speedLimit: Union[float, None] = None
+    #: Optional ``(s_start, s_end, speed_mps)`` ranges along this element's centerline.
+    speedLimitRanges: Tuple[Tuple[float, float, float], ...] = ()
     #: Uninterpreted semantic tags, e.g. 'roundabout'.
     tags: FrozenSet[str] = frozenset()
+
+    @distributionFunction
+    def speedLimitAt(self, s: float) -> Union[float, None]:
+        """Get the speed limit at coordinate *s* along this element, in meters."""
+        s = max(0, s)
+        if self.speedLimitRanges:
+            for range_start, range_end, speed in self.speedLimitRanges:
+                if range_start <= s < range_end:
+                    return speed  # may be None -> genuine "no limit" stretch
+            # s is at/beyond the final (half-open) range's end: clamp to it.
+            return speed
+        return self.speedLimit
 
     def __attrs_post_init__(self):
         assert self.uid is not None or self.id is not None
@@ -1292,6 +1306,24 @@ class Network:
         point = _toVector(point)
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
+
+    @distributionMethod
+    def speedLimitAt(self, point: Vectorlike, reject=False) -> Union[float, None]:
+        """Get the speed limit at a given point, if any.
+
+        Looks up the `LaneSection` containing the point and returns its speed
+        limit there. When the section has multiple ``speedLimitRanges``, the
+        limit is taken from the range covering the point's projected distance
+        along the section centerline.
+        """
+        point = _toVector(point)
+        section = self.laneSectionAt(point, reject=reject)
+        if section is None:
+            return None
+        if len(section.speedLimitRanges) <= 1:
+            return section.speedLimit
+        s = section.centerline.lineString.project(geometry.makeShapelyPoint(point))
+        return section.speedLimitAt(s)
 
     @distributionMethod
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
