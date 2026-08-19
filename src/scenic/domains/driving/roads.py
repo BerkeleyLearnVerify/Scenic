@@ -906,7 +906,8 @@ class Signal:
     #: May differ from `s` (e.g. a traffic light's pole vs its stop line).
     #: ``None`` if we cannot derive one (typical for a connector-only light).
     stoppingS: Optional[float] = None
-    #: World-space device/pole position from OpenDRIVE ``(s, t)``.
+    #: Placeholder for a future world-space device/pole position. Halt decisions
+    #: intentionally use `stoppingS` and `stoppingPointOn`, not this field.
     position: Optional[Vector] = None
     #: Maneuvers that require this signal to be green (empty if unknown).
     controlledManeuvers: Tuple[Maneuver, ...] = ()

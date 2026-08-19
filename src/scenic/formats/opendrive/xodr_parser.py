@@ -419,46 +419,6 @@ class Road:
 
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
-    def st_to_xy(self, s, t=0.0):
-        """OpenDRIVE ``(s, t)`` → inertial ``(x, y)`` on this road.
-
-        Interpolates the sampled reference line (same points as the domain
-        centerline). ``+t`` is left of +s. ``None`` if geometry is not ready.
-        """
-        pts = getattr(self, "ref_line_points", None)
-        if not pts:
-            return None
-        s = float(s)
-        t = float(t)
-        if s <= pts[0][2]:
-            i = 0
-        elif s >= pts[-1][2]:
-            i = max(len(pts) - 2, 0)
-        else:
-            i = 0
-            for j in range(len(pts) - 1):
-                if pts[j][2] <= s <= pts[j + 1][2]:
-                    i = j
-                    break
-        if i + 1 >= len(pts):
-            return (pts[-1][0], pts[-1][1])
-        p0, p1 = pts[i], pts[i + 1]
-        ds = p1[2] - p0[2]
-        if abs(ds) < 1e-12:
-            x, y = p0[0], p0[1]
-            dx, dy = p1[0] - p0[0], p1[1] - p0[1]
-        else:
-            a = (s - p0[2]) / ds
-            x = p0[0] + a * (p1[0] - p0[0])
-            y = p0[1] + a * (p1[1] - p0[1])
-            dx, dy = p1[0] - p0[0], p1[1] - p0[1]
-        if t == 0.0:
-            return (x, y)
-        n = math.hypot(dx, dy)
-        if n < 1e-12:
-            return (x, y)
-        return (x + t * (-dy / n), y + t * (dx / n))
-
     def get_ref_line_offset(self, s):
         if not self.offset:
             return 0
@@ -1200,7 +1160,6 @@ class Road:
         roadSignals = []
         for i, signal_ in enumerate(self.signals):
             validity = None if signal_.validity is None else tuple(signal_.validity)
-            xy = self.st_to_xy(signal_.s, signal_.t)
             signal = roadDomain.Signal(
                 uid=f"signal{signal_.id_}_{self.id_}_{i}",
                 openDriveID=signal_.id_,
@@ -1214,7 +1173,9 @@ class Road:
                 validity=validity,
                 references=signal_.references,
                 sIsLogical=signal_.sIsLogical,
-                position=Vector(*xy) if xy else None,
+                # Placeholder: physical pole coordinates are not needed for halt
+                # decisions, which use stoppingS and stoppingPointOn instead.
+                position=None,
             )
             roadSignals.append(signal)
 
