@@ -9,7 +9,6 @@ from scenic.core.vectors import Vector
 
 def toOpenScenario(
     simulation,
-    scenario,
     mapPath=None,
     scenarioName="ScenicScenario",
 ):
@@ -17,10 +16,9 @@ def toOpenScenario(
 
     Args:
         simulation: The `Simulation` to be exported to XOSC
-        scenario: The scenario from which simulation was sampled.
         mapPath: The path to the XODR map used to run the simulation. If
             one is not provided the `map` param of the scenario is used.
-        scenarioName: The name of the scenario in the generated XOSC file.
+        scenarioName: The scenario name to use in the generated XOSC file.
 
     .. versionadded:: unreleased
     """
@@ -36,6 +34,7 @@ def toOpenScenario(
         raise RuntimeError("Cannot export incomplete scenario to OpenScenario XML")
 
     scene = simulation.scene
+    scenario = scene.scenario
 
     if len(scene.objects) != len(simulation.trajectory[-1].positions):
         raise RuntimeError("Cannot export scenario with dynamically created objects.")
