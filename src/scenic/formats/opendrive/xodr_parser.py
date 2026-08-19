@@ -1164,6 +1164,8 @@ class Road:
                 openDriveID=signal_.id_,
                 country=signal_.country,
                 type=signal_.type_,
+                subtype=signal_.subtype,
+                priorities=signal_.priorities,
             )
             roadSignals.append(signal)
 
@@ -1231,15 +1233,26 @@ class Road:
 
 
 class Signal:
-    """Traffic lights, stop signs, etc."""
+    """Traffic lights, stop signs, etc. (parser representation)."""
 
-    def __init__(self, id_, country, type_, subtype, orientation, validity=None):
+    def __init__(
+        self,
+        id_,
+        country,
+        type_,
+        subtype,
+        orientation,
+        validity=None,
+        priorities=(),
+    ):
         self.id_ = id_
         self.country = country
         self.type_ = type_
         self.subtype = subtype
         self.orientation = orientation
         self.validity = validity
+        #: Tuple of `roadDomain.SignalPriorityType` from ``<semantics><priority>``.
+        self.priorities = tuple(priorities)
 
     def is_valid(self):
         return self.validity is None or self.validity != [0, 0]
@@ -1459,6 +1472,52 @@ class RoadMap:
             return None
         return [int(validity_elem.get("fromLane")), int(validity_elem.get("toLane"))]
 
+    # OpenDRIVE / CARLA country="OpenDRIVE" type codes with a known priority meaning.
+    _LEGACY_TYPE_TO_PRIORITY = {
+        "1000001": roadDomain.SignalPriorityType.TRAFFIC_LIGHT,
+        "206": roadDomain.SignalPriorityType.STOP,
+        "205": roadDomain.SignalPriorityType.YIELD,
+    }
+
+    def __warn_priority_type_disagreement(self, signal):
+        """Warn if a known legacy ``type`` conflicts with ``<priority>`` semantics."""
+        legacy = self._LEGACY_TYPE_TO_PRIORITY.get(signal.type_)
+        if legacy is not None and signal.priorities and legacy not in signal.priorities:
+            listed = ", ".join(p.value for p in signal.priorities)
+            warn(
+                f'signal {signal.id_} has OpenDRIVE type "{signal.type_}" '
+                f"(legacy {legacy.value}) but <priority> lists [{listed}]; "
+                f"using priorities for classification"
+            )
+
+    def __parse_signal_priorities(self, signal_elem):
+        """Parse ``<semantics><priority type="…"/>`` children (OpenDRIVE 1.8+).
+
+        Returns a tuple of `roadDomain.SignalPriorityType`. Unknown literals are
+        mapped to `UNKNOWN` and emit an `OpenDriveWarning`. Other semantic
+        categories (``<speed>``, ``<lane>``, …) are ignored for now.
+        """
+        semantics_elem = signal_elem.find("semantics")
+        if semantics_elem is None:
+            return ()
+        priorities = []
+        for priority_elem in semantics_elem.findall("priority"):
+            type_str = priority_elem.get("type")
+            if type_str is None:
+                warn(
+                    f'signal {signal_elem.get("id")} has <priority> without type; '
+                    "skipping it"
+                )
+                continue
+            priority = roadDomain.SignalPriorityType.fromOpenDrive(type_str)
+            if priority is roadDomain.SignalPriorityType.UNKNOWN:
+                warn(
+                    f'signal {signal_elem.get("id")} has unrecognized '
+                    f'priority type "{type_str}"; storing as UNKNOWN'
+                )
+            priorities.append(priority)
+        return tuple(priorities)
+
     def __parse_signal(self, signal_elem):
         return Signal(
             signal_elem.get("id"),
@@ -1466,7 +1525,13 @@ class RoadMap:
             signal_elem.get("type"),
             signal_elem.get("subtype"),
             signal_elem.get("orientation"),
+            # other required fields not parsed:
+            # dynamic   signal_elem.get("dynamic"),
+            # s         signal_elem.get("s"),
+            # t         signal_elem.get("t"),
+            # zOffset   signal_elem.get("zOffset"),
             self.__parse_signal_validity(signal_elem.find("validity")),
+            self.__parse_signal_priorities(signal_elem),
         )
 
     def __parse_signal_reference(self, signal_reference_elem):
@@ -1677,12 +1742,17 @@ class RoadMap:
                 for signal_elem in signals.iter("signal"):
                     signal = self.__parse_signal(signal_elem)
                     if signal.is_valid():
+                        # Check once here (not in __parse_signal): signals are also
+                        # parsed earlier into _temp_signals for signalReference.
+                        self.__warn_priority_type_disagreement(signal)
                         road.signals.append(signal)
 
                 for signal_ref_elem in signals.iter("signalReference"):
                     signalReference = self.__parse_signal_reference(signal_ref_elem)
                     if signalReference.is_valid():
                         referencedSignal = _temp_signals[signalReference.id_]
+                        # Semantics (priorities) come from the canonical <signal>;
+                        # the reference only overrides orientation / validity.
                         signal = Signal(
                             referencedSignal.id_,
                             referencedSignal.country,
@@ -1690,6 +1760,7 @@ class RoadMap:
                             referencedSignal.subtype,
                             signalReference.orientation,
                             signalReference.validity,
+                            referencedSignal.priorities,
                         )
                         road.signals.append(signal)
 
@@ -1890,12 +1961,37 @@ class RoadMap:
                             allRoads.append(outgoingRoad)
                             seenRoads.add(outgoingRoad.id)
 
+                        # Find the signal controlling this maneuver, if any
+                        controllingSignal = None
+                        # Candidate sources in priority order. Each triple pairs a
+                        # raw parser road (signals retain .validity) with its
+                        # converted Scenic road (domain Signal objects to store),
+                        # plus the OpenDRIVE lane ID to test against validity:
+                        #   1. connecting road / toID — turn-specific controls
+                        #   2. incoming road / fromID — approach signals
+                        for rawRoad, scenicRoad, laneID in (
+                            (self.roads[connectingID], connectingRoad, toID),
+                            (oldRoad, incomingRoad, fromID),
+                        ):
+                            for rawSignal, scenicSignal in zip(
+                                rawRoad.signals, scenicRoad.signals
+                            ):
+                                validity = rawSignal.validity
+                                if validity is None or min(validity) <= laneID <= max(
+                                    validity
+                                ):
+                                    controllingSignal = scenicSignal
+                                    break
+                            if controllingSignal is not None:
+                                break
+
                         # TODO future OpenDRIVE extension annotating left/right turns?
                         maneuver = roadDomain.Maneuver(
                             startLane=fromLane.lane,
                             connectingLane=toLane.lane,
                             endLane=outgoingLane,
                             intersection=None,  # will be patched once the Intersection is created
+                            signal=controllingSignal,
                         )
                         maneuversForLane[fromLane.lane].append(maneuver)
 
@@ -1905,6 +2001,11 @@ class RoadMap:
                 assert lane.maneuvers == ()
                 lane.maneuvers = tuple(maneuvers)
                 allManeuvers.extend(maneuvers)
+
+            # Reverse mapping: accumulate maneuvers onto each controlling Signal.
+            for maneuver in allManeuvers:
+                if maneuver.signal is not None:
+                    maneuver.signal.controlledManeuvers += (maneuver,)
 
             # Order connected roads and lanes by adjacency
             def cyclicOrder(elements, contactStart=None):

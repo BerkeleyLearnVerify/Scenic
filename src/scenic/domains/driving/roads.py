@@ -147,6 +147,42 @@ class ManeuverType(enum.Enum):
             return ManeuverType.STRAIGHT
 
 
+@enum.unique
+class SignalPriorityType(enum.Enum):
+    """OpenDRIVE ``e_signals_semantics_priority`` literals (Annex A.7.3).
+
+    Values match the ``type`` attribute of ``<semantics><priority …/>``.
+    Introduced in OpenDRIVE 1.8.0 as a country-agnostic behavior tag.
+    """
+
+    FOUR_WAY = "4way"
+    KEEP_CLEAR_LINE = "keepClearLine"
+    NO_PARKING_LINE = "noParkingLine"
+    NO_TURN_ON_RED = "noTurnOnRed"
+    PRIORITY_ROAD_END = "priorityRoadEnd"
+    PRIORITY_ROAD = "priorityRoad"
+    PRIORITY_TO_THE_RIGHT_RULE = "priorityToTheRightRule"
+    STOP_LINE = "stopLine"
+    STOP = "stop"
+    TRAFFIC_LIGHT = "trafficLight"
+    TURN_ON_RED_ALLOWED = "turnOnRedAllowed"
+    WAITING_LINE = "waitingLine"
+    YIELD = "yield"
+    #: Unrecognized ``type`` string from a newer OpenDRIVE revision, etc.
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def fromOpenDrive(cls, type_str: str) -> SignalPriorityType:
+        """Map an OpenDRIVE ``priority/@type`` string to an enum member.
+
+        Unknown literals become `UNKNOWN` (callers may warn separately).
+        """
+        for member in cls:
+            if member is not cls.UNKNOWN and member.value == type_str:
+                return member
+        return cls.UNKNOWN
+
+
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
 class Maneuver(_ElementReferencer):
     """Maneuver()
@@ -165,6 +201,8 @@ class Maneuver(_ElementReferencer):
     connectingLane: Union[Lane, None] = None
     #: intersection where the maneuver takes place, if any (`None` for lane mergers)
     intersection: Union[Intersection, None] = None
+    #: traffic signal controlling this maneuver, if any (`None` if uncontrolled or unknown)
+    signal: Optional[Signal] = None
 
     def __attrs_post_init__(self):
         assert self.type is ManeuverType.STRAIGHT or self.connectingLane is not None
@@ -813,6 +851,11 @@ class Intersection(NetworkElement):
 class Signal:
     """Traffic lights, stop signs, etc.
 
+    OpenDRIVE 1.8+ maps may annotate behavior via ``<semantics><priority …/>``.
+    Those literals are stored in `priorities`. When that tuple is empty (legacy
+    maps), classification falls back to country-specific ``type`` codes where
+    known (e.g. OpenDRIVE ``1000001`` for traffic lights).
+
     .. warning::
 
         Signal parsing is a work in progress and the API is likely to change in the future.
@@ -825,11 +868,100 @@ class Signal:
     country: str
     #: Type identifier according to country code.
     type: str
+    #: Subtype identifier according to country code (``None`` if absent).
+    subtype: Optional[str] = None
+    #: OpenDRIVE ``e_signals_semantics_priority`` entries (empty if unknown / pre-1.8).
+    #: All ``<priority>`` children are kept; they are not collapsed to a single type.
+    priorities: Tuple[SignalPriorityType, ...] = ()
+    #: Maneuvers that require this signal to be green (empty if unknown).
+    controlledManeuvers: Tuple[Maneuver, ...] = ()
+
+    def hasPriority(self, priority: SignalPriorityType) -> bool:
+        """Whether this signal lists the given OpenDRIVE priority semantic."""
+        return priority in self.priorities
 
     @property
     def isTrafficLight(self) -> bool:
-        """Whether or not this signal is a traffic light."""
+        """Whether or not this signal is a traffic light.
+
+        Uses ``priorities`` when present; otherwise falls back to the legacy
+        OpenDRIVE Signal Reference type code ``1000001``.
+        """
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.TRAFFIC_LIGHT)
         return self.type == "1000001"
+
+    @property
+    def isStop(self) -> bool:
+        """Whether or not this signal is a stop sign.
+
+        Uses ``priorities`` when present; otherwise falls back to the legacy
+        OpenDRIVE Signal Reference type code ``206``.
+        """
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.STOP)
+        return self.type == "206"
+
+    @property
+    def isYield(self) -> bool:
+        """Whether or not this signal is a yield sign.
+
+        Uses ``priorities`` when present; otherwise falls back to the legacy
+        OpenDRIVE Signal Reference type code ``205``.
+        """
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.YIELD)
+        return self.type == "205"
+
+    @property
+    def isStopLine(self) -> bool:
+        """Whether or not this signal marks a stop line (semantics only)."""
+        return self.hasPriority(SignalPriorityType.STOP_LINE)
+
+    @property
+    def isPriorityRoad(self) -> bool:
+        """Whether or not this signal marks a priority road (semantics only)."""
+        return self.hasPriority(SignalPriorityType.PRIORITY_ROAD)
+
+    @property
+    def isPriorityRoadEnd(self) -> bool:
+        """Whether or not this signal ends a priority road (semantics only)."""
+        return self.hasPriority(SignalPriorityType.PRIORITY_ROAD_END)
+
+    @property
+    def isFourWay(self) -> bool:
+        """Whether or not this signal is a 4-way / all-way stop (semantics only)."""
+        return self.hasPriority(SignalPriorityType.FOUR_WAY)
+
+    @property
+    def isNoTurnOnRed(self) -> bool:
+        """Whether or not this signal forbids turning on red (semantics only)."""
+        return self.hasPriority(SignalPriorityType.NO_TURN_ON_RED)
+
+    @property
+    def isTurnOnRedAllowed(self) -> bool:
+        """Whether or not this signal allows turning on red (semantics only)."""
+        return self.hasPriority(SignalPriorityType.TURN_ON_RED_ALLOWED)
+
+    @property
+    def isWaitingLine(self) -> bool:
+        """Whether or not this signal marks a waiting line (semantics only)."""
+        return self.hasPriority(SignalPriorityType.WAITING_LINE)
+
+    @property
+    def isKeepClearLine(self) -> bool:
+        """Whether or not this signal marks a keep-clear line (semantics only)."""
+        return self.hasPriority(SignalPriorityType.KEEP_CLEAR_LINE)
+
+    @property
+    def isNoParkingLine(self) -> bool:
+        """Whether or not this signal marks a no-parking line (semantics only)."""
+        return self.hasPriority(SignalPriorityType.NO_PARKING_LINE)
+
+    @property
+    def isPriorityToTheRightRule(self) -> bool:
+        """Whether or not this signal indicates priority-to-the-right (semantics only)."""
+        return self.hasPriority(SignalPriorityType.PRIORITY_TO_THE_RIGHT_RULE)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
