@@ -2267,6 +2267,29 @@ def test_record_keys():
     assert "ego_position_0" in result.records
 
 
+def test_record_keys_multiple():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 2@0
+                wait
+        ego = new Object with behavior Foo
+        for i in range(2):
+            record ego.position as f"ego_position_{i}"
+        terminate when ego.position.x >= 6
+        """
+    )
+    result = sampleResult(scenario, maxSteps=4)
+    assert "ego_position_0" in result.records
+    assert "ego_position_1" in result.records
+    assert len(result.records["ego_position_0"]) == len(result.records["ego_position_1"])
+    for record1, record2 in zip(
+        result.records["ego_position_0"], result.records["ego_position_0"]
+    ):
+        assert record1 == record2
+
+
 ## lastActions Property
 def test_lastActions():
     scenario = compileScenic(
