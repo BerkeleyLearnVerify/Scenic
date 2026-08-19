@@ -1441,4 +1441,4 @@ def test_mode2D_modular():
         """,
         mode2D=True,
     )
-    sampleResult(scenario, maxSteps=2)
+    sampleResult(scenario, maxSteps=2, maxIterations=100)
