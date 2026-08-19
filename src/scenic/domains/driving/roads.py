@@ -27,7 +27,7 @@ import weakref
 
 import attr
 import shapely
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Point as ShapelyPoint, Polygon
 
 from scenic.core.distributions import (
     RejectionException,
@@ -145,6 +145,34 @@ class ManeuverType(enum.Enum):
             return ManeuverType.RIGHT_TURN
         else:
             return ManeuverType.STRAIGHT
+
+
+@enum.unique
+class SignalPriorityType(enum.Enum):
+    """OpenDRIVE ``e_signals_semantics_priority`` literals."""
+
+    FOUR_WAY = "4way"
+    KEEP_CLEAR_LINE = "keepClearLine"
+    NO_PARKING_LINE = "noParkingLine"
+    NO_TURN_ON_RED = "noTurnOnRed"
+    PRIORITY_ROAD_END = "priorityRoadEnd"
+    PRIORITY_ROAD = "priorityRoad"
+    PRIORITY_TO_THE_RIGHT_RULE = "priorityToTheRightRule"
+    STOP_LINE = "stopLine"
+    STOP = "stop"
+    TRAFFIC_LIGHT = "trafficLight"
+    TURN_ON_RED_ALLOWED = "turnOnRedAllowed"
+    WAITING_LINE = "waitingLine"
+    YIELD = "yield"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def fromOpenDrive(cls, type_str: str) -> SignalPriorityType:
+        """Map an OpenDRIVE priority string to an enum member."""
+        for member in cls:
+            if member is not cls.UNKNOWN and member.value == type_str:
+                return member
+        return cls.UNKNOWN
 
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
@@ -571,6 +599,22 @@ class Lane(_ContainsCenterline, LinearElement):
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
+    def haltPointAhead(self, position, lookahead: float = 80.0) -> Optional[Vector]:
+        """Nearest `Signal.stoppingPointOn` this lane still ahead of ``position``."""
+        if self.road is None:
+            return None
+        here = self.centerline.lineString.project(ShapelyPoint(position.x, position.y))
+        best = None
+        best_ahead = None
+        for sig in self.road.signals:
+            pt = sig.stoppingPointOn(self)
+            if pt is None:
+                continue
+            ahead = self.centerline.lineString.project(ShapelyPoint(pt.x, pt.y)) - here
+            if 0 <= ahead <= lookahead and (best_ahead is None or ahead < best_ahead):
+                best, best_ahead = pt, ahead
+        return best
+
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class RoadSection(LinearElement):
@@ -809,6 +853,20 @@ class Intersection(NetworkElement):
         return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class SignalLink:
+    """OpenDRIVE ``<reference>`` from this signal to another signal or object.
+
+    Distinct from ``<signalReference>``, which re-applies the same signal on
+    another road. A typical 1.8+ use is a traffic light linking to a stop line
+    (``elementType="signal"``, ``type="stopline"``).
+    """
+
+    elementId: str
+    elementType: str
+    type: Optional[str] = None
+
+
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
     """Traffic lights, stop signs, etc.
@@ -825,11 +883,203 @@ class Signal:
     country: str
     #: Type identifier according to country code.
     type: str
+    #: Subtype identifier according to country code (``None`` if absent).
+    subtype: Optional[str] = None
+    #: OpenDRIVE ``e_signals_semantics_priority`` entries (empty if unknown / pre-1.8).
+    #: All ``<priority>`` children are kept; they are not collapsed to a single type.
+    priorities: Tuple[SignalPriorityType, ...] = ()
+    #: Longitudinal s-coordinate along the road reference line (OpenDRIVE ``s``).
+    #: Physical pole location in 1.8+; logical effect station if `sIsLogical`.
+    s: Optional[float] = None
+    #: Lateral t-coordinate from the reference line (OpenDRIVE ``t``; +t = left).
+    t: Optional[float] = None
+    #: OpenDRIVE signal orientation: ``"+"``, ``"-"``, or ``"none"``.
+    orientation: Optional[str] = None
+    #: OpenDRIVE ``<validity>`` lane range ``(fromLane, toLane)``, if any.
+    validity: Optional[Tuple[int, int]] = None
+    #: OpenDRIVE ``<reference>`` links (e.g. light → stop line).
+    references: Tuple[SignalLink, ...] = ()
+    #: True when deprecated ``<positionRoad>`` / ``<positionInertial>`` is present,
+    #: so `s` is the logical effect station rather than the pole.
+    sIsLogical: bool = False
+    #: Station along the parent road where an ego should halt for this signal.
+    #: May differ from `s` (e.g. a traffic light's pole vs its stop line).
+    #: ``None`` if we cannot derive one (typical for a connector-only light).
+    stoppingS: Optional[float] = None
+    #: Placeholder for a future world-space device/pole position. Halt decisions
+    #: intentionally use `stoppingS` and `stoppingPointOn`, not this field.
+    position: Optional[Vector] = None
+    #: Maneuvers that require this signal to be green (empty if unknown).
+    controlledManeuvers: Tuple[Maneuver, ...] = ()
+
+    def hasPriority(self, priority: SignalPriorityType) -> bool:
+        """Whether this signal lists the given OpenDRIVE priority semantic."""
+        return priority in self.priorities
+
+    def affects(self, lane: Lane) -> bool:
+        """Whether this signal applies to ``lane``.
+
+        Uses OpenDRIVE ``validity`` when present, then ``orientation`` against
+        whether the lane travels with the road (+s). A validity range that
+        matches no driving lane (CARLA's ``0–0``) is ignored; those files
+        encode lamp facing, so a junction-contact light then applies only to
+        the arriving side, not the road you turn into.
+        """
+        validity_is_dummy = False
+        if self.validity is not None:
+            lo, hi = min(self.validity), max(self.validity)
+
+            def validity_hits(candidate):
+                return any(lo <= sec.openDriveID <= hi for sec in candidate.sections)
+
+            validity_hits_lane = validity_hits(lane)
+            if not validity_hits_lane:
+                road = lane.road
+                if road is not None:
+                    validity_is_dummy = not any(
+                        validity_hits(other) for other in road.lanes
+                    )
+                else:
+                    validity_is_dummy = lo == 0 and hi == 0
+            if not validity_is_dummy and not validity_hits_lane:
+                return False
+        if validity_is_dummy:
+            # CARLA 0–0 is not a lane range; orientation is lamp facing.
+            # Junction-contact lights still only apply to the arriving side.
+            return self._lane_arrives_at_halt(lane)
+        if self.orientation in (None, "none"):
+            return True
+        is_forward = any(sec.isForward for sec in lane.sections)
+        if self.orientation == "+":
+            return is_forward
+        if self.orientation == "-":
+            return not is_forward
+        return True
+
+    def _isHaltLocation(self) -> bool:
+        return (
+            self.isStop
+            or self.isYield
+            or self.isStopLine
+            or self.isWaitingLine
+            or self.isKeepClearLine
+        )
+
+    def resolveStoppingS(self, by_id, plus_contact, minus_contact):
+        """Pick the halt station from references, logical ``s``, or junction contact.
+
+        ``by_id`` maps OpenDRIVE signal id → `Signal` on the same road.
+        ``plus_contact`` / ``minus_contact`` are that road's junction stations
+        for +s / −s travel, or ``None`` if that end is not a junction.
+        """
+        for link in self.references:
+            if link.elementType != "signal":
+                continue
+            target = by_id.get(link.elementId)
+            if target is None:
+                continue
+            kind = (link.type or "").replace("_", "").lower()
+            if kind == "stopline" or target._isHaltLocation():
+                return target.s
+        if self.sIsLogical or self._isHaltLocation():
+            return self.s
+        if self.isTrafficLight:
+            candidates = [
+                contact
+                for contact in (plus_contact, minus_contact)
+                if contact is not None
+            ]
+            if not candidates:
+                return None
+            # CARLA poles sit next to the junction they serve; orientation
+            # often names the other end (or a non-junction end).
+            if self.s is not None:
+                return min(candidates, key=lambda contact: abs(contact - self.s))
+            if self.orientation == "+":
+                return plus_contact
+            if self.orientation == "-":
+                return minus_contact
+            return candidates[0]
+        return None
+
+    def _lane_arrives_at_halt(self, lane: Lane) -> bool:
+        """Whether ``lane`` is still traveling into a junction-contact halt."""
+        road = lane.road
+        if road is None or self.stoppingS is None:
+            return True
+        if not self.isTrafficLight or self.sIsLogical or self._isHaltLocation():
+            return True
+        for link in self.references:
+            if link.elementType == "signal":
+                kind = (link.type or "").replace("_", "").lower()
+                if kind == "stopline":
+                    return True
+        length = road.centerline.length
+        s = self.stoppingS
+        if abs(s) > 1e-4 and abs(s - length) > 1e-4:
+            return True
+        is_forward = any(sec.isForward for sec in lane.sections)
+        at_start = abs(self.stoppingS) <= 1e-4
+        return (not is_forward) if at_start else is_forward
+
+    def stoppingPointOn(self, lane: Lane) -> Optional[Vector]:
+        """Point on ``lane`` where an ego should halt for this signal, if any.
+
+        Takes `stoppingS` along the parent road's +s centerline, then the
+        nearest point on ``lane``. A junction-contact halt is only returned
+        for the direction still arriving at that end — not the lane you enter
+        after turning through the light. ``None`` if the signal does not
+        `affects` the lane, has no `stoppingS`, or does not belong to
+        ``lane.road``.
+        """
+        if self.stoppingS is None or not self.affects(lane):
+            return None
+        road = lane.road
+        if road is None or self not in road.signals:
+            return None
+        if not self._lane_arrives_at_halt(lane):
+            return None
+        length = road.centerline.length
+        if length == 0:
+            return None
+        s = min(max(self.stoppingS, 0.0), length)
+        return lane.centerline.project(road.centerline.pointAlongBy(s))
 
     @property
     def isTrafficLight(self) -> bool:
-        """Whether or not this signal is a traffic light."""
+        """Whether this signal is a traffic light."""
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.TRAFFIC_LIGHT)
         return self.type == "1000001"
+
+    @property
+    def isStop(self) -> bool:
+        """Whether this signal is a stop sign."""
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.STOP)
+        return self.type == "206"
+
+    @property
+    def isYield(self) -> bool:
+        """Whether this signal is a yield sign."""
+        if self.priorities:
+            return self.hasPriority(SignalPriorityType.YIELD)
+        return self.type == "205"
+
+    @property
+    def isStopLine(self) -> bool:
+        """Whether this signal marks a stop line."""
+        return self.hasPriority(SignalPriorityType.STOP_LINE)
+
+    @property
+    def isWaitingLine(self) -> bool:
+        """Whether this signal marks a waiting line."""
+        return self.hasPriority(SignalPriorityType.WAITING_LINE)
+
+    @property
+    def isKeepClearLine(self) -> bool:
+        """Whether this signal marks a keep-clear line."""
+        return self.hasPriority(SignalPriorityType.KEEP_CLEAR_LINE)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
