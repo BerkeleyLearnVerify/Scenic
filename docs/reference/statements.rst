@@ -286,7 +286,7 @@ record [initial | final] *value* [as *name*]
 ----------------------------------------------
 Record the value of an expression during each simulation.
 The value can be recorded at the start of the scenario (``initial``), at the end of the scenario (``final``), or at every time step during the scenario (if neither ``initial`` nor ``final`` is specified).
-The recorded values are available in the ``records`` dictionary of `SimulationResult`: its keys are the given names of the records (or synthesized names if not provided), and the corresponding values are either the value of the recorded expression or a tuple giving its value at each time step as appropriate.
+The recorded values are available in the ``records`` dictionary of `SimulationResult`: its keys are the given names, which may be a string or f-string, of the records (or synthesized names if not provided), and the corresponding values are either the value of the recorded expression or a tuple giving its value at each time step as appropriate.
 For debugging, the records can also be printed out using the :option:`--show-records` command-line option.
 
 When recording an entire time series (i.e. not using ``initial`` or ``final``), additional options are available, described below.

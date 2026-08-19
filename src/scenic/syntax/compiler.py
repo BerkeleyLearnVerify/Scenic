@@ -1398,7 +1398,7 @@ class ScenicToPythonTransformer(Transformer):
         functionName: str,
         body: ast.AST,
         lineno: int,
-        name: Optional[str] = None,
+        name: Optional[ast.AST | str] = None,
         kwargs: Dict[str, Union[Tuple[ast.AST, ...], ast.AST]] = {},
     ):
         """Create a call to a function that implements requirement-like features, such as `record` and `terminate when`.
@@ -1422,6 +1422,11 @@ class ScenicToPythonTransformer(Transformer):
                 node = ast.Tuple(*node)
             keywords.append(ast.keyword(arg=datum, value=node))
 
+        if isinstance(name, ast.AST):
+            name = self.visit(name)
+        else:
+            name = ast.Constant(name)
+
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(functionName, loadCtx),
@@ -1429,7 +1434,7 @@ class ScenicToPythonTransformer(Transformer):
                     ast.Constant(requirementId),  # requirement ID
                     newBody,  # body
                     ast.Constant(lineno),  # line number
-                    ast.Constant(name),  # requirement name
+                    (name),  # requirement name
                 ],
                 keywords=keywords,
             )
