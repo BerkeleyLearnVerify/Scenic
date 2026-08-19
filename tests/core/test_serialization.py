@@ -44,9 +44,7 @@ def skeleton(scene):
     return {"objects": objs, "params": scene.params}
 
 
-def assertSceneEquivalence(
-    scene1, scene2, ignoreDynamics=False, ignoreConstProps=False, ignoreScenario=False
-):
+def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreScenario=False):
     assert skeleton(scene1) == skeleton(scene2)
     # Samples may not be equivalent since we only serialize random values which actually
     # get used in the scene; so need to delete them before checking equivalence.
@@ -55,7 +53,7 @@ def assertSceneEquivalence(
         del scene1.dynamicScenario, scene2.dynamicScenario
     for obj in scene1.objects + scene2.objects:
         del obj._sampleParent
-        if ignoreConstProps:
+        if ignoreScenario:
             del obj._constProps
         if ignoreDynamics:
             del obj._parentScenario
@@ -79,7 +77,6 @@ class TestExportToScenicCode:
             scene1,
             scene2,
             ignoreDynamics=True,
-            ignoreConstProps=True,
             ignoreScenario=True,
         )
 

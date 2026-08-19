@@ -1413,3 +1413,23 @@ def test_lastActions_modular():
         (5, (-1,)),
         (6, (-2,)),
     )
+
+
+def test_mode2D_modular():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object
+                require ego.baseOffset == (0,0,0)
+            compose:
+                do Sub() for 2 steps
+
+        scenario Sub():
+            setup:
+                foo = new Object
+                require foo.baseOffset == (0,0,0)
+        """,
+        mode2D=True,
+    )
+    sampleResult(scenario, maxSteps=2)
