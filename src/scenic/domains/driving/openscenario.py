@@ -21,6 +21,8 @@ def toOpenScenario(
         mapPath: The path to the XODR map used to run the simulation. If
             one is not provided the `map` param of the scenario is used.
         scenarioName: The name of the scenario in the generated XOSC file.
+
+    .. versionadded:: unreleased
     """
     try:
         import scenariogeneration
