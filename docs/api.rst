@@ -182,6 +182,8 @@ Scenic provides experimental support for exporting completed simulations via `to
 This function currently only supports cars and pedestrians, and may be subject to breaking changes
 in the future.
 
+.. versionadded:: unreleased
+
 .. seealso:: If you get exceptions or unexpected behavior when using the API, Scenic provides various debugging features: see :ref:`debugging`.
 
 .. rubric:: Footnotes
