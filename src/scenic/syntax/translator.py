@@ -179,8 +179,12 @@ def _scenarioFromStream(
     oldModules = list(sys.modules.keys())
     try:
         with topLevelNamespace(path) as namespace:
-            compileStream(stream, namespace, compileOptions, filename)
+            veneer.activate(compileOptions, namespace)
+            compileStream(stream, namespace, compileOptions, filename, activate=False)
+        # Construct a Scenario from the resulting namespace
+        return constructScenarioFrom(namespace, scenario)
     finally:
+        veneer.deactivate()
         if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
     # Construct a Scenario from the resulting namespace
@@ -274,7 +278,7 @@ def purgeModulesUnsafeToCache(oldModules):
         del sys.modules[name]
 
 
-def compileStream(stream, namespace, compileOptions, filename):
+def compileStream(stream, namespace, compileOptions, filename, activate=True):
     """Compile a stream of Scenic code and execute it in a namespace.
 
     The compilation procedure consists of the following main steps:
@@ -290,7 +294,10 @@ def compileStream(stream, namespace, compileOptions, filename):
     if errors.verbosityLevel >= 2:
         veneer.verbosePrint(f"  Compiling Scenic module from {filename}...")
         startTime = time.time()
-    veneer.activate(compileOptions, namespace)
+
+    if activate:
+        veneer.activate(compileOptions, namespace)
+
     try:
         # Execute preamble
         exec(compile(preamble, "<veneer>", "exec"), namespace)
@@ -336,7 +343,9 @@ def compileStream(stream, namespace, compileOptions, filename):
         astHash = astHasher.digest()
         storeScenarioStateIn(namespace, requirements, astHash, compileOptions)
     finally:
-        veneer.deactivate()
+        if activate:
+            veneer.deactivate()
+
     if errors.verbosityLevel >= 2:
         totalTime = time.time() - startTime
         veneer.verbosePrint(f"  Compiled Scenic module in {totalTime:.4g} seconds.")
