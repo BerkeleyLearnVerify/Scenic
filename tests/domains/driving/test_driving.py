@@ -249,15 +249,13 @@ def test_xosc_export(getAssetPath):
         new Pedestrian behind ego by 5,
             with regionContainedIn None,
             with behavior Walk()
-
-        terminate after 5 seconds
     """
 
     scenario = compileScenic(
         code, mode2D=True, params={"map": getAssetPath("maps/CARLA/Town01.xodr")}
     )
     scene, _ = scenario.generate()
-    simulation = simulator.simulate(scene)
+    simulation = simulator.simulate(scene, maxSteps=50)
     toOpenScenario(simulation, scenario, scene)
 
 
@@ -283,6 +281,6 @@ def test_xosc_export_dynamic_objects(getAssetPath):
         code, mode2D=True, params={"map": getAssetPath("maps/CARLA/Town01.xodr")}
     )
     scene, _ = scenario.generate()
-    simulation = simulator.simulate(scene)
+    simulation = simulator.simulate(scene, maxSteps=50)
     with pytest.raises(RuntimeError, match="(.*)dynamically created objects(.*)"):
         toOpenScenario(simulation, scenario, scene)

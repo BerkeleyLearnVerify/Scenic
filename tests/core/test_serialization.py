@@ -80,7 +80,6 @@ class TestExportToScenicCode:
         assertSceneEquivalence(
             scene1,
             scene2,
-            ignoreDynamics=True,
             ignoreScenario=True,
         )
 
