@@ -168,14 +168,19 @@ scenic.setDebuggingOptions(
 )
 params = {}
 for name, value in args.param:
-    # Convert params to ints or floats if possible
-    try:
-        value = int(value)
-    except ValueError:
+    if value.upper() == "TRUE":
+        value = True
+    elif value.upper() == "FALSE":
+        value = False
+    else:
+        # Convert params to ints or floats if possible
         try:
-            value = float(value)
+            value = int(value)
         except ValueError:
-            pass
+            try:
+                value = float(value)
+            except ValueError:
+                pass
     params[name] = value
 translator.dumpScenicAST = args.dump_scenic_ast
 translator.dumpFinalAST = args.dump_ast
