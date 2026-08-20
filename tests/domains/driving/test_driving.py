@@ -278,6 +278,8 @@ def test_xosc_export_dynamic_objects(getAssetPath):
             compose:
                 wait for 1 seconds
                 do SpawnCar()
+
+        terminate after 5 seconds
     """
     scenario = compileScenic(
         code, mode2D=True, params={"map": getAssetPath("maps/CARLA/Town01.xodr")}
