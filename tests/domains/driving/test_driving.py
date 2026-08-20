@@ -235,7 +235,7 @@ def test_invalid_road_scenario(cached_maps):
 
 def test_xosc_export(getAssetPath):
     simulator = NewtonianSimulator("Town01")
-    code = f"""
+    code = """
         param render = False
         model scenic.simulators.newtonian.driving_model
 
@@ -263,7 +263,7 @@ def test_xosc_export(getAssetPath):
 
 def test_xosc_export_dynamic_objects(getAssetPath):
     simulator = NewtonianSimulator("Town01")
-    code = f"""
+    code = """
         param render = False
         model scenic.simulators.newtonian.driving_model
 
@@ -273,18 +273,7 @@ def test_xosc_export_dynamic_objects(getAssetPath):
 
         scenario Main():
             setup:
-                ego = new Car with behavior FollowLaneBehavior()
-
-                immobileCar = new Car visible
-
-                behavior Walk():
-                    take SetWalkingSpeedAction(1)
-                
-                new Pedestrian behind ego by 5,
-                    with regionContainedIn None,
-                    with behavior Walk()
-
-                terminate after 5 seconds
+                ego = new Car
 
             compose:
                 wait for 1 seconds

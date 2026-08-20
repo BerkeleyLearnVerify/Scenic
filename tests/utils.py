@@ -19,7 +19,6 @@ import trimesh.caching
 
 from scenic import scenarioFromString
 from scenic.core.distributions import RejectionException
-from scenic.core.sample_checking import SampleChecker
 from scenic.core.simulators import DummySimulator, RejectSimulationException
 from scenic.core.utils import DefaultIdentityDict
 import scenic.syntax.veneer as veneer

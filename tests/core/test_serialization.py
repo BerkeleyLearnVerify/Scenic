@@ -44,22 +44,19 @@ def skeleton(scene):
     return {"objects": objs, "params": scene.params}
 
 
-def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreScenario=False):
+def assertSceneEquivalence(scene1, scene2, ignoreScenario=False):
     assert skeleton(scene1) == skeleton(scene2)
     # Samples may not be equivalent since we only serialize random values which actually
     # get used in the scene; so need to delete them before checking equivalence.
     del scene1.sample, scene2.sample
-    if ignoreDynamics:
+    if ignoreScenario:
+        del scene1.scenario, scene2.scenario
         del scene1.dynamicScenario, scene2.dynamicScenario
     for obj in scene1.objects + scene2.objects:
         del obj._sampleParent
         if ignoreScenario:
             del obj._constProps
-        if ignoreDynamics:
             del obj._parentScenario
-    if ignoreScenario:
-        del scene1.scenario
-        del scene2.scenario
     assert areEquivalent(scene1, scene2)
 
 
