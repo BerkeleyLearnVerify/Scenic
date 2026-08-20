@@ -54,13 +54,6 @@ The minimum distance to the given Object from ego (or the Object provided with t
 
 .. versionadded:: unreleased
 
-.. _minimum distance [from {Object}] to {Object}:
-.. _minimum distance from:
-
-minimum distance [from *Object*] to *Object*
---------------------------------------------
-The minimum distance to the given Object from ego (or the Object provided with the optional from Object). Unlike :ref:`distance from`, this operator takes into account the Objects' shapes, sizes, etc...
-
 
 .. _angle [from {vector}] to {vector}:
 
