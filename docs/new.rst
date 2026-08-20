@@ -18,6 +18,11 @@ See :ref:`porting to Scenic 3` for tools to help migrate existing 2D scenarios.
 Unreleased
 ------------
 
+Major new features:
+
+	* Added `toOpenScenario`, which exports completed driving domain simulations as OpenScenarioXML files.
+
+
 Minor new features:
 
 	* Added a :ref:`minimum distance from` operator which computes the minimum distance between the occupied space of two objects.

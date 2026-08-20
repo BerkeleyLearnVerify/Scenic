@@ -491,6 +491,18 @@ def beginSimulation(sim):
     currentScenario._bindTo(sim.scene)
     _globalParameters = dict(sim.scene.params)
 
+    # If we are in 2D mode, set the global flag and replace all classes
+    # with their 2D compatibility counterparts.
+    if currentSimulation.scene.compileOptions.mode2D:
+        global mode2D, Point, OrientedPoint, Object
+        mode2D = True
+        Point = Point2D
+        OrientedPoint = OrientedPoint2D
+        Object = Object2D
+        scenic.core.object_types.Point = Point
+        scenic.core.object_types.OrientedPoint = OrientedPoint
+        scenic.core.object_types.Object = Object
+
     # rebind globals that could be referenced by behaviors to their sampled values
     for modName, (
         namespace,
@@ -503,12 +515,20 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
     global currentSimulation, currentScenario, currentBehavior, runningScenarios
-    global _globalParameters
+    global _globalParameters, mode2D
     currentSimulation = None
     currentScenario = None
     runningScenarios = []
     currentBehavior = None
     _globalParameters = {}
+
+    if mode2D:
+        global Point, OrientedPoint, Object
+        mode2D = False
+        Point, OrientedPoint, Object = _originalConstructibles
+        scenic.core.object_types.Point = Point
+        scenic.core.object_types.OrientedPoint = OrientedPoint
+        scenic.core.object_types.Object = Object
 
     for modName, (
         namespace,
