@@ -182,15 +182,13 @@ def _scenarioFromStream(
             veneer.activate(compileOptions, namespace)
             compileStream(stream, namespace, compileOptions, filename, activate=False)
         # Construct a Scenario from the resulting namespace
-        return constructScenarioFrom(namespace, scenario)
+        scenario = constructScenarioFrom(namespace, scenario)
+        scenario._scenarioCreationData = scenarioCreationData
+        return scenario
     finally:
         veneer.deactivate()
         if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
-    # Construct a Scenario from the resulting namespace
-    scenario = constructScenarioFrom(namespace, scenario)
-    scenario._scenarioCreationData = scenarioCreationData
-    return scenario
 
 
 @contextmanager

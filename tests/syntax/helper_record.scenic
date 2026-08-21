@@ -1,1 +1,1 @@
-record initial ego.foo as "foo"
+record initial 1 as "foo"
