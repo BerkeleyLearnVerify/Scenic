@@ -888,6 +888,7 @@ class Network:
     sidewalkRegion: PolygonalRegion = None
     curbRegion: PolylineRegion = None
     shoulderRegion: PolygonalRegion = None
+    centerlineRegion: PolylineRegion = None
 
     #: Traffic flow vector field aggregated over all roads (0 elsewhere).
     roadDirection: VectorField = None
@@ -950,6 +951,11 @@ class Network:
                     edges.append(road.backwardLanes.curb)
             self.curbRegion = PolylineRegion.unionAll(edges)
 
+        if self.centerlineRegion is None:
+            self.centerlineRegion = PolylineRegion.unionAll(
+                [lane.centerline for lane in self.lanes]
+            )
+
         if self.roadDirection is None:
             # TODO replace with a PolygonalVectorField for better pruning
             self.roadDirection = VectorField("roadDirection", self._defaultRoadDirection)
@@ -987,7 +993,7 @@ class Network:
 
         :meta private:
         """
-        return 35
+        return 36
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""

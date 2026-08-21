@@ -1143,7 +1143,7 @@ class Road:
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
                 road=None,
-                lanes=tuple(backwardLanes),
+                lanes=tuple(reversed(backwardLanes)),
                 curb=(backwardShoulder.rightEdge if backwardShoulder else rightEdge),
                 sidewalk=backwardSidewalk,
                 bikeLane=None,

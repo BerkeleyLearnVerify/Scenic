@@ -15,7 +15,7 @@ See the individual entries for details on each interface's capabilities and how 
 	Be sure to check the documentation of each simulator to confirm which Python versions are supported.
 
 .. note::
-	Scenic also supports outputting data in formats that may be imported into other simulators and tools (e.g. :ref:`xosc_export`).
+	Scenic also supports outputing data in formats that may be imported into other simulators and tools (e.g. :ref:`xosc_export`).
 	For more details, see :ref:`serialization`.
 
 .. contents:: List of Simulators
