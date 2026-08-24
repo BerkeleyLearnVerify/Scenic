@@ -11,6 +11,7 @@ be created from a map file using :obj:`Network.fromFile`.
 
 from __future__ import annotations  # allow forward references for type annotations
 
+import bisect
 import enum
 import gzip
 import hashlib
@@ -22,7 +23,7 @@ import pathlib
 import pickle
 import struct
 import time
-from typing import FrozenSet, List, Optional, Sequence, Tuple, Union
+from typing import Dict, FrozenSet, List, Optional, Sequence, Tuple, Union
 import weakref
 
 import attr
@@ -149,30 +150,24 @@ class ManeuverType(enum.Enum):
 
 @enum.unique
 class SignalPriorityType(enum.Enum):
-    """OpenDRIVE ``e_signals_semantics_priority`` literals."""
+    """Broad behavioral categories for OpenDRIVE signal priorities."""
 
-    FOUR_WAY = "4way"
-    KEEP_CLEAR_LINE = "keepClearLine"
-    NO_PARKING_LINE = "noParkingLine"
-    NO_TURN_ON_RED = "noTurnOnRed"
-    PRIORITY_ROAD_END = "priorityRoadEnd"
-    PRIORITY_ROAD = "priorityRoad"
-    PRIORITY_TO_THE_RIGHT_RULE = "priorityToTheRightRule"
-    STOP_LINE = "stopLine"
     STOP = "stop"
-    TRAFFIC_LIGHT = "trafficLight"
-    TURN_ON_RED_ALLOWED = "turnOnRedAllowed"
-    WAITING_LINE = "waitingLine"
     YIELD = "yield"
-    UNKNOWN = "unknown"
+    TRAFFIC_LIGHT = "trafficLight"
 
     @classmethod
-    def fromOpenDrive(cls, type_str: str) -> SignalPriorityType:
-        """Map an OpenDRIVE priority string to an enum member."""
-        for member in cls:
-            if member is not cls.UNKNOWN and member.value == type_str:
-                return member
-        return cls.UNKNOWN
+    def fromOpenDrive(cls, type_str: str) -> Union[SignalPriorityType, str]:
+        """Categorize a priority, preserving uncategorized details as strings."""
+        categories = {
+            "4way": cls.STOP,
+            "stop": cls.STOP,
+            "stopLine": cls.STOP,
+            "yield": cls.YIELD,
+            "trafficLight": cls.TRAFFIC_LIGHT,
+            "turnOnRedAllowed": cls.TRAFFIC_LIGHT,
+        }
+        return categories.get(type_str, type_str)
 
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
@@ -398,6 +393,64 @@ class LinearElement(NetworkElement):
             _toVector(point), distance, steps=steps, stepSize=stepSize
         )
 
+    # Signal entries are ordered by element-local s, which always increases from
+    # the start of this element's centerline to its end. For backward lanes this
+    # is travel order, the reverse of OpenDRIVE road-s order.
+    SignalEntry = Tuple[
+         float,   # element-local s, used for ordering and bisect
+         "Signal",  # controlling signal
+         float,   # OpenDRIVE road s of the effective stopping position
+         float,   # OpenDRIVE road t at this element's centerline
+    ]
+
+    #: OpenDRIVE road-s interval covered by this element, if known.
+    _roadSRange: Optional[Tuple[float, float]] = None
+    _signalEntries: Tuple[SignalEntry, ...] = ()
+    _signalSValues: Tuple[float, ...] = ()
+
+    def signalLookup(self) -> Tuple[List[SignalEntry], List[float]]:
+        """Return signal entries and their parallel, increasing local-s index."""
+        return list(self._signalEntries), list(self._signalSValues)
+
+    def signalsAhead(self, s: float) -> List[SignalEntry]:
+        """Return all signals at or after local ``s`` in travel order."""
+        index = bisect.bisect_left(self._signalSValues, s)
+        return list(self._signalEntries[index:])
+
+    # Some OpenDRIVE centerlines contain consecutive duplicate points, producing
+    # zero-length segments. For example, CARLA Town01 road 6 has three such
+    # segments. GEOS/Shapely's line_locate_point can emit a RuntimeWarning and
+    # return NaN when projecting around this degenerate geometry, which would
+    # corrupt signal ordering. This manual projection skips zero-length segments.
+    def _projectS(self, point: Vectorlike) -> float:
+        """Project a point to element-local s without relying on GEOS."""
+        point = _toVector(point)
+        best_s = 0.0
+        best_distance = math.inf
+        traversed = 0.0
+        for start, end in self.centerline.segments:
+            dx, dy = end[0] - start[0], end[1] - start[1]
+            length_squared = dx * dx + dy * dy
+            if length_squared == 0:
+                continue
+            fraction = min(
+                1.0,
+                max(
+                    0.0,
+                    ((point.x - start[0]) * dx + (point.y - start[1]) * dy)
+                    / length_squared,
+                ),
+            )
+            projected_x = start[0] + fraction * dx
+            projected_y = start[1] + fraction * dy
+            distance = math.hypot(point.x - projected_x, point.y - projected_y)
+            segment_length = math.sqrt(length_squared)
+            if distance < best_distance:
+                best_distance = distance
+                best_s = traversed + fraction * segment_length
+            traversed += segment_length
+        return best_s
+
 
 class _ContainsCenterline:
     """Mixin which asserts that the centerline is contained in the polygon.
@@ -471,6 +524,91 @@ class Road(LinearElement):
         self.laneGroups = tuple(lgs)
         self.sidewalks = tuple(sidewalks)
         self.sidewalkRegion = PolygonalRegion.unionAll(sidewalks)
+
+    def _lateralOffsetAt(self, s: float, point: Vectorlike) -> float:
+        """Signed lateral offset of ``point`` from the reference line at ``s``."""
+        point = _toVector(point)
+        reference_point = self.centerline.pointAlongBy(s)
+        index = bisect.bisect_left(self.centerline.cumulativeLengths, s)
+        index = min(index, len(self.centerline.segments) - 1)
+        start, end = self.centerline.segments[index]
+        tangent_x, tangent_y = end[0] - start[0], end[1] - start[1]
+        offset_x = point.x - reference_point.x
+        offset_y = point.y - reference_point.y
+        distance = math.hypot(offset_x, offset_y)
+        cross = tangent_x * offset_y - tangent_y * offset_x
+        return distance if cross >= 0 else -distance
+
+    def _propagateSignals(self):
+        """Populate signal lookups on this road and its lane hierarchy."""
+        tolerance = 1e-6
+        pending = {}
+        elements = [self, *self.sections, *self.laneGroups, *self.lanes]
+        elements.extend(section for lane in self.lanes for section in lane.sections)
+        for element in elements:
+            element._signalEntries = ()
+            element._signalSValues = ()
+
+        road_section_for_lane_section = {
+            lane_section: road_section
+            for road_section in self.sections
+            for lane_section in road_section.lanes
+        }
+
+        def add(element, signal, road_s):
+            if element is None or element._roadSRange is None:
+                return
+            road_lo, road_hi = element._roadSRange
+            if not road_lo - tolerance <= road_s <= road_hi + tolerance:
+                return
+            reference_point = self.centerline.pointAlongBy(road_s)
+            if element is self:
+                element_point = reference_point
+                local_s = road_s
+                road_t = 0.0
+            else:
+                element_point = element.centerline.project(reference_point)
+                local_s = element._projectS(element_point)
+                road_t = self._lateralOffsetAt(road_s, element_point)
+            pending.setdefault(element, []).append((local_s, signal, road_s, road_t))
+
+        for signal in self.signals:
+            if signal.stoppingS is None:
+                continue
+            road_s = min(max(signal.stoppingS, 0.0), self.centerline.length)
+            add(self, signal, road_s)
+
+            for lane in self.lanes:
+                if not signal.affects(lane) or not signal._lane_arrives_at_halt(lane):
+                    continue
+                effective_s = road_s
+                add(lane, signal, effective_s)
+                add(lane.group, signal, effective_s)
+
+                matching_sections = [
+                    section
+                    for section in lane.sections
+                    if section._roadSRange is not None
+                    and section._roadSRange[0] - tolerance
+                    <= effective_s
+                    <= section._roadSRange[1] + tolerance
+                ]
+                if matching_sections:
+                    lane_section = matching_sections[0]
+                    add(lane_section, signal, effective_s)
+                    add(
+                        road_section_for_lane_section[lane_section],
+                        signal,
+                        effective_s,
+                    )
+
+        for element, entries in pending.items():
+            unique = {}
+            for entry in entries:
+                unique[(entry[1].uid, entry[2])] = entry
+            ordered = sorted(unique.values(), key=lambda entry: (entry[0], entry[1].uid))
+            element._signalEntries = tuple(ordered)
+            element._signalSValues = tuple(entry[0] for entry in ordered)
 
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
@@ -599,21 +737,28 @@ class Lane(_ContainsCenterline, LinearElement):
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
-    def haltPointAhead(self, position, lookahead: float = 80.0) -> Optional[Vector]:
-        """Nearest `Signal.stoppingPointOn` this lane still ahead of ``position``."""
+    def haltPositionAhead(
+        self, position, lookahead: float = 80.0
+    ) -> Optional[Tuple[float, float]]:
+        """Effective road ``(s, t)`` of the nearest halt ahead of ``position``."""
         if self.road is None:
             return None
-        here = self.centerline.lineString.project(ShapelyPoint(position.x, position.y))
-        best = None
+        lane_line = self.centerline.lineString
+        here = lane_line.project(ShapelyPoint(position.x, position.y))
+        best_position = None
         best_ahead = None
         for sig in self.road.signals:
-            pt = sig.stoppingPointOn(self)
-            if pt is None:
+            stop_position = sig.stoppingPositionOn(self)
+            if stop_position is None:
                 continue
-            ahead = self.centerline.lineString.project(ShapelyPoint(pt.x, pt.y)) - here
+            s, _ = stop_position
+            reference_point = self.road.centerline.pointAlongBy(s)
+            pt = self.centerline.project(reference_point)
+            ahead = lane_line.project(ShapelyPoint(pt.x, pt.y)) - here
             if 0 <= ahead <= lookahead and (best_ahead is None or ahead < best_ahead):
-                best, best_ahead = pt, ahead
-        return best
+                best_position = stop_position
+                best_ahead = ahead
+        return best_position
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -853,20 +998,6 @@ class Intersection(NetworkElement):
         return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 
-@attr.s(auto_attribs=True, frozen=True, kw_only=True)
-class SignalLink:
-    """OpenDRIVE ``<reference>`` from this signal to another signal or object.
-
-    Distinct from ``<signalReference>``, which re-applies the same signal on
-    another road. A typical 1.8+ use is a traffic light linking to a stop line
-    (``elementType="signal"``, ``type="stopline"``).
-    """
-
-    elementId: str
-    elementType: str
-    type: Optional[str] = None
-
-
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
     """Traffic lights, stop signs, etc.
@@ -885,9 +1016,9 @@ class Signal:
     type: str
     #: Subtype identifier according to country code (``None`` if absent).
     subtype: Optional[str] = None
-    #: OpenDRIVE ``e_signals_semantics_priority`` entries (empty if unknown / pre-1.8).
-    #: All ``<priority>`` children are kept; they are not collapsed to a single type.
-    priorities: Tuple[SignalPriorityType, ...] = ()
+    #: Broad category or original OpenDRIVE string for each ``<priority>`` entry.
+    #: Empty for signals without 1.8+ priority semantics.
+    priorities: Tuple[Union[SignalPriorityType, str], ...] = ()
     #: Longitudinal s-coordinate along the road reference line (OpenDRIVE ``s``).
     #: Physical pole location in 1.8+; logical effect station if `sIsLogical`.
     s: Optional[float] = None
@@ -897,8 +1028,6 @@ class Signal:
     orientation: Optional[str] = None
     #: OpenDRIVE ``<validity>`` lane range ``(fromLane, toLane)``, if any.
     validity: Optional[Tuple[int, int]] = None
-    #: OpenDRIVE ``<reference>`` links (e.g. light → stop line).
-    references: Tuple[SignalLink, ...] = ()
     #: True when deprecated ``<positionRoad>`` / ``<positionInertial>`` is present,
     #: so `s` is the logical effect station rather than the pole.
     sIsLogical: bool = False
@@ -907,7 +1036,7 @@ class Signal:
     #: ``None`` if we cannot derive one (typical for a connector-only light).
     stoppingS: Optional[float] = None
     #: Placeholder for a future world-space device/pole position. Halt decisions
-    #: intentionally use `stoppingS` and `stoppingPointOn`, not this field.
+    #: intentionally use `stoppingS` and `stoppingPositionOn`, not this field.
     position: Optional[Vector] = None
     #: Maneuvers that require this signal to be green (empty if unknown).
     controlledManeuvers: Tuple[Maneuver, ...] = ()
@@ -957,13 +1086,7 @@ class Signal:
         return True
 
     def _isHaltLocation(self) -> bool:
-        return (
-            self.isStop
-            or self.isYield
-            or self.isStopLine
-            or self.isWaitingLine
-            or self.isKeepClearLine
-        )
+        return self.isStop or self.isYield
 
     def resolveStoppingS(self, by_id, plus_contact, minus_contact):
         """Pick the halt station from references, logical ``s``, or junction contact.
@@ -1022,15 +1145,15 @@ class Signal:
         at_start = abs(self.stoppingS) <= 1e-4
         return (not is_forward) if at_start else is_forward
 
-    def stoppingPointOn(self, lane: Lane) -> Optional[Vector]:
-        """Point on ``lane`` where an ego should halt for this signal, if any.
+    def stoppingPositionOn(self, lane: Lane) -> Optional[Tuple[float, float]]:
+        """Effective road ``(s, t)`` where an ego should halt on ``lane``.
 
-        Takes `stoppingS` along the parent road's +s centerline, then the
-        nearest point on ``lane``. A junction-contact halt is only returned
-        for the direction still arriving at that end — not the lane you enter
-        after turning through the light. ``None`` if the signal does not
-        `affects` the lane, has no `stoppingS`, or does not belong to
-        ``lane.road``.
+        The returned ``t`` is the signed lateral offset from the road reference
+        line to the lane center at `stoppingS` (positive to the left). A
+        junction-contact halt is only returned for the direction still arriving
+        at that end — not the lane you enter after turning through the light.
+        ``None`` if the signal does not `affects` the lane, has no `stoppingS`,
+        or does not belong to ``lane.road``.
         """
         if self.stoppingS is None or not self.affects(lane):
             return None
@@ -1043,7 +1166,10 @@ class Signal:
         if length == 0:
             return None
         s = min(max(self.stoppingS, 0.0), length)
-        return lane.centerline.project(road.centerline.pointAlongBy(s))
+        reference_point = road.centerline.pointAlongBy(s)
+        lane_point = lane.centerline.project(reference_point)
+        t = road._lateralOffsetAt(s, lane_point)
+        return s, t
 
     @property
     def isTrafficLight(self) -> bool:
@@ -1065,21 +1191,6 @@ class Signal:
         if self.priorities:
             return self.hasPriority(SignalPriorityType.YIELD)
         return self.type == "205"
-
-    @property
-    def isStopLine(self) -> bool:
-        """Whether this signal marks a stop line."""
-        return self.hasPriority(SignalPriorityType.STOP_LINE)
-
-    @property
-    def isWaitingLine(self) -> bool:
-        """Whether this signal marks a waiting line."""
-        return self.hasPriority(SignalPriorityType.WAITING_LINE)
-
-    @property
-    def isKeepClearLine(self) -> bool:
-        """Whether this signal marks a keep-clear line."""
-        return self.hasPriority(SignalPriorityType.KEEP_CLEAR_LINE)
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -1237,7 +1348,7 @@ class Network:
 
         :meta private:
         """
-        return 35
+        return 36
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
