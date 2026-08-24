@@ -315,6 +315,19 @@ def test_parser_keeps_categories_and_uncategorized_details(tmp_path):
         "keepClearLine",
         "vendorSpecificPriority",
     )
+    assert signal.tags == frozenset(
+        {"stopLine", "keepClearLine", "vendorSpecificPriority"}
+    )
+
+
+def test_country_and_subtype_warn_in_favor_of_semantic_tags(tmp_path):
+    road = road_by_id(load_network(tmp_path, MAP_DEPRECATED_LOGICAL), 1)
+    signal = signal_on(road, 12)
+    assert signal.tags == frozenset({"stopLine"})
+    with pytest.warns(DeprecationWarning, match=r"Signal\.country.*Signal\.tags"):
+        assert signal.country == "OpenDRIVE"
+    with pytest.warns(DeprecationWarning, match=r"Signal\.subtype.*Signal\.tags"):
+        assert signal.subtype == "-1"
 
 
 # --- deprecated pre-1.8 logical @s ---

@@ -24,6 +24,7 @@ import pickle
 import struct
 import time
 from typing import Dict, FrozenSet, List, Optional, Sequence, Tuple, Union
+import warnings
 import weakref
 
 import attr
@@ -397,10 +398,10 @@ class LinearElement(NetworkElement):
     # the start of this element's centerline to its end. For backward lanes this
     # is travel order, the reverse of OpenDRIVE road-s order.
     SignalEntry = Tuple[
-         float,   # element-local s, used for ordering and bisect
-         "Signal",  # controlling signal
-         float,   # OpenDRIVE road s of the effective stopping position
-         float,   # OpenDRIVE road t at this element's centerline
+        float,  # element-local s, used for ordering and bisect
+        "Signal",  # controlling signal
+        float,  # OpenDRIVE road s of the effective stopping position
+        float,  # OpenDRIVE road t at this element's centerline
     ]
 
     #: OpenDRIVE road-s interval covered by this element, if known.
@@ -1010,15 +1011,17 @@ class Signal:
     uid: str = None
     #: ID number as in OpenDRIVE (unique ID of the signal within the database)
     openDriveID: int
-    #: Country code of the signal
-    country: str
+    #: Deprecated country code of the signal; use `tags` instead.
+    _country: str
     #: Type identifier according to country code.
     type: str
-    #: Subtype identifier according to country code (``None`` if absent).
-    subtype: Optional[str] = None
+    #: Deprecated subtype identifier; use `tags` instead.
+    _subtype: Optional[str] = None
     #: Broad category or original OpenDRIVE string for each ``<priority>`` entry.
     #: Empty for signals without 1.8+ priority semantics.
     priorities: Tuple[Union[SignalPriorityType, str], ...] = ()
+    #: Exact OpenDRIVE 1.8+ semantic tag strings.
+    tags: FrozenSet[str] = frozenset()
     #: Longitudinal s-coordinate along the road reference line (OpenDRIVE ``s``).
     #: Physical pole location in 1.8+; logical effect station if `sIsLogical`.
     s: Optional[float] = None
@@ -1040,6 +1043,28 @@ class Signal:
     position: Optional[Vector] = None
     #: Maneuvers that require this signal to be green (empty if unknown).
     controlledManeuvers: Tuple[Maneuver, ...] = ()
+
+    @property
+    def country(self) -> str:
+        """Deprecated country code; use `tags` instead."""
+        warnings.warn(
+            "Signal.country is deprecated; use Signal.tags and OpenDRIVE 1.8 "
+            "semantic metadata instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._country
+
+    @property
+    def subtype(self) -> Optional[str]:
+        """Deprecated country-specific subtype; use `tags` instead."""
+        warnings.warn(
+            "Signal.subtype is deprecated; use Signal.tags and OpenDRIVE 1.8 "
+            "semantic metadata instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._subtype
 
     def hasPriority(self, priority: SignalPriorityType) -> bool:
         """Whether this signal lists the given OpenDRIVE priority semantic."""
@@ -1348,7 +1373,7 @@ class Network:
 
         :meta private:
         """
-        return 36
+        return 37
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""

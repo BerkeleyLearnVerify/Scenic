@@ -1187,6 +1187,7 @@ class Road:
                 type=signal_.type_,
                 subtype=signal_.subtype,
                 priorities=signal_.priorities,
+                tags=signal_.tags,
                 s=signal_.s,
                 t=signal_.t,
                 orientation=signal_.orientation,
@@ -1285,6 +1286,7 @@ class Signal:
         t,
         validity=None,
         priorities=(),
+        tags=(),
         references=(),
         sIsLogical=False,
     ):
@@ -1298,6 +1300,8 @@ class Signal:
         self.validity = validity
         #: Tuple of `roadDomain.SignalPriorityType` from ``<semantics><priority>``.
         self.priorities = tuple(priorities)
+        #: Exact OpenDRIVE 1.8+ semantic tag strings.
+        self.tags = frozenset(tags)
         #: Tuple of `roadDomain.SignalLink` from ``<reference>``.
         self.references = tuple(references)
         self.sIsLogical = sIsLogical
@@ -1568,6 +1572,17 @@ class RoadMap:
             priorities.append(roadDomain.SignalPriorityType.fromOpenDrive(type_str))
         return tuple(priorities)
 
+    def __parse_signal_tags(self, signal_elem):
+        """Preserve exact OpenDRIVE 1.8+ priority semantics as signal tags."""
+        semantics_elem = signal_elem.find("semantics")
+        if semantics_elem is None:
+            return frozenset()
+        return frozenset(
+            type_str
+            for priority_elem in semantics_elem.findall("priority")
+            if (type_str := priority_elem.get("type")) is not None
+        )
+
     def __parse_signal_links(self, signal_elem):
         """Parse ``<reference>`` children (light → stop line, etc.)."""
         links = []
@@ -1603,6 +1618,7 @@ class RoadMap:
             # zOffset   signal_elem.get("zOffset"),
             self.__parse_signal_validity(signal_elem.find("validity")),
             self.__parse_signal_priorities(signal_elem),
+            self.__parse_signal_tags(signal_elem),
             self.__parse_signal_links(signal_elem),
             signal_elem.find("positionRoad") is not None
             or signal_elem.find("positionInertial") is not None,
@@ -1837,6 +1853,7 @@ class RoadMap:
                         signalReference.t,
                         signalReference.validity,
                         referencedSignal.priorities,
+                        referencedSignal.tags,
                         referencedSignal.references,
                     )
                     road.signals.append(signal)
