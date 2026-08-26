@@ -1299,6 +1299,7 @@ class SimulatorGroup:
             # Attempt to cleanly kill workers
             for p in processes:
                 if p.is_alive():
+                    print(f"SENDING SIGINT to {p.pid}")
                     os.kill(p.pid, signal.SIGINT)
 
             waits = 0
