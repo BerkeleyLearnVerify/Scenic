@@ -1111,7 +1111,7 @@ class SimulatorGroup:
         returnFinalState=False,
         returnTrajectory=False,
         returnBytes=False,
-        timeout=20,
+        timeout=30,
     ):
         if numWorkers <= 0:
             raise ValueError("`numWorkers` must be at least 1.")
@@ -1313,7 +1313,7 @@ class SimulatorGroup:
             # Terminate any remaining processes and close queues
             for p in processes:
                 if p.is_alive():
-                    warnings.warn("Forcefully killing SimulatorGroup worker!")
+                    warnings.warn(f"Forcefully killing SimulatorGroup worker {p.pid}!")
                     p.terminate()
 
             jobQueue.close()
