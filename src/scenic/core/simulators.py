@@ -1262,9 +1262,32 @@ class SimulatorGroup:
         lastReturnedJob = 0
         resultsDict = {}
 
+        monitoredProcesses = list(processes)
+
+        def checkWorkers():
+            for p in monitoredProcesses:
+                if not p.is_alive():
+                    warnings.warn(
+                        f"Worker process {p.pid} has died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
+                    )
+
+            if len(monitoredProcesses) == 0:
+                raise RuntimeError(
+                    "All worker processes have died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
+                )
+
+        def monitoringQueueGet(q):
+            while True:
+                checkWorkers()
+                try:
+                    result = q.get(timeout=1)
+                    return result
+                except queue.Empty:
+                    continue
+
         def getNextResult():
             if not deterministic:
-                return resultQueue.get()
+                return monitoringQueueGet(resultQueue)
 
             nonlocal lastReturnedJob
             while True:
@@ -1273,7 +1296,7 @@ class SimulatorGroup:
                     lastReturnedJob += 1
                     return returnResult
 
-                jobId, nextResult = resultQueue.get()
+                jobId, nextResult = monitoringQueueGet(resultQueue)
                 resultsDict[jobId] = nextResult
 
         try:
