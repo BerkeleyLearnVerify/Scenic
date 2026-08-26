@@ -597,6 +597,11 @@ class Simulation(abc.ABC):
         for scenario in tuple(reversed(veneer.runningScenarios)):
             scenario._stop("simulation terminated")
 
+        # Serialize simulation to bytes for inclusion in results.
+        replayBytes = (
+            self.scene.scenario.simulationToBytes(self) if self._replayOut else None
+        )
+
         # Package up simulation results into a compact object.
         result = SimulationResult(
             self.name,
@@ -606,6 +611,7 @@ class Simulation(abc.ABC):
             terminationReason,
             self.records,
             self.scene.externalSamplerInfo,
+            replayBytes,
         )
         self.result = result
 
@@ -1059,6 +1065,7 @@ class SimulationResult:
         terminationReason,
         records,
         externalSamplerInfo,
+        replayBytes,
     ):
         self.name = name
         self.trajectory = tuple(trajectory)
@@ -1069,7 +1076,7 @@ class SimulationResult:
         self.terminationReason = str(terminationReason)
         self.records = dict(records)
         self.externalSamplerInfo = externalSamplerInfo
-        self.replayBytes = None  # TODO
+        self.replayBytes = replayBytes
 
 
 class TerminatedSimulationException(Exception):
@@ -1354,8 +1361,8 @@ def simulatorGroupHelper(
                     simulationResult.finalState = None
                 if not returnTrajectory:
                     simulationResult.trajectory = None
-                if returnBytes:  # TODO: Swap to wipe if not desired instead of adding
-                    simulationResult.replayBytes = scenario.simulationToBytes(simulation)
+                if not returnBytes:
+                    simulationResult.replayBytes = None
             else:
                 simulationResult = None
 
