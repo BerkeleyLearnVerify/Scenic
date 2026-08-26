@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import math
 from pathlib import Path
+import pickle
 
 import optuna
 
@@ -67,7 +68,7 @@ class OptunaSampler(ExternalSampler):
 
     def sample(self, feedback):
         super().sample(feedback)
-        return str(self.trial._trial_id)
+        return pickle.dumps(self.study_name, self.trial._trial_id)
 
     def nextSample(self, feedback):
         if feedback is not None:

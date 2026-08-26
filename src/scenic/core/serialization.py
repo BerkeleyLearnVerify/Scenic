@@ -178,10 +178,10 @@ class Serializer:
         assert len(optionsHash) == 4
         self.stream.write(optionsHash)
         if scene.externalSamplerInfo:
-            assert isinstance(scene.externalSamplerInfo, str)
-            self.writeValue(scene.externalSamplerInfo, str)
+            assert isinstance(scene.externalSamplerInfo, bytes)
+            self.writeValue(scene.externalSamplerInfo, bytes)
         else:
-            self.writeValue("", str)
+            self.writeValue(b"", bytes)
         self.writeSample(scenario.dependencies, scene.sample)
 
     def readScene(self, scenario, verify=True):
@@ -216,7 +216,7 @@ class Serializer:
             )
 
         if metatadaIncludes["externalSamplerInfo"]:
-            externalSamplerInfo = self.readValue(str)
+            externalSamplerInfo = self.readValue(bytes)
         else:
             externalSamplerInfo = None
 
