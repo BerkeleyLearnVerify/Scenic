@@ -1313,7 +1313,7 @@ class SimulatorGroup:
             # Terminate any remaining processes and close queues
             for p in processes:
                 if p.is_alive():
-                    warnings.warn(f"Forcefully killing SimulatorGroup worker {p.pid}!")
+                    warnings.warn(f"Forcefully killing SimulatorGroup worker: {p.pid}")
                     p.terminate()
 
             jobQueue.close()
