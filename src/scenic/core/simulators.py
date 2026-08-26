@@ -20,6 +20,7 @@ import math
 import multiprocessing
 import numbers
 import os
+import queue
 import random
 import signal
 import sys
@@ -1349,9 +1350,17 @@ def simulatorGroupHelper(
 
     with simulatorClass(**simulatorParams) as simulator:
         while True:
-            jobId, serializedScene, simulateParams, seed = jobQueue.get()
-            setSeed(seed)
+            # Extract a result from the list, periodically breaking to allow
+            # SIGINT to be processed.
+            while True:
+                try:
+                    result = jobQueue.get(timeout=1)
+                except queue.Empty:
+                    continue
+                jobId, serializedScene, simulateParams, seed = result
+                break
 
+            setSeed(seed)
             scene = scenario.sceneFromBytes(serializedScene, verify=False)
             simulation = simulator.simulate(scene, **simulateParams)
 
