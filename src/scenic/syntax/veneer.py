@@ -909,7 +909,7 @@ def check_time(timeLimit, terminator=None):
     inSeconds = terminator != "steps"
 
     threshold = timeLimit / simulation().timestep if inSeconds else timeLimit
-    return currentScenario._elapsedTime > threshold
+    return currentScenario._inherited._elapsedTime > threshold
 
 
 def makeRequirement(ty, reqID, req, line, name, recConfig=None):

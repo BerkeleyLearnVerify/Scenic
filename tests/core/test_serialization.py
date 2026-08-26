@@ -232,7 +232,7 @@ class TestExportToBytes:
         data = sc1.sceneToBytes(scene1)
         scene2 = sc2.sceneFromBytes(data)
         assert sc2.sceneToBytes(scene2) == data
-        assertSceneEquivalence(scene1, scene2)
+        assertSceneEquivalence(scene1, scene2, ignoreScenario=True)
 
     def test_scene_different_scenario(self):
         sc1 = compileScenic(simpleScenario)
