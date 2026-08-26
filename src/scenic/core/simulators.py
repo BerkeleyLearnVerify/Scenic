@@ -1265,6 +1265,8 @@ class SimulatorGroup:
         monitoredProcesses = list(processes)
 
         def checkWorkers():
+            nonlocal monitoredProcesses
+
             liveProcesses = []
             for p in monitoredProcesses:
                 if not p.is_alive():
@@ -1274,7 +1276,6 @@ class SimulatorGroup:
                 else:
                     liveProcesses.append(p)
 
-            nonlocal monitoredProcesses
             monitoredProcesses = liveProcesses
 
             if len(monitoredProcesses) == 0:
