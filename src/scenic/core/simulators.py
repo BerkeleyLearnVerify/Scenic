@@ -1300,7 +1300,6 @@ class SimulatorGroup:
             # Attempt to cleanly kill workers
             for p in processes:
                 if p.is_alive():
-                    print(f"SENDING SIGINT to {p.pid}")
                     os.kill(p.pid, signal.SIGINT)
 
             waits = 0
@@ -1353,15 +1352,15 @@ def simulatorGroupHelper(
 
     with simulatorClass(**simulatorParams) as simulator:
         while True:
-            # Extract a result from the list, periodically breaking to allow
+            # Extract a result from input queue, periodically breaking to allow
             # SIGINT to be processed.
             while True:
                 try:
                     result = jobQueue.get(timeout=1)
+                    jobId, serializedScene, simulateParams, seed = result
+                    break
                 except queue.Empty:
                     continue
-                jobId, serializedScene, simulateParams, seed = result
-                break
 
             setSeed(seed)
             scene = scenario.sceneFromBytes(serializedScene, verify=False)

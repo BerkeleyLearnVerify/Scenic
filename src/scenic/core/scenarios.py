@@ -5,6 +5,7 @@ import io
 import itertools
 import multiprocessing
 import os
+import queue
 import random
 import sys
 import time
@@ -1015,10 +1016,20 @@ def generateInnerBatchHelper(
         _cacheImports=False,
     )
 
-    while True:
-        seed = seedQueue.get()
-        setSeed(seed)
+    # Prevent sceneQueue from blocking us from exiting the process.
+    sceneQueue.cancel_join_thread()
 
+    while True:
+        # Extract a result from the input queue, periodically breaking to allow
+        # SIGINT to be processed.
+        while True:
+            try:
+                seed = seedQueue.get(timeout=1)
+                break
+            except queue.Empty:
+                continue
+
+        setSeed(seed)
         scene, iterations = scenario._generateInner(
             maxIterations=float("inf"), verbosity=verbosity, feedback=None
         )
