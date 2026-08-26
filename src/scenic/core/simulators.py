@@ -1348,36 +1348,35 @@ def simulatorGroupHelper(
         _cacheImports=False,
     )
 
+    # Prevent resultQueue from blocking us from exiting the process.
+    resultQueue.cancel_join_thread()
+
     with simulatorClass(**simulatorParams) as simulator:
-        try:
+        while True:
+            # Extract a result from the list, periodically breaking to allow
+            # SIGINT to be processed.
             while True:
-                # Extract a result from the list, periodically breaking to allow
-                # SIGINT to be processed.
-                while True:
-                    try:
-                        result = jobQueue.get(timeout=1)
-                    except queue.Empty:
-                        continue
-                    jobId, serializedScene, simulateParams, seed = result
-                    break
+                try:
+                    result = jobQueue.get(timeout=1)
+                except queue.Empty:
+                    continue
+                jobId, serializedScene, simulateParams, seed = result
+                break
 
-                setSeed(seed)
-                scene = scenario.sceneFromBytes(serializedScene, verify=False)
-                simulation = simulator.simulate(scene, **simulateParams)
+            setSeed(seed)
+            scene = scenario.sceneFromBytes(serializedScene, verify=False)
+            simulation = simulator.simulate(scene, **simulateParams)
 
-                if simulation:
-                    simulationResult = simulation.result
-                    simulationResult.actions = None
-                    if not returnFinalState:
-                        simulationResult.finalState = None
-                    if not returnTrajectory:
-                        simulationResult.trajectory = None
-                    if not returnBytes:
-                        simulationResult.replayBytes = None
-                else:
-                    simulationResult = None
+            if simulation:
+                simulationResult = simulation.result
+                simulationResult.actions = None
+                if not returnFinalState:
+                    simulationResult.finalState = None
+                if not returnTrajectory:
+                    simulationResult.trajectory = None
+                if not returnBytes:
+                    simulationResult.replayBytes = None
+            else:
+                simulationResult = None
 
-                resultQueue.put((jobId, simulationResult))
-        except KeyboardInterrupt as e:
-            resultQueue.cancel_join_thread()
-            raise e
+            resultQueue.put((jobId, simulationResult))
