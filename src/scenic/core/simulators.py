@@ -1265,11 +1265,17 @@ class SimulatorGroup:
         monitoredProcesses = list(processes)
 
         def checkWorkers():
+            liveProcesses = []
             for p in monitoredProcesses:
                 if not p.is_alive():
                     warnings.warn(
                         f"Worker process {p.pid} has died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
                     )
+                else:
+                    liveProcesses.append(p)
+
+            nonlocal monitoredProcesses
+            monitoredProcesses = liveProcesses
 
             if len(monitoredProcesses) == 0:
                 raise RuntimeError(
