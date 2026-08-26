@@ -1267,21 +1267,11 @@ class SimulatorGroup:
         def checkWorkers():
             nonlocal monitoredProcesses
 
-            liveProcesses = []
             for p in monitoredProcesses:
                 if not p.is_alive():
-                    warnings.warn(
+                    raise RuntimeError(
                         f"Worker process {p.pid} has died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
                     )
-                else:
-                    liveProcesses.append(p)
-
-            monitoredProcesses = liveProcesses
-
-            if len(monitoredProcesses) == 0:
-                raise RuntimeError(
-                    "All worker processes have died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
-                )
 
         def monitoringQueueGet(q):
             while True:
