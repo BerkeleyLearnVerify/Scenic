@@ -169,7 +169,7 @@ Grand Theft Auto V
 The GTA simulator was deprecated in Scenic 3.2, as the method used to interface with GTA V was no longer usable.
 
 The interface to `Grand Theft Auto V <https://www.rockstargames.com/V/>`_, used in `our PLDI paper`_, allowed Scenic to position cars within the game as well as to control the time of day and weather conditions.
-Many examples using the interface (including all scenarios from the paper) can be found in :file:`examples/gta`. These examples can still be used to generate static scenes.
+Many examples using the interface (including all scenarios from the paper) can be found in :file:`examples/gta`. These examples can still be used to generate static scenes, but cannot be visualized in GTA V.
 See the paper and `scenic.simulators.gta` for documentation.
 
 Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`__.
