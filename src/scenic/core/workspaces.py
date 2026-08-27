@@ -92,6 +92,9 @@ class Workspace(Region):
     def uniformPointInner(self):
         return self.region.uniformPointInner()
 
+    def parameterizedUniformPointInner(self):
+        return self.region.parameterizedUniformPointInner()
+
     def intersect(self, other, triedReversed=False):
         return self.region.intersect(other, triedReversed)
 
@@ -117,11 +120,18 @@ class Workspace(Region):
         return self.region.distanceTo(point)
 
     def projectVector(self, point, onDirection):
-        raise self.region.projectVector(point, onDirection)
+        return self.region.projectVector(point, onDirection)
+
+    def closestPointTo(self, target):
+        return self.region.closestPointTo(target)
 
     @property
     def AABB(self):
         return self.region.AABB
+
+    @property
+    def _sampleVals(self):
+        return self.region._sampleVals
 
     @property
     def dimensionality(self):
