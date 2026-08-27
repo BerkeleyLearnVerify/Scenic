@@ -1356,6 +1356,9 @@ def simulatorGroupHelper(
         sys.stdout = open(os.devnull, "w")
         sys.stderr = open(os.devnull, "w")
 
+    # Prevent resultQueue from blocking us from exiting the process.
+    resultQueue.cancel_join_thread()
+
     from scenic.syntax.translator import _scenarioFromStream
 
     scenario = _scenarioFromStream(
@@ -1366,9 +1369,6 @@ def simulatorGroupHelper(
         path=scenarioCreationData["path"],
         _cacheImports=False,
     )
-
-    # Prevent resultQueue from blocking us from exiting the process.
-    resultQueue.cancel_join_thread()
 
     with simulatorClass(**simulatorParams) as simulator:
         while True:

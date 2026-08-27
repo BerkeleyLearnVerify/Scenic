@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import queue
 import random
+import signal
 import sys
 import time
 import warnings
@@ -23,6 +24,7 @@ from scenic.core.distributions import (
     needsSampling,
 )
 from scenic.core.dynamics.behaviors import Behavior, Monitor
+import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.external_params import ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -635,8 +637,28 @@ class Scenario(_ScenarioPickleMixin):
             # Initialized result management functions
             resultsDict = {}
 
+            monitoredProcesses = list(processes)
+
+            def checkWorkers():
+                nonlocal monitoredProcesses
+
+                for p in monitoredProcesses:
+                    if not p.is_alive():
+                        raise RuntimeError(
+                            f"Worker process {p.pid} has died. Consider creating the SimulatorGroup with mute=False to diagnose the issue."
+                        )
+
+            def monitoringQueueGet(q):
+                while True:
+                    checkWorkers()
+                    try:
+                        result = q.get(timeout=1)
+                        return result
+                    except queue.Empty:
+                        continue
+
             def getResult():
-                sceneBytes, resultIterations, resultSeed = sceneQueue.get()
+                sceneBytes, resultIterations, resultSeed = monitoringQueueGet(sceneQueue)
                 resultScene = (
                     sceneBytes
                     if serialized
@@ -672,9 +694,26 @@ class Scenario(_ScenarioPickleMixin):
                         putSeed()
 
             finally:
-                # Close processes and queues
-                for process in processes:
-                    process.terminate()
+                for p in processes:
+                    if p.is_alive():
+                        os.kill(p.pid, signal.SIGINT)
+
+                waits = 0
+                while any(p.is_alive() for p in processes) and waits < 10:
+                    waits += 1
+                    if errors.verbosityLevel > 0:
+                        print(
+                            f"Waiting for simulator group processes to terminate ({waits}/{10}s elapsed)..."
+                        )
+                    time.sleep(1)
+
+                # Terminate any remaining processes and close queues
+                for p in processes:
+                    if p.is_alive():
+                        warnings.warn(
+                            f"Forcefully killing generateStream worker: {p.pid}"
+                        )
+                        p.terminate()
 
                 seedQueue.close()
                 sceneQueue.close()
@@ -1005,6 +1044,9 @@ def generateInnerBatchHelper(
         sys.stdout = open(os.devnull, "w")
         sys.stderr = open(os.devnull, "w")
 
+    # Prevent sceneQueue from blocking us from exiting the process.
+    sceneQueue.cancel_join_thread()
+
     from scenic.syntax.translator import _scenarioFromStream
 
     scenario = _scenarioFromStream(
@@ -1015,9 +1057,6 @@ def generateInnerBatchHelper(
         path=scenarioCreationData["path"],
         _cacheImports=False,
     )
-
-    # Prevent sceneQueue from blocking us from exiting the process.
-    sceneQueue.cancel_join_thread()
 
     while True:
         # Extract a result from the input queue, periodically breaking to allow
