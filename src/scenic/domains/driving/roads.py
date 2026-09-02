@@ -332,7 +332,15 @@ class LinearElement(NetworkElement):
     rightEdge: PolylineRegion
 
     # Links to next/previous element
-    _successor: Union[NetworkElement, None] = None  # going forward
+
+    # TO-DO: multiple successors and predecessors are allowed, and can be accessed by index
+    # TO-DO: fix successor and predecessor for sidewalk stuff 
+    # scenic notion is diff from opendrive. predecessor linked to next/prev element, 
+    # with respect to driving direction, opendrive says direction of 
+    # reference line is not exactly the same with traffic
+    # sucessors wil incyde connecting roads and lanes etc, roads to roads, lanes to lanes, etc
+    # tuple of other linear elements of the same type
+    _successor: Union[NetworkElement, None] = None  # going forward (what are all the possible next elements you can end up in when you are at the end of this one)
     _predecessor: Union[NetworkElement, None] = None  # going backward
 
     @property
@@ -393,6 +401,7 @@ class LinearElement(NetworkElement):
         return self.orientation.followFrom(
             _toVector(point), distance, steps=steps, stepSize=stepSize
         )
+    # Signals tuple with singal object in increasing s value, include signal s and stopping line
 
     # Signal entries are ordered by element-local s, which always increases from
     # the start of this element's centerline to its end. For backward lanes this
@@ -406,6 +415,7 @@ class LinearElement(NetworkElement):
 
     #: OpenDRIVE road-s interval covered by this element, if known.
     _roadSRange: Optional[Tuple[float, float]] = None
+    # make them public, and allow to call directly - prob clearer names
     _signalEntries: Tuple[SignalEntry, ...] = ()
     _signalSValues: Tuple[float, ...] = ()
 
@@ -418,39 +428,11 @@ class LinearElement(NetworkElement):
         index = bisect.bisect_left(self._signalSValues, s)
         return list(self._signalEntries[index:])
 
-    # Some OpenDRIVE centerlines contain consecutive duplicate points, producing
-    # zero-length segments. For example, CARLA Town01 road 6 has three such
-    # segments. GEOS/Shapely's line_locate_point can emit a RuntimeWarning and
-    # return NaN when projecting around this degenerate geometry, which would
-    # corrupt signal ordering. This manual projection skips zero-length segments.
     def _projectS(self, point: Vectorlike) -> float:
-        """Project a point to element-local s without relying on GEOS."""
-        point = _toVector(point)
-        best_s = 0.0
-        best_distance = math.inf
-        traversed = 0.0
-        for start, end in self.centerline.segments:
-            dx, dy = end[0] - start[0], end[1] - start[1]
-            length_squared = dx * dx + dy * dy
-            if length_squared == 0:
-                continue
-            fraction = min(
-                1.0,
-                max(
-                    0.0,
-                    ((point.x - start[0]) * dx + (point.y - start[1]) * dy)
-                    / length_squared,
-                ),
-            )
-            projected_x = start[0] + fraction * dx
-            projected_y = start[1] + fraction * dy
-            distance = math.hypot(point.x - projected_x, point.y - projected_y)
-            segment_length = math.sqrt(length_squared)
-            if distance < best_distance:
-                best_distance = distance
-                best_s = traversed + fraction * segment_length
-            traversed += segment_length
-        return best_s
+        """Project a point to element-local s along the centerline."""
+        return self.centerline.lineString.project(
+            geometry.makeShapelyPoint(_toVector(point))
+        )
 
 
 class _ContainsCenterline:
@@ -742,8 +724,6 @@ class Lane(_ContainsCenterline, LinearElement):
         self, position, lookahead: float = 80.0
     ) -> Optional[Tuple[float, float]]:
         """Effective road ``(s, t)`` of the nearest halt ahead of ``position``."""
-        if self.road is None:
-            return None
         lane_line = self.centerline.lineString
         here = lane_line.project(ShapelyPoint(position.x, position.y))
         best_position = None
@@ -999,6 +979,15 @@ class Intersection(NetworkElement):
         return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 
+@attr.s(auto_attribs=True, frozen=True)
+class SignalLink:
+    """OpenDRIVE semantic link from a signal to another map element."""
+
+    elementId: str
+    elementType: str
+    type: Optional[str] = None
+
+
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
     """Traffic lights, stop signs, etc.
@@ -1022,6 +1011,8 @@ class Signal:
     priorities: Tuple[Union[SignalPriorityType, str], ...] = ()
     #: Exact OpenDRIVE 1.8+ semantic tag strings.
     tags: FrozenSet[str] = frozenset()
+    #: OpenDRIVE semantic links to stop lines or other map elements.
+    references: Tuple[SignalLink, ...] = ()
     #: Longitudinal s-coordinate along the road reference line (OpenDRIVE ``s``).
     #: Physical pole location in 1.8+; logical effect station if `sIsLogical`.
     s: Optional[float] = None
