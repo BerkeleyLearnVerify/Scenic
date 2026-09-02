@@ -245,10 +245,10 @@ TEMPORAL_PREFIX_OPS = {
 
 
 class ContractAtomicTransformer(Transformer):
-    def __init__(self, variables, filename="<unknown>"):
+    def __init__(self, lambda_arg_lookaheads, filename="<unknown>"):
         super().__init__(filename)
 
-        self.variables = variables
+        self.lambda_arg_lookaheads = lambda_arg_lookaheads
         self.current_lookahead = 0
         self.max_lookahead = 0
 
@@ -256,7 +256,9 @@ class ContractAtomicTransformer(Transformer):
         if node.id == "workspace":
             node.id = "WORKSPACE"
 
-        if node.id in self.variables:
+        if node.id in self.lambda_arg_lookaheads:
+            self.max_lookahead = max(self.max_lookahead, self.current_lookahead + self.lambda_arg_lookaheads[node.id])
+
             new_node = ast.Subscript(
                 value=node,
                 slice=ast.Name(id="SCENIC_INTERNAL_TIME", ctx=loadCtx),
@@ -2713,24 +2715,22 @@ class ScenicToPythonTransformer(Transformer):
 
         ## `prop_factory` Function ##
         # Create arguments for lambdas
-        lambda_arg_names = ["SCENIC_INTERNAL_TIME"]
-        lambda_arg_names += node.objects
-        lambda_arg_names += node.globals
-        lambda_arg_names += [name for name, _ in node.inputs]
-        lambda_arg_names += [name for name, _ in node.outputs]
+        lambda_arg_lookaheads = {}
+        lambda_arg_lookaheads["SCENIC_INTERNAL_TIME"] = 0
+        for name in node.objects + node.globals:
+            lambda_arg_lookaheads[name] = 0
+        for name, _ in node.inputs + node.outputs:
+            lambda_arg_lookaheads[name] = 0
 
         lambda_args = ast.arguments(
             posonlyargs=[],
-            args=[ast.arg(name) for name in lambda_arg_names],
+            args=[ast.arg(name) for name in lambda_arg_lookaheads],
             vararg=None,
             kwonlyargs=[],
             kw_defaults=[],
             kwarg=None,
             defaults=[],
         )
-
-        # Definition names aren't included in args yet
-        lambda_arg_names += [name for name, _ in node.definitions]
 
         # Create transformer to unwrap definitions
         # def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
@@ -2759,7 +2759,7 @@ class ScenicToPythonTransformer(Transformer):
 
         for def_name, def_expr in node.definitions:
             atomic_transformer = ContractAtomicTransformer(
-                lambda_arg_names, self.filename
+                lambda_arg_lookaheads, self.filename
             )
 
             def_lambda = ast.Lambda(
@@ -2767,6 +2767,7 @@ class ScenicToPythonTransformer(Transformer):
             )
 
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
+            lambda_arg_lookaheads[def_name] = atomic_transformer.max_lookahead
 
             prop_fac_body.append(
                 ast.Assign(
@@ -2802,7 +2803,7 @@ class ScenicToPythonTransformer(Transformer):
         )
         for a in node.assumptions:
             atomic_transformer = ContractAtomicTransformer(
-                lambda_arg_names, self.filename
+                lambda_arg_lookaheads, self.filename
             )
             propTransformer = PropositionTransformer(
                 self.filename,
@@ -2838,7 +2839,7 @@ class ScenicToPythonTransformer(Transformer):
         )
         for g in node.guarantees:
             atomic_transformer = ContractAtomicTransformer(
-                lambda_arg_names, self.filename
+                lambda_arg_lookaheads, self.filename
             )
             propTransformer = PropositionTransformer(
                 self.filename,

@@ -301,7 +301,7 @@ component Car(target_dist, max_speed, min_dist, max_accel, max_brake, abs_speed_
 
 ## Contracts ##
 contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5):
-    """ Contract proving that perceived distance is relatively accurate."""
+    """ Contract asserting that perceived distance is relatively accurate."""
     globals:
         objects
         workspace
@@ -330,7 +330,7 @@ contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         # always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
 
 contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5):
-    """ Contract proving that perceived distance is relatively accurate."""
+    """ Contract asserting that perceived distance is relatively accurate."""
     globals:
         objects
         workspace
@@ -359,7 +359,7 @@ contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         # always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
 
 contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
-    """ Contract proving that perceived distance is relatively accurate inside of manufacturer spec conditions"""
+    """ Contract asserting that perceived distance is relatively accurate inside of manufacturer spec conditions"""
     globals:
         objects
         workspace
@@ -384,7 +384,7 @@ contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
         always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
 
 contract AccurateDistanceUnknownConds(perception_distance, abs_dist_err=0.5):
-    """ Contract proving that perceived distance is relatively accurate outside of manufacturer spec conditions"""
+    """ Contract asserting that perceived distance is relatively accurate outside of manufacturer spec conditions"""
     globals:
         objects
         workspace
@@ -421,7 +421,7 @@ contract MedianDistanceFilterSemantics():
         always (out_dist == min(min(max(dist1,dist2), max(dist1,dist2)), max(dist2,dist3)))
 
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
-    """ Contract proving that perceived distance is relatively accurate."""
+    """ Contract asserting that perceived distance is relatively accurate."""
     globals:
         objects
         workspace
@@ -571,7 +571,7 @@ accurate_distance_unknown = test car.ps satisfies AccurateDistanceUnknownConds(
     PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR),
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.999, batchSize=1, verbose=False),
-    terminating after 8*60*60 seconds
+    terminating after 60 seconds
 
 accurate_distance_raw = weak merge over car.ps:
     use accurate_distance_known
