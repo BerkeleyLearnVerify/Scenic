@@ -1216,7 +1216,7 @@ class Road:
             leftEdge = backwardGroup.rightEdge
         else:
             leftEdge = forwardGroup.leftEdge
-        centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
+        centerline = PolylineRegion(cleanChain(tuple(pt[:2] for pt in self.ref_line_points)))
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
