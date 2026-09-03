@@ -42,7 +42,7 @@ def test_element_tolerance(cached_maps, pytestconfig):
         top_level_region.buffer(1.5 * tol)
     )
     road = network.roads[0]
-    nearby = road.buffer(tol).difference(road)
+    nearby = road.region.buffer(tol).difference(road)
     rounds = 30 if pytestconfig.getoption("--fast") else 300
     for i in range(rounds):
         pt = None

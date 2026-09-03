@@ -36,7 +36,12 @@ from scenic.core.distributions import (
 )
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
-from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.regions import (
+    EmptyRegion,
+    PolygonalRegion,
+    PolylineRegion,
+    WrapperRegion,
+)
 from scenic.core.serialization import deterministicHash
 import scenic.core.type_support as type_support
 import scenic.core.utils as utils
@@ -209,7 +214,7 @@ class Maneuver(_ElementReferencer):
 
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
-class NetworkElement(_ElementReferencer, PolygonalRegion):
+class NetworkElement(_ElementReferencer, WrapperRegion):
     """NetworkElement()
 
     Abstract class for part of a road network.
@@ -222,9 +227,8 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
     distances to an element, etc.
     """
 
-    # from PolygonalRegion
-    polygon: Union[Polygon, MultiPolygon]
-    orientation: Optional[VectorField] = None
+    polygon: Optional[Union[Polygon, MultiPolygon]]
+    region: Union[PolygonalRegion, EmptyRegion] = None  #: The region of the element.
 
     name: str = ""  #: Human-readable name, if any.
     #: Unique identifier; from underlying format, if possible.
@@ -247,9 +251,14 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         if self.uid is None:
             self.uid = self.id
 
-        super().__init__(
-            polygon=self.polygon, orientation=self.orientation, name=self.name
-        )
+        if self.region is None:
+            if self.polygon:
+                self.region = PolygonalRegion(polygon=self.polygon)
+            else:
+                self.region = EmptyRegion
+
+        WrapperRegion.__init__(self, self.region)
+        _ElementReferencer().__init__()
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
@@ -968,7 +977,12 @@ class Network:
 
         # Build R-tree for faster lookup of roads, etc. at given points
         self._uidForIndex = tuple(self.elements)
-        self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+        self._rtree = shapely.STRtree(
+            [
+                elem.polygon if elem.polygon else shapely.empty()
+                for elem in self.elements.values()
+            ]
+        )
         self._nominalDirElems = self.intersections + self.roads + self.shoulders
         self._topLevelElements = (
             self.intersections + self.roads + self.shoulders + self.sidewalks
@@ -1364,7 +1378,7 @@ class Network:
         self.walkableRegion.show(plt, style="-", color="#00A0FF")
         self.shoulderRegion.show(plt, style="-", color="#606060")
         for road in self.roads:
-            road.show(plt, style="r-")
+            road.region.show(plt, style="r-")
             for lane in road.lanes:  # will loop only over lanes of main roads
                 lane.leftEdge.show(plt, style="r--")
                 lane.rightEdge.show(plt, style="r--")

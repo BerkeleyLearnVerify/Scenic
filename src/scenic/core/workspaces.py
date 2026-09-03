@@ -30,6 +30,9 @@ class Workspace(Region):
 
         self.region = region
 
+    def show(self, viewer):
+        self.show3D(viewer)
+
     def show3D(self, viewer):
         """Render a schematic of the workspace (in 3D) for debugging"""
         if isinstance(
