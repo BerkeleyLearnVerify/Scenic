@@ -773,10 +773,16 @@ class Road:
         last_section = None
         forwardSidewalks, backwardSidewalks = [], []
         forwardShoulders, backwardShoulders = [], []
-        for sec, pts, sec_poly, lane_polys in zip(
-            self.lane_secs, self.sec_points, self.sec_polys, self.sec_lane_polys
+        section_ends = [sec.s0 for sec in self.lane_secs[1:]] + [self.length]
+        for sec, section_end, pts, sec_poly, lane_polys in zip(
+            self.lane_secs,
+            section_ends,
+            self.sec_points,
+            self.sec_polys,
+            self.sec_lane_polys,
         ):
             pts = [pt[:2] for pt in pts]  # drop s coordinate
+            road_s_range = (sec.s0, section_end)
             assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():
@@ -809,6 +815,7 @@ class Road:
                     road=None,
                     openDriveID=id_,
                     isForward=id_ < 0,
+                    roadSRange=road_s_range,
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
@@ -823,6 +830,7 @@ class Road:
                 predecessor=last_section,
                 road=None,  # will set later
                 lanesByOpenDriveID=laneSections,
+                roadSRange=road_s_range,
             )
             roadSections.append(section)
             allElements.append(section)
@@ -1068,6 +1076,10 @@ class Road:
                         road=None,
                         sections=tuple(sections),
                         successor=successorLane,  # will correct inter-road links later
+                        roadSRange=(
+                            min(section._roadSRange[0] for section in sections),
+                            max(section._roadSRange[1] for section in sections),
+                        ),
                     )
                     nextID += 1
                     for section in sections:
@@ -1128,6 +1140,10 @@ class Road:
                 bikeLane=None,
                 shoulder=forwardShoulder,
                 opposite=None,
+                roadSRange=(
+                    min(lane._roadSRange[0] for lane in forwardLanes),
+                    max(lane._roadSRange[1] for lane in forwardLanes),
+                ),
             )
             allElements.append(forwardGroup)
         else:
@@ -1149,6 +1165,10 @@ class Road:
                 bikeLane=None,
                 shoulder=backwardShoulder,
                 opposite=forwardGroup,
+                roadSRange=(
+                    min(lane._roadSRange[0] for lane in backwardLanes),
+                    max(lane._roadSRange[1] for lane in backwardLanes),
+                ),
             )
             allElements.append(backwardGroup)
             if forwardGroup:
@@ -1159,13 +1179,32 @@ class Road:
         # Create signal
         roadSignals = []
         for i, signal_ in enumerate(self.signals):
+            validity = None if signal_.validity is None else tuple(signal_.validity)
             signal = roadDomain.Signal(
                 uid=f"signal{signal_.id_}_{self.id_}_{i}",
                 openDriveID=signal_.id_,
                 country=signal_.country,
                 type=signal_.type_,
+                subtype=signal_.subtype,
+                priorities=signal_.priorities,
+                tags=signal_.tags,
+                s=signal_.s,
+                t=signal_.t,
+                orientation=signal_.orientation,
+                validity=validity,
+                references=signal_.references,
+                sIsLogical=signal_.sIsLogical,
+                # Placeholder: physical pole coordinates are not needed for halt
+                # decisions, which use stoppingS and stoppingPositionOn instead.
+                position=None,
             )
             roadSignals.append(signal)
+
+        by_id = {str(sig.openDriveID): sig for sig in roadSignals}
+        plus_contact = self.length if self.successor is not None else None
+        minus_contact = 0.0 if self.predecessor is not None else None
+        for sig in roadSignals:
+            sig.stoppingS = sig.resolveStoppingS(by_id, plus_contact, minus_contact)
 
         # Create road
         assert forwardGroup or backwardGroup
@@ -1177,7 +1216,7 @@ class Road:
             leftEdge = backwardGroup.rightEdge
         else:
             leftEdge = forwardGroup.leftEdge
-        centerline = PolylineRegion(tuple(pt[:2] for pt in self.ref_line_points))
+        centerline = PolylineRegion(cleanChain(tuple(pt[:2] for pt in self.ref_line_points)))
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1192,6 +1231,7 @@ class Road:
             sections=roadSections,
             signals=tuple(roadSignals),
             crossings=(),  # TODO add these!
+            roadSRange=(0.0, self.length),
         )
         allElements.append(road)
 
@@ -1227,31 +1267,60 @@ class Road:
                 sec.road = road
                 del sec._original_lane
 
+        road._propagateSignals()
+
         return road, allElements
 
 
 class Signal:
     """Traffic lights, stop signs, etc."""
 
-    def __init__(self, id_, country, type_, subtype, orientation, validity=None):
+    def __init__(
+        self,
+        id_,
+        country,
+        type_,
+        subtype,
+        orientation,
+        s,
+        t,
+        validity=None,
+        priorities=(),
+        tags=(),
+        references=(),
+        sIsLogical=False,
+    ):
         self.id_ = id_
         self.country = country
         self.type_ = type_
         self.subtype = subtype
         self.orientation = orientation
+        self.s = s
+        self.t = t
         self.validity = validity
+        #: Tuple of `roadDomain.SignalPriorityType` from ``<semantics><priority>``.
+        self.priorities = tuple(priorities)
+        #: Exact OpenDRIVE 1.8+ semantic tag strings.
+        self.tags = frozenset(tags)
+        #: Tuple of `roadDomain.SignalLink` from ``<reference>``.
+        self.references = tuple(references)
+        self.sIsLogical = sIsLogical
 
     def is_valid(self):
+        """Whether ``validity`` names a real lane (not CARLA's dummy ``0–0``)."""
         return self.validity is None or self.validity != [0, 0]
 
 
 class SignalReference:
-    def __init__(self, id_, orientation, validity=None):
+    def __init__(self, id_, orientation, s, t, validity=None):
         self.id_ = id_
-        self.validity = validity
         self.orientation = orientation
+        self.s = s
+        self.t = t
+        self.validity = validity
 
     def is_valid(self):
+        """Whether ``validity`` names a real lane (not CARLA's dummy ``0–0``)."""
         return self.validity is None or self.validity != [0, 0]
 
 
@@ -1459,6 +1528,82 @@ class RoadMap:
             return None
         return [int(validity_elem.get("fromLane")), int(validity_elem.get("toLane"))]
 
+    # OpenDRIVE / CARLA country="OpenDRIVE" type codes with a known priority meaning.
+    _LEGACY_TYPE_TO_PRIORITY = {
+        "1000001": roadDomain.SignalPriorityType.TRAFFIC_LIGHT,
+        "206": roadDomain.SignalPriorityType.STOP,
+        "205": roadDomain.SignalPriorityType.YIELD,
+    }
+
+    def __warn_priority_type_disagreement(self, signal):
+        """Warn if a known legacy ``type`` conflicts with ``<priority>`` semantics."""
+        legacy = self._LEGACY_TYPE_TO_PRIORITY.get(signal.type_)
+        if legacy is not None and signal.priorities and legacy not in signal.priorities:
+            listed = ", ".join(
+                p.value if isinstance(p, roadDomain.SignalPriorityType) else p
+                for p in signal.priorities
+            )
+            warn(
+                f'signal {signal.id_} has OpenDRIVE type "{signal.type_}" '
+                f"(legacy {legacy.value}) but <priority> lists [{listed}]; "
+                f"using priorities for classification"
+            )
+
+    def __parse_signal_priorities(self, signal_elem):
+        """Parse ``<semantics><priority type="…"/>`` children (OpenDRIVE 1.8+).
+
+        Stop, yield, and traffic-light literals are mapped to broad
+        `roadDomain.SignalPriorityType` categories. Other literals are retained
+        verbatim as strings. Other semantic categories (``<speed>``, ``<lane>``,
+        …) are ignored for now.
+        """
+        semantics_elem = signal_elem.find("semantics")
+        if semantics_elem is None:
+            return ()
+        priorities = []
+        for priority_elem in semantics_elem.findall("priority"):
+            type_str = priority_elem.get("type")
+            if type_str is None:
+                warn(
+                    f'signal {signal_elem.get("id")} has <priority> without type; '
+                    "skipping it"
+                )
+                continue
+            priorities.append(roadDomain.SignalPriorityType.fromOpenDrive(type_str))
+        return tuple(priorities)
+
+    def __parse_signal_tags(self, signal_elem):
+        """Preserve exact OpenDRIVE 1.8+ priority semantics as signal tags."""
+        semantics_elem = signal_elem.find("semantics")
+        if semantics_elem is None:
+            return frozenset()
+        return frozenset(
+            type_str
+            for priority_elem in semantics_elem.findall("priority")
+            if (type_str := priority_elem.get("type")) is not None
+        )
+
+    def __parse_signal_links(self, signal_elem):
+        """Parse ``<reference>`` children (light → stop line, etc.)."""
+        links = []
+        for ref in signal_elem.findall("reference"):
+            element_id = ref.get("elementId")
+            element_type = ref.get("elementType")
+            if not element_id or not element_type:
+                warn(
+                    f'signal {signal_elem.get("id")} has <reference> '
+                    "without elementId or elementType; skipping it"
+                )
+                continue
+            links.append(
+                roadDomain.SignalLink(
+                    elementId=element_id,
+                    elementType=element_type,
+                    type=ref.get("type"),
+                )
+            )
+        return tuple(links)
+
     def __parse_signal(self, signal_elem):
         return Signal(
             signal_elem.get("id"),
@@ -1466,13 +1611,25 @@ class RoadMap:
             signal_elem.get("type"),
             signal_elem.get("subtype"),
             signal_elem.get("orientation"),
+            float(signal_elem.get("s")),
+            float(signal_elem.get("t")),
+            # other required fields not parsed:
+            # dynamic   signal_elem.get("dynamic"),
+            # zOffset   signal_elem.get("zOffset"),
             self.__parse_signal_validity(signal_elem.find("validity")),
+            self.__parse_signal_priorities(signal_elem),
+            self.__parse_signal_tags(signal_elem),
+            self.__parse_signal_links(signal_elem),
+            signal_elem.find("positionRoad") is not None
+            or signal_elem.find("positionInertial") is not None,
         )
 
     def __parse_signal_reference(self, signal_reference_elem):
         return SignalReference(
             signal_reference_elem.get("id"),
             signal_reference_elem.get("orientation"),
+            float(signal_reference_elem.get("s")),
+            float(signal_reference_elem.get("t")),
             self.__parse_signal_validity(signal_reference_elem.find("validity")),
         )
 
@@ -1676,22 +1833,30 @@ class RoadMap:
             if signals is not None:
                 for signal_elem in signals.iter("signal"):
                     signal = self.__parse_signal(signal_elem)
-                    if signal.is_valid():
-                        road.signals.append(signal)
+                    # Do not drop CARLA dummy validity [0, 0]. Those are real
+                    # lights; maneuver matching still ignores a 0-0 range.
+                    self.__warn_priority_type_disagreement(signal)
+                    road.signals.append(signal)
 
                 for signal_ref_elem in signals.iter("signalReference"):
                     signalReference = self.__parse_signal_reference(signal_ref_elem)
-                    if signalReference.is_valid():
-                        referencedSignal = _temp_signals[signalReference.id_]
-                        signal = Signal(
-                            referencedSignal.id_,
-                            referencedSignal.country,
-                            referencedSignal.type_,
-                            referencedSignal.subtype,
-                            signalReference.orientation,
-                            signalReference.validity,
-                        )
-                        road.signals.append(signal)
+                    referencedSignal = _temp_signals[signalReference.id_]
+                    # Semantics come from the canonical <signal>; placement
+                    # (s/t/orientation/validity) is this road's <signalReference>.
+                    signal = Signal(
+                        referencedSignal.id_,
+                        referencedSignal.country,
+                        referencedSignal.type_,
+                        referencedSignal.subtype,
+                        signalReference.orientation,
+                        signalReference.s,
+                        signalReference.t,
+                        signalReference.validity,
+                        referencedSignal.priorities,
+                        referencedSignal.tags,
+                        referencedSignal.references,
+                    )
+                    road.signals.append(signal)
 
             if len(road.lane_secs) > 1:
                 popLastSectionIfShort(road.length - s)
