@@ -333,6 +333,13 @@ class LinearElement(NetworkElement):
 
     # Links to next/previous element
 
+    # for roads and lanes etc, when you reach the end, there are 
+    # differnt connecting lanes you can go to
+    # successor - the whole intersection
+    # successors (new) - tuple of things of the same type (lanes, if 
+    # one lane goes into 3 lanes)
+    # predecessors is the reverse
+
     # TO-DO: multiple successors and predecessors are allowed, and can be accessed by index
     # TO-DO: fix successor and predecessor for sidewalk stuff 
     # scenic notion is diff from opendrive. predecessor linked to next/prev element, 
@@ -979,15 +986,6 @@ class Intersection(NetworkElement):
         return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 
-@attr.s(auto_attribs=True, frozen=True)
-class SignalLink:
-    """OpenDRIVE semantic link from a signal to another map element."""
-
-    elementId: str
-    elementType: str
-    type: Optional[str] = None
-
-
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
     """Traffic lights, stop signs, etc.
@@ -1011,10 +1009,7 @@ class Signal:
     priorities: Tuple[Union[SignalPriorityType, str], ...] = ()
     #: Exact OpenDRIVE 1.8+ semantic tag strings.
     tags: FrozenSet[str] = frozenset()
-    #: OpenDRIVE semantic links to stop lines or other map elements.
-    references: Tuple[SignalLink, ...] = ()
-    #: Longitudinal s-coordinate along the road reference line (OpenDRIVE ``s``).
-    #: Physical pole location in 1.8+; logical effect station if `sIsLogical`.
+    #: Longitudinal station along the parent road used for halt decisions.
     s: Optional[float] = None
     #: Lateral t-coordinate from the reference line (OpenDRIVE ``t``; +t = left).
     t: Optional[float] = None
@@ -1022,9 +1017,6 @@ class Signal:
     orientation: Optional[str] = None
     #: OpenDRIVE ``<validity>`` lane range ``(fromLane, toLane)``, if any.
     validity: Optional[Tuple[int, int]] = None
-    #: True when deprecated ``<positionRoad>`` / ``<positionInertial>`` is present,
-    #: so `s` is the logical effect station rather than the pole.
-    sIsLogical: bool = False
     #: Station along the parent road where an ego should halt for this signal.
     #: May differ from `s` (e.g. a traffic light's pole vs its stop line).
     #: ``None`` if we cannot derive one (typical for a connector-only light).
@@ -1079,13 +1071,9 @@ class Signal:
 
             validity_hits_lane = validity_hits(lane)
             if not validity_hits_lane:
-                road = lane.road
-                if road is not None:
-                    validity_is_dummy = not any(
-                        validity_hits(other) for other in road.lanes
-                    )
-                else:
-                    validity_is_dummy = lo == 0 and hi == 0
+                validity_is_dummy = not any(
+                    validity_hits(other) for other in lane.road.lanes
+                )
             if not validity_is_dummy and not validity_hits_lane:
                 return False
         if validity_is_dummy:
@@ -1104,23 +1092,13 @@ class Signal:
     def _isHaltLocation(self) -> bool:
         return self.isStop or self.isYield
 
-    def resolveStoppingS(self, by_id, plus_contact, minus_contact):
-        """Pick the halt station from references, logical ``s``, or junction contact.
+    def resolveStoppingS(self, plus_contact, minus_contact):
+        """Pick the halt station from this signal's ``s`` or a junction contact.
 
-        ``by_id`` maps OpenDRIVE signal id → `Signal` on the same road.
         ``plus_contact`` / ``minus_contact`` are that road's junction stations
         for +s / −s travel, or ``None`` if that end is not a junction.
         """
-        for link in self.references:
-            if link.elementType != "signal":
-                continue
-            target = by_id.get(link.elementId)
-            if target is None:
-                continue
-            kind = (link.type or "").replace("_", "").lower()
-            if kind == "stopline" or target._isHaltLocation():
-                return target.s
-        if self.sIsLogical or self._isHaltLocation():
+        if self._isHaltLocation():
             return self.s
         if self.isTrafficLight:
             candidates = [
@@ -1142,23 +1120,20 @@ class Signal:
         return None
 
     def _lane_arrives_at_halt(self, lane: Lane) -> bool:
-        """Whether ``lane`` is still traveling into a junction-contact halt."""
+        """Whether ``lane`` is still traveling toward `stoppingS`.
+
+        A mid-road halt applies to every lane that `affects` already accepted.
+        A halt at a road end (``0`` or the reference-line length) is treated as
+        a junction contact: only the direction still arriving at that end is
+        kept, not the lane that has already left through the junction.
+        """
         road = lane.road
-        if road is None or self.stoppingS is None:
-            return True
-        if not self.isTrafficLight or self.sIsLogical or self._isHaltLocation():
-            return True
-        for link in self.references:
-            if link.elementType == "signal":
-                kind = (link.type or "").replace("_", "").lower()
-                if kind == "stopline":
-                    return True
         length = road.centerline.length
         s = self.stoppingS
         if abs(s) > 1e-4 and abs(s - length) > 1e-4:
             return True
         is_forward = any(sec.isForward for sec in lane.sections)
-        at_start = abs(self.stoppingS) <= 1e-4
+        at_start = abs(s) <= 1e-4
         return (not is_forward) if at_start else is_forward
 
     def stoppingPositionOn(self, lane: Lane) -> Optional[Tuple[float, float]]:
@@ -1174,13 +1149,11 @@ class Signal:
         if self.stoppingS is None or not self.affects(lane):
             return None
         road = lane.road
-        if road is None or self not in road.signals:
+        if self not in road.signals:
             return None
         if not self._lane_arrives_at_halt(lane):
             return None
         length = road.centerline.length
-        if length == 0:
-            return None
         s = min(max(self.stoppingS, 0.0), length)
         reference_point = road.centerline.pointAlongBy(s)
         lane_point = lane.centerline.project(reference_point)
