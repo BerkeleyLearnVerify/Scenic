@@ -47,6 +47,7 @@ class GenesisMeshObject(GenesisObject):
             scale=(self.width, self.length, self.height),
             fixed=self.fixed,
             collision=self.collision,
+            batch_fixed_verts=True,
         )
 
 class PandaRobotArm(GenesisObject):
@@ -67,6 +68,7 @@ class PandaRobotArm(GenesisObject):
         # MJCF files define their own physics properties - no need for 'fixed' parameter
         return gs.morphs.MJCF(
             file=self.robot_file,
+            batch_fixed_verts=True,
         )
 
 # Set up global parameters with defaults

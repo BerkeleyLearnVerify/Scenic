@@ -26,7 +26,8 @@ class ScenicGymEnv(gym.Env):
                  observation_space : spaces.Dict = spaces.Dict(),
                  action_space : spaces.Dict = spaces.Dict(),
                  record_scenic_sim_results : bool = True,
-                 feedback_fn : callable = lambda x: x): # empty string means just pure scenic???
+                 feedback_fn : callable = lambda x: x,
+                 batch_size=0): # empty string means just pure scenic???
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
@@ -47,11 +48,17 @@ class ScenicGymEnv(gym.Env):
         self.get_info = get_info
         self.get_reward = get_reward
 
-    def _make_run_loop(self):
+        assert batch_size >= 0
+        self.batch_size = batch_size
 
+    def _make_run_loop(self):
         while True:
             try:
-                scene, _ = self.scenario.generate(feedback=self.feedback_result)
+                if self.batch_size == 0:
+                    scene, _ = self.scenario.generate(feedback=self.feedback_result)
+                else:
+                    scene, _ = self.scenario.generateBatch(self.batch_size)
+
                 with self.simulator.simulateStepped(scene, maxSteps=self.max_steps) as simulation:
                     steps_taken = 0
                     # this first block before the while loop is for the first reset call
@@ -81,7 +88,7 @@ class ScenicGymEnv(gym.Env):
 
                         actions = yield observation, reward, done(), done(), info
                         simulation.actions = actions # TODO add action dict to simulation interfaces
-                        
+   
             except ResetException:
                 continue
 

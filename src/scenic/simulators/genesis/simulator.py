@@ -1,6 +1,7 @@
 """Simulator interface for Genesis."""
 
 import genesis as gs
+import collections
 import torch
 import ast
 from scenic.core.simulators import Simulator, Simulation
@@ -12,12 +13,13 @@ import scenic.core.dynamics as dynamics
 import tempfile
 
 class GenesisSimulator(Simulator):
-    def __init__(self, *, genesis_options):
+    def __init__(self, *, timestep=0.01, genesis_options):
         super().__init__()
+        self.timestep = timestep
         self.genesis_options = genesis_options
         
-    def createSimulation(self, scene, timestep, **kwargs):
-        return GenesisSimulation(scene, timestep=timestep, genesis_options=self.genesis_options, **kwargs)
+    def createSimulation(self, scenes, timestep, **kwargs):
+        return GenesisSimulation(scenes, timestep=timestep if timestep else self.timestep, genesis_options=self.genesis_options, **kwargs)
 
     def simulateFromScenario(
         self,
@@ -70,23 +72,17 @@ class GenesisSimulation(Simulation):
         genesis_options,
         **kwargs):
 
-        timestep = 0.01 if timestep is None else timestep
-        self.genesis_options = genesis_options
+        assert isinstance(scene, collections.abc.Sequence)
+        self.batched_scenes = tuple(scene)
 
-        # Optional batched initial scenes provided by simulator override
-        if "batched_scenes" in kwargs:
-            self.batched_scenes = kwargs['batched_initial_scenes']
-        else:
-            self.batched_scenes = [scene]
-        
-        # Initialize agents list before calling parent constructor
-        self.agents = []
+        self.genesis_options = genesis_options
+        self.actions = None
 
         # Create temporary directory for storing meshes
         self.tmpMeshDir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
 
         # Call parent constructor
-        super().__init__(scene, timestep=timestep, **kwargs)
+        super().__init__(scene[0], timestep=timestep, **kwargs)
 
     def setup(self):
         init_options = {k: v for k, v in self.genesis_options.items() 
@@ -99,7 +95,6 @@ class GenesisSimulation(Simulation):
             gs.init(**init_options)
 
         # Batch-related options
-        batch_size = 1
         env_spacing = scene_options.get('env_spacing', (5.0, 5.0))
         # Create Genesis scene with proper physics settings
         self.gs_scene = gs.Scene(
@@ -120,12 +115,15 @@ class GenesisSimulation(Simulation):
             show_viewer=scene_options['show_viewer']
         )
 
-        # Call parent setup to create objects (creates entities)
+        # Call parent setup
         super().setup()
 
         # Build the Genesis scene after all objects are added
-        assert batch_size > 0
-        self.gs_scene.build(n_envs=batch_size, env_spacing=env_spacing)
+        self.gs_scene.build(n_envs=len(self.batched_scenes), env_spacing=env_spacing)
+
+        for obj in self.objects:
+            if hasattr(obj, "genesisStartDynamicSimulation"):
+                obj.genesisStartDynamicSimulation() 
 
         # Apply Scenic initial states to each of the Genesis envs
         for obj_index, obj in enumerate(self.scene.objects):
@@ -141,8 +139,7 @@ class GenesisSimulation(Simulation):
     def destroy(self):
         self.tmpMeshDir.cleanup()
         return super().destroy()
-    
-    # TODO: raise exception if called after scene has been built  
+
     def createObjectInSimulator(self, obj):
         # Create Genesis morph using the object's makeMorph method
         morph = obj.makeMorph()
@@ -173,63 +170,25 @@ class GenesisSimulation(Simulation):
         obj.genesis_entity = entity
 
     def step(self):
+        self.executeGymAction()
         self.gs_scene.step()
 
+    def executeGymAction(self):
+        # TODO: Add support for actions on all objects
+        assert self.actions.shape[0] == 1 and self.actions.shape[1] == len(self.batched_scenes)
+        self.objects[0].executeActions(self.actions[0])
+
     def getProperties(self, obj, properties):
-        entity = obj.genesis_entity
-
-        # Get current position (base link position)
-        if any(prop in properties for prop in ['position', 'elevation']):
-            pos_tensor = entity.get_pos()
-            # Convert to numpy and extract first environment if multi-env
-            pos_array = pos_tensor.detach().cpu().numpy()
-            if pos_array.ndim > 1:
-                pos_array = pos_array[0]
-            position = Vector(float(pos_array[0]), float(pos_array[1]), float(pos_array[2]))
-
-        # Get current velocity
-        if any(prop in properties for prop in ['velocity', 'speed']):
-            vel_tensor = entity.get_vel()
-            vel_array = vel_tensor.detach().cpu().numpy()
-            if vel_array.ndim > 1:
-                vel_array = vel_array[0]
-            velocity = Vector(float(vel_array[0]), float(vel_array[1]), float(vel_array[2]))
-            speed = float(velocity.norm())
-        
-        # Get current angular velocity
-        if any(prop in properties for prop in ['angularVelocity', 'angularSpeed']):
-            ang_tensor = entity.get_ang()
-            ang_array = ang_tensor.detach().cpu().numpy()
-            if ang_array.ndim > 1:
-                ang_array = ang_array[0]
-            angularVelocity = Vector(float(ang_array[0]), float(ang_array[1]), float(ang_array[2]))
-            angularSpeed = float(angularVelocity.norm())
- 
-        # Get current orientation (quaternion -> Euler angles)
-        if any(prop in properties for prop in ['yaw', 'pitch', 'roll']):
-            quat_tensor = entity.get_quat()
-            quat_array = quat_tensor.detach().cpu().numpy()
-            if quat_array.ndim > 1:
-                quat_array = quat_array[0]
-            
-            # Genesis quaternion format: [w, x, y, z]
-            w, x, y, z = float(quat_array[0]), float(quat_array[1]), float(quat_array[2]), float(quat_array[3])
-            
-            # Convert to Euler angles (in radians)
-            import math
-            yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
-            pitch = math.asin(max(-1.0, min(1.0, 2.0 * (w * y - z * x))))
-            roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
-
+        # TODO: Remove loop in updateObjects
         values = {
-            "position": position,
-            "velocity": velocity,
-            "speed": speed,
-            "angularVelocity": angularVelocity,
-            "angularSpeed": angularSpeed,
-            "yaw": yaw,
-            "pitch": pitch,
-            "roll": roll,
+            "position": obj.position,
+            "velocity": obj.velocity,
+            "speed": obj.speed,
+            "angularVelocity": obj.angularVelocity,
+            "angularSpeed": obj.angularSpeed,
+            "yaw": obj.yaw,
+            "pitch": obj.pitch,
+            "roll": obj.roll,
         }
 
         return values
