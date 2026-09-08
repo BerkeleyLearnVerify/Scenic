@@ -1286,8 +1286,6 @@ class Signal:
         validity=None,
         priorities=(),
         tags=(),
-        references=(),
-        sIsLogical=False,
     ):
         self.id_ = id_
         self.country = country
@@ -1301,9 +1299,6 @@ class Signal:
         self.priorities = tuple(priorities)
         #: Exact OpenDRIVE 1.8+ semantic tag strings.
         self.tags = frozenset(tags)
-        #: Tuple of `roadDomain.SignalLink` from ``<reference>``.
-        self.references = tuple(references)
-        self.sIsLogical = sIsLogical
 
     def is_valid(self):
         """Whether ``validity`` names a real lane (not CARLA's dummy ``0–0``)."""
@@ -1582,27 +1577,6 @@ class RoadMap:
             if (type_str := priority_elem.get("type")) is not None
         )
 
-    def __parse_signal_links(self, signal_elem):
-        """Parse ``<reference>`` children (light → stop line, etc.)."""
-        links = []
-        for ref in signal_elem.findall("reference"):
-            element_id = ref.get("elementId")
-            element_type = ref.get("elementType")
-            if not element_id or not element_type:
-                warn(
-                    f'signal {signal_elem.get("id")} has <reference> '
-                    "without elementId or elementType; skipping it"
-                )
-                continue
-            links.append(
-                roadDomain.SignalLink(
-                    elementId=element_id,
-                    elementType=element_type,
-                    type=ref.get("type"),
-                )
-            )
-        return tuple(links)
-
     def __parse_signal(self, signal_elem):
         return Signal(
             signal_elem.get("id"),
@@ -1618,9 +1592,6 @@ class RoadMap:
             self.__parse_signal_validity(signal_elem.find("validity")),
             self.__parse_signal_priorities(signal_elem),
             self.__parse_signal_tags(signal_elem),
-            self.__parse_signal_links(signal_elem),
-            signal_elem.find("positionRoad") is not None
-            or signal_elem.find("positionInertial") is not None,
         )
 
     def __parse_signal_reference(self, signal_reference_elem):
@@ -1853,7 +1824,6 @@ class RoadMap:
                         signalReference.validity,
                         referencedSignal.priorities,
                         referencedSignal.tags,
-                        referencedSignal.references,
                     )
                     road.signals.append(signal)
 
