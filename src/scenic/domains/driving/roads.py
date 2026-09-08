@@ -331,8 +331,6 @@ class LinearElement(NetworkElement):
     leftEdge: PolylineRegion
     rightEdge: PolylineRegion
 
-    # Links to next/previous element
-
     # for roads and lanes etc, when you reach the end, there are 
     # differnt connecting lanes you can go to
     # successor - the whole intersection
@@ -347,8 +345,13 @@ class LinearElement(NetworkElement):
     # reference line is not exactly the same with traffic
     # sucessors wil incyde connecting roads and lanes etc, roads to roads, lanes to lanes, etc
     # tuple of other linear elements of the same type
+
+    # Links to next/previous element
     _successor: Union[NetworkElement, None] = None  # going forward (what are all the possible next elements you can end up in when you are at the end of this one)
     _predecessor: Union[NetworkElement, None] = None  # going backward
+
+    _successors: Tuple[LinearElement, ...] = ()
+    _predecessors: Tuple[LinearElement, ...] = ()
 
     @property
     def successor(self):
@@ -357,6 +360,28 @@ class LinearElement(NetworkElement):
     @property
     def predecessor(self):
         return _rejectIfNonexistent(self._predecessor, "predecessor")
+
+    @property
+    def successors(self) -> Tuple[LinearElement, ...]:
+        return self._successors
+
+    @property
+    def predecessors(self) -> Tuple[LinearElement, ...]:
+        return self._predecessors
+
+    def _addSuccessor(self, element):
+        if element is None or type(element) is not type(self):
+            return
+        if element in self._successors:
+            return
+        self._successors += (element,)
+
+    def _addPredecessor(self, element):
+        if element is None or type(element) is not type(self):
+            return
+        if element in self._predecessors:
+            return
+        self._predecessors += (element,)
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -1026,6 +1051,10 @@ class Signal:
     position: Optional[Vector] = None
     #: Maneuvers that require this signal to be green (empty if unknown).
     controlledManeuvers: Tuple[Maneuver, ...] = ()
+    #: Incoming or hosting road this signal belongs to.
+    road: Optional[Tuple[Road, ...]] = None
+    #: Junction this signal controls, if any.
+    intersection: Optional[Intersection] = None
 
     @property
     def country(self) -> str:

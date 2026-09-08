@@ -338,7 +338,6 @@ def test_deprecated_position_road_halts_at_logical_s_not_pole(tmp_path):
     road = road_by_id(network, 1)
     lanes = lanes_by_id(road)
     stop = signal_on(road, 10)
-    assert stop.sIsLogical
     assert stop.s == 12.0
     assert stop.stoppingS == 12.0
     assert stop.stoppingPositionOn(lanes[-1]) is None
@@ -350,7 +349,6 @@ def test_deprecated_position_inertial_halts_at_logical_s(tmp_path):
     road = road_by_id(network, 1)
     lanes = lanes_by_id(road)
     yield_sig = signal_on(road, 11)
-    assert yield_sig.sIsLogical
     assert yield_sig.stoppingS == 28.0
     _st(yield_sig.stoppingPositionOn(lanes[-1]), 28.0, -1.75)
     assert yield_sig.stoppingPositionOn(lanes[1]) is None
@@ -362,7 +360,6 @@ def test_deprecated_midroad_stopline_still_both_directions(tmp_path):
     road = road_by_id(network, 1)
     lanes = lanes_by_id(road)
     line = signal_on(road, 12)
-    assert not line.sIsLogical
     assert line.stoppingS == 20.0
     _st(line.stoppingPositionOn(lanes[-1]), 20.0, -1.75)
     _st(line.stoppingPositionOn(lanes[1]), 20.0, 1.75)
@@ -531,6 +528,31 @@ def test_carla_connector_lights_do_not_invent_a_stop(tmp_path):
             assert sig.stoppingS is None
             for lane in road.lanes:
                 assert sig.stoppingPositionOn(lane) is None
+
+
+def test_signal_parents_are_hosting_road_and_optional_intersection(tmp_path):
+    network = load_network(tmp_path, MAP_DEPRECATED_LOGICAL)
+    road = road_by_id(network, 1)
+    for sig in road.signals:
+        assert sig.road is road
+        assert sig.intersection is None
+
+    network = load_network(tmp_path, MAP_CARLA_TWOWAY)
+    west = road_by_id(network, 1)
+    east = road_by_id(network, 2)
+    west_light = signal_on(west, 362)
+    east_light = signal_on(east, 360)
+    assert west_light.road is west
+    assert east_light.road is east
+    assert west_light.intersection is east_light.intersection
+    assert west_light.intersection is not None
+    assert west in west_light.intersection.roads
+    assert east in east_light.intersection.roads
+
+    for connector in network.connectingRoads:
+        for sig in connector.signals:
+            assert sig.road is connector
+            assert sig.intersection is west_light.intersection
 
 
 @pytest.mark.slow

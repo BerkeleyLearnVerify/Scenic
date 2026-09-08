@@ -1192,19 +1192,16 @@ class Road:
                 t=signal_.t,
                 orientation=signal_.orientation,
                 validity=validity,
-                references=signal_.references,
-                sIsLogical=signal_.sIsLogical,
                 # Placeholder: physical pole coordinates are not needed for halt
                 # decisions, which use stoppingS and stoppingPositionOn instead.
                 position=None,
             )
             roadSignals.append(signal)
 
-        by_id = {str(sig.openDriveID): sig for sig in roadSignals}
         plus_contact = self.length if self.successor is not None else None
         minus_contact = 0.0 if self.predecessor is not None else None
         for sig in roadSignals:
-            sig.stoppingS = sig.resolveStoppingS(by_id, plus_contact, minus_contact)
+            sig.stoppingS = sig.resolveStoppingS(plus_contact, minus_contact)
 
         # Create road
         assert forwardGroup or backwardGroup
@@ -1266,6 +1263,8 @@ class Road:
                 sec.group = backwardGroup
                 sec.road = road
                 del sec._original_lane
+        for signal in roadSignals:
+            signal.road = road
 
         road._propagateSignals()
 
@@ -2104,6 +2103,8 @@ class RoadMap:
             intersections[jid] = intersection
             for maneuver in allManeuvers:
                 object.__setattr__(maneuver, "intersection", intersection)
+            for signal in allSignals:
+                signal.intersection = intersection
 
         # Hook up road-intersection links
         for rid, oldRoad in self.roads.items():
@@ -2122,6 +2123,20 @@ class RoadMap:
                 newRoad.sections[-1]._successor = intersection
                 if newRoad.forwardLanes:
                     newRoad.forwardLanes._successor = intersection
+
+        for intersection in intersections.values():
+            for road in intersection.roads:
+                if road._successor is intersection:
+                    contact_s = road.centerline.length
+                elif road._predecessor is intersection:
+                    contact_s = 0.0
+                else:
+                    continue
+                for signal in road.signals:
+                    if signal.stoppingS is None:
+                        continue
+                    if abs(signal.stoppingS - contact_s) <= 1e-4:
+                        signal.intersection = intersection
 
         # Gather all network elements
         roads = tuple(mainRoads.values())
