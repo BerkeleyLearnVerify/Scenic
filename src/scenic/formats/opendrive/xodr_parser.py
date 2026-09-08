@@ -1293,7 +1293,7 @@ class Signal:
         self.orientation = orientation
         self.s = s
         self.t = t
-        #: Tuple of `roadDomain.SignalPriorityType` from ``<semantics><priority>``.
+        #: Tuple of `scenic.domains.driving.roads.SignalPriorityType` from ``<semantics><priority>``.
         self.priorities = tuple(priorities)
         #: Exact OpenDRIVE 1.8+ semantic tag strings.
         self.tags = frozenset(tags)
@@ -1531,7 +1531,7 @@ class RoadMap:
         """Parse ``<semantics><priority type="…"/>`` children (OpenDRIVE 1.8+).
 
         Stop, yield, and traffic-light literals are mapped to broad
-        `roadDomain.SignalPriorityType` categories. Other literals are retained
+        `scenic.domains.driving.roads.SignalPriorityType` categories. Other literals are retained
         verbatim as strings. Other semantic categories (``<speed>``, ``<lane>``,
         …) are ignored for now.
         """
