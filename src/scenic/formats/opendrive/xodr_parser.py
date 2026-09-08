@@ -1179,7 +1179,6 @@ class Road:
         # Create signal
         roadSignals = []
         for i, signal_ in enumerate(self.signals):
-            validity = None if signal_.validity is None else tuple(signal_.validity)
             signal = roadDomain.Signal(
                 uid=f"signal{signal_.id_}_{self.id_}_{i}",
                 openDriveID=signal_.id_,
@@ -1191,7 +1190,6 @@ class Road:
                 s=signal_.s,
                 t=signal_.t,
                 orientation=signal_.orientation,
-                validity=validity,
                 # Placeholder: physical pole coordinates are not needed for halt
                 # decisions, which use stoppingS and stoppingPositionOn instead.
                 position=None,
@@ -1283,7 +1281,6 @@ class Signal:
         orientation,
         s,
         t,
-        validity=None,
         priorities=(),
         tags=(),
     ):
@@ -1294,28 +1291,18 @@ class Signal:
         self.orientation = orientation
         self.s = s
         self.t = t
-        self.validity = validity
         #: Tuple of `roadDomain.SignalPriorityType` from ``<semantics><priority>``.
         self.priorities = tuple(priorities)
         #: Exact OpenDRIVE 1.8+ semantic tag strings.
         self.tags = frozenset(tags)
 
-    def is_valid(self):
-        """Whether ``validity`` names a real lane (not CARLA's dummy ``0–0``)."""
-        return self.validity is None or self.validity != [0, 0]
-
 
 class SignalReference:
-    def __init__(self, id_, orientation, s, t, validity=None):
+    def __init__(self, id_, orientation, s, t):
         self.id_ = id_
         self.orientation = orientation
         self.s = s
         self.t = t
-        self.validity = validity
-
-    def is_valid(self):
-        """Whether ``validity`` names a real lane (not CARLA's dummy ``0–0``)."""
-        return self.validity is None or self.validity != [0, 0]
 
 
 class RoadMap:
@@ -1517,11 +1504,6 @@ class RoadMap:
                         RoadLink(road_id, c.connecting_id, contact, c.connecting_contact)
                     )
 
-    def __parse_signal_validity(self, validity_elem):
-        if validity_elem is None:
-            return None
-        return [int(validity_elem.get("fromLane")), int(validity_elem.get("toLane"))]
-
     # OpenDRIVE / CARLA country="OpenDRIVE" type codes with a known priority meaning.
     _LEGACY_TYPE_TO_PRIORITY = {
         "1000001": roadDomain.SignalPriorityType.TRAFFIC_LIGHT,
@@ -1589,7 +1571,6 @@ class RoadMap:
             # other required fields not parsed:
             # dynamic   signal_elem.get("dynamic"),
             # zOffset   signal_elem.get("zOffset"),
-            self.__parse_signal_validity(signal_elem.find("validity")),
             self.__parse_signal_priorities(signal_elem),
             self.__parse_signal_tags(signal_elem),
         )
@@ -1600,7 +1581,6 @@ class RoadMap:
             signal_reference_elem.get("orientation"),
             float(signal_reference_elem.get("s")),
             float(signal_reference_elem.get("t")),
-            self.__parse_signal_validity(signal_reference_elem.find("validity")),
         )
 
     def parse(self, path):
@@ -1803,8 +1783,6 @@ class RoadMap:
             if signals is not None:
                 for signal_elem in signals.iter("signal"):
                     signal = self.__parse_signal(signal_elem)
-                    # Do not drop CARLA dummy validity [0, 0]. Those are real
-                    # lights; maneuver matching still ignores a 0-0 range.
                     self.__warn_priority_type_disagreement(signal)
                     road.signals.append(signal)
 
@@ -1812,7 +1790,7 @@ class RoadMap:
                     signalReference = self.__parse_signal_reference(signal_ref_elem)
                     referencedSignal = _temp_signals[signalReference.id_]
                     # Semantics come from the canonical <signal>; placement
-                    # (s/t/orientation/validity) is this road's <signalReference>.
+                    # (s/t/orientation) is this road's <signalReference>.
                     signal = Signal(
                         referencedSignal.id_,
                         referencedSignal.country,
@@ -1821,7 +1799,6 @@ class RoadMap:
                         signalReference.orientation,
                         signalReference.s,
                         signalReference.t,
-                        signalReference.validity,
                         referencedSignal.priorities,
                         referencedSignal.tags,
                     )

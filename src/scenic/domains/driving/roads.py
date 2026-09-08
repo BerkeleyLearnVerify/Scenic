@@ -1040,8 +1040,6 @@ class Signal:
     t: Optional[float] = None
     #: OpenDRIVE signal orientation: ``"+"``, ``"-"``, or ``"none"``.
     orientation: Optional[str] = None
-    #: OpenDRIVE ``<validity>`` lane range ``(fromLane, toLane)``, if any.
-    validity: Optional[Tuple[int, int]] = None
     #: Station along the parent road where an ego should halt for this signal.
     #: May differ from `s` (e.g. a traffic light's pole vs its stop line).
     #: ``None`` if we cannot derive one (typical for a connector-only light).
@@ -1085,29 +1083,12 @@ class Signal:
     def affects(self, lane: Lane) -> bool:
         """Whether this signal applies to ``lane``.
 
-        Uses OpenDRIVE ``validity`` when present, then ``orientation`` against
-        whether the lane travels with the road (+s). A validity range that
-        matches no driving lane (CARLA's ``0–0``) is ignored; those files
-        encode lamp facing, so a junction-contact light then applies only to
-        the arriving side, not the road you turn into.
+        A halt at a road end is treated as a junction contact: only the
+        arriving direction is kept, because device orientation is often lamp
+        facing rather than traffic. Otherwise ``orientation`` is compared to
+        whether the lane travels with the road (+s).
         """
-        validity_is_dummy = False
-        if self.validity is not None:
-            lo, hi = min(self.validity), max(self.validity)
-
-            def validity_hits(candidate):
-                return any(lo <= sec.openDriveID <= hi for sec in candidate.sections)
-
-            validity_hits_lane = validity_hits(lane)
-            if not validity_hits_lane:
-                validity_is_dummy = not any(
-                    validity_hits(other) for other in lane.road.lanes
-                )
-            if not validity_is_dummy and not validity_hits_lane:
-                return False
-        if validity_is_dummy:
-            # CARLA 0–0 is not a lane range; orientation is lamp facing.
-            # Junction-contact lights still only apply to the arriving side.
+        if self._halts_at_road_end(lane.road):
             return self._lane_arrives_at_halt(lane)
         if self.orientation in (None, "none"):
             return True
@@ -1117,6 +1098,13 @@ class Signal:
         if self.orientation == "-":
             return not is_forward
         return True
+
+    def _halts_at_road_end(self, road: Optional[Road]) -> bool:
+        if road is None or self.stoppingS is None:
+            return False
+        length = road.centerline.length
+        s = self.stoppingS
+        return abs(s) <= 1e-4 or abs(s - length) <= 1e-4
 
     def _isHaltLocation(self) -> bool:
         return self.isStop or self.isYield
@@ -1157,9 +1145,8 @@ class Signal:
         kept, not the lane that has already left through the junction.
         """
         road = lane.road
-        length = road.centerline.length
         s = self.stoppingS
-        if abs(s) > 1e-4 and abs(s - length) > 1e-4:
+        if not self._halts_at_road_end(road):
             return True
         is_forward = any(sec.isForward for sec in lane.sections)
         at_start = abs(s) <= 1e-4

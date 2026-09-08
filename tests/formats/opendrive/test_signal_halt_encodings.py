@@ -1,7 +1,9 @@
-"""Halt-point encodings: deprecated logical-s, signalReference, and CARLA dummy validity.
+"""Halt-point encodings: deprecated logical-s, signalReference, and CARLA maps.
 
 Junction-contact traffic lights must stop only the arriving direction. The lane
 you turn into at the far side of a green light must not inherit a halt at s=0.
+OpenDRIVE ``<validity>`` is ignored: CARLA's dummy 0–0 range is lamp facing,
+not a lane filter, so arrival at the halt station is used instead.
 """
 
 from pathlib import Path
@@ -475,7 +477,6 @@ def test_carla_dummy_signal_reference_on_exit(tmp_path):
     east = road_by_id(network, 2)
     lanes = lanes_by_id(east)
     clone = signal_on(east, 201)
-    assert clone.validity == (0, 0)
     assert clone.orientation == "+"  # lamp facing; would wrongly pick the exit
     _st(clone.stoppingPositionOn(lanes[1]), 0.0, 1.75)
     assert clone.stoppingPositionOn(lanes[-1]) is None
@@ -494,8 +495,6 @@ def test_carla_twoway_arriving_side_halts_leaving_side_does_not(tmp_path):
     west_light = signal_on(west, 362)
     east_light = signal_on(east, 360)
 
-    assert west_light.validity == (0, 0)
-    assert east_light.validity == (0, 0)
     assert west_light.stoppingS == 20.0
     assert east_light.stoppingS == 0.0
 
