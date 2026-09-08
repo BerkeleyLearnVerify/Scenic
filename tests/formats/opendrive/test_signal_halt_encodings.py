@@ -2,8 +2,6 @@
 
 Junction-contact traffic lights must stop only the arriving direction. The lane
 you turn into at the far side of a green light must not inherit a halt at s=0.
-OpenDRIVE ``<validity>`` is ignored: CARLA's dummy 0–0 range is lamp facing,
-not a lane filter, so arrival at the halt station is used instead.
 """
 
 from pathlib import Path
@@ -233,6 +231,48 @@ MAP_CARLA_SIGNAL_REFERENCE = MAP_SIGNAL_REFERENCE.replace(
     '<signalReference s="1.5" t="4.0" id="201" orientation="+">\n'
     '        <validity fromLane="0" toLane="0"/>\n'
     "      </signalReference>",
+)
+
+MAP_CONNECTOR_HOSTED_LIGHT = (
+    MAP_CARLA_TWOWAY.replace(
+        """    <signals>
+      <signal s="18.5" t="-4.5" id="362" name="Signal_3Light_Post01" dynamic="yes"
+              orientation="-" zOffset="0" type="1000001" country="OpenDRIVE"
+              subtype="-1" value="-1">
+        <validity fromLane="0" toLane="0"/>
+      </signal>
+    </signals>
+""",
+        "",
+    )
+    .replace(
+        """    <signals>
+      <signal s="1.5" t="4.5" id="360" name="Signal_3Light_Post01" dynamic="yes"
+              orientation="+" zOffset="0" type="1000001" country="OpenDRIVE"
+              subtype="-1" value="-1">
+        <validity fromLane="0" toLane="0"/>
+      </signal>
+    </signals>
+""",
+        "",
+    )
+    .replace(
+        """      </laneSection>
+    </lanes>
+  </road>
+  <junction name="J" id="100">
+""",
+        """      </laneSection>
+    </lanes>
+    <signals>
+      <signal s="2.0" t="-4.0" id="500" name="connector_light" dynamic="yes"
+              orientation="+" zOffset="5" type="1000001" country="OpenDRIVE"
+              subtype="-1" value="-1"/>
+    </signals>
+  </road>
+  <junction name="J" id="100">
+""",
+    )
 )
 
 
@@ -523,10 +563,7 @@ def test_carla_green_light_then_no_stop_on_exit_lane(tmp_path):
 def test_carla_connector_lights_do_not_invent_a_stop(tmp_path):
     network = load_network(tmp_path, MAP_CARLA_TWOWAY)
     for road in network.connectingRoads:
-        for sig in road.signals:
-            assert sig.stoppingS is None
-            for lane in road.lanes:
-                assert sig.stoppingPositionOn(lane) is None
+        assert road.signals == ()
 
 
 def test_signal_parents_are_hosting_road_and_optional_intersection(tmp_path):
@@ -535,6 +572,8 @@ def test_signal_parents_are_hosting_road_and_optional_intersection(tmp_path):
     for sig in road.signals:
         assert sig.road is road
         assert sig.intersection is None
+        assert sig in network.signals
+    assert set(network.signals) == set(road.signals)
 
     network = load_network(tmp_path, MAP_CARLA_TWOWAY)
     west = road_by_id(network, 1)
@@ -547,11 +586,34 @@ def test_signal_parents_are_hosting_road_and_optional_intersection(tmp_path):
     assert west_light.intersection is not None
     assert west in west_light.intersection.roads
     assert east in east_light.intersection.roads
+    assert west_light in west_light.intersection.signals
+    assert east_light in east_light.intersection.signals
+    assert west_light in network.signals
+    assert east_light in network.signals
 
     for connector in network.connectingRoads:
-        for sig in connector.signals:
-            assert sig.road is connector
-            assert sig.intersection is west_light.intersection
+        assert connector.signals == ()
+
+    for sig in network.signals:
+        assert sig.road is not None
+        assert sig in sig.road.signals
+        assert sig.road not in network.connectingRoads
+
+
+def test_connector_signal_parents_incoming_road_and_intersection(tmp_path):
+    network = load_network(tmp_path, MAP_CONNECTOR_HOSTED_LIGHT)
+    west = road_by_id(network, 1)
+    light = signal_on(west, 500)
+    assert light is west.signals[-1]
+    assert light.road is west
+    assert light.intersection is not None
+    assert light in light.intersection.signals
+    assert light in network.signals
+    assert west in light.intersection.roads
+    assert light.stoppingS == pytest.approx(west.centerline.length)
+    for connector in network.connectingRoads:
+        assert connector.signals == ()
+        assert light not in connector.signals
 
 
 @pytest.mark.slow

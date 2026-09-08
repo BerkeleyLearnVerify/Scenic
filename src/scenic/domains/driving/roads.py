@@ -331,23 +331,25 @@ class LinearElement(NetworkElement):
     leftEdge: PolylineRegion
     rightEdge: PolylineRegion
 
-    # for roads and lanes etc, when you reach the end, there are 
+    # for roads and lanes etc, when you reach the end, there are
     # differnt connecting lanes you can go to
     # successor - the whole intersection
-    # successors (new) - tuple of things of the same type (lanes, if 
+    # successors (new) - tuple of things of the same type (lanes, if
     # one lane goes into 3 lanes)
     # predecessors is the reverse
 
     # TO-DO: multiple successors and predecessors are allowed, and can be accessed by index
-    # TO-DO: fix successor and predecessor for sidewalk stuff 
-    # scenic notion is diff from opendrive. predecessor linked to next/prev element, 
-    # with respect to driving direction, opendrive says direction of 
+    # TO-DO: fix successor and predecessor for sidewalk stuff
+    # scenic notion is diff from opendrive. predecessor linked to next/prev element,
+    # with respect to driving direction, opendrive says direction of
     # reference line is not exactly the same with traffic
     # sucessors wil incyde connecting roads and lanes etc, roads to roads, lanes to lanes, etc
     # tuple of other linear elements of the same type
 
     # Links to next/previous element
-    _successor: Union[NetworkElement, None] = None  # going forward (what are all the possible next elements you can end up in when you are at the end of this one)
+    _successor: Union[NetworkElement, None] = (
+        None  # going forward (what are all the possible next elements you can end up in when you are at the end of this one)
+    )
     _predecessor: Union[NetworkElement, None] = None  # going backward
 
     _successors: Tuple[LinearElement, ...] = ()
@@ -433,6 +435,7 @@ class LinearElement(NetworkElement):
         return self.orientation.followFrom(
             _toVector(point), distance, steps=steps, stepSize=stepSize
         )
+
     # Signals tuple with singal object in increasing s value, include signal s and stopping line
 
     # Signal entries are ordered by element-local s, which always increases from
@@ -1042,7 +1045,7 @@ class Signal:
     orientation: Optional[str] = None
     #: Station along the parent road where an ego should halt for this signal.
     #: May differ from `s` (e.g. a traffic light's pole vs its stop line).
-    #: ``None`` if we cannot derive one (typical for a connector-only light).
+    #: ``None`` if we cannot derive one.
     stoppingS: Optional[float] = None
     #: Placeholder for a future world-space device/pole position. Halt decisions
     #: intentionally use `stoppingS` and `stoppingPositionOn`, not this field.
@@ -1050,7 +1053,7 @@ class Signal:
     #: Maneuvers that require this signal to be green (empty if unknown).
     controlledManeuvers: Tuple[Maneuver, ...] = ()
     #: Incoming or hosting road this signal belongs to.
-    road: Optional[Tuple[Road, ...]] = None
+    road: Optional[Road] = None
     #: Junction this signal controls, if any.
     intersection: Optional[Intersection] = None
 
@@ -1227,6 +1230,8 @@ class Network:
 
     #: All intersections in the network.
     intersections: Tuple[Intersection]
+    #: All traffic signals in the network.
+    signals: Tuple[Signal, ...] = None
     #: All pedestrian crossings in the network.
     crossings: Tuple[PedestrianCrossing]
     #: All sidewalks in the network.
@@ -1267,6 +1272,19 @@ class Network:
         self.allRoads = self.roads + self.connectingRoads
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
         self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
+
+        ordered, seen = [], set()
+        for road in self.roads:
+            for signal in road.signals:
+                if id(signal) not in seen:
+                    ordered.append(signal)
+                    seen.add(id(signal))
+        for intersection in self.intersections:
+            for signal in intersection.signals:
+                if id(signal) not in seen:
+                    ordered.append(signal)
+                    seen.add(id(signal))
+        self.signals = tuple(ordered)
 
         if self.roadRegion is None:
             self.roadRegion = PolygonalRegion.unionAll(self.roads)
@@ -1353,7 +1371,7 @@ class Network:
 
         :meta private:
         """
-        return 37
+        return 38
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""

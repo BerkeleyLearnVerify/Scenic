@@ -1211,7 +1211,9 @@ class Road:
             leftEdge = backwardGroup.rightEdge
         else:
             leftEdge = forwardGroup.leftEdge
-        centerline = PolylineRegion(cleanChain(tuple(pt[:2] for pt in self.ref_line_points)))
+        centerline = PolylineRegion(
+            cleanChain(tuple(pt[:2] for pt in self.ref_line_points))
+        )
         road = roadDomain.Road(
             name=self.name,
             uid=f"road{self.id_}",  # need prefix to prevent collisions with intersections
@@ -1826,6 +1828,34 @@ class RoadMap:
                     continue  # link to intersection
             new_links.append(link)
         self.road_links = new_links
+        self._attachConnectorSignalsToIncomingRoads()
+
+    def _attachConnectorSignalsToIncomingRoads(self):
+        """Put junction-road signals on the incoming approach before Scenic conversion."""
+        seen = set()
+        for jid, junction in self.junctions.items():
+            for connection in junction.connections:
+                connecting = self.roads.get(connection.connecting_id)
+                incoming = self.roads.get(connection.incoming_id)
+                if connecting is None or incoming is None:
+                    continue
+                if connecting.id_ in seen:
+                    continue
+                seen.add(connecting.id_)
+                if incoming.successor == jid:
+                    contact_s = incoming.length
+                elif incoming.predecessor == jid:
+                    contact_s = 0.0
+                else:
+                    continue
+                have = {signal.id_ for signal in incoming.signals}
+                for signal in connecting.signals:
+                    if signal.id_ in have:
+                        continue
+                    signal.s = contact_s
+                    incoming.signals.append(signal)
+                    have.add(signal.id_)
+                connecting.signals = []
 
     def toScenicNetwork(self):
         assert self.intersection_region is not None
@@ -1909,7 +1939,6 @@ class RoadMap:
             # Gather all lanes involved in the junction's connections
             allIncomingLanes, allOutgoingLanes = [], []
             allRoads, seenRoads = [], set()
-            allSignals, seenSignals = [], set()
             maneuversForLane = defaultdict(list)
             for connection in junction.connections:
                 incomingID = connection.incoming_id
@@ -1921,11 +1950,6 @@ class RoadMap:
                 connectingRoad = connectingRoads.get(connectingID)
                 if not connectingRoad:
                     continue  # connecting road has no drivable lanes; skip it
-
-                for signal in connectingRoad.signals:
-                    if signal.openDriveID not in seenSignals:
-                        allSignals.append(signal)
-                        seenSignals.add(signal.openDriveID)
 
                 # Find possible incoming lanes for this connection
                 if incomingID not in seenRoads:
@@ -2043,15 +2067,13 @@ class RoadMap:
                 incomingLanes=cyclicOrder(allIncomingLanes, contactStart=False),
                 outgoingLanes=cyclicOrder(allOutgoingLanes, contactStart=True),
                 maneuvers=tuple(allManeuvers),
-                signals=tuple(allSignals),
+                signals=(),
                 crossings=(),  # TODO add these
             )
             register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
                 object.__setattr__(maneuver, "intersection", intersection)
-            for signal in allSignals:
-                signal.intersection = intersection
 
         # Hook up road-intersection links
         for rid, oldRoad in self.roads.items():
@@ -2072,6 +2094,8 @@ class RoadMap:
                     newRoad.forwardLanes._successor = intersection
 
         for intersection in intersections.values():
+            placed = []
+            seen = set()
             for road in intersection.roads:
                 if road._successor is intersection:
                     contact_s = road.centerline.length
@@ -2082,8 +2106,14 @@ class RoadMap:
                 for signal in road.signals:
                     if signal.stoppingS is None:
                         continue
-                    if abs(signal.stoppingS - contact_s) <= 1e-4:
-                        signal.intersection = intersection
+                    if abs(signal.stoppingS - contact_s) > 1e-4:
+                        continue
+                    signal.intersection = intersection
+                    if id(signal) in seen:
+                        continue
+                    placed.append(signal)
+                    seen.add(id(signal))
+            intersection.signals = tuple(placed)
 
         # Gather all network elements
         roads = tuple(mainRoads.values())
