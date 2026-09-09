@@ -331,25 +331,8 @@ class LinearElement(NetworkElement):
     leftEdge: PolylineRegion
     rightEdge: PolylineRegion
 
-    # for roads and lanes etc, when you reach the end, there are
-    # differnt connecting lanes you can go to
-    # successor - the whole intersection
-    # successors (new) - tuple of things of the same type (lanes, if
-    # one lane goes into 3 lanes)
-    # predecessors is the reverse
-
-    # TO-DO: multiple successors and predecessors are allowed, and can be accessed by index
-    # TO-DO: fix successor and predecessor for sidewalk stuff
-    # scenic notion is diff from opendrive. predecessor linked to next/prev element,
-    # with respect to driving direction, opendrive says direction of
-    # reference line is not exactly the same with traffic
-    # sucessors wil incyde connecting roads and lanes etc, roads to roads, lanes to lanes, etc
-    # tuple of other linear elements of the same type
-
     # Links to next/previous element
-    _successor: Union[NetworkElement, None] = (
-        None  # going forward (what are all the possible next elements you can end up in when you are at the end of this one)
-    )
+    _successor: Union[NetworkElement, None] = None # going forward
     _predecessor: Union[NetworkElement, None] = None  # going backward
 
     _successors: Tuple[LinearElement, ...] = ()
