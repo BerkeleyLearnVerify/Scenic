@@ -298,10 +298,10 @@ class PointInRegionDistribution(VectorDistribution):
 class WrapperRegion(Region):
     """A wrapper that forwards all region specific APIs to an inner region attribute."""
 
-    def __init__(self, innerRegion):
-        self.innerRegion = innerRegion
+    def __init__(self, region):
+        self.region = region
         super().__init__(
-            innerRegion.name, innerRegion, orientation=innerRegion.orientation
+            self.region.name, self.region, orientation=self.region.orientation
         )
 
     def uniformPointInner(self):

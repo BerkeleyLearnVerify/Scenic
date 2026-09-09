@@ -104,7 +104,8 @@ def test_orientation_consistency(network):
 
 def test_linkage(network):
     for road in network.roads:
-        assert road.forwardLanes or road.backwardLanes
+        if not road.forwardLanes and not road.backwardLanes:
+            continue  # Ignore roads without drivable lanes.
         assert road.is1Way == (not (road.forwardLanes and road.backwardLanes))
         seenLanes = set()
 
