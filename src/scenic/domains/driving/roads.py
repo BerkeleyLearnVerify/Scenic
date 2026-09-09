@@ -332,7 +332,7 @@ class LinearElement(NetworkElement):
     rightEdge: PolylineRegion
 
     # Links to next/previous element
-    _successor: Union[NetworkElement, None] = None # going forward
+    _successor: Union[NetworkElement, None] = None  # going forward
     _predecessor: Union[NetworkElement, None] = None  # going backward
 
     _successors: Tuple[LinearElement, ...] = ()
