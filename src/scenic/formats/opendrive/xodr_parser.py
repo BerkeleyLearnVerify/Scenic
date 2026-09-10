@@ -2405,6 +2405,40 @@ class RoadMap:
                 )
                 lane.maneuvers = (maneuver,)
 
+        # Link crosswalks to their closest sidewalk (within reason)
+        def findSidewalk(point, maxDist=5):
+            sidewalksDist = [(s, s.distanceTo(point)) for s in sidewalks]
+            sidewalksDist = list(
+                sorted(
+                    filter(lambda x: x[1] <= maxDist, sidewalksDist), key=lambda x: x[1]
+                )
+            )
+            if sidewalksDist:
+                return sidewalksDist[0][0]
+            else:
+                return None
+
+        for crossing in crossings:
+            if not crossing.startSidewalk:
+                if startSidewalk := findSidewalk(crossing.centerline.start):
+                    crossing.startSidewalk = startSidewalk
+                    if crossing not in startSidewalk.crossings:
+                        startSidewalk.crossings += (crossing,)
+                else:
+                    warn(
+                        f"Could not link startSidewalk to crossing {crossing.uid} with parent {crossing.parent.uid}"
+                    )
+
+            if not crossing.endSidewalk:
+                if endSidewalk := findSidewalk(crossing.centerline.end):
+                    crossing.endSidewalk = endSidewalk
+                    if crossing not in endSidewalk.crossings:
+                        endSidewalk.crossings += (crossing,)
+                else:
+                    warn(
+                        f"Could not link endSidewalk to crossing {crossing.uid} with parent {crossing.parent.uid}"
+                    )
+
         def combine(regions):
             return PolygonalRegion.unionAll(
                 [r.region for r in regions], buf=self.tolerance
