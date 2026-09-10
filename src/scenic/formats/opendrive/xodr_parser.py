@@ -2417,7 +2417,7 @@ class RoadMap:
             laneGroups=tuple(groups),
             lanes=lanes,
             intersections=intersections,
-            crossings=crossings,
+            crossings=tuple(crossings),
             sidewalks=tuple(sidewalks),
             shoulders=tuple(shoulders),
             tolerance=self.tolerance,
