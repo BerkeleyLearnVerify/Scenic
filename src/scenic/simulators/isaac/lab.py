@@ -487,13 +487,13 @@ class IsaacLabSimulation(Simulation):
         There are two separate action paths:
 
         1. Isaac Lab task action tensor:
-        - Used by built-in tasks like Cartpole, Ant, etc.
-        - For now we send zeros unless a policy is connected.
+            - Used by built-in tasks like Cartpole, Ant, etc.
+            - For now we send zeros unless a policy is connected.
 
         2. Scenic-controlled robot commands:
-        - Used by Scenic behaviors like KeepMoving on Create3.
-        - Buffered by LabBackend.applyRobotControl and applied directly to the
-            corresponding Isaac Lab Articulation before env.step(...).
+            - Used by Scenic behaviors like KeepMoving on Create3.
+            - Buffered by LabBackend.applyRobotControl and applied directly to the
+              corresponding Isaac Lab Articulation before env.step(...).
         """
         import traceback
 

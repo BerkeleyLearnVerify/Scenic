@@ -1,3 +1,9 @@
+"""Interface to the Isaac Sim and Isaac Lab robotics simulators.
+
+This interface is experimental and subject to change.
+Detailed documentation forthcoming; meanwhile, see :file:`examples/isaaclab/README.md`.
+"""
+
 from .simulator import IsaacSimSimulator, IsaacSimulator
 
 try:
