@@ -108,7 +108,16 @@ add_module_names = False
 autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
-autodoc_mock_imports = ["carla", "lgsvl", "metadrive"]
+autodoc_mock_imports = [
+    "carla",
+    "isaaclab",
+    "lgsvl",
+    "metadrive",
+    # Modules to skip in autosummary
+    "scenic.simulators.isaac.empty_env_cfg",
+    "scenic.simulators.isaac.remote.__main__",
+    "scenic.simulators.isaac.scripts",
+]
 autodoc_typehints = "description"
 autodoc_type_aliases = {
     "Vectorlike": "`scenic.domains.driving.roads.Vectorlike`",

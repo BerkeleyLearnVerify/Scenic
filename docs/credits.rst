@@ -21,6 +21,7 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Armando Bañuelos
 	* Johnathan Chiu
 	* Greg Crow
+	* Daniel He
 	* Francis Indaheng
 	* Martin Jansa (LG Electronics, Inc.)
 	* Abolfazl Karimi
@@ -29,8 +30,12 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Lola Marrero
 	* Shalin Mehta
 	* Joel Moriana
+	* Lucas Radovan
+	* Sourav Rajvi
 	* Gaurav Rao
 	* Ameesh Shah
+	* Timothy Shao
+	* Aarav Sharma
 	* Jay Shenoy
 	* Mirco Theile
 	* Kesav Viswanadha
