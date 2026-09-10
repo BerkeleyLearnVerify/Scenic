@@ -30,6 +30,7 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Lola Marrero
 	* Shalin Mehta
 	* Joel Moriana
+	* Martin Orrje
 	* Lucas Radovan
 	* Sourav Rajvi
 	* Gaurav Rao
