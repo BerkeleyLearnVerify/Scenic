@@ -381,12 +381,17 @@ class ExternalParameter(Distribution):
 class TimeSeriesParameter:
     def __init__(self, callback):
         self._callback = callback
+        self._lastSimulation = None
         self._lastTime = -1
 
     def getSample(self):
         import scenic.syntax.veneer as veneer
 
         assert veneer.currentSimulation is not None
+
+        if self._lastSimulation is not veneer.currentSimulation:
+            self._lastSimulation = veneer.currentSimulation
+            self._lastTime = -1
 
         if veneer.currentSimulation.currentTime <= self._lastTime:
             raise RuntimeError(

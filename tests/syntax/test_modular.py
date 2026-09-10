@@ -188,6 +188,38 @@ def test_workspace_top_level():
     sampleResult(scenario, maxSteps=1)
 
 
+def test_dynamic_object_creation():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            compose:
+                wait
+                do Sub()
+
+        scenario Sub():
+            new Object with behavior Foo()
+
+        behavior Foo():
+            take 42
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (None, 42)
+
+
+def test_object_creation_in_compose():
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileScenic(
+            """
+            scenario Main():
+                compose:
+                    wait
+                    new Object
+            """
+        )
+        sampleResultOnce(scenario)
+
+
 @pytest.mark.skipif(not hasattr(signal, "SIGALRM"), reason="need SIGALRM")
 @pytest.mark.slow
 def test_scenario_stuck(monkeypatch):
@@ -1381,3 +1413,32 @@ def test_lastActions_modular():
         (5, (-1,)),
         (6, (-2,)),
     )
+
+
+# Modular scenario global state
+def test_mode2D_modular():
+    scenario = compileScenic(
+        """
+        poly = CircularRegion(0@0, 10)
+
+        class Foo:
+            position: new Point in poly
+            regionContainedIn: poly
+
+        scenario Main():
+            setup:
+                ego = new Object
+                new Foo visible
+                require ego.baseOffset == (0,0,0)
+            compose:
+                do Sub() for 2 steps
+
+        scenario Sub():
+            setup:
+                foo = new Object
+                require foo.baseOffset == (0,0,0)
+
+        """,
+        mode2D=True,
+    )
+    sampleResult(scenario, maxSteps=2, maxIterations=100)

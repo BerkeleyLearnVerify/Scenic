@@ -1441,7 +1441,9 @@ class TestCompiler:
                 assert False
 
     def test_do_choose(self):
-        node, _ = compileScenicAST(DoChoose([Constant("foo"), Constant("bar")]))
+        node, _ = compileScenicAST(
+            DoChoose([Constant("foo"), Constant("bar")]), inBehavior=True
+        )
         match node:
             case [
                 Expr(
@@ -1469,8 +1471,10 @@ class TestCompiler:
             case _:
                 assert False
 
-    def test_do_choose(self):
-        node, _ = compileScenicAST(DoShuffle([Constant("foo"), Constant("bar")]))
+    def test_do_shuffle(self):
+        node, _ = compileScenicAST(
+            DoShuffle([Constant("foo"), Constant("bar")]), inBehavior=True
+        )
         match node:
             case [
                 Expr(
@@ -2099,6 +2103,22 @@ class TestCompiler:
         node, _ = compileScenicAST(DistanceFromOp(Name("X"), Name("Y")))
         match node:
             case Call(Name("DistanceFrom"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_min_distance_to_op(self):
+        node, _ = compileScenicAST(MinDistanceFromOp(Name("X"), None))
+        match node:
+            case Call(Name("MinDistanceFrom"), [Name("X")], []):
+                assert True
+            case _:
+                assert False
+
+    def test_min_distance_to_op_from(self):
+        node, _ = compileScenicAST(MinDistanceFromOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("MinDistanceFrom"), [Name("X")], [keyword("Y", Name("Y"))]):
                 assert True
             case _:
                 assert False

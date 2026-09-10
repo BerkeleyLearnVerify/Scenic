@@ -68,6 +68,7 @@ __all__ = (
     "ApparentHeading",
     "RelativePosition",
     "DistanceFrom",
+    "MinDistanceFrom",
     "DistancePast",
     "Follow",
     "AngleTo",
@@ -426,6 +427,8 @@ def registerObject(obj):
     elif activity > 0 or currentScenario:
         assert not evaluatingRequirement
         assert isinstance(obj, Object)
+        if currentScenario and currentScenario._isRunning:
+            raise InvalidScenarioError("tried to create an object inside a compose block")
         currentScenario._registerObject(obj)
         if currentSimulation:
             currentSimulation._createObject(obj)
@@ -488,6 +491,18 @@ def beginSimulation(sim):
     currentScenario._bindTo(sim.scene)
     _globalParameters = dict(sim.scene.params)
 
+    # If we are in 2D mode, set the global flag and replace all classes
+    # with their 2D compatibility counterparts.
+    if currentSimulation.scene.compileOptions.mode2D:
+        global mode2D, Point, OrientedPoint, Object
+        mode2D = True
+        Point = Point2D
+        OrientedPoint = OrientedPoint2D
+        Object = Object2D
+        scenic.core.object_types.Point = Point
+        scenic.core.object_types.OrientedPoint = OrientedPoint
+        scenic.core.object_types.Object = Object
+
     # rebind globals that could be referenced by behaviors to their sampled values
     for modName, (
         namespace,
@@ -500,12 +515,20 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
     global currentSimulation, currentScenario, currentBehavior, runningScenarios
-    global _globalParameters
+    global _globalParameters, mode2D
     currentSimulation = None
     currentScenario = None
     runningScenarios = []
     currentBehavior = None
     _globalParameters = {}
+
+    if mode2D:
+        global Point, OrientedPoint, Object
+        mode2D = False
+        Point, OrientedPoint, Object = _originalConstructibles
+        scenic.core.object_types.Point = Point
+        scenic.core.object_types.OrientedPoint = OrientedPoint
+        scenic.core.object_types.Object = Object
 
     for modName, (
         namespace,
@@ -1306,6 +1329,18 @@ def DistanceFrom(X, Y=None):
         Y, (Vector, Region), '"distance from X to Y" with Y neither a vector nor region'
     )
     return X.distanceTo(Y)
+
+
+def MinDistanceFrom(X, Y=None):
+    """The :grammar:`minimum distance from <object> [to <object>]` operator.
+
+    If the :grammar:`to <object>` is omitted, the ego is used.
+    """
+    X = toTypes(X, (Object,), '"minimum distance from X to Y" with X not an Object')
+    if Y is None:
+        Y = ego()
+    Y = toTypes(Y, (Object,), '"minimum distance from X to Y" with Y not an Object')
+    return X.minimumDistanceTo(Y)
 
 
 def DistancePast(X, Y=None):
