@@ -177,6 +177,37 @@ def test_make_curve_param_poly3_arc_length():
     assert not susp
 
 
+def test_bs_schwarzer_berg_parse(getAssetPath):
+    path = getAssetPath("maps/misc/bs-schwarzer-berg.xodr")
+    road_map = RoadMap()
+    road_map.parse(path)
+    assert len(road_map.roads) == 257
+    assert len(road_map.junctions) == 31
+
+
+def test_bs_schwarzer_berg_param_poly3(getAssetPath):
+    path = getAssetPath("maps/misc/bs-schwarzer-berg.xodr")
+    tree = ET.parse(path)
+    count = 0
+    for geom in tree.iter("geometry"):
+        for child in geom:
+            if child.tag != "paramPoly3":
+                continue
+            curve, susp = makeCurve(
+                float(geom.get("x", 0)),
+                float(geom.get("y", 0)),
+                float(geom.get("hdg", 0)),
+                float(geom.get("length", 0)),
+                child,
+            )
+            assert isinstance(curve, ParamCubic)
+            if child.get("pRange") == "arcLength":
+                assert curve.p_range == pytest.approx(float(geom.get("length", 0)))
+            assert not susp
+            count += 1
+    assert count == 1799
+
+
 def test_make_curve_param_poly3_arc_length_matches_normalized():
     length = 10.0
     au, bu, cu, du = 0.0, 1.0, 0.1, -0.02
