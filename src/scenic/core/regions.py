@@ -334,6 +334,68 @@ class PointInRegionDistribution(VectorDistribution):
         return self.sampleVals is not None
 
 
+class WrapperRegion(Region):
+    """A wrapper that forwards all region specific APIs to an inner region attribute."""
+
+    def __init__(self, region):
+        self.region = region
+        super().__init__(
+            self.region.name, self.region, orientation=self.region.orientation
+        )
+
+    def uniformPointInner(self):
+        return self.region.uniformPointInner()
+
+    def parameterizedUniformPointInner(self, vals):
+        return self.region.parameterizedUniformPointInner()
+
+    def intersect(self, other, triedReversed=False):
+        return self.region.intersect(other, triedReversed)
+
+    def intersects(self, other):
+        return self.region.intersects(other)
+
+    def difference(self, other):
+        return self.region.difference(other)
+
+    def union(self, other, triedReversed=False):
+        return self.region.union(other, triedReversed)
+
+    def containsPoint(self, point):
+        return self.region.containsPoint(point)
+
+    def containsObject(self, obj):
+        return self.region.containsObject(obj)
+
+    def containsRegionInner(self, reg, tolerance):
+        return self.region.containsRegionInner(reg, tolerance)
+
+    def distanceTo(self, point):
+        return self.region.distanceTo(point)
+
+    def projectVector(self, point, onDirection):
+        return self.region.projectVector(point, onDirection)
+
+    def closestPointTo(self, target):
+        return self.region.closestPointTo(target)
+
+    @property
+    def AABB(self):
+        return self.region.AABB
+
+    @property
+    def _sampleVals(self):
+        return self.region._sampleVals
+
+    @property
+    def dimensionality(self):
+        return self.region.dimensionality
+
+    @property
+    def size(self):
+        return self.region.size
+
+
 ###################################################################################################
 # Utility Regions and Functions
 ###################################################################################################
