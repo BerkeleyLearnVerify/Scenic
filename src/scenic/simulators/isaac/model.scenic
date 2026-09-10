@@ -1,24 +1,25 @@
+"""Scenic world model for the Isaac Sim / Isaac Lab interface.
+
+See :file:`examples/isaacsim/README.md` for the available global parameters
+and object classes.
+"""
+
 import json
 import os
 import uuid
 import numpy as np
 import trimesh
+from trimesh.transformations import decompose_matrix
+from scipy.spatial.transform import Rotation
 
 from scenic.core.errors import InvalidScenarioError
-from scenic.core.utils import repairMesh
-from trimesh.transformations import decompose_matrix
+from scenic.core.vectors import Orientation
 from scenic.simulators.isaac.actions import *
-from scenic.simulators.isaac.actions import (
-    _Robot,
-    _WheeledRobot,
-    _HolonomicRobot,
-    _ManipulatorRobot,
-)
+from scenic.simulators.isaac.actions import _Robot, _ManipulatorRobot
 from scenic.simulators.isaac.behaviors import *
-from scenic.simulators.isaac.backends import DEFAULT_BACKEND_NAME, getBackend, setDefaultBackend
+from scenic.simulators.isaac.backends import DEFAULT_BACKEND_NAME, getBackend
 from scenic.simulators.isaac.backends.profiles import FRANKA_PROFILE, UR5E_PROFILE
-from scenic.simulators.isaac import TerrainBase
-from scenic.simulators.isaac.simulator import IsaacSimulator
+from scenic.simulators.isaac.simulator import IsaacSimSimulator
 from scenic.simulators.isaac.utils import _addExistingObj, EnvironmentMeshCache
 
 # ---------- global parameters ----------
@@ -29,6 +30,15 @@ param environmentMeshPath = None
 param headless = False
 param isaacBackend = DEFAULT_BACKEND_NAME
 param isaacLab = False
+
+# Isaac Lab settings (used when isaacLab is set).
+param labTask = None
+param labEnvCfg = None
+param labDevice = "cuda:0"
+param labNumEnvs = 1
+param labEnvSpacing = 10.0
+param labTimestep = 1 / 120
+param labDebugLifecycle = False
 
 # Remote mode: `scenic <file> --param isaacRemote 1` runs the scenario on the
 # bridge inside an already-running Isaac Sim instead of compiling it locally.
@@ -42,29 +52,16 @@ if globalParameters.isaacRemote:
         port=globalParameters.isaacRemotePort,
     )
 
-environmentMeshPath = globalParameters.environmentMeshPath
-environmentInfoPath = globalParameters.environmentInfoPath
-setDefaultBackend(globalParameters.isaacBackend)
 isaac_backend = getBackend("lab" if globalParameters.isaacLab else globalParameters.isaacBackend)
-
-param labEnvCfg = None
-param labDevice = "cuda:0"
-param labNumEnvs = 1
-param labEnvSpacing = 10.0
-param labTimestep = 1 / 120
-
-param labTask = None
-param labDebugLifecycle = False
 
 # ---------- simulator creation ----------
 
-if isaac_backend.name == 'lab':
-    simulator IsaacSimulator(
+if globalParameters.isaacLab:
+    from scenic.simulators.isaac.lab import IsaacLabSimulator
+    simulator IsaacLabSimulator(
         environmentUSDPath=globalParameters.environmentUSDPath,
         headless=globalParameters.headless,
-        backend=globalParameters.isaacBackend,
-        isaacLab=globalParameters.isaacLab,
-        task = globalParameters.labTask,
+        task=globalParameters.labTask,
         env_cfg_entry_point=globalParameters.labEnvCfg,
         device=globalParameters.labDevice,
         num_envs=globalParameters.labNumEnvs,
@@ -73,29 +70,35 @@ if isaac_backend.name == 'lab':
         debug_lifecycle=globalParameters.labDebugLifecycle,
     )
 else:
-    simulator IsaacSimulator(
+    simulator IsaacSimSimulator(
         environmentUSDPath=globalParameters.environmentUSDPath,
         headless=globalParameters.headless,
         backend=globalParameters.isaacBackend,
-        isaacLab=globalParameters.isaacLab,
     )
 
 # ---------- base classes ----------
 
 class IsaacSimObject:
+    """An object spawned in Isaac Sim.
 
+    With ``usdPath`` or ``isaacAssetPath`` set, the USD asset is spawned and
+    scaled to the object's dimensions; otherwise the Scenic shape is converted
+    into a USD mesh.
+    """
     name: f"Object_{uuid.uuid4().hex[:8]}"
     physics: True
     mass: None
     density: None
     usdPath: None
     isaacAssetPath: None
+    initialRotation: None
     blueprint: "IsaacSimObject"
 
     def create(self):
         return isaac_backend.createGenericObject(self)
 
 class ExistingIsaacSimObject(IsaacSimObject):
+    """A prim of the environment USD, created by the model for spatial reasoning."""
     allowCollisions: True
     blueprint: "ExistingIsaacSimObject"
     physics: False
@@ -105,23 +108,34 @@ class ExistingIsaacSimObject(IsaacSimObject):
         return None
 
 class IsaacSimRobot(IsaacSimObject, _Robot):
-
+    """An articulated robot; see the README for the wheeled-robot and ``control`` metadata."""
     name: f"Robot_{uuid.uuid4().hex[:8]}"
     controller: None
     control: None
-    usdPath: None
-    isaacAssetPath: None
-    initialRotation: None
     blueprint: "Robot"
+
+    # Wheeled-robot metadata ("differential", "holonomic", or "ackermann").
+    wheelController: None
+    wheelDofNames: []
+    wheelRadius: None
+    wheelBase: None
+    # Ackermann only.
+    trackWidth: None
+    steeringDofNames: []
+    frontWheelRadius: self.wheelRadius
+    backWheelRadius: self.wheelRadius
+    # Holonomic only.
+    maxLinearSpeed: 0.5
+    maxAngularSpeed: 0.8
+    maxWheelSpeed: 10.0
 
     def create(self):
         return isaac_backend.createRobot(self)
-    
+
     def move(self, sim, command):
         sim.backend.applyRobotControl(sim, self, command)
 
-class Create3(IsaacSimRobot, _WheeledRobot):
-
+class Create3(IsaacSimRobot):
     shape: CylinderShape()
     width: 0.335
     length: 0.335
@@ -134,20 +148,19 @@ class Create3(IsaacSimRobot, _WheeledRobot):
     wheelDofNames: ["left_wheel_joint", "right_wheel_joint"]
     wheelController: "differential"
 
-class Jetbot(IsaacSimRobot, _WheeledRobot):
+class Jetbot(IsaacSimRobot):
     width: 0.16
     length: 0.16
     height: 0.12
     isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
-   
+
     # Differential-drive metadata.
-    wheelRadius: 0.03 
+    wheelRadius: 0.03
     wheelBase: 0.1125
     wheelDofNames: ["left_wheel_joint", "right_wheel_joint"]
     wheelController: "differential"
 
-class Kaya(IsaacSimRobot, _HolonomicRobot):
-
+class Kaya(IsaacSimRobot):
     width: 0.2
     length: 0.2
     height: 0.2
@@ -158,7 +171,7 @@ class Kaya(IsaacSimRobot, _HolonomicRobot):
     wheelController: "holonomic"
 
 class ManipulatorRobot(IsaacSimRobot, _ManipulatorRobot):
-
+    """An arm described by a `ManipulatorProfile`; see the README to add new arms."""
     manipulatorProfile: None
     endEffectorOffset: [0.0, 0.0, 0.0]
     endEffectorOrientation: None
@@ -205,7 +218,6 @@ class ManipulatorRobot(IsaacSimRobot, _ManipulatorRobot):
         )
 
 class FrankaPanda(ManipulatorRobot):
-
     shape: BoxShape()
     width: 0.3
     length: 0.3
@@ -213,7 +225,6 @@ class FrankaPanda(ManipulatorRobot):
     manipulatorProfile: FRANKA_PROFILE
 
 class UR5e(ManipulatorRobot):
-
     shape: BoxShape()
     width: 0.4
     length: 0.4
@@ -221,7 +232,6 @@ class UR5e(ManipulatorRobot):
     manipulatorProfile: UR5E_PROFILE
 
 class GroundPlane(IsaacSimObject):
-    
     name: "GroundPlane"
     width: 5
     length: 5
@@ -232,9 +242,16 @@ class GroundPlane(IsaacSimObject):
     def create(self):
         return isaac_backend.createGroundPlane(self)
 
+# ---------- terrain (Isaac Lab only) ----------
+#
+# NOTE: the terrain classes below depend on a ``scenic.core.terrain`` module
+# (heightfield generators and their Cfg classes) that is not in the
+# repository, so they currently cannot be instantiated.
+
 class Terrain:
-    horizontalScale: TerrainBase.horizontal_scale
-    verticalScale: TerrainBase.vertical_scale
+    """A heightfield terrain patch; the Lab interface merges all patches into one mesh."""
+    horizontalScale: 0.1
+    verticalScale: 0.005
     width: 10.0
     length: 10.0
     size: (self.width, self.length)
@@ -256,7 +273,6 @@ class RandomUniformTerrain(Terrain):
 
     def create(self):
         from scenic.core.terrain import random_uniform_terrain, RandomUniformTerrainCfg, subterrain_to_mesh
-        # Build configuration and register the generator function for the simulator.
         terrain_cfg = RandomUniformTerrainCfg(
             noise_range=self.noiseRange,
             noise_step=self.noiseStep,
@@ -424,13 +440,18 @@ class PolesTerrain(Terrain):
         self.mesh = subterrain_to_mesh(sub)
         self.subterrain = sub
 
-if globalParameters.environmentUSDPath:
+# ---------- existing environment objects ----------
+#
+# When an environment USD is given, convert it (once, cached) into a mesh plus
+# per-prim metadata, and create an ExistingIsaacSimObject for each prim so
+# scenarios can place objects relative to the environment (see getExistingObj).
 
+if globalParameters.environmentUSDPath:
     try:
         environmentMeshPath, environmentInfoPath = isaac_backend.ensureEnvironmentMeshPaths(
             globalParameters.environmentUSDPath,
-            environmentMeshPath,
-            environmentInfoPath,
+            globalParameters.environmentMeshPath,
+            globalParameters.environmentInfoPath,
             headless=globalParameters.headless,
         )
     except Exception as exc:
@@ -448,67 +469,65 @@ if globalParameters.environmentUSDPath:
             f"Isaac environment info file does not exist: {environmentInfoPath}"
         )
 
+    scene = trimesh.load(environmentMeshPath, force="scene")
     with open(environmentInfoPath, "r") as inFile:
-        scene = trimesh.load(environmentMeshPath, force="scene")
         meshData = json.load(inFile)
 
-        if not scene.geometry:
+    if not scene.geometry:
+        raise InvalidScenarioError(
+            f"Isaac environment mesh file has no geometry: {environmentMeshPath}. "
+            "Regenerate the GLTF and make sure any external GLTF buffer files are present."
+        )
+
+    geometry_nodes = list(scene.graph.nodes_geometry)
+    if not geometry_nodes:
+        raise InvalidScenarioError(
+            f"Isaac environment mesh file has geometry but no scene graph nodes: "
+            f"{environmentMeshPath}"
+        )
+
+    environmentMeshCache = EnvironmentMeshCache(environmentMeshPath, environmentInfoPath)
+
+    for node_name in geometry_nodes:
+        if node_name not in meshData:
+            available = ", ".join(sorted(meshData))
             raise InvalidScenarioError(
-                f"Isaac environment mesh file has no geometry: {environmentMeshPath}. "
-                "Regenerate the GLTF and make sure any external GLTF buffer files are present."
+                f"Isaac environment mesh node {node_name!r} is missing from "
+                f"{environmentInfoPath}; available nodes: {available}"
             )
 
-        geometry_nodes = list(scene.graph.nodes_geometry)
-        if not geometry_nodes:
-            raise InvalidScenarioError(
-                f"Isaac environment mesh file has geometry but no scene graph nodes: "
-                f"{environmentMeshPath}"
-            )
+        world_transform, geometry_name = scene.graph.get(node_name, "World")
+        if geometry_name is None:
+            geometry_name = node_name
+        mesh = scene.geometry[geometry_name]
+        world_transform = np.asarray(world_transform, dtype=float)
+        scale = np.abs(np.array(decompose_matrix(world_transform)[0], dtype=float))
+        orientation = Orientation(Rotation.from_matrix(world_transform[:3, :3] / scale))
 
-        environmentMeshCache = EnvironmentMeshCache(environmentMeshPath, environmentInfoPath)
+        info = meshData[node_name]
+        path = info["full_path"]
 
-        for node_name in geometry_nodes:
-            if node_name not in meshData:
-                available = ", ".join(sorted(meshData))
-                raise InvalidScenarioError(
-                    f"Isaac environment mesh node {node_name!r} is missing from "
-                    f"{environmentInfoPath}; available nodes: {available}"
-                )
+        # Prefer authoritative USD bbox data generated before GLTF conversion/repair.
+        if "world_bbox_center" in info:
+            world_center = np.array(info["world_bbox_center"], dtype=float)
+        else:
+            local_center = np.append(mesh.bounding_box.centroid, 1.0)
+            world_center = np.dot(world_transform, local_center)[:3]
 
-            world_transform, geometry_name = scene.graph.get(node_name, "World")
-            if geometry_name is None:
-                geometry_name = node_name
-            mesh = scene.geometry[geometry_name]
-            scale, shear, angles, tr, persp = decompose_matrix(world_transform)
+        if "usd_dimensions" in info:
+            dimensions = tuple(np.maximum(float(x), 1e-6) for x in info["usd_dimensions"])
+        else:
+            raw_extents = np.array(mesh.extents, dtype=float)
+            dimensions = tuple(np.maximum(raw_extents * scale, 1e-6))
 
-            pitch, roll, yaw = angles
-            path = meshData[node_name]["full_path"]
+        shape_mesh = environmentMeshCache.get(node_name, mesh)
 
-            # Prefer authoritative USD bbox data generated before GLTF conversion/repair.
-            info = meshData[node_name]
+        newObj = new ExistingIsaacSimObject at world_center,
+                    with shape MeshShape(shape_mesh, dimensions=dimensions),
+                    with name path,
+                    with primPath path,
+                    facing orientation
 
-            if "world_bbox_center" in info:
-                world_center = np.array(info["world_bbox_center"], dtype=float)
-            else:
-                local_center = mesh.bounding_box.centroid
-                local_center_homogeneous = np.append(local_center, 1.0)
-                world_center = np.dot(world_transform, local_center_homogeneous)[:3]
+        _addExistingObj(newObj)
 
-            if "usd_dimensions" in info:
-                dimensions = tuple(np.maximum(float(x), 1e-6) for x in info["usd_dimensions"])
-            else:
-                scale_vec = np.abs(np.array(scale, dtype=float))
-                raw_extents = np.array(mesh.extents, dtype=float)
-                dimensions = tuple(np.maximum(raw_extents * scale_vec, 1e-6))
-
-            shape_mesh = environmentMeshCache.get(node_name, mesh)
-
-            newObj = new ExistingIsaacSimObject at world_center,
-                        with shape MeshShape(shape_mesh, dimensions=dimensions),
-                        with name path,
-                        with primPath path,
-                        facing (yaw, pitch, roll)
-
-            _addExistingObj(newObj)
-
-        environmentMeshCache.save()
+    environmentMeshCache.save()

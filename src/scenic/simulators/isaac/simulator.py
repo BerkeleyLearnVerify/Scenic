@@ -1,39 +1,29 @@
+"""Simulator interface running Scenic scenarios directly in Isaac Sim."""
+
 import os
 import tempfile
 from urllib.parse import urlparse
 
-import trimesh
-
 from scenic.core.regions import MeshVolumeRegion
 from scenic.core.simulators import Simulation, SimulationCreationError, Simulator
 from scenic.core.vectors import Vector
+from scenic.simulators.isaac import utils
 from scenic.simulators.isaac.backends import getBackend
-import scenic.simulators.isaac.utils as utils
 
 
-class IsaacSimulator(Simulator):
-    def __init__(self, isaacLab=False, **kwargs):
-        super().__init__()
-        self.isaacLab = isaacLab
-        if isaacLab:
-            from scenic.simulators.isaac.lab import IsaacLabSimulator
+def IsaacSimulator(isaacLab=False, **kwargs):
+    """Create an `IsaacSimSimulator`, or an `IsaacLabSimulator` if ``isaacLab`` is set."""
+    if isaacLab:
+        from scenic.simulators.isaac.lab import IsaacLabSimulator
 
-            self.delegate = IsaacLabSimulator(**kwargs)
-        else:
-            self.delegate = IsaacSimSimulator(**kwargs)
-
-    def createSimulation(self, scene, **kwargs):
-        return self.delegate.createSimulation(scene, **kwargs)
-
-    def simulate(self, scene, *args, **kwargs):
-        return self.delegate.simulate(scene, *args, **kwargs)
-
-    def destroy(self):
-        super().destroy()
-        self.delegate.destroy()
+        kwargs.pop("backend", None)
+        return IsaacLabSimulator(**kwargs)
+    return IsaacSimSimulator(**kwargs)
 
 
 class IsaacSimSimulator(Simulator):
+    """Simulator running scenarios in Isaac Sim through one of the API backends."""
+
     def __init__(self, headless=False, environmentUSDPath=None, backend=None):
         super().__init__()
 
@@ -70,32 +60,22 @@ class IsaacSimSimulation(Simulation):
         **kwargs,
     ):
         self.backend = backend
-        self.backend.enableExtension("omni.kit.asset_converter")
-
-        timestep = 1.0 / 60.0 if timestep is None else timestep
         self.client = client
-        self.environmentUSDPath = environmentUSDPath
         self.headless = headless
         self.world = None
         self.tmpMeshDir = tempfile.mkdtemp()
 
-        if self.environmentUSDPath:
-            self.loadEnvironmentStage()
+        self.backend.enableExtension("omni.kit.asset_converter")
+        if environmentUSDPath:
+            self.loadEnvironmentStage(environmentUSDPath)
 
+        timestep = 1.0 / 60.0 if timestep is None else timestep
         self.world = self.backend.createWorld(timestep)
 
         super().__init__(scene, timestep=timestep, **kwargs)
 
-    def environmentUsdPath(self):
-        source = os.fspath(self.environmentUSDPath)
-        if source.startswith("Isaac/"):
-            return self.backend.assetPath(source)
-        if urlparse(source).scheme:
-            return source
-        return os.path.abspath(source)
-
-    def loadEnvironmentStage(self):
-        usd_path = self.environmentUsdPath()
+    def loadEnvironmentStage(self, environmentUSDPath):
+        usd_path = self.backend.kitUsdPath(environmentUSDPath)
 
         if not urlparse(usd_path).scheme:
             if not os.path.isfile(usd_path):
@@ -126,15 +106,20 @@ class IsaacSimSimulation(Simulation):
         self.backend.updateApp(self.client)
         self.backend.initializePhysics(self.world, self.objects)
         self.backend.updateApp(self.client)
-
-        from scenic.simulators.isaac.utils import setCollidersExistingObj
-
-        # set collision approximation for all existing environment objects to None
-        # setting approximation to None means the mesh geometry is used as the collider
-        # according to the USD schema
-        setCollidersExistingObj(verbose=True)
-
+        self._useMeshCollidersForExistingObjects()
         self.backend.playWorld(self.world)
+
+    def _useMeshCollidersForExistingObjects(self):
+        """Make existing environment prims collide with their exact mesh geometry.
+
+        The USD schema defines approximation ``none`` as "use the mesh itself".
+        """
+        from pxr import UsdPhysics
+
+        for obj in utils.existingObjects():
+            self.backend.setMeshCollisionApproximation(
+                obj.primPath, UsdPhysics.Tokens.none
+            )
 
     def step(self):
         self.backend.stepWorld(self.world)
@@ -145,22 +130,15 @@ class IsaacSimSimulation(Simulation):
             and not obj.usdPath
             and not obj.isaacAssetPath
         ):
-            objectScaledMesh = MeshVolumeRegion(
+            mesh = MeshVolumeRegion(
                 mesh=obj.shape.mesh,
                 dimensions=(obj.width, obj.length, obj.height),
             ).mesh
-            objectObjMesh = utils.meshToObjFrame(objectScaledMesh)
-            obj_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.obj")
-            usd_file_path = os.path.join(self.tmpMeshDir, f"{obj.name}.usd")
-            trimesh.exchange.export.export_mesh(objectObjMesh, obj_file_path)
-            success = self.backend.convertSync(
-                obj_file_path, usd_file_path, load_materials=True
+            # The asset converter reads OBJ files as Y-up; pre-rotate so the
+            # converted USD comes out Z-up like the Scenic mesh.
+            obj.usdPath = self.backend.exportMeshToUsd(
+                utils.meshToObjFrame(mesh), obj.name, self.tmpMeshDir
             )
-            if not success:
-                raise SimulationCreationError(
-                    f"Unable to convert the mesh for {obj.name} into a USD asset"
-                )
-            obj.usdPath = usd_file_path
 
         isaac_sim_obj = obj.create()
         if isaac_sim_obj is None:

@@ -24,17 +24,16 @@ def heightfieldToTrimesh(heightfield, horizontal_scale, vertical_scale):
         )
     )
 
-    faces = []
-    for i in range(rows - 1):
-        for j in range(cols - 1):
-            a = i * cols + j
-            b = (i + 1) * cols + j
-            c = i * cols + j + 1
-            d = (i + 1) * cols + j + 1
-            faces.append((a, b, c))
-            faces.append((c, b, d))
-
-    faces = np.asarray(faces, dtype=np.int64).reshape((-1, 3))
+    # Two triangles per grid cell: (a, b, c) and (c, b, d) with
+    # a = (i, j), b = (i + 1, j), c = (i, j + 1), d = (i + 1, j + 1).
+    index = np.arange(rows * cols).reshape(rows, cols)
+    a = index[:-1, :-1].ravel()
+    b = index[1:, :-1].ravel()
+    c = index[:-1, 1:].ravel()
+    d = index[1:, 1:].ravel()
+    faces = np.stack(
+        [np.column_stack((a, b, c)), np.column_stack((c, b, d))], axis=1
+    ).reshape(-1, 3)
     return trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
 
 
@@ -43,8 +42,8 @@ def buildScenicTerrainData(terrains, *, border_width=20.0):
     if not terrains:
         raise ValueError("Isaac Lab mode requires at least one Scenic Terrain object")
 
-    horizontal_scale = float(terrains[0].horizontal_scale)
-    vertical_scale = float(terrains[0].vertical_scale)
+    horizontal_scale = float(terrains[0].horizontalScale)
+    vertical_scale = float(terrains[0].verticalScale)
     border_cells = int(round(border_width / horizontal_scale))
 
     terrain_bounds = []
@@ -127,4 +126,4 @@ def buildScenicTerrainData(terrains, *, border_width=20.0):
 
 
 def terrainObjectsFromScene(scene):
-    return [obj for obj in scene.objects if getattr(obj, "blueprint", None) == "Terrain"]
+    return [obj for obj in scene.objects if obj.blueprint == "Terrain"]

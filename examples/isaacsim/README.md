@@ -196,7 +196,7 @@ All of the following parameters can be declared in a Scenic file with
 | `environmentMeshPath` | `None` | Sim and Lab | Override the converted environment mesh file (normally derived from `environmentUSDPath` and cached automatically). |
 | `environmentInfoPath` | `None` | Sim and Lab | Override the environment info JSON accompanying the mesh (normally derived and cached with it). |
 | `headless` | `False` | Sim and Lab | Launch Isaac Sim without its graphical window. |
-| `isaacBackend` | `experimental_60` | Direct Sim | Selects `core_51`, `experimental_51`, or `experimental_60`. Match this to the installed Isaac Sim release. In remote mode, defaults to the version detected in the running Isaac Sim. |
+| `isaacBackend` | `auto` | Direct Sim | Selects `core_51`, `experimental_51`, or `experimental_60`; `auto` picks one from the installed Isaac Sim version (`core_51` for 5.x, `experimental_60` for 6.x, falling back to `experimental_60`). In remote mode, defaults to the version detected in the running Isaac Sim. |
 | `isaacLab` | `False` | Lab | When enabled, delegates simulation to the Isaac Lab manager-based interface. |
 | `isaacRemote` | `False` | Remote | Run the scenario on the bridge inside an already-running Isaac Sim instead of launching one locally (see Remote mode). |
 | `isaacRemoteHost` | `None` | Remote | Bridge address for `isaacRemote` (default `127.0.0.1`). |
@@ -388,7 +388,7 @@ attributes are:
 | `color` | Display color. |
 | `usdPath` | Local USD asset path. |
 | `isaacAssetPath` | Isaac content path such as `Isaac/Robots/...`. |
-| `initial_rotation` | Fixed rotation used to align the USD asset with Scenic coordinates. |
+| `initialRotation` | Fixed (yaw, pitch, roll) rotation applied to a robot's USD asset to align it with Scenic coordinates. |
 
 When a scenario loads an existing environment, use `getExistingObj` to refer
 to prims already in that USD stage:
@@ -407,6 +407,32 @@ terminate after 20 seconds
 
 See [`examples/isaacsim/forklift/forklift.scenic`](examples/isaacsim/forklift/forklift.scenic)
 for a complete environment-based scenario.
+
+### Converting USD assets to meshes
+
+Environments given by `environmentUSDPath` are converted automatically. For an
+individual USD asset you want to use as the *shape* of an `IsaacSimObject`
+(so that Scenic's placement and collision reasoning matches the asset's real
+geometry rather than a bounding box), convert it once with the conversion
+tool, which runs inside an Isaac Sim Python environment:
+
+```bash
+python src/scenic/simulators/isaac/usd_to_mesh.py \
+  --folders /path/to/assets/rubiks_cube --load-materials
+```
+
+Every `.usd` file in each folder is written as glTF to a `_converted`
+subfolder (`/path/to/assets/rubiks_cube/_converted/rubiks_cube_usd.gltf`
+here); ground planes in the asset are dropped. Add `--environments NAME.usd`
+to treat a file as an environment, which additionally produces the JSON prim
+metadata Scenic uses for existing objects (this is what the automatic
+conversion does). Asset USDs can be copied out of a
+[local copy of the Isaac Sim assets](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release).
+
+[`examples/isaacsim/simple_room_asset_shape.scenic`](examples/isaacsim/simple_room_asset_shape.scenic)
+loads such a mesh with `MeshShape` and `repairMesh` for a Rubik's cube placed
+on the table of the `Simple_Room` environment; it expects the converted glTF
+under `examples/isaacsim/assets/rubiks_cube/_converted/`.
 
 ### Scenic terrain for Isaac Lab
 
@@ -499,7 +525,8 @@ behavior MoveJoints():
 ```
 
 An articulation action can provide `joint_positions`, `joint_velocities`, or
-`joint_efforts`, together with the corresponding joint index field. This
+`joint_efforts`, together with the corresponding joint index field
+(`joint_position_indices` etc., or a shared `joint_indices`). This
 controller form is shared by the direct Isaac Sim and Isaac Lab backends.
 
 For a custom Isaac Lab task, define and register a normal manager-based Isaac

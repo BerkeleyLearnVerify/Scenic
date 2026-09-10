@@ -1,3 +1,5 @@
+"""Conversion of USD stages/assets into meshes Scenic can reason about."""
+
 import json
 import os
 from pathlib import Path
@@ -15,15 +17,6 @@ def removeGroundPlane(file_path, output_path):
         if "groundplane" in str(prim.GetPath()).lower():
             prim.SetActive(False)
     stage.GetRootLayer().Export(output_path)
-
-
-def computeBbox(prim):
-    from pxr import Usd, UsdGeom
-
-    imageable = UsdGeom.Imageable(prim)
-    time = Usd.TimeCode.Default()
-    bound = imageable.ComputeWorldBound(time, UsdGeom.Tokens.default_)
-    return bound.ComputeAlignedBox()
 
 
 def flattenUsd(file_path, output_path):
@@ -197,11 +190,16 @@ def convertEnvironmentUsd(
     gltf_path,
     info_path,
     *,
+    backend,
     load_materials=True,
-    overwrite=False,
-    backend_name="core_51",
     open_stage_func=None,
 ):
+    """Convert an environment USD into a GLTF mesh plus a JSON file of prim metadata.
+
+    The stage is flattened, every mesh prim is renamed to ``prim_N`` (so GLTF
+    node names are unique and can be mapped back to USD paths), and the JSON
+    records each prim's original path, world bbox, and dimensions.
+    """
     gltf_dir = os.path.dirname(gltf_path)
     info_dir = os.path.dirname(info_path)
     if gltf_dir:
@@ -219,20 +217,15 @@ def convertEnvironmentUsd(
     renamed_usd = os.path.join(tmp_dir, f"{model_name}_renamed.usd")
     getMeshInfo(flattened_usd, renamed_usd, info_path, open_stage_func=open_stage_func)
 
-    if overwrite or not os.path.exists(gltf_path):
-        from scenic.simulators.isaac.backends import getBackend
-
-        status = getBackend(backend_name).convertSync(
-            renamed_usd, gltf_path, load_materials=load_materials
-        )
-        if not status:
-            raise RuntimeError(f"failed to convert environment USD to GLTF: {usd_path}")
-        print(f"---Added {gltf_path}")
+    if not backend.convertSync(renamed_usd, gltf_path, load_materials=load_materials):
+        raise RuntimeError(f"failed to convert environment USD to GLTF: {usd_path}")
+    print(f"---Added {gltf_path}")
 
     validateGltfGeometry(gltf_path)
 
 
-def assetConvert(args):
+def assetConvert(args, backend):
+    """Batch-convert the USD assets in ``args.folders`` to GLTF (see ``usd_to_mesh.py``)."""
     import omni.client
 
     for folder in args.folders:
@@ -275,11 +268,7 @@ def assetConvert(args):
                 local_asset_output, f"{model_name}_{model_format}.gltf"
             )
             if args.overwrite or not os.path.exists(converted_model_path):
-                from scenic.simulators.isaac.backends import getBackend
-
-                status = getBackend("core_51").convertSync(
-                    input_model_path, converted_model_path, True
-                )
+                status = backend.convertSync(input_model_path, converted_model_path, True)
                 if not status:
                     print(f"ERROR Status is {status}")
                 validateGltfGeometry(converted_model_path)

@@ -1,3 +1,5 @@
+"""Helpers shared by the Isaac Sim model, simulators, and backends."""
+
 import hashlib
 import json
 import os
@@ -7,35 +9,9 @@ from urllib.parse import urlparse
 import numpy as np
 import trimesh
 
-
-def convertSync(in_file, out_file, load_materials=False):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().convertSync(in_file, out_file, load_materials=load_materials)
-
-
-def getSimulationApp(headless=False):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().getSimulationApp(headless=headless)
-
-
-def closeSimulationApp(app):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().closeSimulationApp(app)
-
-
-def getAssetsRootPath():
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().getAssetsRootPath()
-
-
-def assetPath(relative_path):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().assetPath(relative_path)
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
 
 
 def resolvedPath(path):
@@ -43,6 +19,7 @@ def resolvedPath(path):
 
 
 def isIsaacAssetReference(path):
+    """Whether ``path`` is relative to the Isaac assets root (``Isaac/...``)."""
     return os.fspath(path).startswith("Isaac/")
 
 
@@ -60,6 +37,11 @@ def _environmentCacheDir(source):
 
 
 def defaultEnvironmentMeshPaths(environmentUsdPath):
+    """Where the converted mesh and info JSON for an environment USD are cached.
+
+    Local USDs are converted next to the source (in a ``_converted`` folder);
+    Isaac asset references and URLs are cached under ``~/.cache/scenic``.
+    """
     source = os.fspath(environmentUsdPath)
     stem = Path(urlparse(source).path).stem
 
@@ -75,6 +57,7 @@ def defaultEnvironmentMeshPaths(environmentUsdPath):
 
 
 def environmentOutputsCurrent(environmentUsdPath, mesh_path, info_path):
+    """Whether cached conversion outputs exist and are newer than a local source USD."""
     mesh_path = Path(mesh_path)
     info_path = Path(info_path)
     if not mesh_path.is_file() or not info_path.is_file():
@@ -95,27 +78,52 @@ def environmentOutputsCurrent(environmentUsdPath, mesh_path, info_path):
     )
 
 
-def ensureEnvironmentMeshPaths(
-    environmentUsdPath,
-    environment_mesh_path=None,
-    environment_info_path=None,
-    *,
-    headless=True,
-    overwrite=False,
-):
-    from scenic.simulators.isaac.backends import getBackend
+# ---------------------------------------------------------------------------
+# Meshes
+# ---------------------------------------------------------------------------
 
-    return getBackend().ensureEnvironmentMeshPaths(
-        environmentUsdPath,
-        environment_mesh_path,
-        environment_info_path,
-        headless=headless,
-        overwrite=overwrite,
-    )
+
+def vectorToArray(vector):
+    return np.array((vector.x, vector.y, vector.z), dtype=float)
+
+
+def colorToArray(color):
+    return np.array(color, dtype=float) if color else None
+
+
+def meshToObjFrame(mesh):
+    """Rotate a Z-up mesh into the Y-up frame the OBJ asset converter assumes."""
+    obj_mesh = mesh.copy()
+    transform = trimesh.transformations.rotation_matrix(-np.pi / 2, (1, 0, 0))
+    obj_mesh.apply_transform(transform)
+    return obj_mesh
+
+
+def planeToMesh(mesh):
+    """Extrude a planar mesh into a thin volume so it has a well-defined interior."""
+    normal = mesh.face_normals[0]
+    polygon = trimesh.path.polygons.projected(mesh, normal=normal)
+    extruded = trimesh.creation.extrude_polygon(polygon, height=0.01)
+
+    z_axis = np.array([0, 0, 1])
+    rotation = trimesh.geometry.align_vectors(z_axis, normal)
+    extruded.apply_transform(rotation)
+    return extruded
+
+
+def isPlanar(mesh, tolerance=1e-3):
+    plane_origin, plane_normal = trimesh.points.plane_fit(mesh.vertices)
+    distances = np.abs(np.dot(mesh.vertices - plane_origin, plane_normal))
+    return np.all(distances <= tolerance)
 
 
 class EnvironmentMeshCache:
-    """Persistent cache for repaired Scenic meshes from a converted environment."""
+    """Persistent cache for repaired Scenic meshes from a converted environment.
+
+    Repairing every prim of a large environment into a watertight volume is
+    slow, so results are stored next to the converted mesh and reused while
+    the mesh and info files are unchanged.
+    """
 
     version = 2
 
@@ -151,12 +159,7 @@ class EnvironmentMeshCache:
         if not self.changed:
             return
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.manifest.update(
-            {
-                "version": self.version,
-                "sources": self.sources,
-            }
-        )
+        self.manifest.update({"version": self.version, "sources": self.sources})
         with open(self.manifest_path, "w") as out_file:
             json.dump(self.manifest, out_file, indent=2)
         self.changed = False
@@ -198,68 +201,27 @@ class EnvironmentMeshCache:
         mesh.apply_scale(0.01)
 
         if mesh.is_volume:
-            print("Already watertight, skipping....")
             return mesh
-
         return repairMesh(mesh)
 
 
-def vectorToArray(vector):
-    return np.array((vector.x, vector.y, vector.z), dtype=float)
+# ---------------------------------------------------------------------------
+# Existing environment objects
+# ---------------------------------------------------------------------------
 
-
-def colorToArray(color):
-    return np.array(color, dtype=float) if color else None
-
-
-def meshToObjFrame(mesh):
-    obj_mesh = mesh.copy()
-    transform = trimesh.transformations.rotation_matrix(-np.pi / 2, (1, 0, 0))
-    obj_mesh.apply_transform(transform)
-    return obj_mesh
-
-
-def planeToMesh(mesh):
-    normal = mesh.face_normals[0]
-    polygon = trimesh.path.polygons.projected(mesh, normal=normal)
-    extruded = trimesh.creation.extrude_polygon(polygon, height=0.01)
-
-    z_axis = np.array([0, 0, 1])
-    rotation = trimesh.geometry.align_vectors(z_axis, normal)
-    extruded.apply_transform(rotation)
-    return extruded
-
-
-def isPlanar(mesh, tolerance=1e-3):
-    plane_origin, plane_normal = trimesh.points.plane_fit(mesh.vertices)
-    distances = np.abs(np.dot(mesh.vertices - plane_origin, plane_normal))
-    return np.all(distances <= tolerance)
-
-
-def scenicToIsaacSimOrientation(orientation, initial_rotation=None):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().scenicToIsaacOrientation(
-        orientation, initial_rotation=initial_rotation
-    )
-
-
-def applyVisualMaterial(wrapper, obj):
-    from scenic.simulators.isaac.backends import getBackend
-
-    return getBackend().applyVisualMaterial(wrapper, obj)
-
-
+# Objects the model created for prims of the loaded environment USD, keyed by
+# both prim path and name so scenarios can look them up either way.
 _existingObj = {}
 
 
 def _addExistingObj(obj):
-    for key in (getattr(obj, "primPath", None), getattr(obj, "name", None)):
+    for key in (obj.primPath, obj.name):
         if key is not None:
             _existingObj[str(key)] = obj
 
 
 def getExistingObj(objName):
+    """Return the `ExistingIsaacSimObject` for a prim path (or name) in the environment."""
     try:
         return _existingObj[objName]
     except KeyError as exc:
@@ -273,65 +235,7 @@ def getExistingObj(objName):
 def existingObjects():
     """Return each registered existing Isaac object once."""
     objs_by_prim_path = {}
-
     for obj in _existingObj.values():
-        prim_path = getattr(obj, "primPath", None)
-        if prim_path is None:
-            continue
-        objs_by_prim_path[str(prim_path)] = obj
-
+        if obj.primPath is not None:
+            objs_by_prim_path[str(obj.primPath)] = obj
     return tuple(objs_by_prim_path.values())
-
-
-def setCollidersExistingObj(verbose=False):
-    from pxr import UsdPhysics
-
-    from scenic.simulators.isaac.backends import getBackend
-
-    approximation = UsdPhysics.Tokens.none
-
-    changed = []
-    failed = []
-
-    for obj in existingObjects():
-        prim_path = getattr(obj, "primPath", None)
-        if prim_path is None:
-            continue
-
-        prim_path = str(prim_path)
-
-        try:
-            getBackend().setMeshCollisionApproximation(prim_path, approximation)
-            changed.append(prim_path)
-
-            if verbose:
-                print(
-                    f"[setCollidersExistingObj] set {prim_path} "
-                    f"collision approximation to {approximation}"
-                )
-
-        except Exception as exc:
-            failed.append((prim_path, exc))
-
-            if verbose:
-                print(
-                    f"[setCollidersExistingObj] failed for {prim_path}: "
-                    f"{type(exc).__name__}: {exc}"
-                )
-
-    if failed:
-        failed_text = "\n".join(
-            f"  {prim_path}: {type(exc).__name__}: {exc}" for prim_path, exc in failed
-        )
-        raise RuntimeError(
-            "failed to set mesh collision approximation for some existing "
-            f"Isaac Sim objects:\n{failed_text}"
-        )
-
-    if verbose:
-        print(
-            f"[setCollidersExistingObj] updated {len(changed)} existing "
-            "environment object(s)"
-        )
-
-    return changed

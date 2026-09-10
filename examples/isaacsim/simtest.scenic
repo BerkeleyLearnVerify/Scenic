@@ -1,1 +1,0 @@
-model scenic.simulators.isaac.model

@@ -1,12 +1,7 @@
 import argparse
 import os
-from pathlib import Path
 import sys
 import time
-
-# _SCENIC_SRC = Path(__file__).resolve().parents[4]
-# if str(_SCENIC_SRC) not in sys.path:
-#     sys.path.insert(0, str(_SCENIC_SRC))
 
 from isaaclab.app import AppLauncher
 

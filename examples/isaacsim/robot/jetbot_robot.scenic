@@ -1,10 +1,11 @@
 model scenic.simulators.isaac.model
 
+import numpy as np
+from scenic.simulators.isaac.backends import articulationAction
+
 # takes a command and returns an ArticulationAction
 # https://docs.isaacsim.omniverse.nvidia.com/latest/core_api_tutorials/tutorial_core_adding_controller.html
 def jetbotControl(command):
-
-    from scenic.simulators.isaac.backends import articulationAction
     throttle, steering = command
     wheelRadius = 0.03
     wheelBase = 0.1125

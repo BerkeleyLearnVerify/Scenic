@@ -6,6 +6,8 @@ from scenic.simulators.isaac.backends.experimental_60 import Experimental60Backe
 
 @dataclass
 class Experimental51World:
+    """Experimental-API objects on top of a Core World (needed to step Isaac Sim 5.1)."""
+
     core_world: object
     app: object
     timestep: float
@@ -16,7 +18,7 @@ class Experimental51World:
 
 
 class Experimental51Backend(Experimental60Backend):
-    """Isaac Sim 5.1 backend using Core Experimental wrappers."""
+    """Isaac Sim 5.1 backend using the Core Experimental wrappers."""
 
     name = "experimental_51"
 
@@ -35,6 +37,7 @@ class Experimental51Backend(Experimental60Backend):
         )
 
     def runCoroutine(self, coro):
+        # SimulationApp has no run_coroutine in 5.1.
         return IsaacBackend.runCoroutine(self, coro)
 
     def enableExtension(self, name):
@@ -58,13 +61,12 @@ class Experimental51Backend(Experimental60Backend):
         return opened
 
     def _openStage(self, stage_utils, usd_path):
+        # open_stage returns (opened, stage) in 6.0 but only a bool in 5.1.
         result = stage_utils.open_stage(usd_path)
         if isinstance(result, tuple):
-            opened, stage = result
-        else:
-            opened = bool(result)
-            stage = stage_utils.get_current_stage() if opened else None
-        return opened, stage
+            return result
+        stage = stage_utils.get_current_stage() if result else None
+        return bool(result), stage
 
     def initializePhysics(self, world, objects):
         # Referenced assets can enter the loading queue one update after it first empties.
@@ -91,6 +93,3 @@ class Experimental51Backend(Experimental60Backend):
         from isaacsim.core.api import World
 
         World.clear_instance()
-
-    def addObject(self, world, obj, *, scenic_obj=None):
-        world.objects[scenic_obj.name] = obj

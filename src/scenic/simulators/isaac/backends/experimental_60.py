@@ -1,18 +1,29 @@
 from dataclasses import dataclass, field
 import math
-import os
 
 import numpy as np
 
-from scenic.simulators.isaac.backends.base import IsaacBackend
+from scenic.simulators.isaac.actions import _ManipulatorRobot
+from scenic.simulators.isaac.backends.base import (
+    IsaacBackend,
+    isWheeledRobot,
+    positionArray,
+    wxyzToRotation,
+)
+from scenic.simulators.isaac.backends.robotiq import (
+    configureRobotiqContactMaterial,
+    configureRobotiqGripper,
+    configureRobotiqPickObjectContact,
+)
 import scenic.simulators.isaac.utils as scenic_utils
 
 
 @dataclass
 class ExperimentalWorld:
+    """The experimental API has no World class; this holds the equivalent state."""
+
     app: object
     timestep: float
-    render: bool = False
     objects: dict = field(default_factory=dict)
     simulation_time: float = 0.0
 
@@ -30,31 +41,6 @@ class ManipulatorPickPlaceState:
     place_position: object = None
 
 
-def _quatMul(a, b):
-    w1, x1, y1, z1 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
-    w2, x2, y2, z2 = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
-    ww = (z1 + x1) * (x2 + y2)
-    yy = (w1 - y1) * (w2 + z2)
-    zz = (w1 + y1) * (w2 - z2)
-    xx = ww + yy + zz
-    qq = 0.5 * (xx + (z1 - x1) * (x2 - y2))
-    w = qq - ww + (z1 - y1) * (y2 - z2)
-    x = qq - xx + (x1 + w1) * (x2 + w2)
-    y = qq - yy + (w1 - x1) * (y2 + z2)
-    z = qq - zz + (z1 + y1) * (w2 - x2)
-    return np.stack([w, x, y, z], axis=-1)
-
-
-def _quatConjugate(q):
-    return np.concatenate((q[:, :1], -q[:, 1:]), axis=-1)
-
-
-def _positionArray(position):
-    if hasattr(position, "x") and hasattr(position, "y") and hasattr(position, "z"):
-        return np.array([position.x, position.y, position.z], dtype=float)
-    return np.asarray(position, dtype=float).reshape(-1)[:3]
-
-
 def _differentialInverseKinematics(
     jacobian_end_effector,
     current_position,
@@ -64,15 +50,18 @@ def _differentialInverseKinematics(
     damping=0.05,
     scale=1.0,
 ):
+    """One damped-least-squares IK step; returns the joint position deltas."""
     goal_orientation = (
         current_orientation if goal_orientation is None else goal_orientation
     )
-    q = _quatMul(goal_orientation, _quatConjugate(current_orientation))
+    # Orientation error: vector part of the rotation from current to goal
+    # (as an xyzw quaternion), with the sign chosen for the shortest arc.
+    q = (
+        wxyzToRotation(goal_orientation) * wxyzToRotation(current_orientation).inv()
+    ).as_quat()
+    orientation_error = q[:, :3] * np.sign(q[:, 3:])
     error = np.expand_dims(
-        np.concatenate(
-            [goalPosition - current_position, q[:, 1:] * np.sign(q[:, [0]])],
-            axis=-1,
-        ),
+        np.concatenate([goalPosition - current_position, orientation_error], axis=-1),
         axis=2,
     )
     transpose = np.swapaxes(jacobian_end_effector, 1, 2)
@@ -86,9 +75,13 @@ def _differentialInverseKinematics(
 
 
 class Experimental60Backend(IsaacBackend):
-    """Isaac Sim 6.0.0 backend implemented with Core Experimental APIs."""
+    """Isaac Sim 6.0.0 backend implemented with the Core Experimental APIs."""
 
     name = "experimental_60"
+
+    def __init__(self):
+        super().__init__()
+        self._environment_usd_path = None
 
     def createWorld(self, timestep):
         import isaacsim.core.experimental.utils.stage as stage_utils
@@ -109,7 +102,10 @@ class Experimental60Backend(IsaacBackend):
     def openEnvironmentStage(self, usd_path):
         import isaacsim.core.experimental.utils.stage as stage_utils
 
-        if self._stageAlreadyOpen(stage_utils, usd_path):
+        # Reuse the stage across simulations when the environment has not changed.
+        stage = stage_utils.get_current_stage()
+        if self._environment_usd_path == usd_path and stage is not None:
+            stage.SetEditTarget(stage.GetSessionLayer())
             return True
 
         opened, stage = stage_utils.open_stage(usd_path)
@@ -119,14 +115,11 @@ class Experimental60Backend(IsaacBackend):
         self._environment_usd_path = usd_path
         return True
 
-    def _stageAlreadyOpen(self, stage_utils, usd_path):
-        if getattr(self, "_environment_usd_path", None) != usd_path:
-            return False
-        stage = stage_utils.get_current_stage()
-        if stage is None:
-            return False
-        stage.SetEditTarget(stage.GetSessionLayer())
-        return True
+    def _openStageForConversion(self, usd_path):
+        import isaacsim.core.experimental.utils.stage as stage_utils
+
+        opened, _ = stage_utils.open_stage(usd_path)
+        return opened
 
     def enableExtension(self, name):
         import isaacsim.core.experimental.utils.app as app_utils
@@ -142,11 +135,12 @@ class Experimental60Backend(IsaacBackend):
             world.app.update()
 
     def _configureManipulatorPickObjectsForWorld(self, world, objects):
+        """Apply the Robotiq profile's contact tuning to every rigid generic object."""
         profile = next(
             (
                 obj.manipulatorProfile
                 for obj in objects
-                if getattr(obj, "manipulatorProfile", None) is not None
+                if isinstance(obj, _ManipulatorRobot)
                 and obj.manipulatorProfile.gripperStyle == "robotiq_2f85"
             ),
             None,
@@ -156,14 +150,15 @@ class Experimental60Backend(IsaacBackend):
 
         import isaacsim.core.experimental.utils.stage as stage_utils
 
-        stage = stage_utils.get_current_stage()
         pick_object_paths = [
             obj._isaac_generic_prim_path
             for obj in objects
             if obj.physics and hasattr(obj, "_isaac_generic_prim_path")
         ]
         if pick_object_paths:
-            self._configureRobotiqPickObjectContact(stage, pick_object_paths, profile)
+            configureRobotiqPickObjectContact(
+                stage_utils.get_current_stage(), pick_object_paths, profile
+            )
 
     def playWorld(self, world):
         import omni.timeline
@@ -188,16 +183,14 @@ class Experimental60Backend(IsaacBackend):
         import isaacsim.core.experimental.utils.stage as stage_utils
         import omni.timeline
 
-        timeline = omni.timeline.get_timeline_interface()
-        timeline.stop()
+        omni.timeline.get_timeline_interface().stop()
         if world.app is not None:
             world.app.update()
 
-        for name, wrapper in list(world.objects.items()):
-            prim_path = getattr(wrapper, "primPath", f"/World/{name}")
+        for name in list(world.objects):
             try:
-                stage_utils.delete_prim(prim_path)
-            except Exception as exc:
+                stage_utils.delete_prim(f"/World/{name}")
+            except Exception:
                 pass
         world.objects.clear()
         if world.app is not None:
@@ -209,122 +202,46 @@ class Experimental60Backend(IsaacBackend):
     def addObject(self, world, obj, *, scenic_obj=None):
         world.objects[scenic_obj.name] = obj
 
-    def ensureEnvironmentMeshPaths(
-        self,
-        environmentUsdPath,
-        environment_mesh_path=None,
-        environment_info_path=None,
-        *,
-        headless=True,
-        overwrite=False,
-    ):
-        default_mesh_path, default_info_path = scenic_utils.defaultEnvironmentMeshPaths(
-            environmentUsdPath
-        )
-        mesh_path = (
-            scenic_utils.resolvedPath(environment_mesh_path)
-            if environment_mesh_path
-            else default_mesh_path
-        )
-        info_path = (
-            scenic_utils.resolvedPath(environment_info_path)
-            if environment_info_path
-            else default_info_path
-        )
-
-        if not overwrite and scenic_utils.environmentOutputsCurrent(
-            environmentUsdPath, mesh_path, info_path
-        ):
-            return mesh_path, info_path
-
-        mesh_path.parent.mkdir(parents=True, exist_ok=True)
-        info_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if not self.kitAppRunning():
-            self.getSimulationApp(headless=headless)
-
-        self.enableExtension("omni.kit.asset_converter")
-        from scenic.simulators.isaac.backends.core_51_usd_to_mesh import (
-            convertEnvironmentUsd,
-        )
-
-        convertEnvironmentUsd(
-            self.kitUsdPath(environmentUsdPath),
-            str(mesh_path),
-            str(info_path),
-            overwrite=True,
-            backend_name=self.name,
-            open_stage_func=self._openStageForConversion,
-        )
-        return mesh_path, info_path
-
-    def _openStageForConversion(self, usd_path):
-        import isaacsim.core.experimental.utils.stage as stage_utils
-
-        opened, stage = stage_utils.open_stage(usd_path)
-        return opened
+    # ------------------------------------------------------------------
+    # Object creation
+    # ------------------------------------------------------------------
 
     def createGenericObject(self, obj):
         from isaacsim.core.experimental.prims import RigidPrim, XformPrim
         import isaacsim.core.experimental.utils.stage as stage_utils
 
         prim_path = f"/World/{obj.name}"
-        assetPrimPath = f"{prim_path}/asset"
-
-        usd_path = (
-            self.assetPath(obj.isaacAssetPath)
-            if obj.isaacAssetPath
-            else os.path.abspath(obj.usdPath)
+        stage_utils.define_prim(prim_path, "Xform")
+        stage_utils.add_reference_to_stage(
+            usd_path=self.objectUsdPath(obj), path=f"{prim_path}/asset"
         )
 
-        stage_utils.define_prim(prim_path, "Xform")
-
-        stage_utils.add_reference_to_stage(usd_path=usd_path, path=assetPrimPath)
-
-        scenic_position = scenic_utils.vectorToArray(obj.position)
         orientation = self.scenicToIsaacOrientation(obj.orientation)
-
-        # Geometry is under /World/ObjectName/asset.
         geometry_paths = self._geometryPathsUnder(prim_path)
         self._applyCollisionsToGeometry(geometry_paths)
 
-        # Compute scale from Scenic dimensions to native USD dimensions.
-        # This should compute the bbox of the full parent, including the asset child.
-        root_position, local_scale, native_size, native_center = (
-            self.computeUsdScaleAndRootPosition(
-                obj,
-                prim_path,
-                scenic_position,
-                orientation,
-            )
+        # Scale the asset (under /World/<name>/asset) to Scenic's dimensions.
+        root_position, local_scale, _, _ = self.computeUsdScaleAndRootPosition(
+            obj, prim_path, scenic_utils.vectorToArray(obj.position), orientation
         )
 
+        prim_kwargs = dict(
+            positions=root_position,
+            orientations=orientation,
+            scales=local_scale,
+            reset_xform_op_properties=True,
+        )
         if obj.physics:
-            wrapper = RigidPrim(
-                prim_path,
-                positions=root_position,
-                orientations=orientation,
-                scales=local_scale,
-                reset_xform_op_properties=True,
-            )
-
+            wrapper = RigidPrim(prim_path, **prim_kwargs)
             if obj.mass is not None:
                 wrapper.set_masses(np.asarray([obj.mass], dtype=np.float32))
-
             if obj.density is not None:
                 wrapper.set_densities(np.asarray([obj.density], dtype=np.float32))
-
-            velocity = scenic_utils.vectorToArray(obj.velocity)
-            wrapper.set_velocities(linear_velocities=velocity)
-
-        else:
-            wrapper = XformPrim(
-                prim_path,
-                positions=root_position,
-                orientations=orientation,
-                scales=local_scale,
-                reset_xform_op_properties=True,
+            wrapper.set_velocities(
+                linear_velocities=scenic_utils.vectorToArray(obj.velocity)
             )
+        else:
+            wrapper = XformPrim(prim_path, **prim_kwargs)
             self.disableRigidBody(prim_path)
 
         if obj.color:
@@ -337,13 +254,12 @@ class Experimental60Backend(IsaacBackend):
         import isaacsim.core.experimental.utils.stage as stage_utils
         from pxr import Usd, UsdGeom
 
-        stage = stage_utils.get_current_stage()
-        prim = stage.GetPrimAtPath(prim_path)
-        paths = []
-        for descendant in Usd.PrimRange(prim):
-            if descendant.IsA(UsdGeom.Gprim):
-                paths.append(str(descendant.GetPath()))
-        return paths
+        prim = stage_utils.get_current_stage().GetPrimAtPath(prim_path)
+        return [
+            str(descendant.GetPath())
+            for descendant in Usd.PrimRange(prim)
+            if descendant.IsA(UsdGeom.Gprim)
+        ]
 
     def _applyCollisionsToGeometry(self, geometry_paths):
         if not geometry_paths:
@@ -360,8 +276,7 @@ class Experimental60Backend(IsaacBackend):
         prim = stage_utils.get_current_stage().GetPrimAtPath(prim_path)
         for descendant in Usd.PrimRange(prim):
             if descendant.HasAPI(UsdPhysics.RigidBodyAPI):
-                rigid_body_api = UsdPhysics.RigidBodyAPI(descendant)
-                rigid_body_api.CreateRigidBodyEnabledAttr(False)
+                UsdPhysics.RigidBodyAPI(descendant).CreateRigidBodyEnabledAttr(False)
 
     def applyVisualMaterial(self, wrapper, obj, geometry_paths=None):
         from isaacsim.core.experimental.materials import PreviewSurfaceMaterial
@@ -382,23 +297,16 @@ class Experimental60Backend(IsaacBackend):
         from isaacsim.core.experimental.prims import Articulation
         import isaacsim.core.experimental.utils.stage as stage_utils
 
-        if getattr(obj, "manipulatorProfile", None) is not None:
+        if obj.manipulatorProfile is not None:
             return self.createManipulator(obj)
 
-        if getattr(obj, "wheelController", None) in {
-            "differential",
-            "holonomic",
-            "ackermann",
-        }:
+        if isWheeledRobot(obj):
             return self.createWheeledRobot(obj)
 
         prim_path = f"/World/{obj.name}"
-        usd_path = (
-            self.assetPath(obj.isaacAssetPath)
-            if obj.isaacAssetPath
-            else os.path.abspath(obj.usdPath)
+        stage_utils.add_reference_to_stage(
+            usd_path=self.objectUsdPath(obj), path=prim_path
         )
-        stage_utils.add_reference_to_stage(usd_path=usd_path, path=prim_path)
         wrapper = Articulation(
             prim_path,
             positions=scenic_utils.vectorToArray(obj.position),
@@ -416,7 +324,6 @@ class Experimental60Backend(IsaacBackend):
         return wrapper
 
     def createWheeledRobot(self, obj):
-        import isaacsim.core.experimental.utils.stage as stage_utils
         from isaacsim.robot.experimental.wheeled_robots.controllers import (
             AckermannController,
             DifferentialController,
@@ -428,16 +335,10 @@ class Experimental60Backend(IsaacBackend):
         )
 
         prim_path = f"/World/{obj.name}"
-        usd_path = (
-            self.assetPath(obj.isaacAssetPath)
-            if obj.isaacAssetPath
-            else os.path.abspath(obj.usdPath)
-        )
-
         wrapper = WheeledRobot(
             paths=prim_path,
             wheel_dof_names=obj.wheelDofNames,
-            usd_path=usd_path,
+            usd_path=self.objectUsdPath(obj),
             positions=scenic_utils.vectorToArray(obj.position),
             orientations=self.scenicToIsaacOrientation(
                 obj.orientation, initial_rotation=obj.initialRotation
@@ -454,7 +355,7 @@ class Experimental60Backend(IsaacBackend):
         elif obj.wheelController == "holonomic":
             holonomic_setup = HolonomicRobotUsdSetup(
                 robot_prim_path=prim_path,
-                com_prim_path=f"/World/{obj.name}/base_link/control_offset",
+                com_prim_path=f"{prim_path}/base_link/control_offset",
             )
             (
                 wheel_radius,
@@ -464,7 +365,6 @@ class Experimental60Backend(IsaacBackend):
                 wheel_axis,
                 up_axis,
             ) = holonomic_setup.get_holonomic_controller_params()
-
             obj.controller = HolonomicController(
                 wheel_radius=wheel_radius,
                 wheel_positions=wheel_positions,
@@ -472,82 +372,28 @@ class Experimental60Backend(IsaacBackend):
                 mecanum_angles=mecanum_angles,
                 wheel_axis=wheel_axis,
                 up_axis=up_axis,
-                max_linear_speed=getattr(obj, "maxLinearSpeed", 0.5),
-                max_angular_speed=getattr(obj, "maxAngularSpeed", 0.8),
-                max_wheel_speed=getattr(obj, "maxWheelSpeed", 10.0),
+                max_linear_speed=obj.maxLinearSpeed,
+                max_angular_speed=obj.maxAngularSpeed,
+                max_wheel_speed=obj.maxWheelSpeed,
             )
         elif obj.wheelController == "ackermann":
-            steering_dof_names = getattr(obj, "steeringDofNames", None)
-            if not steering_dof_names:
+            if not obj.steeringDofNames:
                 raise ValueError(
-                    f"Ackermann robot {obj.name} requires steering_dof_names, "
+                    f"Ackermann robot {obj.name} requires steeringDofNames, "
                     "usually [front_left_steering_joint, front_right_steering_joint]."
                 )
-
-            obj.steeringDofNames = steering_dof_names
-            obj.steeringDofIndices = wrapper.get_dof_indices(steering_dof_names)
-
-            # If the user only exposes obj.wheelRadius in Scenic, use it for both front/back.
-            front_wheel_radius = getattr(obj, "frontWheelRadius", obj.wheelRadius)
-            back_wheel_radius = getattr(obj, "backWheelRadius", obj.wheelRadius)
-
+            obj.steeringDofIndices = wrapper.get_dof_indices(obj.steeringDofNames)
             obj.controller = AckermannController(
                 wheel_base=obj.wheelBase,
                 track_width=obj.trackWidth,
-                front_wheel_radius=front_wheel_radius,
-                back_wheel_radius=back_wheel_radius,
+                front_wheel_radius=obj.frontWheelRadius,
+                back_wheel_radius=obj.backWheelRadius,
             )
-        else:
-            obj.controller = obj.control
 
         if obj.color:
             self.applyVisualMaterial(wrapper, obj)
 
         return wrapper
-
-    def applyRobotControl(self, sim, obj, command):
-        wrapper = sim.world.getObject(obj.name)
-        if obj.controller is None:
-            return
-        if getattr(obj, "wheelController", None) in {
-            "differential",
-            "holonomic",
-            "ackermann",
-        }:
-            self.applyWheeledControl(sim, obj, command)
-            return
-
-        action = obj.controller(command)
-        self._applyArticulationAction(wrapper, action)
-
-    def applyWheeledControl(self, sim, obj, command):
-        wrapper = sim.world.getObject(obj.name)
-
-        if obj.controller is None:
-            return
-
-        wheel_controller = obj.wheelController
-
-        if wheel_controller in {"differential", "holonomic"}:
-            # Differential command: [linear_speed, angular_speed]
-            # Holonomic command: [forward_speed, lateral_speed, yaw_speed]
-            wrapper.apply_wheel_actions(obj.controller.forward(command))
-            return
-        elif wheel_controller == "ackermann":
-            # Ackermann command: [steering_angle, steering_angle_velocity, speed, acceleration, dt]
-            steering_positions, wheel_velocities = obj.controller.forward(command)
-
-            wrapper.set_dof_position_targets(
-                steering_positions,
-                dof_indices=obj.steeringDofIndices,
-            )
-            # obj.wheelDofNames should be ordered as: [front_left, front_right, rear_left, rear_right]
-            wrapper.apply_wheel_actions(wheel_velocities)
-            return
-
-        # If the user supplied a custom controller that returns an existing ArticulationAction.
-        action = obj.controller(command)
-        self._applyArticulationAction(wrapper, action)
 
     def createManipulator(self, obj):
         from isaacsim.core.experimental.prims import Articulation, RigidPrim
@@ -555,39 +401,31 @@ class Experimental60Backend(IsaacBackend):
 
         profile = obj.manipulatorProfile
         prim_path = f"/World/{obj.name}"
-        root_position = self._manipulatorRootPosition(obj)
-        root_orientation = self.scenicToIsaacOrientation(
-            obj.orientation,
-            initial_rotation=obj.initialRotation,
-        )
 
         robot_prim = stage_utils.add_reference_to_stage(
-            usd_path=self.kitUsdPath(profile.usdPath),
-            path=prim_path,
+            usd_path=self.kitUsdPath(profile.usdPath), path=prim_path
         )
         for variant_name, selection in profile.usdVariants:
-            self._setRequiredVariant(robot_prim, variant_name, selection)
+            self.setRequiredVariant(robot_prim, variant_name, selection)
 
         stage = stage_utils.get_current_stage()
-        self._requireStagePrim(stage, f"{prim_path}/{profile.endEffectorPrim}")
+        self.requireStagePrim(stage, f"{prim_path}/{profile.endEffectorPrim}")
         if profile.gripperStyle == "robotiq_2f85":
-            self._configureRobotiqGripperAttachment(stage, prim_path, profile)
-            self._configureRobotiqDefaultJointPose(stage, prim_path, profile)
-            self._configureRobotiqClosedLoopGripper(stage, prim_path, profile)
-            self._configureRobotiqGripperDrive(stage, prim_path, profile)
-            self._configureRobotiqGripperContact(stage, prim_path, profile)
+            configureRobotiqGripper(stage, prim_path, profile)
+            configureRobotiqContactMaterial(stage, prim_path, profile)
 
         wrapper = Articulation(
             prim_path,
-            positions=root_position,
-            orientations=root_orientation,
+            positions=self.manipulatorRootPosition(obj),
+            orientations=self.scenicToIsaacOrientation(
+                obj.orientation, initial_rotation=obj.initialRotation
+            ),
             reset_xform_op_properties=True,
         )
         arm_dof_indices = self._dofIndices(wrapper, list(profile.armDofNames))
-        if getattr(obj, "armMaxVelocities", None) is not None:
+        if obj.armMaxVelocities is not None:
             wrapper.set_dof_max_velocities(
-                obj.armMaxVelocities,
-                dof_indices=arm_dof_indices,
+                obj.armMaxVelocities, dof_indices=arm_dof_indices
             )
         gripper_dof_indices = self._dofIndices(wrapper, list(profile.gripperDofNames))
         default_dof_positions = np.zeros(len(wrapper.dof_names), dtype=float)
@@ -597,383 +435,144 @@ class Experimental60Backend(IsaacBackend):
             default_dof_positions[dof_index] = value
         wrapper.set_default_state(dof_positions=default_dof_positions)
 
-        end_effector = RigidPrim(f"{prim_path}/{profile.endEffectorPrim}")
-        end_effector_link_index = self._linkIndex(wrapper, profile.controlLinkName)
-        metadata = {
+        obj._manipulator_metadata = {
             "prim_path": prim_path,
-            "end_effector": end_effector,
-            "end_effector_link_index": end_effector_link_index,
+            "end_effector": RigidPrim(f"{prim_path}/{profile.endEffectorPrim}"),
+            "end_effector_link_index": self._linkIndex(wrapper, profile.controlLinkName),
             "arm_dof_indices": arm_dof_indices,
             "gripper_dof_indices": gripper_dof_indices,
             "default_dof_positions": default_dof_positions,
-            "open_gripper_positions": profile.openGripperPositions.copy(),
-            "closed_gripper_positions": profile.closedGripperPositions.copy(),
-            "downward_orientation": profile.downwardOrientation.copy(),
-            "tcp_offset": profile.tcpOffset.copy(),
         }
-        obj._manipulator_metadata = metadata
         if profile.supportsPickPlace:
             obj._manipulator_pick_place_state = None
 
         if obj.color:
             self.applyVisualMaterial(
-                wrapper,
-                obj,
-                geometry_paths=self._geometryPathsUnder(prim_path),
+                wrapper, obj, geometry_paths=self._geometryPathsUnder(prim_path)
             )
         return wrapper
-
-    def _setRequiredVariant(self, prim, variant_name, selection):
-        variant_set = prim.GetVariantSet(variant_name)
-        if not variant_set or not variant_set.IsValid():
-            raise RuntimeError(f"{prim.GetPath()} has no {variant_name!r} variant set")
-        available = list(variant_set.GetVariantNames())
-        if selection not in available:
-            raise RuntimeError(
-                f"{prim.GetPath()} {variant_name!r} variant {selection!r} is missing"
-            )
-        variant_set.SetVariantSelection(selection)
-
-    def _requireStagePrim(self, stage, prim_path):
-        if stage is None:
-            raise RuntimeError("Required Isaac USD stage is missing")
-        prim = stage.GetPrimAtPath(prim_path)
-        if not prim or not prim.IsValid():
-            raise RuntimeError(f"Required Isaac prim is missing: {prim_path}")
-        return prim
-
-    def _manipulatorRootPosition(self, obj):
-        position = scenic_utils.vectorToArray(obj.position)
-        position[2] -= obj.height / 2
-        return position
-
-    def _configureRobotiqGripperAttachment(self, stage, prim_path, profile):
-        from pxr import Gf, Sdf
-
-        joint = self._requireStagePrim(stage, f"{prim_path}/joints/robot_gripper_joint")
-
-        def setQuatAttr(attr_name, values):
-            attr = joint.GetAttribute(attr_name)
-            if not attr or not attr.IsValid():
-                attr = joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Quatf)
-            attr.Set(
-                Gf.Quatf(
-                    float(values[0]),
-                    Gf.Vec3f(float(values[1]), float(values[2]), float(values[3])),
-                )
-            )
-
-        setQuatAttr("physics:localRot0", (0.70710677, 0.0, 0.0, 0.70710677))
-        setQuatAttr("physics:localRot1", (1.0, 0.0, 0.0, 0.0))
-
-    def _configureRobotiqDefaultJointPose(self, stage, prim_path, profile):
-        from pxr import Sdf
-
-        for joint_name, angle_deg in zip(
-            profile.armDofNames, np.rad2deg(profile.defaultArmPose)
-        ):
-            joint = self._requireStagePrim(stage, f"{prim_path}/joints/{joint_name}")
-            for attr_name in (
-                "drive:angular:physics:targetPosition",
-                "state:angular:physics:position",
-            ):
-                attr = joint.GetAttribute(attr_name)
-                if not attr or not attr.IsValid():
-                    attr = joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
-                attr.Set(float(angle_deg))
-
-        gripper_joint = self._requireStagePrim(
-            stage, f"{prim_path}/{profile.gripperPrim}/Joints/finger_joint"
-        )
-        for attr_name in (
-            "drive:angular:physics:targetPosition",
-            "state:angular:physics:position",
-        ):
-            attr = gripper_joint.GetAttribute(attr_name)
-            if not attr or not attr.IsValid():
-                attr = gripper_joint.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
-            attr.Set(float(profile.openGripperPositions[0]))
-
-    def _configureRobotiqGripperDrive(self, stage, prim_path, profile):
-        from pxr import PhysxSchema, Sdf, Usd, UsdPhysics
-
-        gripper_root = self._requireStagePrim(stage, f"{prim_path}/{profile.gripperPrim}")
-        found_finger_joint = False
-
-        def setAttr(prim, attr_name, value, value_type):
-            attr = prim.GetAttribute(attr_name)
-            if not attr or not attr.IsValid():
-                attr = prim.CreateAttribute(attr_name, value_type)
-            attr.Set(float(value))
-            return attr
-
-        def setDriveAttrs(
-            prim,
-            max_force,
-            stiffness,
-            damping,
-            target_velocity=0.0,
-        ):
-            if "PhysicsDriveAPI:angular" not in list(prim.GetAppliedSchemas()):
-                UsdPhysics.DriveAPI.Apply(prim, "angular")
-            for attr_name, value in (
-                ("drive:angular:physics:maxForce", max_force),
-                ("drive:angular:physics:stiffness", stiffness),
-                ("drive:angular:physics:damping", damping),
-                ("drive:angular:physics:targetVelocity", target_velocity),
-            ):
-                attr = prim.GetAttribute(attr_name)
-                if not attr or not attr.IsValid():
-                    attr = prim.CreateAttribute(attr_name, Sdf.ValueTypeNames.Float)
-                attr.Set(float(value))
-            drive_type = prim.GetAttribute("drive:angular:physics:type")
-            if not drive_type or not drive_type.IsValid():
-                drive_type = prim.CreateAttribute(
-                    "drive:angular:physics:type", Sdf.ValueTypeNames.Token
-                )
-            drive_type.Set("force")
-            joint_api = (
-                PhysxSchema.PhysxJointAPI(prim)
-                if prim.HasAPI(PhysxSchema.PhysxJointAPI)
-                else PhysxSchema.PhysxJointAPI.Apply(prim)
-            )
-            joint_api.CreateMaxJointVelocityAttr().Set(
-                float(profile.gripperMaxJointVelocityDegPerSec)
-            )
-
-        for prim in Usd.PrimRange(gripper_root):
-            name = prim.GetName()
-            if "Joint" not in str(prim.GetTypeName()) and not name.endswith("_joint"):
-                continue
-            for schema in list(prim.GetAppliedSchemas()):
-                if not schema.startswith("PhysxMimicJointAPI:"):
-                    continue
-                axis = schema.split(":", 1)[1]
-                setAttr(
-                    prim,
-                    f"physxMimicJoint:{axis}:naturalFrequency",
-                    profile.mimicNaturalFrequency,
-                    Sdf.ValueTypeNames.Float,
-                )
-                setAttr(
-                    prim,
-                    f"physxMimicJoint:{axis}:dampingRatio",
-                    profile.mimicDampingRatio,
-                    Sdf.ValueTypeNames.Float,
-                )
-            if name == "finger_joint":
-                found_finger_joint = True
-                setDriveAttrs(
-                    prim,
-                    profile.gripperMaxForce,
-                    profile.gripperStiffness,
-                    profile.gripperDamping,
-                )
-                setAttr(prim, "physics:lowerLimit", 0.0, Sdf.ValueTypeNames.Float)
-                setAttr(
-                    prim,
-                    "physics:upperLimit",
-                    profile.gripperFullyClosedPosition,
-                    Sdf.ValueTypeNames.Float,
-                )
-            elif name in ("left_outer_finger_joint", "right_outer_finger_joint"):
-                setDriveAttrs(
-                    prim,
-                    profile.gripperMaxForce,
-                    profile.outerFingerParallelStiffness,
-                    profile.gripperDamping,
-                )
-            elif "finger" in name or "knuckle" in name:
-                for attr_name in (
-                    "drive:angular:physics:maxForce",
-                    "drive:angular:physics:stiffness",
-                    "drive:angular:physics:damping",
-                    "drive:angular:physics:targetVelocity",
-                ):
-                    attr = prim.GetAttribute(attr_name)
-                    if attr and attr.IsValid():
-                        attr.Set(0.0)
-        if not found_finger_joint:
-            raise RuntimeError(
-                f"Missing Robotiq finger_joint under {gripper_root.GetPath()}"
-            )
-
-    def _configureRobotiqGripperContact(self, stage, prim_path, profile):
-        from omni.physx.scripts import physicsUtils
-        from pxr import PhysxSchema, Usd, UsdPhysics, UsdShade
-
-        root = self._requireStagePrim(stage, f"{prim_path}/{profile.gripperPrim}")
-        material = UsdShade.Material.Define(stage, profile.gripperContactMaterialPath)
-        material_prim = material.GetPrim()
-        material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-        material_api.CreateStaticFrictionAttr().Set(float(profile.gripperStaticFriction))
-        material_api.CreateDynamicFrictionAttr().Set(
-            float(profile.gripperDynamicFriction)
-        )
-        material_api.CreateRestitutionAttr().Set(0.0)
-
-        physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
-        physx_material_api.CreateFrictionCombineModeAttr().Set("max")
-        physx_material_api.CreateRestitutionCombineModeAttr().Set("min")
-
-        for prim in Usd.PrimRange(root):
-            path = str(prim.GetPath())
-            if prim.IsInstance() and (path.endswith("/visuals") or "/visuals/" in path):
-                prim.SetInstanceable(False)
-
-        bound = []
-        for prim in Usd.PrimRange(root, Usd.TraverseInstanceProxies()):
-            if not any("Collision" in schema for schema in prim.GetAppliedSchemas()):
-                continue
-            if prim.IsInstanceProxy():
-                raise RuntimeError(
-                    f"Could not bind gripper contact material to instance proxy: {prim.GetPath()}"
-                )
-            physicsUtils.add_physics_material_to_prim(
-                stage, prim, profile.gripperContactMaterialPath
-            )
-            collision_api = (
-                UsdPhysics.CollisionAPI(prim)
-                if prim.HasAPI(UsdPhysics.CollisionAPI)
-                else UsdPhysics.CollisionAPI.Apply(prim)
-            )
-            collision_api.CreateCollisionEnabledAttr().Set(True)
-            physx_collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-            physx_collision_api.CreateContactOffsetAttr().Set(
-                float(profile.contactOffset)
-            )
-            physx_collision_api.CreateRestOffsetAttr().Set(float(profile.restOffset))
-            bound.append(str(prim.GetPath()))
-        if not bound:
-            raise RuntimeError(
-                f"No collision geometry found for Robotiq gripper under {root.GetPath()}"
-            )
-
-    def _configureRobotiqPickObjectContact(self, stage, prim_paths, profile):
-        from omni.physx.scripts import physicsUtils
-        from pxr import PhysxSchema, Usd, UsdPhysics, UsdShade
-
-        material = UsdShade.Material.Define(stage, profile.objectContactMaterialPath)
-        material_prim = material.GetPrim()
-        material_api = UsdPhysics.MaterialAPI.Apply(material_prim)
-        material_api.CreateStaticFrictionAttr().Set(float(profile.objectStaticFriction))
-        material_api.CreateDynamicFrictionAttr().Set(float(profile.objectDynamicFriction))
-        material_api.CreateRestitutionAttr().Set(0.0)
-
-        physx_material_api = PhysxSchema.PhysxMaterialAPI.Apply(material_prim)
-        physx_material_api.CreateFrictionCombineModeAttr().Set("max")
-        physx_material_api.CreateRestitutionCombineModeAttr().Set("min")
-
-        for prim_path in prim_paths:
-            root = self._requireStagePrim(stage, prim_path)
-            rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(root)
-            rigid_api.CreateEnableCCDAttr().Set(True)
-            rigid_api.CreateSleepThresholdAttr().Set(0.0)
-
-            mass_api = (
-                UsdPhysics.MassAPI(root)
-                if root.HasAPI(UsdPhysics.MassAPI)
-                else UsdPhysics.MassAPI.Apply(root)
-            )
-            mass_api.CreateMassAttr().Set(float(profile.pickObjectMassKg))
-
-            collision_prims = [
-                prim
-                for prim in Usd.PrimRange(root, Usd.TraverseInstanceProxies())
-                if any("Collision" in schema for schema in prim.GetAppliedSchemas())
-            ]
-            if not collision_prims:
-                raise RuntimeError(
-                    f"No collision geometry found for pick object: {prim_path}"
-                )
-            for prim in collision_prims:
-                if prim.IsInstanceProxy():
-                    raise RuntimeError(
-                        f"Could not bind pick object material to instance proxy: {prim.GetPath()}"
-                    )
-                physicsUtils.add_physics_material_to_prim(
-                    stage, prim, profile.objectContactMaterialPath
-                )
-                collision_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-                collision_api.CreateContactOffsetAttr().Set(float(profile.contactOffset))
-                collision_api.CreateRestOffsetAttr().Set(float(profile.restOffset))
-
-    def _configureRobotiqClosedLoopGripper(self, stage, prim_path, profile):
-        from pxr import Gf, PhysxSchema, Sdf, Usd, UsdPhysics
-
-        base_path = f"{prim_path}/{profile.gripperPrim}/base_link"
-        joint_root_path = f"{prim_path}/{profile.gripperPrim}/Joints"
-        self._requireStagePrim(stage, base_path)
-        joint_root = self._requireStagePrim(stage, joint_root_path)
-        for body_path in (
-            f"{prim_path}/{profile.gripperPrim}/left_inner_knuckle",
-            f"{prim_path}/{profile.gripperPrim}/right_inner_knuckle",
-        ):
-            self._requireStagePrim(stage, body_path)
-
-        def setAttr(prim, attr_name, value, value_type):
-            attr = prim.GetAttribute(attr_name)
-            if not attr or not attr.IsValid():
-                attr = prim.CreateAttribute(attr_name, value_type)
-            attr.Set(value)
-            return attr
-
-        def configureJointCommon(prim, exclude_from_articulation):
-            setAttr(
-                prim,
-                "physics:excludeFromArticulation",
-                bool(exclude_from_articulation),
-                Sdf.ValueTypeNames.Bool,
-            )
-            setAttr(prim, "physics:jointEnabled", True, Sdf.ValueTypeNames.Bool)
-            if not prim.HasAPI(PhysxSchema.PhysxJointAPI):
-                PhysxSchema.PhysxJointAPI.Apply(prim)
-
-        passive_joint_specs = (
-            (
-                "left_inner_knuckle_joint",
-                f"{prim_path}/{profile.gripperPrim}/left_inner_knuckle",
-                (0.0, -0.0127, 0.06142),
-                (0.5, 0.5, -0.5, -0.5),
-            ),
-            (
-                "right_inner_knuckle_joint",
-                f"{prim_path}/{profile.gripperPrim}/right_inner_knuckle",
-                (0.0, 0.0127, 0.06142),
-                (0.5, -0.5, 0.5, -0.5),
-            ),
-        )
-        for name, body_path, local_pos, local_rot in passive_joint_specs:
-            joint_path = f"{joint_root_path}/{name}"
-            joint_prim = stage.GetPrimAtPath(joint_path)
-            if not joint_prim.IsValid():
-                joint_prim = UsdPhysics.RevoluteJoint.Define(stage, joint_path).GetPrim()
-            joint = UsdPhysics.RevoluteJoint(joint_prim)
-            joint.GetBody0Rel().SetTargets([Sdf.Path(base_path)])
-            joint.GetBody1Rel().SetTargets([Sdf.Path(body_path)])
-            joint.CreateAxisAttr().Set(UsdPhysics.Tokens.z)
-            joint.CreateLocalPos0Attr().Set(Gf.Vec3f(*local_pos))
-            joint.CreateLocalPos1Attr().Set(Gf.Vec3f(*local_pos))
-            joint.CreateLocalRot0Attr().Set(
-                Gf.Quatf(local_rot[0], Gf.Vec3f(*local_rot[1:]))
-            )
-            joint.CreateLocalRot1Attr().Set(
-                Gf.Quatf(local_rot[0], Gf.Vec3f(*local_rot[1:]))
-            )
-            configureJointCommon(joint_prim, exclude_from_articulation=True)
-
-        for prim in Usd.PrimRange(joint_root):
-            if prim.GetName() in (
-                "left_inner_finger_knuckle_joint",
-                "right_inner_finger_knuckle_joint",
-            ):
-                configureJointCommon(prim, exclude_from_articulation=False)
 
     def _linkIndex(self, articulation, name):
         indices = articulation.get_link_indices(name).list()
         if len(indices) != 1:
             raise RuntimeError(f"Expected one link named {name!r}, found {len(indices)}")
         return indices[0]
+
+    def _dofIndices(self, articulation, names):
+        dof_names = list(articulation.dof_names)
+        missing = [name for name in names if name not in dof_names]
+        if missing:
+            raise RuntimeError(
+                f"{articulation.paths[0]} is missing required DOFs: {missing}"
+            )
+        return [dof_names.index(name) for name in names]
+
+    def createGroundPlane(self, obj):
+        from isaacsim.core.experimental.objects import GroundPlane
+
+        wrapper = GroundPlane(
+            "/World/GroundPlane",
+            sizes=max(obj.width, obj.length),
+            positions=[0, 0, 0],
+        )
+        if obj.color:
+            self.applyVisualMaterial(wrapper, obj)
+        return wrapper
+
+    # ------------------------------------------------------------------
+    # Control and state
+    # ------------------------------------------------------------------
+
+    def applyRobotControl(self, sim, obj, command):
+        if obj.controller is None:
+            return
+        if isWheeledRobot(obj):
+            self.applyWheeledControl(sim, obj, command)
+            return
+
+        wrapper = sim.world.getObject(obj.name)
+        self._applyArticulationAction(wrapper, obj.controller(command))
+
+    def applyWheeledControl(self, sim, obj, command):
+        if obj.controller is None:
+            return
+        wrapper = sim.world.getObject(obj.name)
+
+        if obj.wheelController == "ackermann":
+            # Ackermann command: [steering_angle, steering_angle_velocity, speed, acceleration, dt]
+            steering_positions, wheel_velocities = obj.controller.forward(command)
+            wrapper.set_dof_position_targets(
+                steering_positions, dof_indices=obj.steeringDofIndices
+            )
+            wrapper.apply_wheel_actions(wheel_velocities)
+            return
+
+        # Differential command: [linear_speed, angular_speed]
+        # Holonomic command: [forward_speed, lateral_speed, yaw_speed]
+        wrapper.apply_wheel_actions(obj.controller.forward(command))
+
+    def applyArticulationAction(self, sim, obj, action):
+        self._applyArticulationAction(sim.world.getObject(obj.name), action)
+
+    def _applyArticulationAction(self, articulation, action):
+        dof_indices = action.get("joint_indices", action.get("dof_indices"))
+        if "joint_positions" in action:
+            articulation.set_dof_position_targets(
+                action["joint_positions"],
+                dof_indices=action.get("joint_position_indices", dof_indices),
+            )
+        if "joint_velocities" in action:
+            articulation.set_dof_velocity_targets(
+                action["joint_velocities"],
+                dof_indices=action.get("joint_velocity_indices", dof_indices),
+            )
+        if "joint_efforts" in action:
+            articulation.set_dof_efforts(
+                action["joint_efforts"],
+                dof_indices=action.get("joint_effort_indices", dof_indices),
+            )
+
+    def articulationDofNames(self, sim, obj):
+        return list(sim.world.getObject(obj.name).dof_names)
+
+    def getObjectPose(self, sim, obj):
+        position, orientation = sim.world.getObject(obj.name).get_world_poses()
+        return position.numpy()[0], orientation.numpy()[0]
+
+    def setObjectPose(self, sim, obj, position, orientation=None):
+        wrapper = sim.world.getObject(obj.name)
+        position = np.array(position, dtype=float)
+        if orientation is None:
+            _, orientation = self.getObjectPose(sim, obj)
+        orientation = np.array(orientation, dtype=float)
+        wrapper.set_world_poses(positions=position, orientations=orientation)
+        if hasattr(wrapper, "set_velocities"):
+            wrapper.set_velocities(
+                linear_velocities=np.zeros(3, dtype=float),
+                angular_velocities=np.zeros(3, dtype=float),
+            )
+
+    def getPhysicsProperties(self, world, obj):
+        wrapper = world.getObject(obj.name)
+        position, orientation = wrapper.get_world_poses()
+        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(orientation.numpy()[0])
+        linear_velocity, angular_velocity = wrapper.get_velocities()
+        lx, ly, lz = linear_velocity.numpy()[0]
+        ax, ay, az = angular_velocity.numpy()[0]
+        return {
+            "position": tuple(position.numpy()[0]),
+            "velocity": (lx, ly, lz),
+            "speed": math.hypot(lx, ly, lz),
+            "angularSpeed": math.hypot(ax, ay, az),
+            "angularVelocity": (ax, ay, az),
+            "yaw": yaw,
+            "pitch": pitch,
+            "roll": roll,
+        }
+
+    # ------------------------------------------------------------------
+    # Manipulators (differential IK on the articulation Jacobian)
+    # ------------------------------------------------------------------
 
     def moveManipulatorPickPlace(
         self,
@@ -990,7 +589,7 @@ class Experimental60Backend(IsaacBackend):
             )
         wrapper = sim.world.getObject(obj.name)
 
-        state = getattr(obj, "_manipulator_pick_place_state", None)
+        state = obj._manipulator_pick_place_state
         if state is None:
             state = ManipulatorPickPlaceState()
             obj._manipulator_pick_place_state = state
@@ -1000,12 +599,9 @@ class Experimental60Backend(IsaacBackend):
             return
 
         if endEffectorOrientation is None:
-            endEffectorOrientation = obj.end_effector_orientation
-
+            endEffectorOrientation = obj.endEffectorOrientation
         if endEffectorOffset is None:
-            endEffectorOffset = obj.end_effector_offset
-
-        endEffectorOffset = np.asarray(endEffectorOffset, dtype=float)
+            endEffectorOffset = obj.endEffectorOffset
 
         self._moveManipulatorPickPlaceHelper(
             wrapper,
@@ -1014,7 +610,7 @@ class Experimental60Backend(IsaacBackend):
             sim,
             targetObject,
             goalPosition,
-            endEffectorOffset,
+            np.asarray(endEffectorOffset, dtype=float),
             endEffectorOrientation,
         )
 
@@ -1029,7 +625,7 @@ class Experimental60Backend(IsaacBackend):
         endEffectorOffset,
         endEffectorOrientation=None,
     ):
-        metadata = obj._manipulator_metadata
+        profile = obj.manipulatorProfile
 
         if state.pick_position is None:
             target_wrapper = sim.world.getObject(targetObject.name)
@@ -1044,15 +640,15 @@ class Experimental60Backend(IsaacBackend):
         current_position, current_orientation = self._manipulatorEndEffectorPose(obj)
 
         if endEffectorOrientation is not None:
-            state.end_effector_orientation = np.asarray(
-                endEffectorOrientation,
-                dtype=float,
+            state.endEffectorOrientation = np.asarray(
+                endEffectorOrientation, dtype=float
             ).copy()
-        elif state.end_effector_orientation is None:
-            state.end_effector_orientation = metadata["downward_orientation"].copy()
+        elif state.endEffectorOrientation is None:
+            state.endEffectorOrientation = profile.downwardOrientation.copy()
 
-        orientation = state.end_effector_orientation
+        orientation = state.endEffectorOrientation
 
+        # (end-effector target, gripper state, steps to spend in the phase)
         phases = [
             (cube_position + np.array([0.0, 0.0, 0.20]), "open", 120),
             (cube_position + np.array([0.0, 0.0, 0.10]), "open", 80),
@@ -1091,15 +687,6 @@ class Experimental60Backend(IsaacBackend):
             if state.stage >= len(phases):
                 state.done = True
 
-    def _dofIndices(self, articulation, names):
-        dof_names = list(articulation.dof_names)
-        missing = [name for name in names if name not in dof_names]
-        if missing:
-            raise RuntimeError(
-                f"{articulation.paths[0]} is missing required DOFs: {missing}"
-            )
-        return [dof_names.index(name) for name in names]
-
     def _resetManipulator(self, obj, wrapper):
         metadata = obj._manipulator_metadata
         wrapper.reset_to_default_state()
@@ -1114,21 +701,23 @@ class Experimental60Backend(IsaacBackend):
             metadata["primitive_control_ready"] = True
 
     def _manipulatorEndEffectorPose(self, obj):
-        metadata = obj._manipulator_metadata
-        position, orientation = metadata["end_effector"].get_world_poses()
+        position, orientation = obj._manipulator_metadata[
+            "end_effector"
+        ].get_world_poses()
         return position.numpy(), orientation.numpy()
 
     def _manipulatorTcpPosition(self, obj, control_position, orientation):
-        tcp_offset = obj._manipulator_metadata["tcp_offset"]
+        tcp_offset = obj.manipulatorProfile.tcpOffset
         control_position = np.asarray(control_position, dtype=float).reshape(-1)[:3]
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         return control_position + self.rotateVectorByWxyzQuat(orientation, tcp_offset)
 
     def _manipulatorControlPosition(self, obj, tcp_position, orientation):
-        tcp_offset = obj._manipulator_metadata["tcp_offset"]
-        tcp_position = _positionArray(tcp_position)
+        tcp_offset = obj.manipulatorProfile.tcpOffset
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
-        return tcp_position - self.rotateVectorByWxyzQuat(orientation, tcp_offset)
+        return positionArray(tcp_position) - self.rotateVectorByWxyzQuat(
+            orientation, tcp_offset
+        )
 
     def _moveManipulatorEndEffector(
         self,
@@ -1183,14 +772,12 @@ class Experimental60Backend(IsaacBackend):
             )
 
         wrapper.set_dof_position_targets(
-            dof_position_targets,
-            dof_indices=arm_dof_indices,
+            dof_position_targets, dof_indices=arm_dof_indices
         )
 
     def _setManipulatorGripper(self, wrapper, obj, state):
         profile = obj.manipulatorProfile
-        metadata = obj._manipulator_metadata
-        indices = metadata["gripper_dof_indices"]
+        indices = obj._manipulator_metadata["gripper_dof_indices"]
 
         if profile.gripperControlMode == "velocity":
             velocity = (
@@ -1205,60 +792,17 @@ class Experimental60Backend(IsaacBackend):
             )
             return
 
-        positions = (
-            metadata["open_gripper_positions"]
-            if state == "open"
-            else metadata["closed_gripper_positions"]
-        )
         wrapper.set_dof_position_targets(
-            positions,
+            self.manipulatorGripperTargetPositions(profile, state == "open"),
             dof_indices=indices,
         )
-
-    def createGroundPlane(self, obj):
-        from isaacsim.core.experimental.objects import GroundPlane
-
-        wrapper = GroundPlane(
-            "/World/GroundPlane",
-            sizes=max(obj.width, obj.length),
-            positions=[0, 0, 0],
-        )
-        if obj.color:
-            self.applyVisualMaterial(wrapper, obj)
-        return wrapper
-
-    def applyArticulationAction(self, sim, obj, action):
-        wrapper = sim.world.getObject(obj.name)
-        self._applyArticulationAction(wrapper, action)
-
-    def articulationDofNames(self, sim, obj):
-        wrapper = sim.world.getObject(obj.name)
-        return list(wrapper.dof_names)
-
-    def getObjectPose(self, sim, obj):
-        wrapper = sim.world.getObject(obj.name)
-        position, orientation = wrapper.get_world_poses()
-        return position.numpy()[0], orientation.numpy()[0]
-
-    def setObjectPose(self, sim, obj, position, orientation=None):
-        wrapper = sim.world.getObject(obj.name)
-        position = np.array(position, dtype=float)
-        if orientation is None:
-            _, orientation = self.getObjectPose(sim, obj)
-        orientation = np.array(orientation, dtype=float)
-        wrapper.set_world_poses(positions=position, orientations=orientation)
-        if hasattr(wrapper, "set_velocities"):
-            wrapper.set_velocities(
-                linear_velocities=np.zeros(3, dtype=float),
-                angular_velocities=np.zeros(3, dtype=float),
-            )
 
     def moveManipulatorEndEffector(self, sim, obj, position, orientation=None):
         wrapper = sim.world.getObject(obj.name)
         self._ensureManipulatorControlReady(obj, wrapper)
         current_position, current_orientation = self._manipulatorEndEffectorPose(obj)
         if orientation is None:
-            orientation = obj._manipulator_metadata["downward_orientation"]
+            orientation = obj.manipulatorProfile.downwardOrientation
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
         goalPosition = self._manipulatorControlPosition(obj, position, orientation)
         self._moveManipulatorEndEffector(
@@ -1295,66 +839,15 @@ class Experimental60Backend(IsaacBackend):
         arm_dof_indices = obj._manipulator_metadata["arm_dof_indices"]
         current_dof_positions = wrapper.get_dof_positions().numpy()
         arm_targets = current_dof_positions[:, arm_dof_indices].reshape(-1).tolist()
-        wrapper.set_dof_position_targets(
-            arm_targets,
-            dof_indices=arm_dof_indices,
-        )
+        wrapper.set_dof_position_targets(arm_targets, dof_indices=arm_dof_indices)
 
     def getManipulatorEndEffectorPose(self, sim, obj):
         position, orientation = self._manipulatorEndEffectorPose(obj)
         orientation = np.asarray(orientation, dtype=float).reshape(-1)[:4]
-        return (
-            self._manipulatorTcpPosition(obj, position, orientation),
-            orientation,
-        )
+        return self._manipulatorTcpPosition(obj, position, orientation), orientation
 
     def getManipulatorGripperPositions(self, sim, obj):
         wrapper = sim.world.getObject(obj.name)
         gripper_dof_indices = obj._manipulator_metadata["gripper_dof_indices"]
         dof_positions = wrapper.get_dof_positions().numpy()
         return dof_positions[:, gripper_dof_indices].reshape(-1)
-
-    def manipulatorGripperTargetPositions(self, profile, opened):
-        if opened:
-            return profile.openGripperPositions.copy()
-        return profile.closedGripperPositions.copy()
-
-    def getPhysicsProperties(self, world, obj):
-        wrapper = world.getObject(obj.name)
-        position, orientation = wrapper.get_world_poses()
-        position = position.numpy()[0]
-        orientation = orientation.numpy()[0]
-        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(orientation)
-        linear_velocity, angular_velocity = wrapper.get_velocities()
-        linear_velocity = linear_velocity.numpy()[0]
-        angular_velocity = angular_velocity.numpy()[0]
-        lx, ly, lz = linear_velocity
-        ax, ay, az = angular_velocity
-        return {
-            "position": tuple(position),
-            "velocity": (lx, ly, lz),
-            "speed": math.hypot(lx, ly, lz),
-            "angularSpeed": math.hypot(ax, ay, az),
-            "angularVelocity": (ax, ay, az),
-            "yaw": yaw,
-            "pitch": pitch,
-            "roll": roll,
-        }
-
-    def _applyArticulationAction(self, articulation, action):
-        dof_indices = action.get("joint_indices", action.get("dof_indices"))
-        if "joint_positions" in action:
-            articulation.set_dof_position_targets(
-                action["joint_positions"],
-                dof_indices=action.get("joint_position_indices", dof_indices),
-            )
-        if "joint_velocities" in action:
-            articulation.set_dof_velocity_targets(
-                action["joint_velocities"],
-                dof_indices=action.get("joint_velocity_indices", dof_indices),
-            )
-        if "joint_efforts" in action:
-            articulation.set_dof_efforts(
-                action["joint_efforts"],
-                dof_indices=action.get("joint_effort_indices", dof_indices),
-            )

@@ -1,6 +1,11 @@
+"""Command-line tool converting folders of USD assets to GLTF meshes.
+
+Run inside an Isaac Sim Python environment; see ``--help``.
+"""
+
 import argparse
 
-from scenic.simulators.isaac.backends.core_51_usd_to_mesh import assetConvert
+from scenic.simulators.isaac.usd_conversion import assetConvert
 
 if __name__ == "__main__":
     from scenic.simulators.isaac.backends import getBackend
@@ -43,7 +48,7 @@ if __name__ == "__main__":
 
     args, unknown_args = parser.parse_known_args()
     if args.folders is not None:
-        assetConvert(args)
+        assetConvert(args, backend)
     else:
         print("No folders specified via --folders argument, exiting")
 

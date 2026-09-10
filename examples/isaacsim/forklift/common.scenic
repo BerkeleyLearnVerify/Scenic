@@ -109,7 +109,7 @@ class AckermannForkliftB(IsaacSimRobot):
         wheel_velocity = float(wheel_velocities[0])
 
         action = sim.backend.articulationAction(
-            jointPositions=[steering_position, float(lift_position)],
+            joint_positions=[steering_position, float(lift_position)],
             joint_position_indices=(
                 self._steer_dof_indices + self._lift_dof_indices
             ),

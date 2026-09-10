@@ -1,20 +1,57 @@
 import asyncio
 import atexit
-from dataclasses import dataclass
 import os
 
 import numpy as np
+from scipy.spatial.transform import Rotation
+import trimesh
 
+from scenic.core.simulators import SimulationCreationError
+from scenic.core.vectors import Orientation, Vector
+from scenic.simulators.isaac.backends.robotiq import requireStagePrim
 import scenic.simulators.isaac.utils as scenic_utils
+
+#: Values of ``wheelController`` handled by the built-in wheeled-robot support.
+WHEEL_CONTROLLERS = frozenset({"differential", "holonomic", "ackermann"})
+
+
+def isWheeledRobot(obj):
+    return obj.wheelController in WHEEL_CONTROLLERS
+
+
+def positionArray(position):
+    """Convert a Scenic Vector or any 3-sequence to a numpy array."""
+    if isinstance(position, Vector):
+        return scenic_utils.vectorToArray(position)
+    return np.asarray(position, dtype=float).reshape(-1)[:3]
+
+
+def wxyzToRotation(quat_wxyz):
+    """Convert one or more Isaac/USD scalar-first quaternions to a scipy Rotation."""
+    return Rotation.from_quat(np.roll(np.asarray(quat_wxyz, dtype=float), -1, axis=-1))
+
+
+def rotationToWxyz(rotation):
+    """Convert a scipy Rotation to an Isaac/USD scalar-first quaternion array."""
+    return np.roll(rotation.as_quat(), 1, axis=-1)
 
 
 class IsaacBackend:
-    """Interface implemented by Isaac Sim API backends."""
+    """Interface implemented by Isaac Sim API backends.
+
+    Methods raising `NotImplementedError` must be provided by each backend;
+    the rest are shared helpers that only depend on USD (``pxr``) or on APIs
+    common to every supported Isaac Sim release.
+    """
 
     name = None
 
     def __init__(self):
         self._simulation_app = None
+
+    # ------------------------------------------------------------------
+    # Simulation app lifecycle
+    # ------------------------------------------------------------------
 
     def _simulationAppConfig(self, headless):
         return {
@@ -24,21 +61,6 @@ class IsaacBackend:
             "multi_gpu": False,
             "max_gpu_count": 1,
         }
-
-    def _closeSimulationAppAtExit(self):
-        if self._simulation_app is not None:
-            self._simulation_app.close()
-            self._simulation_app = None
-
-    def closeSimulationApp(self, app):
-        if app is self._simulation_app:
-            app.close()
-            self._simulation_app = None
-        else:
-            app.close()
-
-    def attachSimulationApp(self, app):
-        self._simulation_app = app
 
     def getSimulationApp(self, headless=False):
         if self._simulation_app is None:
@@ -50,58 +72,58 @@ class IsaacBackend:
             atexit.register(self._closeSimulationAppAtExit)
         return self._simulation_app
 
-    def createWorld(self, timestep):
-        raise NotImplementedError
+    def attachSimulationApp(self, app):
+        """Use an already-running app (e.g. the Isaac editor) instead of launching one."""
+        self._simulation_app = app
 
-    def getAssetsRootPath(self):
-        from isaacsim.storage.native import get_assets_root_path
+    def closeSimulationApp(self, app):
+        app.close()
+        if app is self._simulation_app:
+            self._simulation_app = None
 
-        return get_assets_root_path()
+    def _closeSimulationAppAtExit(self):
+        if self._simulation_app is not None:
+            self.closeSimulationApp(self._simulation_app)
 
-    def assetPath(self, relative_path):
-        return f"{self.getAssetsRootPath()}/{relative_path}"
+    def kitAppRunning(self):
+        try:
+            import omni.kit.app
 
-    def openEnvironmentStage(self, usd_path):
-        raise NotImplementedError
-
-    def setMeshCollisionApproximation(self, prim_path, approximation):
-        import omni.usd
-        from pxr import UsdPhysics
-
-        stage = omni.usd.get_context().get_stage()
-        prim = stage.GetPrimAtPath(prim_path)
-
-        if prim is None or not prim.IsValid():
-            return
-
-        mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(prim)
-        mesh_collision_api.GetApproximationAttr().Set(approximation)
-
-        print(f"[DEBUG] {prim_path} approximation set to {approximation}")
-
-    def enableExtension(self, name):
-        raise NotImplementedError
-
-    def setupLighting(self, headless):
-        import omni.kit.actions.core
-
-        action = None
-        if not headless:
-            action_registry = omni.kit.actions.core.get_action_registry()
-            action = action_registry.get_action(
-                "omni.kit.viewport.menubar.lighting",
-                "set_lighting_mode_camera",
-            )
-        if action is not None:
-            action.execute()
+            return omni.kit.app.get_app() is not None
+        except Exception:
+            return False
 
     def updateApp(self, app):
         app.update()
+
+    def enableExtension(self, name):
+        raise NotImplementedError
 
     def isStageLoading(self):
         from isaacsim.core.utils.stage import is_stage_loading
 
         return is_stage_loading()
+
+    def setupLighting(self, headless):
+        if headless:
+            return
+        import omni.kit.actions.core
+
+        action = omni.kit.actions.core.get_action_registry().get_action(
+            "omni.kit.viewport.menubar.lighting", "set_lighting_mode_camera"
+        )
+        if action is not None:
+            action.execute()
+
+    # ------------------------------------------------------------------
+    # World lifecycle
+    # ------------------------------------------------------------------
+
+    def createWorld(self, timestep):
+        raise NotImplementedError
+
+    def openEnvironmentStage(self, usd_path):
+        raise NotImplementedError
 
     def initializePhysics(self, world, objects):
         raise NotImplementedError
@@ -118,8 +140,38 @@ class IsaacBackend:
     def releaseWorld(self, world):
         pass
 
-    def addObject(self, world, obj):
+    def addObject(self, world, obj, *, scenic_obj=None):
         pass
+
+    # ------------------------------------------------------------------
+    # Asset paths and conversion
+    # ------------------------------------------------------------------
+
+    def getAssetsRootPath(self):
+        from isaacsim.storage.native import get_assets_root_path
+
+        return get_assets_root_path()
+
+    def assetPath(self, relative_path):
+        return f"{self.getAssetsRootPath()}/{relative_path}"
+
+    def kitUsdPath(self, path):
+        """Resolve an ``Isaac/...`` asset reference, URL, or local path for Kit."""
+        source = os.fspath(path)
+        if scenic_utils.isIsaacAssetReference(source):
+            return self.assetPath(source)
+        if scenic_utils.hasUrlScheme(source):
+            return source
+        return str(scenic_utils.resolvedPath(source))
+
+    def objectUsdPath(self, obj):
+        """Return the USD path to spawn for an object with ``usdPath``/``isaacAssetPath``."""
+        source = obj.isaacAssetPath or obj.usdPath
+        if not source:
+            raise SimulationCreationError(
+                f"{obj.name} needs a usdPath or isaacAssetPath to be created in Isaac Sim"
+            )
+        return self.kitUsdPath(source)
 
     async def convert(self, in_file, out_file, load_materials=False):
         import omni.kit.asset_converter
@@ -166,90 +218,108 @@ class IsaacBackend:
             self.convert(in_file, out_file, load_materials=load_materials)
         )
 
-    def kitAppRunning(self):
-        try:
-            import omni.kit.app
+    def exportMeshToUsd(self, mesh, name, tmp_dir):
+        """Write a trimesh to ``tmp_dir`` as OBJ and convert it to a USD asset."""
+        os.makedirs(tmp_dir, exist_ok=True)
+        obj_path = os.path.join(tmp_dir, f"{name}.obj")
+        usd_path = os.path.join(tmp_dir, f"{name}.usd")
+        trimesh.exchange.export.export_mesh(mesh, obj_path)
+        if not self.convertSync(obj_path, usd_path, load_materials=True):
+            raise SimulationCreationError(
+                f"Unable to convert the mesh for {name} into a USD asset"
+            )
+        return usd_path
 
-            return omni.kit.app.get_app() is not None
-        except Exception:
-            return False
+    def ensureEnvironmentMeshPaths(
+        self,
+        environmentUsdPath,
+        environment_mesh_path=None,
+        environment_info_path=None,
+        *,
+        headless=True,
+        overwrite=False,
+    ):
+        """Return (mesh, info) paths for an environment USD, converting it if needed.
 
-    def kitUsdPath(self, environmentUsdPath):
-        source = os.fspath(environmentUsdPath)
-        if scenic_utils.isIsaacAssetReference(source):
-            return self.assetPath(source)
-        if scenic_utils.hasUrlScheme(source):
-            return source
-        return str(scenic_utils.resolvedPath(source))
-
-    def scenicToIsaacOrientation(self, orientation, initial_rotation=None):
-        """Convert a Scenic Orientation to an Isaac Sim wxyz quaternion.
-
-        Scenic Euler convention:
-            yaw, pitch, roll = intrinsic Z, X, Y rotations.
-
-        Isaac Sim convention:
-            quaternion in scalar-first order: w, x, y, z.
+        The converted GLTF mesh and JSON prim metadata are what the Scenic
+        model uses to reason about existing objects in the environment.
         """
-        from scipy.spatial.transform import Rotation as R
-
-        yaw, pitch, roll = orientation.eulerAngles
-
-        scenic_rot = R.from_euler("ZXY", [yaw, pitch, roll], degrees=False)
-
-        if initial_rotation is not None:
-            iyaw, ipitch, iroll = initial_rotation
-            initial_rot = R.from_euler("ZXY", [iyaw, ipitch, iroll], degrees=False)
-
-            scenic_rot = scenic_rot * initial_rot
-
-        # Scenic uses intrinsic Z-X-Y Euler angles.
-        q_xyzw = scenic_rot.as_quat()
-
-        # scipy returns xyzw; Isaac Sim expects wxyz.
-        q_wxyz = np.array(
-            [q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]],
-            dtype=float,
+        default_mesh_path, default_info_path = scenic_utils.defaultEnvironmentMeshPaths(
+            environmentUsdPath
+        )
+        mesh_path = (
+            scenic_utils.resolvedPath(environment_mesh_path)
+            if environment_mesh_path
+            else default_mesh_path
+        )
+        info_path = (
+            scenic_utils.resolvedPath(environment_info_path)
+            if environment_info_path
+            else default_info_path
         )
 
-        norm = np.linalg.norm(q_wxyz)
-        if norm == 0:
-            return np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
+        if not overwrite and scenic_utils.environmentOutputsCurrent(
+            environmentUsdPath, mesh_path, info_path
+        ):
+            return mesh_path, info_path
 
-        return q_wxyz / norm
+        mesh_path.parent.mkdir(parents=True, exist_ok=True)
+        info_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def isaacQuatToScenicEulerAngles(self, quat):
-        """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll.
+        self._prepareAppForConversion(headless)
+        self.enableExtension("omni.kit.asset_converter")
+        from scenic.simulators.isaac.usd_conversion import convertEnvironmentUsd
 
-        Scenic Euler convention:
-            yaw, pitch, roll = intrinsic Z, X, Y rotations.
-
-        Isaac Sim convention:
-            quaternion in scalar-first order: w, x, y, z.
-        """
-        from scipy.spatial.transform import Rotation as R
-
-        q_wxyz = np.asarray(quat, dtype=float)
-
-        norm = np.linalg.norm(q_wxyz)
-        if norm == 0:
-            raise ValueError("cannot convert zero quaternion to Euler angles")
-
-        q_wxyz = q_wxyz / norm
-
-        # Isaac wxyz -> scipy xyzw
-        q_xyzw = np.array(
-            [q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]],
-            dtype=float,
+        convertEnvironmentUsd(
+            self.kitUsdPath(environmentUsdPath),
+            str(mesh_path),
+            str(info_path),
+            backend=self,
+            open_stage_func=self._openStageForConversion,
         )
+        return mesh_path, info_path
 
-        yaw, pitch, roll = R.from_quat(q_xyzw).as_euler("ZXY", degrees=False)
-        return float(yaw), float(pitch), float(roll)
+    def _prepareAppForConversion(self, headless):
+        if not self.kitAppRunning():
+            self.getSimulationApp(headless=headless)
+
+    def _openStageForConversion(self, usd_path):
+        from isaacsim.core.utils.stage import open_stage
+
+        return open_stage(usd_path)
+
+    # ------------------------------------------------------------------
+    # USD helpers
+    # ------------------------------------------------------------------
+
+    def setMeshCollisionApproximation(self, prim_path, approximation):
+        import omni.usd
+        from pxr import UsdPhysics
+
+        stage = omni.usd.get_context().get_stage()
+        prim = stage.GetPrimAtPath(prim_path)
+        if prim is None or not prim.IsValid():
+            return
+
+        mesh_collision_api = UsdPhysics.MeshCollisionAPI.Apply(prim)
+        mesh_collision_api.GetApproximationAttr().Set(approximation)
+
+    def setRequiredVariant(self, prim, variant_name, selection):
+        variant_set = prim.GetVariantSet(variant_name)
+        if not variant_set or not variant_set.IsValid():
+            raise RuntimeError(f"{prim.GetPath()} has no {variant_name!r} variant set")
+        if selection not in list(variant_set.GetVariantNames()):
+            raise RuntimeError(
+                f"{prim.GetPath()} {variant_name!r} variant {selection!r} is missing"
+            )
+        variant_set.SetVariantSelection(selection)
+
+    def requireStagePrim(self, stage, prim_path):
+        return requireStagePrim(stage, prim_path)
 
     def computePrimWorldBbox(self, prim_path):
         """Return world-space bbox min, max, center, and size for a prim."""
         from isaacsim.core.utils import prims
-        from pxr import Usd, UsdGeom
 
         prim = prims.get_prim_at_path(prim_path)
         if prim is None or not prim.IsValid():
@@ -275,88 +345,66 @@ class IsaacBackend:
             [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy],
             useExtentsHint=True,
         )
-
-        # bbox = bbox_cache.ComputeLocalBound(prim)
-        # bbox_range = bbox.ComputeAlignedRange()
-
-        # native_min = np.asarray(bbox_range.GetMin(), dtype=float)
-        # native_max = np.asarray(bbox_range.GetMax(), dtype=float)
-        # native_size = native_max - native_min
-        # native_center = (native_min + native_max) / 2.0
-
         box = cache.ComputeWorldBound(prim).ComputeAlignedBox()
         mn = np.asarray(box.GetMin(), dtype=float)
         mx = np.asarray(box.GetMax(), dtype=float)
-        center = (mn + mx) * 0.5
-        size = mx - mn
+        return mn, mx, (mn + mx) * 0.5, mx - mn
 
-        return mn, mx, center, size
+    # ------------------------------------------------------------------
+    # Coordinate conversions
+    # ------------------------------------------------------------------
+
+    def scenicToIsaacOrientation(self, orientation, initial_rotation=None):
+        """Convert a Scenic Orientation to an Isaac Sim wxyz quaternion.
+
+        ``initial_rotation`` (yaw, pitch, roll) is applied first, to align an
+        asset's native frame with Scenic's.
+        """
+        rotation = orientation.r
+        if initial_rotation is not None:
+            rotation = rotation * Orientation.fromEuler(*initial_rotation).r
+        return rotationToWxyz(rotation)
+
+    def isaacQuatToScenicEulerAngles(self, quat):
+        """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll."""
+        return Orientation(wxyzToRotation(quat)).eulerAngles
 
     def rotateVectorByWxyzQuat(self, quat_wxyz, vec):
-        """Rotate a vector by an Isaac/Usd wxyz quaternion."""
-        from scipy.spatial.transform import Rotation as R
-
-        quat_wxyz = np.asarray(quat_wxyz, dtype=float)
-        vec = np.asarray(vec, dtype=float)
-
-        q_xyzw = np.array(
-            [quat_wxyz[1], quat_wxyz[2], quat_wxyz[3], quat_wxyz[0]],
-            dtype=float,
-        )
-
-        return R.from_quat(q_xyzw).apply(vec)
+        """Rotate a vector by an Isaac/USD wxyz quaternion."""
+        return wxyzToRotation(quat_wxyz).apply(np.asarray(vec, dtype=float))
 
     def computeUsdScaleAndRootPosition(
         self, obj, prim_path, scenic_position, orientation
     ):
-        """Compute local USD scale so the referenced asset matches Scenic dimensions.
+        """Compute the scale and root position for a spawned prim (see `computeScaleAndRootPosition`)."""
+        _, _, native_center, native_size = self.computePrimWorldBbox(prim_path)
+        return self.computeScaleAndRootPosition(
+            obj, native_center, native_size, scenic_position, orientation
+        )
+
+    def computeUsdAssetScaleAndRootPosition(
+        self, obj, usd_path, scenic_position, orientation
+    ):
+        """Compute the scale and root position for a USD asset before it is spawned."""
+        _, _, native_center, native_size = self.computeUsdAssetBbox(usd_path)
+        return self.computeScaleAndRootPosition(
+            obj, native_center, native_size, scenic_position, orientation
+        )
+
+    def computeScaleAndRootPosition(
+        self, obj, native_center, native_size, scenic_position, orientation
+    ):
+        """Compute the scale and root position so an asset matches Scenic's dimensions.
 
         Returns:
             root_position: position to give the USD root prim
             local_scale: x/y/z scale to apply to the USD root prim
             native_size: measured unscaled USD bbox size
-            native_center: measured unscaled USD bbox center relative to the root placement
+            native_center: measured unscaled USD bbox center relative to the root
         """
-        _, _, native_center, native_size = self.computePrimWorldBbox(prim_path)
-        return self.computeScaleAndRootPosition(
-            obj,
-            native_center,
-            native_size,
-            scenic_position,
-            orientation,
-        )
-
-    def computeUsdAssetScaleAndRootPosition(
-        self,
-        obj,
-        usd_path,
-        scenic_position,
-        orientation,
-    ):
-        """Compute Scenic scale and root position before a USD asset is spawned."""
-        _, _, native_center, native_size = self.computeUsdAssetBbox(usd_path)
-        return self.computeScaleAndRootPosition(
-            obj,
-            native_center,
-            native_size,
-            scenic_position,
-            orientation,
-        )
-
-    def computeScaleAndRootPosition(
-        self,
-        obj,
-        native_center,
-        native_size,
-        scenic_position,
-        orientation,
-    ):
-        """Compute scale and root position from an asset's native bounding box."""
         desired_size = np.array(
-            [float(obj.width), float(obj.length), float(obj.height)],
-            dtype=float,
+            [float(obj.width), float(obj.length), float(obj.height)], dtype=float
         )
-
         native_center = np.asarray(native_center, dtype=float)
         native_size = np.asarray(native_size, dtype=float)
         local_scale = desired_size / native_size
@@ -365,20 +413,27 @@ class IsaacBackend:
         if np.allclose(local_scale, np.ones(3), rtol=1e-5, atol=1e-7):
             local_scale = np.ones(3, dtype=float)
 
-        scenic_position = np.asarray(scenic_position, dtype=float)
-
-        # If the asset's geometry center is offset from its root prim,
-        # scaling changes that offset. We compensate so the final visual bbox
-        # center lands at Scenic's obj.position.
-        scaled_center_offset_local = native_center * local_scale
+        # If the asset's geometry center is offset from its root prim, scaling
+        # changes that offset. Compensate so the visual bbox center lands at
+        # Scenic's obj.position.
         scaled_center_offset_world = self.rotateVectorByWxyzQuat(
-            orientation,
-            scaled_center_offset_local,
+            orientation, native_center * local_scale
+        )
+        root_position = (
+            np.asarray(scenic_position, dtype=float) - scaled_center_offset_world
         )
 
-        root_position = scenic_position - scaled_center_offset_world
-
         return root_position, local_scale, native_size, native_center
+
+    def manipulatorRootPosition(self, obj):
+        """Scenic positions an arm by its bounding box center; the USD root is at its base."""
+        position = scenic_utils.vectorToArray(obj.position)
+        position[2] -= obj.height / 2
+        return position
+
+    # ------------------------------------------------------------------
+    # Object creation
+    # ------------------------------------------------------------------
 
     def createGenericObject(self, obj):
         raise NotImplementedError
@@ -395,6 +450,10 @@ class IsaacBackend:
     def createGroundPlane(self, obj):
         raise NotImplementedError
 
+    # ------------------------------------------------------------------
+    # Control and state
+    # ------------------------------------------------------------------
+
     def applyRobotControl(self, sim, obj, command):
         raise NotImplementedError
 
@@ -403,6 +462,11 @@ class IsaacBackend:
 
     def applyArticulationAction(self, sim, obj, action):
         raise NotImplementedError
+
+    def articulationAction(self, **kwargs):
+        from scenic.simulators.isaac.backends import articulationAction
+
+        return articulationAction(**kwargs)
 
     def articulationDofNames(self, sim, obj):
         raise NotImplementedError
@@ -416,6 +480,13 @@ class IsaacBackend:
 
     def setObjectPose(self, sim, obj, position, orientation=None):
         raise NotImplementedError
+
+    def getPhysicsProperties(self, world, obj):
+        raise NotImplementedError
+
+    # ------------------------------------------------------------------
+    # Manipulators
+    # ------------------------------------------------------------------
 
     def moveManipulatorPickPlace(
         self,
@@ -447,10 +518,7 @@ class IsaacBackend:
         raise NotImplementedError
 
     def manipulatorGripperTargetPositions(self, profile, opened):
-        raise NotImplementedError
-
-    def getPhysicsProperties(self, world, obj):
-        raise NotImplementedError
-
-    def articulationAction(self, **kwargs):
-        return dict(kwargs)
+        positions = (
+            profile.openGripperPositions if opened else profile.closedGripperPositions
+        )
+        return positions.copy()

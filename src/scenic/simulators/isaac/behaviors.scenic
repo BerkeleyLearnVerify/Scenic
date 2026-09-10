@@ -1,4 +1,5 @@
 from scenic.simulators.isaac.actions import *
+from scenic.simulators.isaac.backends.base import wxyzToRotation
 import numpy as np
 
 # for the create3 wheeled robot
@@ -6,7 +7,7 @@ behavior KeepMoving():
 
     threshold = .01
     while True:
-        if np.linalg.norm(self.speed) < threshold:
+        if self.speed < threshold:
             for i in range(100):
                 take ApplyControllerAction([-.2, 0])
             for i in range(50):
@@ -52,15 +53,11 @@ behavior PickPlaceObject(targetObject, goalPosition):
 # Generic manipulator primitives. Scenario-level behaviors should compose these
 # with `do ...` so the overall task is visible in the scenario file.
 
-def _unitQuaternion(quaternion):
-    quaternion = np.array(quaternion, dtype=float).flatten()[:4]
-    return quaternion / np.linalg.norm(quaternion)
-
 def _quaternionDistance(quaternion_a, quaternion_b):
-    quaternion_a = _unitQuaternion(quaternion_a)
-    quaternion_b = _unitQuaternion(quaternion_b)
-    dot = abs(float(np.dot(quaternion_a, quaternion_b)))
-    return 2 * np.arccos(np.clip(dot, -1.0, 1.0))
+    """Angle (radians) between two Isaac wxyz quaternions."""
+    rotation_a = wxyzToRotation(np.asarray(quaternion_a, dtype=float).flatten()[:4])
+    rotation_b = wxyzToRotation(np.asarray(quaternion_b, dtype=float).flatten()[:4])
+    return (rotation_a * rotation_b.inv()).magnitude()
 
 def _positionReached(agent, sim, target, threshold):
     ee_pos, _ = agent.getEePose(sim)

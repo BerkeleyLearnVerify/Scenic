@@ -1,3 +1,12 @@
+"""Isaac Sim API backends.
+
+Each backend wraps one flavor of the Isaac Sim Python API (the 5.1 Core API,
+the 5.1/6.0 Core Experimental APIs, or Isaac Lab) behind the common
+`IsaacBackend` interface. Backends are singletons: `getBackend` creates each
+one on first use and returns the same instance afterwards, since a backend
+owns the running ``SimulationApp``.
+"""
+
 from importlib import import_module
 
 _BACKENDS = {
@@ -8,14 +17,13 @@ _BACKENDS = {
 }
 _INSTANCES = {}
 
-# Backend auto-selected from the installed Isaac Sim major version. The default
-# isaacBackend param is "auto" (resolved by detectBackend); an explicit
-# isaacBackend param or --param flag overrides it. FALLBACK is used when the
-# version can't be read (e.g. Isaac not pip-installed).
+#: Backend chosen for each installed Isaac Sim major version when the
+#: ``isaacBackend`` parameter is ``"auto"``.
 _VERSION_BACKENDS = {"5": "core_51", "6": "experimental_60"}
+#: Backend used when the Isaac Sim version cannot be read (e.g. it is not
+#: pip-installed, or Scenic is running outside the Isaac environment).
 FALLBACK_BACKEND_NAME = "experimental_60"
 DEFAULT_BACKEND_NAME = "auto"
-_DEFAULT_BACKEND = FALLBACK_BACKEND_NAME
 
 
 def detectBackend():
@@ -29,22 +37,15 @@ def detectBackend():
     return _VERSION_BACKENDS.get(major, FALLBACK_BACKEND_NAME)
 
 
-def _resolve(name):
-    if name is None:
-        return _DEFAULT_BACKEND
-    name = str(name)
-    return detectBackend() if name == "auto" else name
+def getBackend(name=DEFAULT_BACKEND_NAME):
+    """Return the (singleton) backend with the given name.
 
-
-def setDefaultBackend(name):
-    global _DEFAULT_BACKEND
-    name = detectBackend() if name in (None, "auto") else str(name)
-    getBackend(name)
-    _DEFAULT_BACKEND = name
-
-
-def getBackend(name=None):
-    name = _resolve(name)
+    ``"auto"`` or `None` selects the backend matching the installed Isaac Sim
+    version (see `detectBackend`).
+    """
+    name = DEFAULT_BACKEND_NAME if name is None else str(name)
+    if name == DEFAULT_BACKEND_NAME:
+        name = detectBackend()
     if name not in _BACKENDS:
         available = ", ".join(sorted(_BACKENDS))
         raise ValueError(
@@ -57,9 +58,12 @@ def getBackend(name=None):
     return _INSTANCES[name]
 
 
-def getBackendVersion():
-    return _DEFAULT_BACKEND
+def articulationAction(**kwargs):
+    """Build a backend-independent articulation action.
 
-
-def articulationAction(backend=None, **kwargs):
-    return getBackend(backend).articulationAction(**kwargs)
+    An action is a dict which may contain ``joint_positions``,
+    ``joint_velocities`` and/or ``joint_efforts``, each paired with the DOF
+    indices it applies to (``joint_position_indices`` etc., or a shared
+    ``joint_indices``). Backends translate it to their native action type.
+    """
+    return dict(kwargs)

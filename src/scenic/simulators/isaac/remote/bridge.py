@@ -24,7 +24,8 @@ class _RunningApp:
 
         omni.kit.app.get_app().update()
 
-    def runCoroutine(self, coro):
+    def run_coroutine(self, coro):
+        # Named like SimulationApp.run_coroutine, which the experimental backends call.
         import omni.kit.app
         import omni.kit.async_engine
 
