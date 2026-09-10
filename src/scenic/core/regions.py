@@ -289,7 +289,7 @@ class Region(Samplable, ABC):
 
     @cached_property
     def midpoint(self):
-        return Vector(*self.AABB[0]) + Vector(*self.AABB[1]) / 2
+        return (Vector(*self.AABB[0]) + Vector(*self.AABB[1])) / 2
 
 
 class PointInRegionDistribution(VectorDistribution):
@@ -4037,6 +4037,10 @@ class PolylineRegion(Region):
     def project(self, point):
         pt = shapely.ops.nearest_points(self.lineString, makeShapelyPoint(point))[0]
         return Vector(*pt.coords[0])
+
+    @distributionMethod
+    def distanceAlong(self, point, normalized=False):
+        return self.lineString.project(makeShapelyPoint(point), normalized=normalized)
 
     @distributionMethod
     def nearestSegmentTo(self, point):

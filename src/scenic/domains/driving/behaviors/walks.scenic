@@ -221,6 +221,7 @@ behavior WalkPath(path, targetSpeed, *, avoidObstacles=True,
         try:
             do _WalkPathHelper(path_ls, targetSpeed) for replanTime seconds
         interrupt when distance from self to Vector(*path_ls.coords[-1]) < terminationThresh:
+            take SetWalkingSpeedAction(0)
             abort
 
         self._planData = None
@@ -241,34 +242,73 @@ behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
         backwards = Uniform(True, False)
 
     network = _model.network
+    currentElement = None
 
     # TODO: Have pedestrians bias towards the appropriate side of the sidewalk based off road direction?
     while True:
-        # If we're not currently in a walkable region, return to the closest one.
+        # If we're not currently on a sidewalk, return to the closest one.
         if self.position not in network.walkableRegion:
-            # TODO: Replace with closest point in region operator.
-            closest_pt = shapely.ops.nearest_points(toShapely(network.walkableRegion), toShapely(self.position))[0]
-            target_element = network.findPointIn(Vector(*closest_pt.coords[0]), network.sidewalks+network.crossings, reject=False)
+            closest_pt = network.walkableRegion.closestPointTo(self.position)
+            target_element = network.findPointIn(closest_pt, network.walkableRegion, reject=False)
             target_pt = target_element.centerline.project(self.position)
             do WalkTo(target_pt, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
+            currentElement = network.findPointIn(self.position, network.sidewalks+network.crossings, reject=False)
             continue
+        elif currentElement is None:
+            currentElement = network.findPointIn(self.position, network.sidewalks+network.crossings, reject=False)
         
         # If we're not close to the start or end of the centerline of our current element
         # (depending on whether we are walking `backwards` or not), walk towards it following the centerline.
-        current_element = network.findPointIn(self.position, network.sidewalks+network.crossings, reject=False)
-        end_pt = current_element.centerline.start if backwards else current_element.centerline.end
-        if distance from self.position to end_pt > 0.1:
-            target_path = current_element.centerline.reverse() if backwards else current_element.centerline
+        assert currentElement is not None
+        end_pt = currentElement.centerline.start if backwards else currentElement.centerline.end
+        if distance from self.position to end_pt > 2:
+            target_path = currentElement.centerline.reverse() if backwards else currentElement.centerline
             do WalkPath(target_path, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
             continue
         
         # If we're at the end of the current element, we should pick a successor/predecessor
         # (depending on whether we are walking `backwards`).
-        # TODO: Randomly pick from ALL successors/predecessors and sidewalks.
-        next_element = current_element._predecessor if backwards else current_element._successor
-        if next_element is not None:
-            target_path = next_element.centerline.reverse() if backwards else next_element.centerline
-            do WalkPath(target_path, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)
+        # TODO: Actually use successor/predecessor information once added.
+        nextSidewalk = sorted(
+                [s for s in network.sidewalks if s is not currentElement], 
+                key=lambda x: distance from self to x
+            )[0]
+        if nextSidewalk:
+            # TODO: Randomly pick from ALL successors/predecessors and sidewalks.
+            # If this sidewalk has crossings, then we pick uniformly from the crossings or just walking
+            # the length of the sidewalk.
+            targetCrossing = Uniform(*(None,) + nextSidewalk.crossings)
+
+            if targetCrossing is None:
+                # Walk the length of the sidewalk
+                currentElement = nextSidewalk
+                backwards = (
+                    (distance from currentElement.centerline.end to self) 
+                    < (distance from currentElement.centerline.start to self)
+                )
+            else:
+                # Walk as close to the crossing as possible, then walk the length of the crossing.
+    
+                # Walk to the start of the crosswalk
+                sidewalkBackwards = (
+                    (distance from nextSidewalk.centerline.end to self) 
+                    < (distance from nextSidewalk.centerline.start to self)
+                )
+                intermediatePoint = nextSidewalk.centerline.closestPointTo(targetCrossing)
+                intermediatePath = nextSidewalk.centerline.substring(
+                    0,
+                    nextSidewalk.centerline.project(intermediatePoint)
+                )
+                if sidewalkBackwards:
+                    intermediatePath = intermediatePath.reverse()
+                do WalkPath(intermediatePath, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)                    
+                
+                # Walk the length of the crosswalk
+                currentElement = targetCrossing
+                backwards = (
+                    (distance from targetCrossing.centerline.end to self)
+                    < (distance from targetCrossing.centerline.start to self)
+                )
             continue
 
         # We have no valid next moves. Terminate the behavior.
