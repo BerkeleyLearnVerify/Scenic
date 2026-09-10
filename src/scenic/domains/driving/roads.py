@@ -442,7 +442,7 @@ class Road(LinearElement):
     signals: Tuple[Signal]
 
     #: All crosswalks of this road, ordered from start to end.
-    crossings: Tuple[PedestrianCrossing] = ()
+    crossings: Tuple[PedestrianCrossing]
 
     #: All sidewalks of this road, with the one adjacent to `forwardLanes` being first.
     sidewalks: Tuple[Sidewalk]
