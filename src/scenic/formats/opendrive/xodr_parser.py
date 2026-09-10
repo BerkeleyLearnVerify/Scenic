@@ -273,7 +273,9 @@ def makeCurve(x0, y0, hdg, length, curve_elem):
         elif p_range_attr in (None, "normalized"):
             p_range = 1
         else:
-            raise NotImplementedError(f"unsupported pRange for paramPoly3: {p_range_attr}")
+            raise NotImplementedError(
+                f"unsupported pRange for paramPoly3: {p_range_attr}"
+            )
         curve = ParamCubic(x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range)
     else:
         raise NotImplementedError(f'unhandled OpenDRIVE geometry type "{curve_elem.tag}"')

@@ -159,8 +159,32 @@ def test_make_curve_param_poly3():
     curve, susp = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
 
     assert isinstance(curve, ParamCubic)
+    assert curve.p_range == pytest.approx(1.0)
     assert curve.length == pytest.approx(10.0)
     assert not susp
+
+
+def test_make_curve_param_poly3_default_p_range():
+    curve_elem = ET.fromstring(
+        '<paramPoly3 aU="0.0" bU="1.0" cU="0.0" dU="0.0" '
+        'aV="0.0" bV="0.0" cV="0.0" dV="0.0"/>'
+    )
+
+    curve, susp = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
+
+    assert isinstance(curve, ParamCubic)
+    assert curve.p_range == pytest.approx(1.0)
+    assert not susp
+
+
+def test_make_curve_param_poly3_rejects_unknown_p_range():
+    curve_elem = ET.fromstring(
+        '<paramPoly3 aU="0.0" bU="1.0" cU="0.0" dU="0.0" '
+        'aV="0.0" bV="0.0" cV="0.0" dV="0.0" pRange="unknown"/>'
+    )
+
+    with pytest.raises(NotImplementedError, match="unsupported pRange for paramPoly3"):
+        makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
 
 
 def test_make_curve_param_poly3_arc_length():
