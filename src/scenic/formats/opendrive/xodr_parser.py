@@ -268,9 +268,10 @@ def makeCurve(x0, y0, hdg, length, curve_elem):
             float(curve_elem.get("dV")),
         )
         p_range = curve_elem.get("pRange")
-        if p_range and p_range != "normalized":
-            # TODO support arcLength
-            raise NotImplementedError("unsupported pRange for paramPoly3")
+        if p_range == "arcLength":
+            p_range = length
+        elif p_range and p_range != "normalized":
+            raise NotImplementedError(f"unsupported pRange for paramPoly3: {p_range}")
         else:
             p_range = 1
         curve = ParamCubic(x0, y0, hdg, length, au, bu, cu, du, av, bv, cv, dv, p_range)

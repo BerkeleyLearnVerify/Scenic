@@ -163,14 +163,43 @@ def test_make_curve_param_poly3():
     assert not susp
 
 
-def test_make_curve_param_poly3_rejects_arc_length():
+def test_make_curve_param_poly3_arc_length():
     curve_elem = ET.fromstring(
         '<paramPoly3 aU="0.0" bU="1.0" cU="0.0" dU="0.0" '
         'aV="0.0" bV="0.0" cV="0.0" dV="0.0" pRange="arcLength"/>'
     )
 
-    with pytest.raises(NotImplementedError, match="unsupported pRange for paramPoly3"):
-        makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
+    curve, susp = makeCurve(0.0, 0.0, 0.0, 10.0, curve_elem)
+
+    assert isinstance(curve, ParamCubic)
+    assert curve.p_range == pytest.approx(10.0)
+    assert curve.length == pytest.approx(10.0)
+    assert not susp
+
+
+def test_make_curve_param_poly3_arc_length_matches_normalized():
+    length = 10.0
+    au, bu, cu, du = 0.0, 1.0, 0.1, -0.02
+    av, bv, cv, dv = 0.0, 0.0, 0.05, -0.01
+    arc_elem = ET.fromstring(
+        f'<paramPoly3 aU="{au}" bU="{bu}" cU="{cu}" dU="{du}" '
+        f'aV="{av}" bV="{bv}" cV="{cv}" dV="{dv}" pRange="arcLength"/>'
+    )
+    norm_elem = ET.fromstring(
+        f'<paramPoly3 aU="{au}" bU="{bu * length}" cU="{cu * length**2}" '
+        f'dU="{du * length**3}" aV="{av}" bV="{bv * length}" '
+        f'cV="{cv * length**2}" dV="{dv * length**3}" pRange="normalized"/>'
+    )
+
+    arc_curve, _ = makeCurve(0.0, 0.0, 0.0, length, arc_elem)
+    norm_curve, _ = makeCurve(0.0, 0.0, 0.0, length, norm_elem)
+
+    for s in (0.0, length * 0.25, length * 0.5, length * 0.75, length):
+        arc_pt = arc_curve.point_at(s)
+        norm_pt = norm_curve.point_at(s)
+        assert arc_pt[0] == pytest.approx(norm_pt[0])
+        assert arc_pt[1] == pytest.approx(norm_pt[1])
+        assert arc_pt[2] == pytest.approx(norm_pt[2])
 
 
 def test_make_curve_rejects_unknown_geometry_type():
