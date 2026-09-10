@@ -156,13 +156,16 @@ class IsaacBackend:
         return f"{self.getAssetsRootPath()}/{relative_path}"
 
     def kitUsdPath(self, path):
-        """Resolve an ``Isaac/...`` asset reference, URL, or local path for Kit."""
+        """Resolve an ``Isaac/...`` asset reference, URL, or local path for Kit.
+
+        A bz2-compressed local USD is decompressed into a cache first.
+        """
         source = os.fspath(path)
         if scenic_utils.isIsaacAssetReference(source):
             return self.assetPath(source)
         if scenic_utils.hasUrlScheme(source):
             return source
-        return str(scenic_utils.resolvedPath(source))
+        return str(scenic_utils.decompressedPath(source))
 
     def objectUsdPath(self, obj):
         """Return the USD path to spawn for an object with ``usdPath``/``isaacAssetPath``."""

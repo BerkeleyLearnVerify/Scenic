@@ -1,39 +1,34 @@
 """Place a USD asset on an existing table using the asset's own geometry as its shape.
 
-The Rubik's cube is spawned from the Isaac asset library, but Scenic needs a
-mesh to reason about placement and collisions. That mesh is produced from the
-USD once with the conversion tool (see "Converting USD assets to meshes" in the
-README):
+The bin is spawned from the Isaac asset library, but Scenic needs a mesh to
+reason about placement and collisions. That mesh is produced once from the
+USD with the conversion tool (see "Converting USD assets to meshes" in the
+README), run in an Isaac Sim Python environment:
 
     python src/scenic/simulators/isaac/usd_to_mesh.py \\
-        --folders examples/isaacsim/assets/rubiks_cube --load-materials
+        --folders <isaac-assets>/Isaac/Props/KLT_Bin \\
+        --output examples/isaacsim/assets/klt_bin
 
-after copying ``Isaac/Props/Rubiks_Cube/rubiks_cube.usd`` from a local Isaac
-asset pack into ``examples/isaacsim/assets/rubiks_cube/``.
+which writes the compressed mesh ``assets/klt_bin/small_KLT_usd.glb.bz2``.
 """
 
-import trimesh
-
 param environmentUSDPath = "Isaac/Environments/Simple_Room/simple_room.usd"
-param cubeSize = 0.2
 
 from lib import *
 model scenic.simulators.isaac.model
-from scenic.simulators.isaac.utils import getExistingObj
-from scenic.core.utils import repairMesh
+from scenic.simulators.isaac.utils import getExistingObj, loadAssetMesh
 
 table = getExistingObj("/Root/table_low_327/table_low")
 
-class RubiksCube(IsaacSimObject):
-    shape: MeshShape(repairMesh(trimesh.load(
-        localPath("assets/rubiks_cube/_converted/rubiks_cube_usd.gltf")).to_geometry()))
-    width: globalParameters.cubeSize
-    length: globalParameters.cubeSize
-    height: globalParameters.cubeSize
-    isaacAssetPath: "Isaac/Props/Rubiks_Cube/rubiks_cube.usd"
+class KltBin(IsaacSimObject):
+    shape: MeshShape(loadAssetMesh(localPath("assets/klt_bin/small_KLT_usd.glb.bz2")))
+    width: 0.2
+    length: 0.3
+    height: 0.15
+    isaacAssetPath: "Isaac/Props/KLT_Bin/small_KLT.usd"
     physics: False
 
-cube = new RubiksCube on table
+bin = new KltBin on table
 
-reference_toy = new Toy on table, right of cube by 0.35,
+toy = new Toy on table, right of bin by 0.3,
     with physics False

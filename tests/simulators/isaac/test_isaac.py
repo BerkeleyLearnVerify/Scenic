@@ -4,7 +4,10 @@ The Isaac world model can be compiled without Isaac Sim installed, since the
 simulator is only instantiated when a simulation is run.
 """
 
+import bz2
+
 import pytest
+import trimesh
 
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
@@ -49,6 +52,59 @@ def test_orientation_conversion():
         assert Orientation.fromEuler(
             *backend.isaacQuatToScenicEulerAngles(composed)
         ).approxEq(expected)
+
+
+def test_compressed_paths(tmp_path, monkeypatch):
+    from scenic.simulators.isaac import utils
+
+    monkeypatch.setattr(utils.Path, "home", lambda: tmp_path / "home")
+
+    assert utils.assetStem("a/b/simple_room.usd.bz2") == "simple_room"
+    assert utils.assetStem("Isaac/Props/KLT_Bin/small_KLT.usd") == "small_KLT"
+    mesh_path, info_path = utils.defaultEnvironmentMeshPaths(tmp_path / "room.usd.bz2")
+    assert mesh_path == tmp_path / "_converted" / "room_usd.glb.bz2"
+    assert info_path == tmp_path / "_converted" / "room_info.json"
+    mesh_path, _ = utils.defaultEnvironmentMeshPaths("Isaac/Environments/x/y.usd")
+    assert mesh_path.name == "y_usd.glb.bz2" and tmp_path / "home" in mesh_path.parents
+
+    plain = tmp_path / "asset.usda"
+    plain.write_text("#usda 1.0\n")
+    assert utils.decompressedPath(plain) == plain
+    compressed = utils.compressFile(plain, remove_source=True)
+    assert compressed == tmp_path / "asset.usda.bz2" and not plain.exists()
+    decompressed = utils.decompressedPath(compressed)
+    assert decompressed.name == "asset.usda" and decompressed.read_text() == "#usda 1.0\n"
+    assert utils.decompressedPath(compressed) == decompressed  # cached
+
+
+def test_compressed_meshes(tmp_path):
+    from scenic.simulators.isaac import utils
+
+    scene = trimesh.Scene()
+    scene.add_geometry(trimesh.creation.box((1, 2, 3)), node_name="prim_0")
+    scene.add_geometry(
+        trimesh.creation.icosphere(),
+        node_name="prim_1",
+        transform=trimesh.transformations.translation_matrix([5, 0, 0]),
+    )
+    path = utils.writeMesh(scene, tmp_path / "scene_usd.glb.bz2")
+    with bz2.open(path, "rb") as in_file:
+        assert in_file.read(4) == b"glTF"
+
+    loaded = trimesh.load(path, force="scene")
+    assert sorted(loaded.graph.nodes_geometry) == ["prim_0", "prim_1"]
+    assert loaded.graph.get("prim_1")[0][0, 3] == pytest.approx(5)
+
+    mesh = utils.loadAssetMesh(path)
+    assert mesh.is_volume
+
+    assert compileScenic(
+        f"""
+        model scenic.simulators.isaac.model
+        from scenic.simulators.isaac.utils import loadAssetMesh
+        ego = new IsaacSimObject with shape MeshShape(loadAssetMesh({str(path)!r}))
+        """
+    )
 
 
 def test_basic(loadLocalScenario):

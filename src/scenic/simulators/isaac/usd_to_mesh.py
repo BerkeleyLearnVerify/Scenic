@@ -14,13 +14,21 @@ if __name__ == "__main__":
     kit = backend.getSimulationApp()
     backend.enableExtension("omni.kit.asset_converter")
 
-    parser = argparse.ArgumentParser("Convert OBJ/STL assets to USD")
+    parser = argparse.ArgumentParser(
+        "Convert folders of USD assets to compressed glTF meshes (NAME_usd.glb.bz2)"
+    )
     parser.add_argument(
         "--folders",
         type=str,
         nargs="+",
         default=None,
-        help="List of folders to convert (space seperated).",
+        help="List of folders (local paths or URLs, e.g. under the Isaac asset root) to convert.",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Directory for the converted meshes (default: a _converted subfolder of each input folder).",
     )
     parser.add_argument(
         "--max-models",
@@ -31,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--load-materials",
         action="store_true",
-        help="If specified, materials will be loaded from meshes",
+        help="Keep materials/textures (not needed by Scenic; makes meshes much larger).",
     )
     parser.add_argument(
         "--environments",
@@ -43,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Overwrite existing converted GLTF files instead of reusing them.",
+        help="Overwrite existing converted meshes instead of skipping them.",
     )
 
     args, unknown_args = parser.parse_known_args()

@@ -4,9 +4,11 @@ import json
 import os
 from pathlib import Path
 import tempfile
-from urllib.parse import urlparse
 
 import numpy as np
+import trimesh
+
+import scenic.simulators.isaac.utils as scenic_utils
 
 
 def removeGroundPlane(file_path, output_path):
@@ -167,18 +169,28 @@ def getMeshInfo(usd_path, output_path, info_path, open_stage_func=None):
     print(f"---Added {info_path}")
 
 
-def validateGltfGeometry(gltf_path):
-    with open(gltf_path, "r") as in_file:
-        gltf = json.load(in_file)
+def convertUsdToMesh(backend, usd_path, mesh_path, *, load_materials=False):
+    """Convert a USD to a mesh file at ``mesh_path`` via Isaac's asset converter.
 
-    if gltf.get("meshes"):
-        return
+    The converter writes glTF with external buffers (and textures, if
+    materials are loaded); the result is re-exported with trimesh into the
+    single file named by ``mesh_path`` (e.g. ``foo.glb.bz2``, see
+    `scenic.simulators.isaac.utils.writeMesh`), keeping the node names.
+    """
+    tmp_dir = tempfile.mkdtemp()
+    gltf_path = os.path.join(tmp_dir, f"{scenic_utils.assetStem(usd_path)}.gltf")
+    if not backend.convertSync(usd_path, gltf_path, load_materials=load_materials):
+        raise RuntimeError(f"failed to convert USD to glTF: {usd_path}")
 
-    raise RuntimeError(
-        f"converted GLTF has no mesh geometry: {gltf_path}. "
-        "If this is an environment, make sure the source USD is flattened and "
-        "rerun conversion with --overwrite or delete the stale GLTF first."
-    )
+    scene = trimesh.load(gltf_path, force="scene")
+    if not scene.geometry:
+        raise RuntimeError(
+            f"converted mesh has no geometry: {usd_path}. "
+            "If this is an environment, make sure the source USD is flattened."
+        )
+    scenic_utils.writeMesh(scene, mesh_path)
+    print(f"---Added {mesh_path}")
+    return mesh_path
 
 
 def convertedDirForFolder(folder):
@@ -187,29 +199,23 @@ def convertedDirForFolder(folder):
 
 def convertEnvironmentUsd(
     usd_path,
-    gltf_path,
+    mesh_path,
     info_path,
     *,
     backend,
-    load_materials=True,
+    load_materials=False,
     open_stage_func=None,
 ):
-    """Convert an environment USD into a GLTF mesh plus a JSON file of prim metadata.
+    """Convert an environment USD into a mesh plus a JSON file of prim metadata.
 
-    The stage is flattened, every mesh prim is renamed to ``prim_N`` (so GLTF
+    The stage is flattened, every mesh prim is renamed to ``prim_N`` (so mesh
     node names are unique and can be mapped back to USD paths), and the JSON
     records each prim's original path, world bbox, and dimensions.
     """
-    gltf_dir = os.path.dirname(gltf_path)
-    info_dir = os.path.dirname(info_path)
-    if gltf_dir:
-        os.makedirs(gltf_dir, exist_ok=True)
-    if info_dir:
-        os.makedirs(info_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(info_path)), exist_ok=True)
 
     tmp_dir = tempfile.mkdtemp()
-    parsed = urlparse(usd_path)
-    model_name = Path(parsed.path if parsed.scheme else usd_path).stem or "environment"
+    model_name = scenic_utils.assetStem(usd_path) or "environment"
 
     flattened_usd = os.path.join(tmp_dir, f"{model_name}_flattened.usd")
     flattenUsd(usd_path, flattened_usd)
@@ -217,24 +223,18 @@ def convertEnvironmentUsd(
     renamed_usd = os.path.join(tmp_dir, f"{model_name}_renamed.usd")
     getMeshInfo(flattened_usd, renamed_usd, info_path, open_stage_func=open_stage_func)
 
-    if not backend.convertSync(renamed_usd, gltf_path, load_materials=load_materials):
-        raise RuntimeError(f"failed to convert environment USD to GLTF: {usd_path}")
-    print(f"---Added {gltf_path}")
-
-    validateGltfGeometry(gltf_path)
+    convertUsdToMesh(backend, renamed_usd, mesh_path, load_materials=load_materials)
 
 
 def assetConvert(args, backend):
-    """Batch-convert the USD assets in ``args.folders`` to GLTF (see ``usd_to_mesh.py``)."""
+    """Batch-convert the USD assets in ``args.folders`` to meshes (see ``usd_to_mesh.py``)."""
     import omni.client
-
-    for folder in args.folders:
-        local_asset_output = convertedDirForFolder(folder)
-        omni.client.create_folder(f"{local_asset_output}")
 
     tmp_dir = tempfile.mkdtemp()
     for folder in args.folders:
         print(f"\nConverting folder {folder}...")
+        local_asset_output = args.output or convertedDirForFolder(folder)
+        os.makedirs(local_asset_output, exist_ok=True)
 
         _, models = omni.client.list(folder)
         for i, entry in enumerate(models):
@@ -252,26 +252,27 @@ def assetConvert(args, backend):
                 continue
 
             input_model_path = folder + "/" + model
+            mesh_path, info_path = scenic_utils.convertedMeshPaths(
+                model, local_asset_output
+            )
+            if not args.overwrite and os.path.exists(mesh_path):
+                print(f"---Skipping existing {mesh_path}")
+                continue
+
             if model in args.environments:
-                flattened_usd = os.path.join(tmp_dir, f"{model_name}_flattened.usd")
-                flattenUsd(input_model_path, flattened_usd)
-                renamed_usd = os.path.join(tmp_dir, f"{model_name}_renamed.usd")
-                info_path = os.path.join(local_asset_output, f"{model_name}_info.json")
-                getMeshInfo(flattened_usd, renamed_usd, info_path)
-                input_model_path = renamed_usd
+                convertEnvironmentUsd(
+                    input_model_path,
+                    str(mesh_path),
+                    str(info_path),
+                    backend=backend,
+                    load_materials=args.load_materials,
+                )
             else:
                 usd_without_ground = os.path.join(tmp_dir, f"{model}.usd")
                 removeGroundPlane(input_model_path, usd_without_ground)
-                input_model_path = usd_without_ground
-
-            converted_model_path = os.path.join(
-                local_asset_output, f"{model_name}_{model_format}.gltf"
-            )
-            if args.overwrite or not os.path.exists(converted_model_path):
-                status = backend.convertSync(input_model_path, converted_model_path, True)
-                if not status:
-                    print(f"ERROR Status is {status}")
-                validateGltfGeometry(converted_model_path)
-                print(f"---Added {converted_model_path}")
-            else:
-                validateGltfGeometry(converted_model_path)
+                convertUsdToMesh(
+                    backend,
+                    usd_without_ground,
+                    str(mesh_path),
+                    load_materials=args.load_materials,
+                )

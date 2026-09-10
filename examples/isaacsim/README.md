@@ -229,7 +229,8 @@ scenic examples/isaacsim/forklift/forklift.scenic -S -b \
     Isaac/Environments/Simple_Warehouse/warehouse.usd
 ```
 
-Converted environment data is cached. Local USD conversions are placed near
+Converted environment data (a `NAME_usd.glb.bz2` mesh and `NAME_info.json`)
+is cached. Local USD conversions are placed in a `_converted` folder next to
 the source USD; Isaac asset and URL conversions are cached under
 `~/.cache/scenic/isaac/environments`.
 
@@ -418,21 +419,31 @@ tool, which runs inside an Isaac Sim Python environment:
 
 ```bash
 python src/scenic/simulators/isaac/usd_to_mesh.py \
-  --folders /path/to/assets/rubiks_cube --load-materials
+  --folders "$ISAAC_ASSETS/Isaac/Props/KLT_Bin" --output examples/isaacsim/assets/klt_bin
 ```
 
-Every `.usd` file in each folder is written as glTF to a `_converted`
-subfolder (`/path/to/assets/rubiks_cube/_converted/rubiks_cube_usd.gltf`
-here); ground planes in the asset are dropped. Add `--environments NAME.usd`
-to treat a file as an environment, which additionally produces the JSON prim
-metadata Scenic uses for existing objects (this is what the automatic
-conversion does). Asset USDs can be copied out of a
+Every `.usd` file in each folder is written as a bz2-compressed binary glTF
+(`NAME_usd.glb.bz2`) to the `--output` directory (default: a `_converted`
+subfolder of the input folder); ground planes in the asset are dropped and
+materials are omitted unless `--load-materials` is given, since Scenic only
+needs the geometry. Input folders may be URLs, so `$ISAAC_ASSETS` can be the
+asset root printed by `isaacsim.storage.native.get_assets_root_path()` or a
 [local copy of the Isaac Sim assets](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/download.html#isaac-sim-latest-release).
+Add `--environments NAME.usd` to treat a file as an environment, which
+additionally produces the JSON prim metadata Scenic uses for existing objects
+(this is what the automatic conversion does).
 
-[`examples/isaacsim/simple_room_asset_shape.scenic`](examples/isaacsim/simple_room_asset_shape.scenic)
-loads such a mesh with `MeshShape` and `repairMesh` for a Rubik's cube placed
-on the table of the `Simple_Room` environment; it expects the converted glTF
-under `examples/isaacsim/assets/rubiks_cube/_converted/`.
+Load such a mesh with `loadAssetMesh` (which repairs it into a volume if
+needed) and `MeshShape`, as in
+[`examples/isaacsim/simple_room_asset_shape.scenic`](examples/isaacsim/simple_room_asset_shape.scenic),
+which places a KLT bin on the table of the `Simple_Room` environment and
+expects the mesh at `examples/isaacsim/assets/klt_bin/small_KLT_usd.glb.bz2`.
+
+Compressed files are handled transparently: `trimesh` (and hence `MeshShape`)
+reads `.glb.bz2` meshes directly, and a bz2-compressed local USD given as
+`environmentUSDPath` or `usdPath` is decompressed into `~/.cache/scenic/isaac`
+before Isaac Sim opens it. A compressed USD must be self-contained (flattened),
+since the decompressed copy no longer sits next to any files it references.
 
 ### Scenic terrain for Isaac Lab
 
