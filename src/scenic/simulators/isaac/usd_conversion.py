@@ -2,7 +2,6 @@
 
 import json
 import os
-from pathlib import Path
 import tempfile
 
 import numpy as np
@@ -12,13 +11,20 @@ import scenic.simulators.isaac.utils as scenic_utils
 
 
 def removeGroundPlane(file_path, output_path):
+    """Write a flattened copy of the USD at ``file_path`` with any ground plane disabled.
+
+    The stage is flattened so that references and payloads of the asset are
+    still resolved once the copy lives in a different directory.
+    """
     from pxr import Usd
 
     stage = Usd.Stage.Open(file_path)
+    if stage is None:
+        raise RuntimeError(f"could not open USD file: {file_path}")
     for prim in stage.Traverse():
         if "groundplane" in str(prim.GetPath()).lower():
             prim.SetActive(False)
-    stage.GetRootLayer().Export(output_path)
+    stage.Flatten().Export(output_path)
 
 
 def flattenUsd(file_path, output_path):
@@ -169,6 +175,23 @@ def getMeshInfo(usd_path, output_path, info_path, open_stage_func=None):
     print(f"---Added {info_path}")
 
 
+def _describeGltf(gltf_path):
+    """Summarize a glTF file for error messages."""
+    try:
+        with open(gltf_path, "r") as in_file:
+            gltf = json.load(in_file)
+    except Exception as exc:
+        return f"unreadable glTF: {type(exc).__name__}: {exc}"
+    counts = ", ".join(
+        f"{len(gltf.get(key, []))} {key}"
+        for key in ("nodes", "meshes", "accessors", "buffers")
+    )
+    extensions = gltf.get("extensionsRequired") or gltf.get("extensionsUsed") or []
+    if extensions:
+        counts += f", extensions {extensions}"
+    return counts
+
+
 def convertUsdToMesh(backend, usd_path, mesh_path, *, load_materials=False):
     """Convert a USD to a mesh file at ``mesh_path`` via Isaac's asset converter.
 
@@ -186,6 +209,7 @@ def convertUsdToMesh(backend, usd_path, mesh_path, *, load_materials=False):
     if not scene.geometry:
         raise RuntimeError(
             f"converted mesh has no geometry: {usd_path}. "
+            f"The converter's glTF was kept at {gltf_path} ({_describeGltf(gltf_path)}). "
             "If this is an environment, make sure the source USD is flattened."
         )
     scenic_utils.writeMesh(scene, mesh_path)
