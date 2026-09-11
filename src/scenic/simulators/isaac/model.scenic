@@ -114,6 +114,10 @@ class IsaacSimRobot(IsaacSimObject, _Robot):
     control: None
     blueprint: "Robot"
 
+    # Set by ManipulatorRobot subclasses; declared here (defaulting to None)
+    # so createRobot's dispatch check works for every kind of robot.
+    manipulatorProfile: None
+
     # Wheeled-robot metadata ("differential", "holonomic", or "ackermann").
     wheelController: None
     wheelDofNames: []
@@ -172,7 +176,6 @@ class Kaya(IsaacSimRobot):
 
 class ManipulatorRobot(IsaacSimRobot, _ManipulatorRobot):
     """An arm described by a `ManipulatorProfile`; see the README to add new arms."""
-    manipulatorProfile: None
     endEffectorOffset: [0.0, 0.0, 0.0]
     endEffectorOrientation: None
     armMaxVelocities: None

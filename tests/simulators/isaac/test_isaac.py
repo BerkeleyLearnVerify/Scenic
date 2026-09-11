@@ -5,6 +5,7 @@ simulator is only instantiated when a simulation is run.
 """
 
 import bz2
+import sys
 
 import pytest
 import trimesh
@@ -31,6 +32,42 @@ def test_backend_registry():
     action = articulationAction(joint_velocities=[1, 2], joint_indices=[0, 1])
     assert action == {"joint_velocities": [1, 2], "joint_indices": [0, 1]}
     assert backend.articulationAction(joint_efforts=[3]) == {"joint_efforts": [3]}
+
+
+def test_detect_backend_version_file_fallback(tmp_path, monkeypatch):
+    """detectBackend must also recognize the plain ``VERSION`` file NVIDIA
+    ships at the root of every Isaac Sim install: Isaac Sim's own bundled
+    Python (as opposed to a pip install) has no pip metadata for the
+    ``isaacsim`` package, so pip-metadata detection alone always misses it.
+
+    Faking out both pip-metadata lookup and the ``isaacsim`` module itself
+    makes this deterministic regardless of what is actually installed on the
+    machine running the test.
+    """
+    import types
+
+    from scenic.simulators.isaac import backends
+
+    def _noPipMetadata():
+        raise ModuleNotFoundError("no pip metadata in this test")
+
+    monkeypatch.setattr(backends, "_majorVersionFromPipMetadata", _noPipMetadata)
+
+    # A fake bundled install several directories below a VERSION file.
+    package_dir = tmp_path / "python_packages" / "isaacsim"
+    package_dir.mkdir(parents=True)
+    (package_dir / "__init__.py").write_text("")
+    fake_isaacsim = types.ModuleType("isaacsim")
+    fake_isaacsim.__file__ = str(package_dir / "__init__.py")
+    monkeypatch.setitem(sys.modules, "isaacsim", fake_isaacsim)
+
+    (tmp_path / "VERSION").write_text("5.1.0.0\n")
+    assert backends._majorVersionFromVersionFile() == "5"
+    assert backends.detectBackend() == "core_51"
+
+    (tmp_path / "VERSION").unlink()
+    assert backends._majorVersionFromVersionFile() is None
+    assert backends.detectBackend() == backends.FALLBACK_BACKEND_NAME
 
 
 def test_orientation_conversion():

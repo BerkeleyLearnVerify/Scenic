@@ -8,6 +8,7 @@ import trimesh
 
 from scenic.core.simulators import SimulationCreationError
 from scenic.core.vectors import Orientation, Vector
+from scenic.simulators.isaac.actions import _Robot
 from scenic.simulators.isaac.backends.robotiq import requireStagePrim
 import scenic.simulators.isaac.utils as scenic_utils
 
@@ -16,7 +17,9 @@ WHEEL_CONTROLLERS = frozenset({"differential", "holonomic", "ackermann"})
 
 
 def isWheeledRobot(obj):
-    return obj.wheelController in WHEEL_CONTROLLERS
+    # wheelController is only declared on IsaacSimRobot, so check isinstance
+    # first: this is called on every object in the scene, robot or not.
+    return isinstance(obj, _Robot) and obj.wheelController in WHEEL_CONTROLLERS
 
 
 def positionArray(position):
