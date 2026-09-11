@@ -427,10 +427,12 @@ class IsaacLabSimulation(Simulation):
         if not obj.physics:
             return {prop: getattr(obj, prop) for prop in properties}
 
-        values = self._physicsValuesFromAsset(self.assetForScenicObject(obj))
+        values = self._physicsValuesFromAsset(
+            self.assetForScenicObject(obj), initial_rotation=obj.initialRotation
+        )
         return {prop: values[prop] for prop in properties}
 
-    def _physicsValuesFromAsset(self, asset, env_id: int = 0):
+    def _physicsValuesFromAsset(self, asset, env_id: int = 0, initial_rotation=None):
         """Read the root state of a RigidObject/Articulation for one environment."""
         row = self.backend.tensorRow
         data = asset.data
@@ -439,7 +441,9 @@ class IsaacLabSimulation(Simulation):
         lin_vel = row(data.root_lin_vel_w, env_id)
         ang_vel = row(data.root_ang_vel_w, env_id)
 
-        yaw, pitch, roll = self.backend.isaacQuatToScenicEulerAngles(quat)
+        yaw, pitch, roll = self.backend.isaacQuatToScenicEulerAngles(
+            quat, initial_rotation=initial_rotation
+        )
 
         return dict(
             position=Vector(*pos),

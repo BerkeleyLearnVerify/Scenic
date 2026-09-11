@@ -71,24 +71,44 @@ def test_detect_backend_version_file_fallback(tmp_path, monkeypatch):
 
 
 def test_orientation_conversion():
+    """scenicToIsaacOrientation/isaacQuatToScenicEulerAngles must round-trip
+    correctly for arbitrary combinations of yaw, pitch, and roll -- not just
+    yaw -- both with and without an ``initial_rotation`` asset-frame
+    correction (see model.scenic's built-in wheeled robots).
+    """
     from scenic.core.vectors import Orientation
     from scenic.simulators.isaac.backends import getBackend
 
     backend = getBackend("core_51")
-    for angles in ((0, 0, 0), (0.3, -0.2, 0.7), (2.0, 1.0, -2.5)):
+    orientations = ((0, 0, 0), (0.3, -0.2, 0.7), (2.0, 1.0, -2.5))
+    initialRotations = (None, (0.5, 0.0, 0.0), (0.2, 0.6, -0.4), (-1.0, 0.3, 1.2))
+    for angles in orientations:
         orientation = Orientation.fromEuler(*angles)
         quat = backend.scenicToIsaacOrientation(orientation)
         assert quat.shape == (4,)
         yaw, pitch, roll = backend.isaacQuatToScenicEulerAngles(quat)
         assert Orientation.fromEuler(yaw, pitch, roll).approxEq(orientation)
 
-        # initial_rotation is applied first, in the asset's frame.
-        initial = (0.5, 0.0, 0.0)
-        composed = backend.scenicToIsaacOrientation(orientation, initial_rotation=initial)
-        expected = orientation * Orientation.fromEuler(*initial)
-        assert Orientation.fromEuler(
-            *backend.isaacQuatToScenicEulerAngles(composed)
-        ).approxEq(expected)
+        for initial in initialRotations:
+            if initial is None:
+                continue
+            # initial_rotation is composed in first, in the asset's local
+            # frame; passing the same initial_rotation back to
+            # isaacQuatToScenicEulerAngles must undo it and recover the
+            # original orientation exactly.
+            composed = backend.scenicToIsaacOrientation(
+                orientation, initial_rotation=initial
+            )
+            recovered = backend.isaacQuatToScenicEulerAngles(
+                composed, initial_rotation=initial
+            )
+            assert Orientation.fromEuler(*recovered).approxEq(orientation)
+
+            # Without undoing initial_rotation, the raw spawned orientation is
+            # orientation composed with initial_rotation, not the original.
+            raw = backend.isaacQuatToScenicEulerAngles(composed)
+            expected = orientation * Orientation.fromEuler(*initial)
+            assert Orientation.fromEuler(*raw).approxEq(expected)
 
 
 def test_compressed_paths(tmp_path, monkeypatch):

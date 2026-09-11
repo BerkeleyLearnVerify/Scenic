@@ -23,4 +23,7 @@ class Jetbot(IsaacSimRobot):
     length: 0.16
     height: 0.12
     isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
+    # See the comment on model.scenic's built-in Jetbot: this asset is authored
+    # with local +X as forward, while Scenic's heading-0 forward is local +Y.
+    initialRotation: (90 deg, 0, 0)
     control: jetbotControl

@@ -364,16 +364,31 @@ class IsaacBackend:
         """Convert a Scenic Orientation to an Isaac Sim wxyz quaternion.
 
         ``initial_rotation`` (yaw, pitch, roll) is applied first, to align an
-        asset's native frame with Scenic's.
+        asset's native frame with Scenic's (see e.g. ``model.scenic``'s
+        built-in wheeled robots, whose USD assets are authored with local +X
+        as forward instead of Scenic's local +Y). The composition is done as
+        a full rotation, not just on yaw, so it is correct for any
+        combination of yaw, pitch, and roll in either ``orientation`` or
+        ``initial_rotation``.
         """
         rotation = orientation.r
         if initial_rotation is not None:
             rotation = rotation * Orientation.fromEuler(*initial_rotation).r
         return rotationToWxyz(rotation)
 
-    def isaacQuatToScenicEulerAngles(self, quat):
-        """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll."""
-        return Orientation(wxyzToRotation(quat)).eulerAngles
+    def isaacQuatToScenicEulerAngles(self, quat, initial_rotation=None):
+        """Convert an Isaac Sim wxyz quaternion to Scenic yaw, pitch, roll.
+
+        ``initial_rotation`` must be passed whenever the object was spawned
+        with it (see `scenicToIsaacOrientation`), so the asset-frame
+        correction is undone and the result is the object's actual Scenic
+        orientation rather than that orientation composed with the
+        correction.
+        """
+        rotation = wxyzToRotation(quat)
+        if initial_rotation is not None:
+            rotation = rotation * Orientation.fromEuler(*initial_rotation).r.inv()
+        return Orientation(rotation).eulerAngles
 
     def rotateVectorByWxyzQuat(self, quat_wxyz, vec):
         """Rotate a vector by an Isaac/USD wxyz quaternion."""

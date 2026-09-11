@@ -555,7 +555,9 @@ class Experimental60Backend(IsaacBackend):
     def getPhysicsProperties(self, world, obj):
         wrapper = world.getObject(obj.name)
         position, orientation = wrapper.get_world_poses()
-        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(orientation.numpy()[0])
+        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(
+            orientation.numpy()[0], initial_rotation=obj.initialRotation
+        )
         linear_velocity, angular_velocity = wrapper.get_velocities()
         lx, ly, lz = linear_velocity.numpy()[0]
         ax, ay, az = angular_velocity.numpy()[0]

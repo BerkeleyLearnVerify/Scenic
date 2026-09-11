@@ -139,12 +139,21 @@ class IsaacSimRobot(IsaacSimObject, _Robot):
     def move(self, sim, command):
         sim.backend.applyRobotControl(sim, self, command)
 
+# These built-in wheeled-robot USD assets are authored (like most of Isaac's
+# robot asset library) with local +X as "forward", while Scenic's convention
+# is local +Y ("north") at heading 0. `initialRotation` corrects for this fixed
+# per-asset offset so a Scenic heading of 0 matches the direction the robot
+# actually faces/drives; see `IsaacBackend.scenicToIsaacOrientation`. The
+# correction was determined empirically for each asset -- it isn't necessarily
+# the same for every USD asset (see e.g. the forklift example, which needs a
+# different correction for its own asset).
 class Create3(IsaacSimRobot):
     shape: CylinderShape()
     width: 0.335
     length: 0.335
     height: .1
     isaacAssetPath: "Isaac/Robots/iRobot/Create3/create_3.usd"
+    initialRotation: (90 deg, 0, 0)
 
     # Differential-drive metadata.
     wheelRadius: 0.03575
@@ -157,6 +166,7 @@ class Jetbot(IsaacSimRobot):
     length: 0.16
     height: 0.12
     isaacAssetPath: "Isaac/Robots/NVIDIA/Jetbot/jetbot.usd"
+    initialRotation: (90 deg, 0, 0)
 
     # Differential-drive metadata.
     wheelRadius: 0.03
@@ -169,6 +179,7 @@ class Kaya(IsaacSimRobot):
     length: 0.2
     height: 0.2
     isaacAssetPath: "Isaac/Robots/NVIDIA/Kaya/kaya.usd"
+    initialRotation: (90 deg, 0, 0)
 
     # Holonomic-drive metadata.
     wheelDofNames: ["axle_0_joint", "axle_1_joint", "axle_2_joint"]

@@ -27,7 +27,7 @@ import pytest
 pytest.importorskip("isaacsim")
 
 import scenic
-from tests.utils import sampleScene
+from tests.utils import compileScenic, sampleScene
 
 EXAMPLES = os.path.join(
     os.path.dirname(__file__), "..", "..", "..", "examples", "isaacsim"
@@ -57,6 +57,12 @@ def _loadExample(relpath, isaacBackend, **params):
     params.setdefault("headless", True)
     params.setdefault("isaacBackend", isaacBackend.name)
     return scenic.scenarioFromFile(os.path.join(EXAMPLES, relpath), params=params)
+
+
+def _compile(code, isaacBackend, **params):
+    params.setdefault("headless", True)
+    params.setdefault("isaacBackend", isaacBackend.name)
+    return compileScenic(code, params=params)
 
 
 def test_backend_matches_installed_isaac_sim(isaacBackend):
@@ -90,6 +96,118 @@ def test_wheeled_and_manipulator_robots(isaacBackend, loadLocalScenario):
     )
     simulation = _simulate(scenario, maxSteps=150)
     assert simulation.result.terminationReason is not None
+
+
+def test_object_falls_under_gravity(isaacBackend):
+    """A physics-enabled object dropped above the ground should fall and land on it."""
+    scenario = _compile(
+        """
+        model scenic.simulators.isaac.model
+
+        floor = new GroundPlane with width 6, with length 6
+        box = new IsaacSimObject at (0, 0, 2),
+            with shape BoxShape(), with width 0.3, with length 0.3, with height 0.3,
+            with density 200
+        record box.z as BoxHeight
+        terminate after 90 steps
+        """,
+        isaacBackend,
+    )
+    simulation = _simulate(scenario, maxSteps=90)
+    heights = [z for _, z in simulation.result.records["BoxHeight"]]
+    assert heights[0] > 1.5, "box did not start in midair"
+    assert heights[-1] < 0.5, "box did not fall toward the ground"
+    assert heights[-1] > -0.2, "box fell through the ground plane"
+
+
+def test_wheeled_robot_moves_in_expected_direction(isaacBackend):
+    """A wheeled robot's heading determines which way "drive forward" moves
+    it, matching Scenic's documented compass convention: heading 0 is north
+    (+y), heading 90 degrees is west (-x).
+
+    Regression test for a bug where built-in wheeled robots (Create3, Jetbot,
+    Kaya) drove ~90 degrees off from their commanded heading, because their
+    USD assets are authored with local +X as "forward" while Scenic's
+    convention is local +Y; see the ``initialRotation`` on those classes in
+    model.scenic and `IsaacBackend.scenicToIsaacOrientation`.
+    """
+    scenario = _compile(
+        """
+        model scenic.simulators.isaac.model
+
+        behavior DriveForward():
+            while True:
+                take ApplyControllerAction([0.3, 0])
+
+        floor = new GroundPlane with width 8, with length 8
+        north = new Create3 on floor, facing 0 deg, with behavior DriveForward
+        west = new Create3 on floor, facing 90 deg, with behavior DriveForward
+        require distance from north to west > 2
+        record (north.x, north.y) as NorthPosition
+        record (west.x, west.y) as WestPosition
+        terminate after 120 steps
+        """,
+        isaacBackend,
+    )
+    simulation = _simulate(scenario, maxSteps=120)
+    northPositions = [pos for _, pos in simulation.result.records["NorthPosition"]]
+    westPositions = [pos for _, pos in simulation.result.records["WestPosition"]]
+
+    dNorthX = northPositions[-1][0] - northPositions[0][0]
+    dNorthY = northPositions[-1][1] - northPositions[0][1]
+    dWestX = westPositions[-1][0] - westPositions[0][0]
+    dWestY = westPositions[-1][1] - westPositions[0][1]
+
+    # Facing north (heading 0) means forward is +y.
+    assert dNorthY > 0.3, "robot facing north did not move forward"
+    assert abs(dNorthX) < dNorthY, "robot facing north drifted sideways instead"
+
+    # Facing west (heading 90 deg) means forward is -x.
+    assert dWestX < -0.3, "robot facing west did not move forward"
+    assert abs(dWestY) < abs(dWestX), "robot facing west drifted sideways instead"
+
+
+def test_orientation_handles_pitch_and_roll(isaacBackend):
+    """Spawned orientation must round-trip correctly for combined yaw, pitch,
+    and roll -- not just yaw -- both for a plain object (no
+    ``initialRotation``) and for a wheeled robot, which composes its own
+    ``initialRotation`` correction on top (see model.scenic).
+    """
+    scenario = _compile(
+        """
+        model scenic.simulators.isaac.model
+        from scenic.core.vectors import Orientation
+
+        tilted = Orientation.fromEuler(0.4, 0.25, -0.15)
+
+        floor = new GroundPlane with width 6, with length 6
+        box = new IsaacSimObject at (0, 0, 1), facing tilted,
+            with shape BoxShape(), with width 0.3, with length 0.3, with height 0.3,
+            with physics False
+        robot = new Create3 at (3, 0, 1), facing tilted
+        record box.orientation as BoxOrientation
+        record robot.orientation as RobotOrientation
+        terminate after 1 steps
+        """,
+        isaacBackend,
+    )
+    simulation = _simulate(scenario, maxSteps=1)
+
+    from scenic.core.vectors import Orientation
+
+    tilted = Orientation.fromEuler(0.4, 0.25, -0.15)
+    boxOrientation = simulation.result.records["BoxOrientation"][-1][1]
+    robotOrientation = simulation.result.records["RobotOrientation"][-1][1]
+
+    assert boxOrientation.approxEq(tilted, tol=1e-3), (
+        "a kinematic object's spawned yaw/pitch/roll did not round-trip:"
+        f" got {boxOrientation.eulerAngles}, expected {tilted.eulerAngles}"
+    )
+    assert robotOrientation.approxEq(tilted, tol=1e-2), (
+        "a robot's spawned yaw/pitch/roll (composed with its initialRotation"
+        f" correction) did not round-trip: got {robotOrientation.eulerAngles},"
+        f" expected {tilted.eulerAngles}"
+    )
 
 
 def test_environment_and_compressed_asset_mesh(isaacBackend):

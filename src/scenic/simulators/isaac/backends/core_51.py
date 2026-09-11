@@ -625,7 +625,9 @@ class Core51Backend(IsaacBackend):
     def getPhysicsProperties(self, world, obj):
         isaac_obj = world.scene.get_object(obj.name)
         position, orientation = isaac_obj.get_world_pose()
-        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(orientation)
+        yaw, pitch, roll = self.isaacQuatToScenicEulerAngles(
+            orientation, initial_rotation=obj.initialRotation
+        )
         lx, ly, lz = isaac_obj.get_linear_velocity()
         ax, ay, az = isaac_obj.get_angular_velocity()
         return {
