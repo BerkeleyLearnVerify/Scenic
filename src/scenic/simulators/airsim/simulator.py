@@ -26,13 +26,26 @@ from scenic.syntax.veneer import verbosePrint
 from .utils import (
     airsimToScenicLocation,
     airsimToScenicOrientation,
+    airsimToScenicVector,
     scenicToAirsimLocation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
+    scenicToAirsimVector,
 )
 
 # Constants
 PX4_DRONE = "PX4Drone"
+
+# Wall-clock time allowed for AirSim's asynchronous hover RPC to install its
+# controller setpoint.  The simulation remains paused, so this does not advance
+# physics or become part of the Scenic trace.
+CONTROLLER_STARTUP_TIME = 0.1
+
+# A successful AirSim reset should leave SimpleFlight vehicles stationary.
+# Allow a small numerical tolerance, but reject any meaningful residual motion
+# before it can enter a Scenic trace.
+RESET_LINEAR_SPEED_TOLERANCE = 0.05
+RESET_ANGULAR_SPEED_TOLERANCE = 0.05
 
 
 class AirSimSimulator(Simulator):
@@ -76,6 +89,8 @@ class AirSimSimulation(Simulation):
         self.objTrove = []  # objs to delete on simulation complete
         self.objs = {}  # obj name to objrealname dict
         self.drones = {}  # obj name to objrealname dict only for drones
+        self.startVelocities = {}  # objrealname to initial Scenic velocity vector
+        self.initialDronePoses = {}
         self.PX4Drone = None
         self.startDrones = None
         self.nextDroneIndex = 0
@@ -83,15 +98,13 @@ class AirSimSimulation(Simulation):
         super().__init__(scene, **kwargs)
 
     def setup(self):
-        # set up startDrones
-        self.startDrones = self.client.listVehicles()
+        self.startDrones = self._resetForNewEpisode()
+        self._setWindForNewEpisode()
 
-        # remove px4 drone from start drones bc it is handled differently
-        if PX4_DRONE in self.startDrones:
-            self.startDrones.remove(PX4_DRONE)
-
-        # move all drones (except px4 drone) to offscreen position
-        self.client.simPause(False)
+        # Move all drones (except the PX4 drone) to an offscreen position while
+        # the simulation remains paused.  They do not need a flight command
+        # here: used drones receive one when they are placed below, and unused
+        # drones can safely fall offscreen.
         for i, drone in enumerate(self.startDrones):
             newPose = airsim.Pose(
                 position_val=scenicToAirsimLocation(
@@ -103,19 +116,172 @@ class AirSimSimulation(Simulation):
             self.client.simSetVehiclePose(
                 vehicle_name=drone, pose=newPose, ignore_collision=False
             )
+
+        # Create objects without starting their asynchronous hover tasks yet.
+        # Starting a hover while an earlier offscreen pose is still visible to
+        # AirSim can make the controller capture that stale pose as its target.
+        self._settingUp = True
+        try:
+            super().setup()
+        finally:
+            self._settingUp = False
+
+        for realObjName, (pose, startHovering) in self.initialDronePoses.items():
+            if startHovering:
+                self.client.hoverAsync(vehicle_name=realObjName)
+
+        # Give the asynchronous hover RPCs time to install their controller
+        # setpoints.  Keep physics paused: advancing a hidden settling interval
+        # here would move the drones before Scenic records trace state 0.
+        time.sleep(CONTROLLER_STARTUP_TIME)
+
+        # Reassert the declared poses after the controllers are active.  This
+        # removes any state change made while arming without running a hidden
+        # physics interval before trace state 0.
+        for realObjName, (pose, _) in self.initialDronePoses.items():
+            self.client.simSetVehiclePose(
+                vehicle_name=realObjName, pose=pose, ignore_collision=True
+            )
+            actual = self.client.simGetGroundTruthKinematics(realObjName).position
+            error = math.sqrt(
+                (actual.x_val - pose.position.x_val) ** 2
+                + (actual.y_val - pose.position.y_val) ** 2
+                + (actual.z_val - pose.position.z_val) ** 2
+            )
+            if error > 1:
+                raise SimulationCreationError(
+                    f"AirSim failed to place {realObjName} at its initial pose "
+                    f"(error {error:.3f} m)"
+                )
+
+        # drones spawn at rest, so launch any drone declared already in motion
+        self.applyStartVelocities()
+
+    def _resetForNewEpisode(self):
+        """Reset and validate the reusable SimpleFlight vehicles.
+
+        Cleanup at the end of a prior Scenic simulation is best-effort: the
+        client may have crashed or been interrupted before it ran.  Establish
+        the episode boundary here instead, before any sampled pose or controller
+        command is installed.  AirSim reset disables API control and may change
+        pause state, so setup reacquires both explicitly afterward.
+        """
+        try:
+            self.client.simPause(True)
+            self.client.reset()
+            self.client.simPause(True)
+            vehicles = self.client.listVehicles()
+
+            for vehicle in vehicles:
+                # PX4 owns its state in an external flight controller and is not
+                # part of the reusable SimpleFlight vehicle pool below.
+                if vehicle == PX4_DRONE:
+                    continue
+
+                kinematics = self.client.simGetGroundTruthKinematics(vehicle)
+                linear = kinematics.linear_velocity
+                angular = kinematics.angular_velocity
+                components = (
+                    linear.x_val,
+                    linear.y_val,
+                    linear.z_val,
+                    angular.x_val,
+                    angular.y_val,
+                    angular.z_val,
+                )
+                if not all(math.isfinite(value) for value in components):
+                    raise SimulationCreationError(
+                        f"AirSim reset returned non-finite motion for {vehicle}: "
+                        f"linear={components[:3]}, angular={components[3:]}"
+                    )
+
+                linearSpeed = math.hypot(linear.x_val, linear.y_val, linear.z_val)
+                angularSpeed = math.hypot(angular.x_val, angular.y_val, angular.z_val)
+                if (
+                    linearSpeed > RESET_LINEAR_SPEED_TOLERANCE
+                    or angularSpeed > RESET_ANGULAR_SPEED_TOLERANCE
+                ):
+                    raise SimulationCreationError(
+                        f"AirSim reset left {vehicle} moving: "
+                        f"linear speed {linearSpeed:.6g} m/s "
+                        f"(limit {RESET_LINEAR_SPEED_TOLERANCE:.6g}), "
+                        f"angular speed {angularSpeed:.6g} rad/s "
+                        f"(limit {RESET_ANGULAR_SPEED_TOLERANCE:.6g})"
+                    )
+        except SimulationCreationError:
+            raise
+        except Exception as exc:
+            raise SimulationCreationError(
+                f"AirSim failed to reset for a new Scenic episode: {exc}"
+            ) from exc
+
+        return [vehicle for vehicle in vehicles if vehicle != PX4_DRONE]
+
+    def _setWindForNewEpisode(self):
+        """Install the scene's global wind after reset and before placement.
+
+        AirSim keeps wind in world state across vehicle resets.  Every Scenic
+        episode therefore writes a wind vector, including an explicit zero for
+        scenarios which do not specify one.
+        """
+        wind = self.scene.params.get("wind", Vector(0, 0, 0))
+        try:
+            wind = toVector(wind)
+            components = (wind.x, wind.y, wind.z)
+            if not all(math.isfinite(value) for value in components):
+                raise ValueError(f"non-finite Scenic wind vector {components}")
+            self.client.simSetWind(scenicToAirsimVector(wind))
+        except Exception as exc:
+            raise SimulationCreationError(
+                f"AirSim failed to set episode wind from {wind!r}: {exc}"
+            ) from exc
+
+    def applyStartVelocities(self):
+        """Give each drone with a `startVelocity` that velocity instantaneously.
+
+        Spawning only ever sets a pose, and an AirSim pose carries no velocity,
+        so a drone always comes into existence hovering.  A controller that
+        immediately commands several m/s then spends the first ticks
+        accelerating into it, and anything measured over those ticks describes
+        the cold start rather than steady flight.
+
+        This runs after setup has installed the hover controllers, reasserted
+        the declared poses, and validated the physical placements.  Its
+        velocity command replaces the hover setpoint before the velocity is
+        forced, so simple_flight does not immediately brake back to a hover.
+        """
+        for realObjName, velocity in self.startVelocities.items():
+            airsimVelocity = scenicToAirsimVector(velocity)
+
+            # Move the controller setpoint to match the state we are about to
+            # force; otherwise simple_flight is still holding the hover
+            # setpoint and brakes out of the velocity on the first step.  The
+            # duration only has to cover that step, after which the scenario's
+            # own actions take over.
             self.client.moveByVelocityAsync(
-                0, 0, 0, 1, vehicle_name=drone
-            )  # make drone hover
+                airsimVelocity.x_val,
+                airsimVelocity.y_val,
+                airsimVelocity.z_val,
+                self.simulator.timestep,
+                vehicle_name=realObjName,
+            )
 
-        self.client.simPause(True)
-
-        # create objs
-        super().setup()
-
-        # ensure that drones are in the correct places
-        self.client.simPause(False)
-        time.sleep(1)
-        self.client.simPause(True)
+            # simSetKinematics sets the velocity instantaneously; moveByVelocityAsync
+            # is a command the drone has to accelerate into.
+            #
+            # The whole state is read back and only the linear velocity changed, which
+            # preserves the placement above exactly.  Against Blocks 1.8.1 a NaN
+            # position is written through and the physics engine turns the entire state,
+            # velocity included, into NaN on the next step, and simGetVehiclePose is
+            # stale while the simulator is paused.
+            #
+            # With `ignore_collision` False, AirSim resolves the write as a
+            # collision-checked teleport, dropping the vehicle to the ground and
+            # freezing its physics ~14.5 m below its spawn pose.  The reassertion of the
+            # declared poses above also ignores collision.
+            kinematics = self.client.simGetGroundTruthKinematics(realObjName)
+            kinematics.linear_velocity = airsimVelocity
+            self.client.simSetKinematics(kinematics, True, vehicle_name=realObjName)
 
     def createObjectInSimulator(self, obj):
         # create AirSimPreExisting
@@ -170,18 +336,42 @@ class AirSimSimulation(Simulation):
                 vehicle_name=realObjName, pose=pose, ignore_collision=True
             )
 
-            # set propellers on or off
-            if obj.startHovering:
-                self.client.moveByVelocityAsync(0, 0, 0, 1, vehicle_name=realObjName)
-            else:
+            self.initialDronePoses[realObjName] = (pose, obj.startHovering)
+
+            # Set propellers on or off. During initial setup hover is deferred
+            # until every drone has its final pose, so the controller cannot
+            # capture the temporary offscreen pose.
+            if obj.startHovering and not getattr(self, "_settingUp", False):
+                # AirSim's hover command holds position until another task
+                # cancels it.  A finite zero-velocity movement task is not the
+                # same position-holding operation and races setup.
+                self.client.hoverAsync(vehicle_name=realObjName)
+            elif not obj.startHovering:
                 # shut off drone propellers
                 self.client.moveByVelocityAsync(0, 0, 0, -1, vehicle_name=realObjName)
+
+            # Defer until setup has stabilized and validated the initial pose.
+            if obj.startVelocity is not None:
+                if not obj.startHovering:
+                    raise RuntimeError(
+                        "drone "
+                        + obj.name
+                        + " has a startVelocity but startHovering is False;"
+                        " a drone with its propellers off cannot hold a velocity"
+                    )
+                self.startVelocities[realObjName] = toVector(obj.startVelocity)
 
         elif obj.blueprint == "PX4Drone":
             realObjName = PX4_DRONE
 
             if self.PX4Drone:
                 raise RuntimeError("more than 1 px4 drone is not currently supported")
+
+            if obj.startVelocity is not None:
+                raise RuntimeError(
+                    "startVelocity is not supported for PX4 drones; their state is"
+                    " owned by the PX4 controller, not by simSetKinematics"
+                )
 
             self.PX4Drone = PX4_DRONE
             self.client.simSetVehiclePose(
@@ -244,7 +434,9 @@ class AirSimSimulation(Simulation):
             client.cancelLastTask(vehicle_name=realDroneName)
             client.moveByVelocityAsync(0, 0, 0, -1, vehicle_name=realDroneName)
 
-        # reset the client
+        # Best-effort cleanup for a normally completed episode.  Correctness
+        # does not rely on this running: the next setup performs and validates
+        # its own authoritative reset before placing any vehicle.
         client.reset()
 
         super().destroy()
@@ -269,11 +461,18 @@ class AirSimSimulation(Simulation):
 
         # get obj data
         if obj.blueprint == "Drone" or obj.blueprint == "PX4Drone":
-            pose = self.client.simGetVehiclePose(objName)
             kinematics = self.client.simGetGroundTruthKinematics(objName)
-            velocity = airsimToScenicLocation(kinematics.linear_velocity)
+            # simGetVehiclePose can lag behind simSetVehiclePose while AirSim is
+            # paused, which made Scenic record a stale location at trace state
+            # 0.  Ground-truth kinematics updates synchronously with the
+            # teleport and provides the same vehicle-relative pose frame.
+            pose = airsim.Pose(
+                position_val=kinematics.position,
+                orientation_val=kinematics.orientation,
+            )
+            velocity = airsimToScenicVector(kinematics.linear_velocity)
 
-            angularVelocity = airsimToScenicLocation(kinematics.angular_velocity)
+            angularVelocity = airsimToScenicVector(kinematics.angular_velocity)
 
         elif obj.blueprint == "StaticObj" or obj.blueprint == "AirSimPreExisting":
             pose = self.client.simGetObjectPose(objName)
@@ -288,7 +487,18 @@ class AirSimSimulation(Simulation):
         globalOrientation = airsimToScenicOrientation(pose.orientation)
         yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
 
-        location = airsimToScenicLocation(pose.position, obj.centerOffset)
+        if (
+            obj.blueprint == "Drone"
+            and self.currentTime == 0
+            and obj._startPos is not None
+        ):
+            # The ground-truth kinematics pose is the vehicle's center of mass,
+            # which differs slightly from the Scenic mesh origin.  State 0 is
+            # the declared, validated spawn pose; subsequent states come from
+            # AirSim.
+            location = obj._startPos
+        else:
+            location = airsimToScenicLocation(pose.position, obj.centerOffset)
 
         speed = math.hypot(velocity.x, velocity.y, velocity.z)
         angularSpeed = math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z)

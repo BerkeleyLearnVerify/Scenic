@@ -55,9 +55,15 @@ def createMeshShape(subFolder, assetName):
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
     center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
 
-    dimensions = Vector(tmesh.bounding_box.extents[0],tmesh.bounding_box.extents[1],tmesh.bounding_box.extents[2])
+    # The .obj files are exported in Unreal units (centimetres) and Scenic works
+    # in metres, the same factor of 100 that scenicToAirsimLocation applies to
+    # positions.
+    extents = tmesh.bounding_box.extents / 100
+    dimensions = Vector(extents[0], extents[1], extents[2])
 
-    return MeshShape(tmesh), center, dimensions
+    # MeshShape takes the converted dimensions; an object's default size comes
+    # from its shape rather than from the `dims` property.
+    return MeshShape(tmesh, dimensions=dimensions), center, dimensions
 
 
 
@@ -102,6 +108,9 @@ class Drone(AirSimActor):
     blueprint: "Drone"
     assetName: "Quadrotor1"
     startHovering: True
+    # Scenic-frame velocity the drone has at the first simulation step, or None
+    # to spawn at rest. Requires startHovering.
+    startVelocity: None
     _startPos: None
 
 class PX4Drone(Drone):

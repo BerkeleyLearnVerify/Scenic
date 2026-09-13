@@ -9,10 +9,11 @@ from promise import Promise
 from scenic.core.type_support import toVector
 from .utils import (
     airsimToScenicLocation,
-    scenicToAirsimOrientation,
-    airsimToScenicLocation,
     airsimToScenicOrientation,
+    scenicToAirsimLocation,
+    scenicToAirsimOrientation,
     scenicToAirsimScale,
+    scenicToAirsimVector,
 )
 from scenic.simulators.airsim.actions import *
 
@@ -97,7 +98,7 @@ behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
 behavior MoveByVelocity(velocity,seconds):
     client = simulation().client
 
-    newVelocity = scenicToAirsimLocation(toVector(velocity))
+    newVelocity = scenicToAirsimVector(toVector(velocity))
 
     do waitForPromise(createPromise(
         client.moveByVelocityAsync(

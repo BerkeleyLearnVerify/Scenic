@@ -19,6 +19,17 @@ def AirsimVecToVector(vec):
     return Vector(vec.x_val, vec.y_val, vec.z_val)
 
 
+def scenicToAirsimVector(vector):
+    """Convert a Scenic vector to AirSim axes without translating it."""
+    vector = toVector(vector)
+    return airsim.Vector3r(vector.x, -vector.y, -vector.z)
+
+
+def airsimToScenicVector(vector):
+    """Convert an AirSim vector to Scenic axes without translating it."""
+    return Vector(vector.x_val, -vector.y_val, -vector.z_val)
+
+
 def scenicToAirsimOrientation(orientation):
     rad90 = 1.5708
     yaw, pitch, roll = orientation.r.as_euler("ZXY", degrees=False)
