@@ -83,7 +83,12 @@ def isIsaacAssetReference(path):
 
 
 def hasUrlScheme(path):
-    return bool(urlparse(os.fspath(path)).scheme)
+    """Whether ``path`` is a URL rather than a local file path.
+
+    A one-character scheme is a Windows drive letter (``C:\\assets\\room.usd``),
+    which :func:`urlparse` happily reports as the scheme ``c``.
+    """
+    return len(urlparse(os.fspath(path)).scheme) > 1
 
 
 #: Suffix of converted meshes: a self-contained binary glTF, bz2-compressed.

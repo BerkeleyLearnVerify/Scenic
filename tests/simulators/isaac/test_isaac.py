@@ -124,6 +124,11 @@ def test_compressed_paths(tmp_path, monkeypatch):
     mesh_path, _ = utils.defaultEnvironmentMeshPaths("Isaac/Environments/x/y.usd")
     assert mesh_path.name == "y_usd.glb.bz2" and tmp_path / "home" in mesh_path.parents
 
+    # A Windows drive letter is not a URL scheme, on any platform.
+    assert not utils.hasUrlScheme(r"C:\assets\room.usd")
+    assert not utils.hasUrlScheme("C:/assets/room.usd")
+    assert utils.hasUrlScheme("https://example.com/room.usd")
+
     plain = tmp_path / "asset.usda"
     plain.write_text("#usda 1.0\n")
     assert utils.decompressedPath(plain) == plain
