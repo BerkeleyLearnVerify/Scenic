@@ -39,7 +39,12 @@ ROBOTIQ_2F85_REQUIRED_FIELDS = (
 # must give their extra fields defaults (validating them in ``__post_init__``
 # if they are in fact required); profiles should always be built with keyword
 # arguments.
-@dataclass(frozen=True)
+#
+# ``eq=False`` since several fields are arrays: the generated ``__eq__`` would
+# raise on them ("truth value of an array... is ambiguous"), and the generated
+# ``__hash__`` would too (arrays are unhashable). Profiles are constants, so
+# identity comparison and hashing are what we want anyway.
+@dataclass(frozen=True, eq=False)
 class ManipulatorProfile:
     """Immutable, typed description of a manipulator robot (a frozen dataclass).
 

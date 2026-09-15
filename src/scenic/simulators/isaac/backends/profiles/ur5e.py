@@ -8,7 +8,7 @@ import numpy as np
 from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _arr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class UR5eProfile(ManipulatorProfile):
     # Robotiq 2F-85 gripper authoring/tuning (the "robotiq_2f85" backend path).
     # Declared optional so they can have defaults (see the note in base.py);

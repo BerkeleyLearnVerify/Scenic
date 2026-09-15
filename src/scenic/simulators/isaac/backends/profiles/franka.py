@@ -6,7 +6,7 @@ from typing import Optional
 from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _arr
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class FrankaProfile(ManipulatorProfile):
     # Optional, so it can have a default (see the note in base.py).
     gripperActionDeltas: Optional[tuple] = None
