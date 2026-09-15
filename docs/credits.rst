@@ -54,4 +54,4 @@ Finally, many other people provided helpful advice and discussions, including:
 	* Sriram Rajamani
 	* German Ros
 	* Marcell Vazquez-Chanlatte
-	* everyone who has reported bugs at our `GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic/issues>`_.
+	* everyone who has reported bugs at our `GitHub repository <https://github.com/Scenic-Foundation/Scenic/issues>`_.
