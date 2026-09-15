@@ -110,6 +110,7 @@ autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
 autodoc_mock_imports = [
     "carla",
+    "gymnasium",
     "isaaclab",
     "lgsvl",
     "metadrive",

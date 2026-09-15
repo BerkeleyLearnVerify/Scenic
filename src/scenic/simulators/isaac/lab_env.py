@@ -55,6 +55,12 @@ def installScenicTerrain(env, terrain_data):
 
 
 def configureEnvCfgForScenicTerrain(env_cfg, terrain_data):
+    """Point an env cfg's terrain importer at Scenic's terrain mesh.
+
+    The cfg's ``scene.terrain`` is switched to a generated terrain whose
+    generator yields the mesh and origins in ``terrain_data``, so that the
+    Scenic terrain is in place as the environment is created.
+    """
     from isaaclab.terrains import TerrainGeneratorCfg
 
     from scenic.simulators.isaac.terrain_generator import scenicTerrainGeneratorClass

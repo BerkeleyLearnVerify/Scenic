@@ -1,7 +1,7 @@
 """Actions for Isaac Sim robots.
 
 Each action performs one simulation step of control; behaviors loop over
-them. The actions call methods of the robot classes in `model.scenic`, which
+them. The actions call methods of the robot classes in ``model.scenic``, which
 dispatch to the active backend.
 """
 
@@ -21,11 +21,15 @@ class _ManipulatorRobot(_Robot):
 
 
 class RobotAction(Action):
+    """Base class for actions which can only be taken by a robot."""
+
     def canBeTakenBy(self, agent):
         return isinstance(agent, _Robot)
 
 
 class ManipulatorRobotAction(Action):
+    """Base class for actions which can only be taken by a manipulator robot."""
+
     def canBeTakenBy(self, agent):
         return isinstance(agent, _ManipulatorRobot)
 
