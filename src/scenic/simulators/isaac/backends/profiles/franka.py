@@ -1,13 +1,15 @@
 """Franka Panda + built-in parallel gripper."""
 
 from dataclasses import dataclass
+from typing import Optional
 
 from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _arr
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class FrankaProfile(ManipulatorProfile):
-    gripperActionDeltas: tuple
+    # Optional, so it can have a default (see the note in base.py).
+    gripperActionDeltas: Optional[tuple] = None
 
 
 FRANKA_PROFILE = FrankaProfile(

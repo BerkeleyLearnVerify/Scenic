@@ -34,7 +34,12 @@ ROBOTIQ_2F85_REQUIRED_FIELDS = (
 )
 
 
-@dataclass(frozen=True, kw_only=True)
+# N.B. no ``kw_only=True``: it needs Python 3.10, and Scenic supports 3.8+.
+# Fields are therefore ordered with the required ones first, and subclasses
+# must give their extra fields defaults (validating them in ``__post_init__``
+# if they are in fact required); profiles should always be built with keyword
+# arguments.
+@dataclass(frozen=True)
 class ManipulatorProfile:
     """Immutable, typed description of a manipulator robot (a frozen dataclass).
 
@@ -67,9 +72,9 @@ class ManipulatorProfile:
     tcpOffset: np.ndarray
     openGripperPositions: np.ndarray
     closedGripperPositions: np.ndarray
+    gripperStyle: str
     gripperOpenVelocity: Optional[float] = None
     gripperCloseVelocity: Optional[float] = None
-    gripperStyle: str
     gripperControlMode: str = "position"
     supportsPickPlace: bool = False
     ikDamping: float = 0.05
@@ -87,7 +92,9 @@ class ManipulatorProfile:
             )
         if self.gripperStyle == "robotiq_2f85":
             missing = [
-                name for name in ROBOTIQ_2F85_REQUIRED_FIELDS if not hasattr(self, name)
+                name
+                for name in ROBOTIQ_2F85_REQUIRED_FIELDS
+                if getattr(self, name, None) is None
             ]
             if missing:
                 raise ValueError(

@@ -1,33 +1,37 @@
 """UR5e arm + Robotiq 2F-85 gripper (manual closed-loop USD authoring)."""
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 
 from scenic.simulators.isaac.backends.profiles.base import ManipulatorProfile, _arr
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True)
 class UR5eProfile(ManipulatorProfile):
     # Robotiq 2F-85 gripper authoring/tuning (the "robotiq_2f85" backend path).
-    gripperPrim: str
-    gripperFullyClosedPosition: float
-    gripperContactMaterialPath: str
-    objectContactMaterialPath: str
-    gripperStaticFriction: float
-    gripperDynamicFriction: float
-    objectStaticFriction: float
-    objectDynamicFriction: float
-    contactOffset: float
-    restOffset: float
-    pickObjectMassKg: float
-    gripperMaxForce: float
-    gripperStiffness: float
-    gripperDamping: float
-    gripperMaxJointVelocityDegPerSec: float
-    mimicNaturalFrequency: float
-    mimicDampingRatio: float
-    outerFingerParallelStiffness: float
+    # Declared optional so they can have defaults (see the note in base.py);
+    # ``ManipulatorProfile.__post_init__`` rejects a "robotiq_2f85" profile
+    # leaving any of them unset.
+    gripperPrim: Optional[str] = None
+    gripperFullyClosedPosition: Optional[float] = None
+    gripperContactMaterialPath: Optional[str] = None
+    objectContactMaterialPath: Optional[str] = None
+    gripperStaticFriction: Optional[float] = None
+    gripperDynamicFriction: Optional[float] = None
+    objectStaticFriction: Optional[float] = None
+    objectDynamicFriction: Optional[float] = None
+    contactOffset: Optional[float] = None
+    restOffset: Optional[float] = None
+    pickObjectMassKg: Optional[float] = None
+    gripperMaxForce: Optional[float] = None
+    gripperStiffness: Optional[float] = None
+    gripperDamping: Optional[float] = None
+    gripperMaxJointVelocityDegPerSec: Optional[float] = None
+    mimicNaturalFrequency: Optional[float] = None
+    mimicDampingRatio: Optional[float] = None
+    outerFingerParallelStiffness: Optional[float] = None
 
 
 UR5E_PROFILE = UR5eProfile(
