@@ -360,6 +360,37 @@ def test_parser_keeps_categories_and_uncategorized_details(tmp_path):
     assert signal.tags == frozenset(
         {"stopLine", "keepClearLine", "vendorSpecificPriority"}
     )
+    assert signal.isStop
+    assert signal.isStopLine
+    assert signal.isKeepClearLine
+    assert not signal.isFourWay
+    assert not signal.isYield
+    assert not signal.isTrafficLight
+
+
+def test_tag_queries_follow_source_literals_not_just_categories(tmp_path):
+    """All-way stop and turn-on-red collapse to categories but stay queryable."""
+    four_way = MAP_DEPRECATED_LOGICAL.replace(
+        '<semantics><priority type="stopLine"/></semantics>',
+        '<semantics><priority type="4way"/></semantics>',
+    )
+    road = road_by_id(load_network(tmp_path, four_way), 1)
+    signal = signal_on(road, 12)
+    assert signal.priorities == (SignalPriorityType.STOP,)
+    assert signal.isStop
+    assert signal.isFourWay
+    assert not signal.isStopLine
+
+    turn_on_red = MAP_DEPRECATED_LOGICAL.replace(
+        '<semantics><priority type="stopLine"/></semantics>',
+        '<semantics><priority type="turnOnRedAllowed"/></semantics>',
+    )
+    road = road_by_id(load_network(tmp_path, turn_on_red), 1)
+    signal = signal_on(road, 12)
+    assert signal.priorities == (SignalPriorityType.TRAFFIC_LIGHT,)
+    assert signal.isTrafficLight
+    assert signal.isTurnOnRedAllowed
+    assert not signal.isNoTurnOnRed
 
 
 def test_country_and_subtype_warn_in_favor_of_semantic_tags(tmp_path):

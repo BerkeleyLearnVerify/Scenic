@@ -189,6 +189,8 @@ class Maneuver(_ElementReferencer):
     connectingLane: Union[Lane, None] = None
     #: intersection where the maneuver takes place, if any (`None` for lane mergers)
     intersection: Union[Intersection, None] = None
+    #: traffic signal controlling this maneuver, if any (`None` if uncontrolled or unknown)
+    signal: Optional[Signal] = None
 
     def __attrs_post_init__(self):
         assert self.type is ManeuverType.STRAIGHT or self.connectingLane is not None
@@ -1019,6 +1021,7 @@ class Signal:
     #: Empty for signals without 1.8+ priority semantics.
     priorities: Tuple[Union[SignalPriorityType, str], ...] = ()
     #: Exact OpenDRIVE 1.8+ semantic tag strings.
+    # – is this OD tags? How is it being populated?
     tags: FrozenSet[str] = frozenset()
     #: Longitudinal station along the parent road used for halt decisions.
     s: Optional[float] = None

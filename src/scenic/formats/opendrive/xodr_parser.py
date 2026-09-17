@@ -1283,6 +1283,7 @@ class Signal:
         orientation,
         s,
         t,
+        validity=None,
         priorities=(),
         tags=(),
     ):
@@ -1300,11 +1301,12 @@ class Signal:
 
 
 class SignalReference:
-    def __init__(self, id_, orientation, s, t):
+    def __init__(self, id_, orientation, s, t, validity=None):
         self.id_ = id_
         self.orientation = orientation
         self.s = s
         self.t = t
+        self.validity = validity
 
 
 class RoadMap:
@@ -1506,6 +1508,11 @@ class RoadMap:
                         RoadLink(road_id, c.connecting_id, contact, c.connecting_contact)
                     )
 
+    def __parse_signal_validity(self, validity_elem):
+        if validity_elem is None:
+            return None
+        return [int(validity_elem.get("fromLane")), int(validity_elem.get("toLane"))]
+
     # OpenDRIVE / CARLA country="OpenDRIVE" type codes with a known priority meaning.
     _LEGACY_TYPE_TO_PRIORITY = {
         "1000001": roadDomain.SignalPriorityType.TRAFFIC_LIGHT,
@@ -1573,6 +1580,7 @@ class RoadMap:
             # other required fields not parsed:
             # dynamic   signal_elem.get("dynamic"),
             # zOffset   signal_elem.get("zOffset"),
+            self.__parse_signal_validity(signal_elem.find("validity")),
             self.__parse_signal_priorities(signal_elem),
             self.__parse_signal_tags(signal_elem),
         )
@@ -1583,6 +1591,7 @@ class RoadMap:
             signal_reference_elem.get("orientation"),
             float(signal_reference_elem.get("s")),
             float(signal_reference_elem.get("t")),
+            self.__parse_signal_validity(signal_reference_elem.find("validity")),
         )
 
     def parse(self, path):
@@ -1801,6 +1810,7 @@ class RoadMap:
                         signalReference.orientation,
                         signalReference.s,
                         signalReference.t,
+                        signalReference.validity,
                         referencedSignal.priorities,
                         referencedSignal.tags,
                     )
@@ -1855,7 +1865,6 @@ class RoadMap:
                     signal.s = contact_s
                     incoming.signals.append(signal)
                     have.add(signal.id_)
-                connecting.signals = []
 
     def toScenicNetwork(self):
         assert self.intersection_region is not None
@@ -2025,12 +2034,37 @@ class RoadMap:
                             allRoads.append(outgoingRoad)
                             seenRoads.add(outgoingRoad.id)
 
+                        # Find the signal controlling this maneuver, if any
+                        controllingSignal = None
+                        # Candidate sources in priority order. Each triple pairs a
+                        # raw parser road (signals retain .validity) with its
+                        # converted Scenic road (domain Signal objects to store),
+                        # plus the OpenDRIVE lane ID to test against validity:
+                        #   1. connecting road / toID — turn-specific controls
+                        #   2. incoming road / fromID — approach signals
+                        for rawRoad, scenicRoad, laneID in (
+                            (self.roads[connectingID], connectingRoad, toID),
+                            (oldRoad, incomingRoad, fromID),
+                        ):
+                            for rawSignal, scenicSignal in zip(
+                                rawRoad.signals, scenicRoad.signals
+                            ):
+                                validity = rawSignal.validity
+                                if validity is None or min(validity) <= laneID <= max(
+                                    validity
+                                ):
+                                    controllingSignal = scenicSignal
+                                    break
+                            if controllingSignal is not None:
+                                break
+
                         # TODO future OpenDRIVE extension annotating left/right turns?
                         maneuver = roadDomain.Maneuver(
                             startLane=fromLane.lane,
                             connectingLane=toLane.lane,
                             endLane=outgoingLane,
                             intersection=None,  # will be patched once the Intersection is created
+                            signal=controllingSignal,
                         )
                         maneuversForLane[fromLane.lane].append(maneuver)
 
@@ -2040,6 +2074,11 @@ class RoadMap:
                 assert lane.maneuvers == ()
                 lane.maneuvers = tuple(maneuvers)
                 allManeuvers.extend(maneuvers)
+
+            # Reverse mapping: accumulate maneuvers onto each controlling Signal.
+            for maneuver in allManeuvers:
+                if maneuver.signal is not None:
+                    maneuver.signal.controlledManeuvers += (maneuver,)
 
             # Order connected roads and lanes by adjacency
             def cyclicOrder(elements, contactStart=None):
@@ -2074,6 +2113,9 @@ class RoadMap:
             intersections[jid] = intersection
             for maneuver in allManeuvers:
                 object.__setattr__(maneuver, "intersection", intersection)
+
+        for road in connectingRoads.values():
+            road.signals = ()
 
         # Hook up road-intersection links
         for rid, oldRoad in self.roads.items():
