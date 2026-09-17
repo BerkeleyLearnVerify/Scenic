@@ -894,13 +894,18 @@ class Road:
             isOneWayForward = all(id_ < 0 for id_ in sec.lanes)
             isOneWayBackward = all(id_ > 0 for id_ in sec.lanes)
             isOneWay = isOneWayForward or isOneWayBackward
+            isSeparated = (
+                sec.sidewalk_lanes
+                and max(sec.sidewalk_lanes.keys()) - min(sec.sidewalk_lanes.keys())
+                == len(sec.sidewalk_lanes) + 1
+            )
             sidewalkDirHelper = lambda x: (
                 x == min(sec.sidewalk_lanes.keys())
                 if isOneWayForward
                 else x == max(sec.sidewalk_lanes.keys())
             )
             isForwardSidewalk = lambda x: (
-                sidewalkDirHelper(x) if isOneWay else isForward(x)
+                sidewalkDirHelper(x) if isOneWay and isSeparated else isForward(x)
             )
 
             for id_, lane in sec.sidewalk_lanes.items():
