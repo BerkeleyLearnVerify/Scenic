@@ -277,7 +277,8 @@ behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
             # TODO: Randomly pick from ALL successors/predecessors and sidewalks.
             # If this sidewalk has crossings, then we pick uniformly from the crossings or just walking
             # the length of the sidewalk.
-            targetCrossing = Uniform(*(None,) + nextSidewalk.crossings)
+            candidateCrossings = [c for c in nextSidewalk.crossings if c is not currentElement]
+            targetCrossing = Uniform(*([None] + candidateCrossings))
 
             if targetCrossing is None:
                 # Walk the length of the sidewalk
@@ -294,14 +295,13 @@ behavior Walk(targetSpeed=None, backwards=None, avoidObstacles=True):
                     (distance from nextSidewalk.centerline.end to self) 
                     < (distance from nextSidewalk.centerline.start to self)
                 )
-                intermediatePoint = nextSidewalk.centerline.closestPointTo(targetCrossing)
-                intermediatePath = nextSidewalk.centerline.substring(
+                intermediatePath = nextSidewalk.centerline.reverse() if sidewalkBackwards else nextSidewalk.centerline
+                intermediatePoint = intermediatePath.closestPointTo(targetCrossing.centerline)
+                intermediatePath = intermediatePath.substring(
                     0,
-                    nextSidewalk.centerline.project(intermediatePoint)
+                    intermediatePath.distanceAlong(intermediatePoint)
                 )
-                if sidewalkBackwards:
-                    intermediatePath = intermediatePath.reverse()
-                do WalkPath(intermediatePath, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)                    
+                do WalkPath(intermediatePath, targetSpeed=targetSpeed, avoidObstacles=avoidObstacles)    
                 
                 # Walk the length of the crosswalk
                 currentElement = targetCrossing

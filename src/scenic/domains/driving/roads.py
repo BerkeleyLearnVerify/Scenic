@@ -1381,7 +1381,11 @@ class Network:
         """
         import matplotlib.pyplot as plt
 
-        self.walkableRegion.show(plt, style="-", color="#00A0FF")
+        for sidewalk in self.sidewalks:
+            sidewalk.region.show(plt, style="-", color="#00A0FF")
+        for crossing in self.crossings:
+            crossing.region.show(plt, style="-", color="#00A0FF")
+        # self.walkableRegion.show(plt, style="-", color="#00A0FF")
         self.shoulderRegion.show(plt, style="-", color="#606060")
         for road in self.roads:
             road.region.show(plt, style="r-")

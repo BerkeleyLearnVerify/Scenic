@@ -4015,7 +4015,7 @@ class PolylineRegion(Region):
 
     @distributionMethod
     def closestPointTo(self, target):
-        return toVector(shapely.ops.nearest_points(self.lineString, target)[0])
+        return toVector(shapely.ops.nearest_points(self.lineString, toShapely(target))[0])
 
     def projectVector(self, point, onDirection):
         raise TypeError('PolylineRegion does not support projection using "on"')
