@@ -237,27 +237,36 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
 
     #: Which types of vehicles (car, bicycle, etc.) can be here.
     vehicleTypes: FrozenSet[VehicleType] = frozenset([VehicleType.CAR])
-    #: Optional speed limit, which may be inherited from parent. (depreciated)
+    #: Deprecated uniform speed limit, equivalent to ``speedLimitRanges=((0, speed),)``.
     speedLimit: Union[float, None] = None
-    #: Optional ``(s_start, s_end, speed_mps)`` ranges along this element's centerline.
-    speedLimitRanges: Tuple[Tuple[float, float, float], ...] = ()
+    #: Optional ``(s_start, speed_mps)`` ranges along this element's centerline.
+    #: The first range starts at 0. When empty, `speedLimitAt` uses `speedLimit`.
+    speedLimitRanges: Tuple[Tuple[float, Union[float, None]], ...] = ()
     #: Uninterpreted semantic tags, e.g. 'roundabout'.
     tags: FrozenSet[str] = frozenset()
 
     @distributionFunction
     def speedLimitAt(self, s: float) -> Union[float, None]:
-        """Get the speed limit at coordinate *s* along this element, in meters."""
+        """Get the speed limit at coordinate *s* along this element's centerline."""
         s = max(0, s)
-        if self.speedLimitRanges:
-            for range_start, range_end, speed in self.speedLimitRanges:
-                if range_start <= s < range_end:
-                    return speed  # may be None -> genuine "no limit" stretch
-            # s is at/beyond the final (half-open) range's end: clamp to it.
-            return speed
-        return self.speedLimit
+        ranges = self.speedLimitRanges or ((0, self.speedLimit),)
+        speed = ranges[0][1]
+        for range_start, range_speed in ranges[1:]:
+            if s < range_start:
+                break
+            speed = range_speed
+        return speed
 
     def __attrs_post_init__(self):
         assert self.uid is not None or self.id is not None
+        if self.speedLimitRanges:
+            assert self.speedLimitRanges[0][0] == 0
+            assert all(
+                start < next_start
+                for (start, _), (next_start, _) in zip(
+                    self.speedLimitRanges, self.speedLimitRanges[1:]
+                )
+            )
         if self.uid is None:
             self.uid = self.id
 
@@ -1001,7 +1010,7 @@ class Network:
 
         :meta private:
         """
-        return 35
+        return 36
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1311,17 +1320,13 @@ class Network:
     def speedLimitAt(self, point: Vectorlike, reject=False) -> Union[float, None]:
         """Get the speed limit at a given point, if any.
 
-        Looks up the `LaneSection` containing the point and returns its speed
-        limit there. When the section has multiple ``speedLimitRanges``, the
-        limit is taken from the range covering the point's projected distance
-        along the section centerline.
+        Looks up the `LaneSection` containing the point, projects the point onto
+        its centerline, and returns the speed limit at that distance.
         """
         point = _toVector(point)
         section = self.laneSectionAt(point, reject=reject)
         if section is None:
             return None
-        if len(section.speedLimitRanges) <= 1:
-            return section.speedLimit
         s = section.centerline.lineString.project(geometry.makeShapelyPoint(point))
         return section.speedLimitAt(s)
 
