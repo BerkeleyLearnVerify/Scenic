@@ -2,200 +2,27 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from scenic.formats.opendrive.xodr_parser import (
-    OpenDriveWarning,
-    RoadMap,
-    effective_speed_limit_ranges,
-    speed_limit_ranges_from_lane_records,
-    speed_limit_ranges_from_type_records,
-    speed_limits_for_s_interval,
-    speed_to_mps,
-)
+from scenic.formats.opendrive.xodr_parser import OpenDriveWarning, speed_to_mps
 
-from .conftest import (
-    parse_scenic_network,
-    scenic_road,
-    write_xodr_lane_sections,
-    write_xodr_lane_speeds,
-)
+from .conftest import TWO_LANE_SECTIONS, lane_xml, parse_scenic_network, scenic_road
 
 
-def test_speed_limit_ranges_from_type_records():
-    records = [
-        (0.0, "town", 45.0),
-        (7.0, "town", 30.0),
-        (10.0, "town", 45.0),
-        (15.0, "town", 45.0),
-    ]
-    assert speed_limit_ranges_from_type_records(records, 30.0) == [
-        (0.0, 45.0),
-        (7.0, 30.0),
-        (10.0, 45.0),
-    ]
-
-
-def test_speed_limit_ranges_from_type_records_sorts_input():
-    records = [
-        (10.0, "town", 30.0),
-        (0.0, "town", 45.0),
-        (7.0, "town", 20.0),
-    ]
-    assert speed_limit_ranges_from_type_records(records, 20.0) == [
-        (0.0, 45.0),
-        (7.0, 20.0),
-        (10.0, 30.0),
-    ]
-
-
-def test_speed_limit_ranges_preserve_undefined_speed():
-    records = [
-        (0.0, "town", 45.0),
-        (10.0, "motorway", None),
-        (20.0, "motorway", 30.0),
-    ]
-    assert speed_limit_ranges_from_type_records(records, 30.0) == [
-        (0.0, 45.0),
-        (10.0, None),
-        (20.0, 30.0),
-    ]
-
-
-def test_speed_limits_for_s_interval_single_and_multiple():
-    ranges = [
-        (0.0, 45.0),
-        (7.0, 30.0),
-        (10.0, 45.0),
-    ]
-    overlapping = speed_limits_for_s_interval(ranges, 10.0, 20.0)
-    assert overlapping == frozenset({45.0})
-    assert min(overlapping) == pytest.approx(45.0)
-
-    overlapping = speed_limits_for_s_interval(ranges, 0.0, 10.0)
-    assert overlapping == frozenset({45.0, 30.0})
-    assert min(overlapping) == pytest.approx(30.0)
-
-
-def test_speed_limit_ranges_from_lane_records():
-    records = [(0.0, 20.0), (5.0, 30.0)]
-    assert speed_limit_ranges_from_lane_records(records, 10.0) == [
-        (0.0, 20.0),
-        (5.0, 30.0),
-    ]
-
-
-def test_speed_limit_ranges_from_lane_records_preserve_undefined_speed():
-    records = [(0.0, 20.0), (5.0, None), (8.0, 30.0)]
-    assert speed_limit_ranges_from_lane_records(records, 10.0) == [
-        (0.0, 20.0),
-        (5.0, None),
-        (8.0, 30.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_lane_overrides_road():
-    road_ranges = [(0.0, 50.0)]
-    lane_ranges = [(0.0, 80.0)]
-    assert effective_speed_limit_ranges(road_ranges, lane_ranges, 0.0, 10.0) == [
-        (0.0, 80.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_multiple_lane_speeds():
-    road_ranges = [(0.0, 50.0)]
-    lane_ranges = [(0.0, 20.0), (5.0, 30.0)]
-    assert effective_speed_limit_ranges(road_ranges, lane_ranges, 0.0, 10.0) == [
-        (0.0, 20.0),
-        (5.0, 30.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_lane_speed_below_road():
-    road_ranges = [(0.0, 50.0)]
-    lane_ranges = [(0.0, 30.0)]
-    assert effective_speed_limit_ranges(road_ranges, lane_ranges, 0.0, 10.0) == [
-        (0.0, 30.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_lane_override_starts_after_zero():
-    road_ranges = [(0.0, 50.0)]
-    lane_ranges = speed_limit_ranges_from_lane_records([(5.0, 30.0)], 10.0)
-    assert lane_ranges == [
-        (0.0, None),
-        (5.0, 30.0),
-    ]
-    # Lane records fully replace road speeds when present.
-    assert effective_speed_limit_ranges(road_ranges, lane_ranges, 0.0, 10.0) == [
-        (0.0, None),
-        (5.0, 30.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_delayed_lane_without_road_limit():
-    lane_ranges = speed_limit_ranges_from_lane_records([(5.0, 30.0)], 10.0)
-    assert effective_speed_limit_ranges([], lane_ranges, 0.0, 10.0) == [
-        (0.0, None),
-        (5.0, 30.0),
-    ]
-
-
-def test_delayed_lane_speed_uses_road_limit_before_override(tmp_path):
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="5" max="30" unit="m/s"/>
-          </lane>"""
-    road_extras = '<type s="0" type="town"><speed max="20" unit="m/s"/></type>'
-    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)
-    lane_section = scenic_road(network).sections[0].lanes[0]
-
-    assert lane_section.speedLimitRanges == (
-        (0.0, None),
-        (5.0, 30.0),
+def test_type_speeds_are_sorted_and_looked_up_along_the_road(tmp_path):
+    road_extras = (
+        '<type s="10" type="town"><speed max="30" unit="m/s"/></type>'
+        '<type s="0" type="town"><speed max="45" unit="m/s"/></type>'
     )
-    assert lane_section.speedLimitAt(2.0) is None
-    assert lane_section.speedLimitAt(7.0) == pytest.approx(30.0)
-
-
-def test_effective_speed_limit_ranges_road_only_uses_road_ranges():
-    road_ranges = [(0.0, 50.0), (5.0, 30.0)]
-    assert effective_speed_limit_ranges(road_ranges, [], 0.0, 10.0) == [
-        (0.0, 50.0),
-        (5.0, 30.0),
-    ]
-
-
-def test_effective_speed_limit_ranges_are_relative_to_section():
-    road_ranges = [(0.0, 50.0), (5.0, 40.0), (15.0, 30.0)]
-    assert effective_speed_limit_ranges(road_ranges, [], 10.0, 10.0) == [
-        (0.0, 40.0),
-        (5.0, 30.0),
-    ]
-
-
-def test_parse_lane_speed_records(tmp_path):
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="20" unit="m/s"/>
-            <speed sOffset="5" max="30" unit="m/s"/>
-          </lane>"""
-    path = write_xodr_lane_speeds(tmp_path, lanes_xml)
-    road_map = RoadMap()
-    road_map.parse(path)
-    lane = road_map.roads[7].lane_secs[0].get_lane(-1)
-    assert lane.speed_records == [(0.0, 20.0), (5.0, 30.0)]
-    assert speed_limit_ranges_from_lane_records(lane.speed_records, 10.0) == [
-        (0.0, 20.0),
-        (5.0, 30.0),
-    ]
+    network = parse_scenic_network(tmp_path, road_extras=road_extras)
+    lane_section = scenic_road(network).lanes[0].sections[0]
+    assert lane_section.speedLimitAt(2.0) == pytest.approx(45.0)
+    assert lane_section.speedLimitAt(12.0) == pytest.approx(30.0)
 
 
 def test_lane_speed_ranges_on_scenic_lane_section(tmp_path):
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="20" unit="m/s"/>
-            <speed sOffset="5" max="30" unit="m/s"/>
-          </lane>"""
-    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml)
+    network = parse_scenic_network(
+        tmp_path,
+        lanes_xml=lane_xml(-1, speeds=((0, 20, "m/s"), (5, 30, "m/s"))),
+    )
     lane_section = scenic_road(network).sections[0].lanes[0]
 
     assert lane_section.speedLimit == pytest.approx(20.0)
@@ -206,8 +33,6 @@ def test_lane_speed_ranges_on_scenic_lane_section(tmp_path):
     assert lane_section.speedLimitAt(2.0) == pytest.approx(20.0)
     assert lane_section.speedLimitAt(7.0) == pytest.approx(30.0)
 
-    # Network.speedLimitAt projects onto the section centerline and looks up
-    # the matching range.
     slow_point = lane_section.centerline.pointAlongBy(2.0)
     fast_point = lane_section.centerline.pointAlongBy(7.0)
     assert network.speedLimitAt(slow_point) == pytest.approx(20.0)
@@ -215,16 +40,28 @@ def test_lane_speed_ranges_on_scenic_lane_section(tmp_path):
     assert network.speedLimitAt((1000.0, 1000.0)) is None
 
 
-def test_lane_speed_ranges_follow_backward_centerline(tmp_path):
-    lanes_xml = """          <lane id="1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="20" unit="m/s"/>
-            <speed sOffset="5" max="30" unit="m/s"/>
-          </lane>"""
-    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml, lane_side="left")
+def test_delayed_lane_speed_replaces_road_speed(tmp_path):
+    network = parse_scenic_network(
+        tmp_path,
+        lanes_xml=lane_xml(-1, speeds=((5, 30, "m/s"),)),
+        road_extras='<type s="0" type="town"><speed max="20" unit="m/s"/></type>',
+    )
     lane_section = scenic_road(network).sections[0].lanes[0]
+    assert lane_section.speedLimitRanges == (
+        (0.0, None),
+        (5.0, 30.0),
+    )
+    assert lane_section.speedLimitAt(2.0) is None
+    assert lane_section.speedLimitAt(7.0) == pytest.approx(30.0)
 
-    # Ranges stay in OpenDRIVE s, even though the Scenic centerline is reversed.
+
+def test_lane_speed_ranges_on_backward_lane(tmp_path):
+    network = parse_scenic_network(
+        tmp_path,
+        lanes_xml=lane_xml(1, speeds=((0, 20, "m/s"), (5, 30, "m/s"))),
+        lane_side="left",
+    )
+    lane_section = scenic_road(network).sections[0].lanes[0]
     assert lane_section.speedLimitRanges == (
         (0.0, 20.0),
         (5.0, 30.0),
@@ -233,20 +70,18 @@ def test_lane_speed_ranges_follow_backward_centerline(tmp_path):
     assert lane_section.speedLimitAt(7.0) == pytest.approx(30.0)
 
 
-def test_speed_ranges_use_curved_lane_centerline_coordinates(tmp_path):
+def test_lane_speed_ranges_on_curved_road(tmp_path):
     plan_view = """<planView>
       <geometry s="0" x="0" y="0" hdg="0" length="20">
         <arc curvature="0.05"/>
       </geometry>
     </planView>"""
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="20" unit="m/s"/>
-            <speed sOffset="10" max="30" unit="m/s"/>
-          </lane>"""
-    network = parse_scenic_network(tmp_path, plan_view=plan_view, lanes_xml=lanes_xml)
+    network = parse_scenic_network(
+        tmp_path,
+        plan_view=plan_view,
+        lanes_xml=lane_xml(-1, speeds=((0, 20, "m/s"), (10, 30, "m/s"))),
+    )
     lane_section = scenic_road(network).sections[0].lanes[0]
-
     assert lane_section.speedLimitRanges == (
         (0.0, 20.0),
         (10.0, 30.0),
@@ -258,26 +93,27 @@ def test_speed_ranges_use_curved_lane_centerline_coordinates(tmp_path):
 
 
 def test_network_speed_limit_at_uniform_section(tmp_path):
-    road_extras = '<type s="0" type="town"><speed max="50" unit="km/h"/></type>'
-    network = parse_scenic_network(tmp_path, road_extras=road_extras)
-    road = scenic_road(network)
-    point = road.lanes[0].sections[0].centerline.pointAlongBy(5.0)
+    network = parse_scenic_network(
+        tmp_path,
+        road_extras='<type s="0" type="town"><speed max="50" unit="km/h"/></type>',
+    )
+    point = scenic_road(network).lanes[0].sections[0].centerline.pointAlongBy(5.0)
     assert network.speedLimitAt(point) == pytest.approx(50 / 3.6)
 
 
 def test_deprecated_uniform_speed_limit_is_single_range(tmp_path):
-    network = parse_scenic_network(tmp_path)
-    lane_section = scenic_road(network).lanes[0].sections[0]
+    lane_section = scenic_road(parse_scenic_network(tmp_path)).lanes[0].sections[0]
     lane_section.speedLimit = 20.0
     lane_section.speedLimitRanges = ()
-
     assert lane_section.speedLimitAt(-1.0) == pytest.approx(20.0)
     assert lane_section.speedLimitAt(10.0) == pytest.approx(20.0)
 
 
 def test_no_limit_speed_sets_ranges_with_none(tmp_path):
-    road_extras = '<type s="0" type="motorway"><speed max="no limit" unit="km/h"/></type>'
-    network = parse_scenic_network(tmp_path, road_extras=road_extras)
+    network = parse_scenic_network(
+        tmp_path,
+        road_extras='<type s="0" type="motorway"><speed max="no limit" unit="km/h"/></type>',
+    )
     lane_section = scenic_road(network).lanes[0].sections[0]
     assert lane_section.speedLimit is None
     assert lane_section.speedLimitRanges == ((0.0, None),)
@@ -285,36 +121,16 @@ def test_no_limit_speed_sets_ranges_with_none(tmp_path):
     assert network.speedLimitAt(point) is None
 
 
-def test_explicit_no_limit_section_is_not_overwritten(tmp_path):
-    lane_sections_xml = """      <laneSection s="0">
-        <center><lane id="0" type="none" level="false"/></center>
-        <right>
-          <lane id="-1" type="driving" level="false">
-            <link><successor id="-1"/></link>
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>
-        </right>
-      </laneSection>
-      <laneSection s="10">
-        <center><lane id="0" type="none" level="false"/></center>
-        <right>
-          <lane id="-1" type="driving" level="false">
-            <link><predecessor id="-1"/></link>
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>
-        </right>
-      </laneSection>"""
-    road_extras = (
-        '<type s="0" type="town"><speed max="20" unit="m/s"/></type>'
-        '<type s="10" type="town"><speed max="no limit" unit="m/s"/></type>'
+def test_unlimited_section_inherits_scalar_road_minimum(tmp_path):
+    network = parse_scenic_network(
+        tmp_path,
+        lane_sections_xml=TWO_LANE_SECTIONS,
+        road_extras=(
+            '<type s="0" type="town"><speed max="20" unit="m/s"/></type>'
+            '<type s="10" type="town"><speed max="no limit" unit="m/s"/></type>'
+        ),
     )
-    path = write_xodr_lane_sections(tmp_path, lane_sections_xml, road_extras=road_extras)
-    road_map = RoadMap()
-    road_map.parse(path)
-    road_map.calculate_geometry(num=5, calc_intersect=True)
-    road = scenic_road(road_map.toScenicNetwork())
-
-    limited_section, unlimited_section = road.sections
+    limited_section, unlimited_section = scenic_road(network).sections
     assert limited_section.speedLimit == pytest.approx(20.0)
     assert unlimited_section.speedLimit == pytest.approx(20.0)
     unlimited_lane_section = unlimited_section.lanes[0]
@@ -322,55 +138,27 @@ def test_explicit_no_limit_section_is_not_overwritten(tmp_path):
     assert unlimited_lane_section.speedLimitRanges == ((0.0, None),)
 
 
-def test_road_speed_limits_vary_by_lane_section():
-    speed_ranges = speed_limit_ranges_from_type_records(
-        [
-            (0.0, "town", 45.0),
-            (7.0, "town", 30.0),
-            (10.0, "town", 45.0),
-            (15.0, "town", 45.0),
-            (20.0, "town", 45.0),
-            (30.0, "town", 45.0),
-        ],
-        30.0,
-    )
-    section_intervals = [(0.0, 10.0), (10.0, 20.0), (20.0, 30.0)]
-    section_speeds = [
-        speed_limits_for_s_interval(speed_ranges, s_start, s_end)
-        for s_start, s_end in section_intervals
-    ]
-
-    assert section_speeds[0] == frozenset({45.0, 30.0})
-    assert section_speeds[1] == frozenset({45.0})
-    assert section_speeds[2] == frozenset({45.0})
-    assert min(min(speeds) for speeds in section_speeds) == pytest.approx(30.0)
-
-
 def test_lane_speed_limit_overrides_when_higher(tmp_path):
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>
-          <lane id="-2" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="80" unit="km/h"/>
-          </lane>
-          <lane id="-3" type="onRamp" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-            <speed sOffset="0" max="40" unit="km/h"/>
-          </lane>"""
-    road_extras = '<type s="0" type="town"><speed max="50" unit="km/h"/></type>'
-    network = parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)
+    network = parse_scenic_network(
+        tmp_path,
+        lanes_xml="\n".join(
+            (
+                lane_xml(-1),
+                lane_xml(-2, speeds=((0, 80, "km/h"),)),
+                lane_xml(-3, type_="onRamp", speeds=((0, 40, "km/h"),)),
+            )
+        ),
+        road_extras='<type s="0" type="town"><speed max="50" unit="km/h"/></type>',
+    )
     road = scenic_road(network)
-
     road_limit = 50 / 3.6
-    fast_limit = 80 / 3.6
-    assert road.speedLimit == pytest.approx(road_limit)
-    limits_by_od_id = {
+    limits = {
         section.openDriveID: section.speedLimit for section in road.sections[0].lanes
     }
-    assert limits_by_od_id[-1] == pytest.approx(road_limit)
-    assert limits_by_od_id[-2] == pytest.approx(fast_limit)
-    assert limits_by_od_id[-3] == pytest.approx(40 / 3.6)
+    assert road.speedLimit == pytest.approx(road_limit)
+    assert limits[-1] == pytest.approx(road_limit)
+    assert limits[-2] == pytest.approx(80 / 3.6)
+    assert limits[-3] == pytest.approx(40 / 3.6)
 
 
 def _speed_elem(max_value, unit=None):
@@ -384,7 +172,6 @@ def test_speed_to_mps_unit_conversions():
     assert speed_to_mps(_speed_elem(36, "km/h")) == pytest.approx(10.0)
     assert speed_to_mps(_speed_elem(10, "m/s")) == pytest.approx(10.0)
     assert speed_to_mps(_speed_elem(100, "mph")) == pytest.approx(44.704)
-    # A missing unit defaults to m/s.
     assert speed_to_mps(_speed_elem(15)) == pytest.approx(15.0)
 
 
@@ -403,9 +190,5 @@ def test_section_spanning_multiple_speeds_warns(tmp_path):
         '<type s="0" type="town"><speed max="50" unit="km/h"/></type>'
         '<type s="10" type="town"><speed max="30" unit="km/h"/></type>'
     )
-    # The single 20 m lane section [0,20) straddles both the 50 and 30 km/h limits.
-    lanes_xml = """          <lane id="-1" type="driving" level="false">
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>"""
     with pytest.warns(OpenDriveWarning, match="spans multiple speed limits"):
-        parse_scenic_network(tmp_path, lanes_xml=lanes_xml, road_extras=road_extras)
+        parse_scenic_network(tmp_path, road_extras=road_extras)

@@ -8,113 +8,105 @@ DEFAULT_PLAN_VIEW = """<planView>
       </geometry>
     </planView>"""
 
+DEFAULT_LANE = """          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>"""
 
-def write_xodr_with_type(tmp_path, plan_view=DEFAULT_PLAN_VIEW, road_extras=""):
+
+def lane_xml(id_, type_="driving", speeds=(), pred=None, succ=None):
+    """Build one OpenDRIVE ``<lane>`` element."""
+    link_parts = []
+    if pred is not None:
+        link_parts.append(f'              <predecessor id="{pred}"/>')
+    if succ is not None:
+        link_parts.append(f'              <successor id="{succ}"/>')
+    link = ""
+    if link_parts:
+        link = "            <link>\n" + "\n".join(link_parts) + "\n            </link>\n"
+    speed_xml = "".join(
+        f'            <speed sOffset="{s}" max="{max_speed}" unit="{unit}"/>\n'
+        for s, max_speed, unit in speeds
+    )
+    return (
+        f'          <lane id="{id_}" type="{type_}" level="false">\n'
+        f"{link}"
+        '            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>\n'
+        f"{speed_xml}"
+        "          </lane>"
+    )
+
+
+TWO_LANE_SECTIONS = f"""      <laneSection s="0">
+        <center><lane id="0" type="none" level="false"/></center>
+        <right>
+{lane_xml(-1, succ=-1)}
+        </right>
+      </laneSection>
+      <laneSection s="10">
+        <center><lane id="0" type="none" level="false"/></center>
+        <right>
+{lane_xml(-1, pred=-1)}
+        </right>
+      </laneSection>"""
+
+
+def _write_xodr(tmp_path, body):
     path = tmp_path / "test.xodr"
     path.write_text(
         f"""<?xml version="1.0" encoding="UTF-8"?>
 <OpenDRIVE>
-  <road name="Road 7" length="20.0" id="7" junction="-1">
-    {road_extras}
-    {plan_view}
-    <lanes>
-      <laneOffset s="0.0" a="0.0" b="0.0" c="0.0" d="0.0"/>
-      <laneSection s="0.0">
-        <center>
-          <lane id="0" type="none" level="false"/>
-        </center>
-        <right>
-          <lane id="-1" type="driving" level="false">
-            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
-          </lane>
-        </right>
-      </laneSection>
-    </lanes>
-  </road>
+{body}
 </OpenDRIVE>
 """
     )
     return path
 
 
-def write_xodr_multi_lane(
+def write_xodr(
     tmp_path,
-    lanes_xml,
     road_extras="",
-    lane_side="right",
     plan_view=DEFAULT_PLAN_VIEW,
+    lanes_xml=DEFAULT_LANE,
+    lane_side="right",
+    lane_sections_xml=None,
 ):
-    path = tmp_path / "test.xodr"
-    path.write_text(
-        f"""<?xml version="1.0" encoding="UTF-8"?>
-<OpenDRIVE>
-  <road name="Road 7" length="20.0" id="7" junction="-1">
-    {road_extras}
-    {plan_view}
-    <lanes>
-      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
-      <laneSection s="0">
+    lanes = (
+        lane_sections_xml
+        if lane_sections_xml is not None
+        else f"""      <laneSection s="0.0">
         <center>
           <lane id="0" type="none" level="false"/>
         </center>
         <{lane_side}>
 {lanes_xml}
         </{lane_side}>
-      </laneSection>
-    </lanes>
-  </road>
-</OpenDRIVE>
-"""
+      </laneSection>"""
     )
-    return path
-
-
-def write_xodr_lane_speeds(tmp_path, lanes_xml, road_extras="", lane_side="right"):
-    return write_xodr_multi_lane(
-        tmp_path, lanes_xml, road_extras=road_extras, lane_side=lane_side
-    )
-
-
-def write_xodr_lane_sections(tmp_path, lane_sections_xml, road_extras=""):
-    path = tmp_path / "test.xodr"
-    path.write_text(
-        f"""<?xml version="1.0" encoding="UTF-8"?>
-<OpenDRIVE>
-  <road name="Road 7" length="20.0" id="7" junction="-1">
+    return _write_xodr(
+        tmp_path,
+        f"""  <road name="Road 7" length="20.0" id="7" junction="-1">
     {road_extras}
-    {DEFAULT_PLAN_VIEW}
+    {plan_view}
     <lanes>
-      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
-{lane_sections_xml}
+      <laneOffset s="0.0" a="0.0" b="0.0" c="0.0" d="0.0"/>
+{lanes}
     </lanes>
-  </road>
-</OpenDRIVE>
-"""
+  </road>""",
     )
-    return path
 
 
 def write_xodr_junction(tmp_path, connecting_lanes_xml):
-    path = tmp_path / "test.xodr"
-    support_lanes_xml = """<lane id="-1" type="driving" level="false">
-            <link>
-              <predecessor id="-1"/>
-              <successor id="-1"/>
-            </link>
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>
-          <lane id="-2" type="driving" level="false">
-            <link>
-              <predecessor id="-2"/>
-              <successor id="-2"/>
-            </link>
-            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
-          </lane>"""
+    support = "\n".join(
+        (
+            lane_xml(-1, pred=-1, succ=-1),
+            lane_xml(-2, pred=-2, succ=-2),
+        )
+    )
 
-    def road_xml(id_, junction, x, lanes_xml, link_xml, road_extras=""):
-        return f"""<road name="Road {id_}" length="20" id="{id_}" junction="{junction}">
+    def road_xml(id_, junction, x, lanes_xml, link_xml, extras=""):
+        return f"""  <road name="Road {id_}" length="20" id="{id_}" junction="{junction}">
     {link_xml}
-    {road_extras}
+    {extras}
     <planView>
       <geometry s="0" x="{x}" y="0" hdg="0" length="20"><line/></geometry>
     </planView>
@@ -122,42 +114,50 @@ def write_xodr_junction(tmp_path, connecting_lanes_xml):
       <laneSection s="0">
         <center><lane id="0" type="none" level="false"/></center>
         <right>
-          {lanes_xml}
+{lanes_xml}
         </right>
       </laneSection>
     </lanes>
   </road>"""
 
-    incoming_link = '<link><successor elementType="junction" elementId="5"/></link>'
-    connecting_link = """<link>
+    return _write_xodr(
+        tmp_path,
+        "\n".join(
+            (
+                road_xml(
+                    6,
+                    -1,
+                    -20,
+                    support,
+                    '<link><successor elementType="junction" elementId="5"/></link>',
+                ),
+                road_xml(
+                    7,
+                    5,
+                    0,
+                    connecting_lanes_xml,
+                    """<link>
       <predecessor elementType="road" elementId="6" contactPoint="end"/>
       <successor elementType="road" elementId="8" contactPoint="start"/>
-    </link>"""
-    outgoing_link = '<link><predecessor elementType="junction" elementId="5"/></link>'
-    connecting_road_xml = road_xml(
-        7,
-        5,
-        0,
-        connecting_lanes_xml,
-        connecting_link,
-        '<type s="0" type="motorway"/>',
-    )
-    path.write_text(
-        f"""<?xml version="1.0" encoding="UTF-8"?>
-<OpenDRIVE>
-  {road_xml(6, -1, -20, support_lanes_xml, incoming_link)}
-  {connecting_road_xml}
-  {road_xml(8, -1, 20, support_lanes_xml, outgoing_link)}
-  <junction name="J5" id="5" type="direct">
+    </link>""",
+                    '<type s="0" type="motorway"/>',
+                ),
+                road_xml(
+                    8,
+                    -1,
+                    20,
+                    support,
+                    '<link><predecessor elementType="junction" elementId="5"/></link>',
+                ),
+                """  <junction name="J5" id="5" type="direct">
     <connection id="0" incomingRoad="6" connectingRoad="7" contactPoint="start">
       <laneLink from="-1" to="-1"/>
       <laneLink from="-2" to="-2"/>
     </connection>
-  </junction>
-</OpenDRIVE>
-"""
+  </junction>""",
+            )
+        ),
     )
-    return path
 
 
 def parse_scenic_network(
@@ -167,16 +167,19 @@ def parse_scenic_network(
     *,
     lanes_xml=None,
     lane_side="right",
+    lane_sections_xml=None,
+    junction_lanes_xml=None,
 ):
-    if lanes_xml is None:
-        path = write_xodr_with_type(tmp_path, plan_view, road_extras=road_extras)
+    if junction_lanes_xml is not None:
+        path = write_xodr_junction(tmp_path, junction_lanes_xml)
     else:
-        path = write_xodr_multi_lane(
+        path = write_xodr(
             tmp_path,
-            lanes_xml,
             road_extras=road_extras,
-            lane_side=lane_side,
             plan_view=plan_view,
+            lanes_xml=DEFAULT_LANE if lanes_xml is None else lanes_xml,
+            lane_side=lane_side,
+            lane_sections_xml=lane_sections_xml,
         )
     road_map = RoadMap()
     road_map.parse(path)
