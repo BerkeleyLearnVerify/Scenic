@@ -83,6 +83,11 @@ class _ElementReferencer:
         for key, value in state.items():
             if isinstance(value, NetworkElement):
                 state[key] = _ElementPlaceholder(value.uid)
+            elif isinstance(value, tuple):
+                tupleTransformer = lambda v: (
+                    _ElementPlaceholder(v.uid) if isinstance(v, NetworkElement) else v
+                )
+                state[key] = tuple(map(tupleTransformer, value))
         return state
 
 
@@ -1575,6 +1580,11 @@ class Network:
             for key, value in state.items():
                 if isinstance(value, _ElementPlaceholder):
                     state[key] = self.elements[value.uid]
+                elif isinstance(value, tuple):
+                    tupleTransformer = lambda v: (
+                        self.elements[v.uid] if isinstance(v, _ElementPlaceholder) else v
+                    )
+                    state[key] = tuple(map(tupleTransformer, value))
 
         proxy = weakref.proxy(self)
         for elem in self.elements.values():
