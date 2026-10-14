@@ -76,6 +76,9 @@ def test_lht_network_structure(name, n_lanes, oneway):
     assert len(network.roads) == 1
     assert len(network.lanes) == n_lanes
     assert road.is1Way is oneway
+    for sec in road.sections:
+        for od_id, lane_sec in sec.lanesByOpenDriveID.items():
+            assert lane_sec.isForward is (od_id > 0)
 
     for lane in network.lanes:
         assert not lane.polygon.is_empty
@@ -89,7 +92,8 @@ def test_lht_network_structure(name, n_lanes, oneway):
 @pytest.mark.parametrize("name", ALL_MAPS)
 def test_centerlines_follow_traffic_flow(name):
     """Centerlines point with traffic; orientation matches flow at lane midpoints."""
-    road = load(name).roads[0]
+    network = load(name)
+    road = network.roads[0]
 
     for group in carriageway_groups(road):
         deltas = [centerline_delta(lane) for lane in group.lanes]
