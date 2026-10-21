@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Compact one-way LHT T-junction: 16 m arms, 8 m junction box, line geometry only. -->
+<OpenDRIVE>
+  <header revMajor="1" revMinor="6" name="lht_t_junction" version="1.0" date="2026-10-20"/>
+  <road name="West Arm" length="16.0000000000" id="1" junction="-1" rule="LHT">
+    <link>
+      <successor elementType="junction" elementId="100" contactPoint="start"/>
+    </link>
+    <type s="0" type="town">
+      <speed max="50" unit="km/h"/>
+    </type>
+    <planView>
+      <geometry s="0" x="0.0000000000" y="0.0000000000" hdg="0.0000000000" length="16.0000000000">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <successor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="East Arm" length="16.0000000000" id="2" junction="-1" rule="LHT">
+    <link>
+      <predecessor elementType="junction" elementId="100" contactPoint="end"/>
+    </link>
+    <type s="0" type="town">
+      <speed max="50" unit="km/h"/>
+    </type>
+    <planView>
+      <geometry s="0" x="24.0000000000" y="0.0000000000" hdg="0.0000000000" length="16.0000000000">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="North Arm" length="16.0000000000" id="3" junction="-1" rule="LHT">
+    <link>
+      <predecessor elementType="junction" elementId="100" contactPoint="end"/>
+    </link>
+    <type s="0" type="town">
+      <speed max="50" unit="km/h"/>
+    </type>
+    <planView>
+      <geometry s="0" x="20.0000000000" y="3.5000000000" hdg="1.5707963268" length="16.0000000000">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="West to East" length="8.0000000000" id="10" junction="100" rule="LHT">
+    <link>
+      <predecessor elementType="road" elementId="1" contactPoint="end"/>
+      <successor elementType="road" elementId="2" contactPoint="start"/>
+    </link>
+    <type s="0" type="town">
+      <speed max="50" unit="km/h"/>
+    </type>
+    <planView>
+      <geometry s="0" x="16.0000000000" y="1.7500000000" hdg="0.0000000000" length="8.0000000000">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+            <successor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="West to North" length="2.8504385627" id="11" junction="100" rule="LHT">
+    <link>
+      <predecessor elementType="road" elementId="1" contactPoint="end"/>
+      <successor elementType="road" elementId="3" contactPoint="start"/>
+    </link>
+    <type s="0" type="town">
+      <speed max="50" unit="km/h"/>
+    </type>
+    <planView>
+      <geometry s="0" x="16.0000000000" y="1.7500000000" hdg="0.6610431689" length="2.8504385627">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+            <successor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <junction name="T" id="100">
+    <connection id="0" incomingRoad="1" connectingRoad="10" contactPoint="start">
+      <laneLink from="1" to="1"/>
+    </connection>
+    <connection id="1" incomingRoad="1" connectingRoad="11" contactPoint="start">
+      <laneLink from="1" to="1"/>
+    </connection>
+  </junction>
+</OpenDRIVE>
