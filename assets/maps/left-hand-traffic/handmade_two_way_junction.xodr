@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Compact two-way LHT through-junction: 16 m arms, 8 m connectors. -->
+<OpenDRIVE>
+  <header revMajor="1" revMinor="6" name="lht_two_way_junction" version="1.0" date="2026-10-20"/>
+  <road name="West Arm" length="16.0" id="1" junction="-1" rule="LHT">
+    <link>
+      <successor elementType="junction" elementId="100" contactPoint="start"/>
+    </link>
+    <type s="0" type="town"><speed max="50" unit="km/h"/></type>
+    <planView>
+      <geometry s="0" x="0" y="0" hdg="0" length="16.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <successor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+          <link>
+            <successor id="-1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="East Arm" length="16.0" id="2" junction="-1" rule="LHT">
+    <link>
+      <predecessor elementType="junction" elementId="100" contactPoint="end"/>
+    </link>
+    <type s="0" type="town"><speed max="50" unit="km/h"/></type>
+    <planView>
+      <geometry s="0" x="24.0" y="0" hdg="0" length="16.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+          <link>
+            <predecessor id="-1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="Eastbound Connector" length="8.0" id="10" junction="100" rule="LHT">
+    <link>
+      <predecessor elementType="road" elementId="1" contactPoint="end"/>
+      <successor elementType="road" elementId="2" contactPoint="start"/>
+    </link>
+    <type s="0" type="town"><speed max="50" unit="km/h"/></type>
+    <planView>
+      <geometry s="0" x="16.0" y="1.75" hdg="0" length="8.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="1"/>
+            <successor id="1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <road name="Westbound Connector" length="8.0" id="11" junction="100" rule="LHT">
+    <link>
+      <predecessor elementType="road" elementId="2" contactPoint="start"/>
+      <successor elementType="road" elementId="1" contactPoint="end"/>
+    </link>
+    <type s="0" type="town"><speed max="50" unit="km/h"/></type>
+    <planView>
+      <geometry s="0" x="24.0" y="-1.75" hdg="3.141592653589793" length="8.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneOffset s="0" a="0" b="0" c="0" d="0"/>
+      <laneSection s="0">
+        <left>
+          <lane id="1" type="driving" level="false">
+          <link>
+            <predecessor id="-1"/>
+            <successor id="-1"/>
+          </link>
+            <width sOffset="0" a="3.5" b="0" c="0" d="0"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+      </laneSection>
+    </lanes>
+  </road>
+  <junction name="Through" id="100">
+    <connection id="0" incomingRoad="1" connectingRoad="10" contactPoint="start">
+      <laneLink from="1" to="1"/>
+    </connection>
+    <connection id="1" incomingRoad="2" connectingRoad="11" contactPoint="start">
+      <laneLink from="-1" to="1"/>
+    </connection>
+  </junction>
+</OpenDRIVE>

@@ -3,12 +3,12 @@
      +1 (median / faster) 80 km/h, +2 (middle) 60 km/h, +3 (curb / slower) 40 km/h. -->
 <OpenDRIVE>
   <header revMajor="1" revMinor="6" name="lht_three_lane_speeds" version="1.0" date="2026-07-19"/>
-  <road name="LHT Three Lane Speeds" length="50.0" id="2" junction="-1" rule="LHT">
+  <road name="LHT Three Lane Speeds" length="20.0" id="2" junction="-1" rule="LHT">
     <type s="0" type="town">
       <speed max="60" unit="km/h"/>
     </type>
     <planView>
-      <geometry s="0" x="0" y="0" hdg="0" length="50.0">
+      <geometry s="0" x="0" y="0" hdg="0" length="20.0">
         <line/>
       </geometry>
     </planView>

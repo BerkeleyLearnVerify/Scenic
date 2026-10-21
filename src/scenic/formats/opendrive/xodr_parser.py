@@ -472,8 +472,9 @@ class Road:
                 dy = ref_points[closest_idx + 1][1] - ref_points[closest_idx][1]
                 dx = ref_points[closest_idx + 1][0] - ref_points[closest_idx][0]
                 heading = math.atan2(dy, dx)
-                # Right lanes have negative lane_id.
-                # Flip heading if drive_on_right XOR right lane.
+                # Reference-line heading is along +s. Flip it for lanes that travel
+                # against +s: LHT negative IDs, RHT positive IDs. Same condition as
+                # `not is_forward` in toScenicRoad.
                 if self.drive_on_right != (lane_id < 0):
                     heading += math.pi
                 # Heading 0 is defined differently between OpenDrive and Scenic(?)
@@ -1002,9 +1003,10 @@ class Road:
                 rightID = id_ - 1 if id_ < 0 else id_ + 1
                 lane._laneToLeft = lanes.get(leftID)
                 lane._laneToRight = lanes.get(rightID)
-                # In LHT, the lane on the right (closest to the reference line)
-                # is the faster lane. In RHT, the lane on the left (furthest from the
-                # reference line) is the faster lane.
+                # OpenDRIVE left is toward the reference line in both LHT and RHT,
+                # so that inner lane is always the faster lane. OpenDRIVE right is
+                # toward the curb (slower). Neighbors across the median that travel
+                # the opposite way are not faster/slower; those links are cleared below.
                 lane._fasterLane = lane._laneToLeft
                 lane._slowerLane = lane._laneToRight
                 if lane._fasterLane and lane._fasterLane.isForward != lane.isForward:

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Left-hand traffic two-way road.
-     +s travel on left (positive IDs); -s travel on right (negative IDs).
-     Each direction has a faster median lane and a slower curb lane. -->
+<!-- Left-hand traffic two-way corridor along +Y (OpenDRIVE hdg = pi/2).
+     Same lane layout as handmade_two_way, rotated so centerlines are not east-west.
+     +s is north; LHT positive IDs travel north, negative IDs travel south. -->
 <OpenDRIVE>
-  <header revMajor="1" revMinor="6" name="lht_two_way" version="1.0" date="2026-07-19"/>
-  <road name="LHT Two Way" length="60.0" id="3" junction="-1" rule="LHT">
+  <header revMajor="1" revMinor="6" name="lht_north_south" version="1.0" date="2026-10-14"/>
+  <road name="LHT North South" length="20.0" id="4" junction="-1" rule="LHT">
     <type s="0" type="town">
       <speed max="50" unit="km/h"/>
     </type>
     <planView>
-      <geometry s="0" x="0" y="0" hdg="0" length="60.0">
+      <geometry s="0" x="0" y="0" hdg="1.5707963267948966" length="20.0">
         <line/>
       </geometry>
     </planView>
